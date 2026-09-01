@@ -155,6 +155,13 @@ object MediaPlaybackManager {
         }
         requestAudioFocus()
         registerNoisyReceiver()
+        val ctx = appContext
+        if (ctx != null) {
+            val allowBackground = com.azokle.search.data.PreferencesManager(ctx).isBackgroundAudioEnabled()
+            if (allowBackground) {
+                MediaPlaybackService.start(ctx)
+            }
+        }
     }
 
     fun onSessionDeactivated(tabId: String) {

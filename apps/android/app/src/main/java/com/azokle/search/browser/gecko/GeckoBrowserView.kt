@@ -136,6 +136,9 @@ fun GeckoBrowserView(
 
                 // Initialize native media subsystem & bridge GeckoView MediaSession
                 MediaPlaybackManager.initialize(ctx)
+                try {
+                    session.settings.suspendMediaWhenInactive = false
+                } catch (e: Exception) {}
                 val tabSessionId = session.hashCode().toString()
                 session.mediaSessionDelegate = GeckoMediaSessionBridge(
                     tabId = tabSessionId,

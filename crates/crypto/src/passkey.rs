@@ -87,3 +87,10 @@ impl SovereignPasskey {
         Ok(signature.to_der().as_bytes().to_vec())
     }
 }
+
+impl Drop for SovereignPasskey {
+    fn drop(&mut self) {
+        use zeroize::Zeroize;
+        self.private_key_bytes.zeroize();
+    }
+}

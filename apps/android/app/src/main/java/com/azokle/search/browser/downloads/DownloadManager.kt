@@ -43,37 +43,18 @@ object DownloadManager {
     }
 
     /**
-     * Extracts or sanitizes a safe filename from a URL or Content-Disposition.
+     * Extracts or sanitizes a safe filename from a URL or Content-Disposition using native Rust engine.
      */
     fun extractFilename(urlStr: String, contentDisposition: String? = null, mimeType: String? = null): String {
-        try {
-            if (!contentDisposition.isNullOrBlank()) {
-                val match = Regex("filename\\*?=['\"]?(?:UTF-8'')?([^;'\"]+)", RegexOption.IGNORE_CASE).find(contentDisposition)
-                if (match != null) {
-                    val name = match.groupValues[1].trim()
-                    if (name.isNotBlank()) return sanitizeFilename(name)
-                }
-            }
-
-            val uri = Uri.parse(urlStr)
-            val lastSegment = uri.lastPathSegment
-            if (!lastSegment.isNullOrBlank()) {
-                val clean = lastSegment.substringBefore('?').substringBefore('#')
-                if (clean.contains('.')) return sanitizeFilename(clean)
-            }
-
-            val ext = if (!mimeType.isNullOrBlank()) {
-                MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "bin"
-            } else "bin"
-
-            return "download_${System.currentTimeMillis()}.$ext"
-        } catch (e: Exception) {
-            return "download_${System.currentTimeMillis()}.bin"
-        }
+        return com.azokle.search.core.AzokleCore.extractDownloadFilename(
+            urlStr,
+            contentDisposition ?: "",
+            mimeType ?: ""
+        )
     }
 
     private fun sanitizeFilename(name: String): String {
-        return name.replace(Regex("[^a-zA-Z0-9._-]"), "_").take(128)
+        return name.replace("..", "_").replace(Regex("[^a-zA-Z0-9._-]"), "_").take(128)
     }
 
     /**

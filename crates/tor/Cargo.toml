@@ -12,3 +12,4 @@ serde_json.workspace = true
 parking_lot.workspace = true
 thiserror.workspace = true
 log.workspace = true
+url.workspace = true

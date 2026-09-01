@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TorDomainSchema",
+  "definitions": {
+    "TorStatus": {
+      "type": "string",
+      "enum": ["Disabled", "Starting", "Connected", "Rotating", "Error"]
+    },
+    "TorStartCommand": {
+      "type": "object",
+      "required": ["socks_port", "control_port"],
+      "properties": {
+        "socks_port": { "type": "integer", "minimum": 1024, "maximum": 65535 },
+        "control_port": { "type": "integer", "minimum": 1024, "maximum": 65535 }
+      }
+    },
+    "TorCircuitRotateCommand": {
+      "type": "object",
+      "required": ["control_port"],
+      "properties": {
+        "control_port": { "type": "integer" },
+        "auth_cookie": { "type": "string" }
+      }
+    }
+  }
+}

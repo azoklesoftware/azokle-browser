@@ -17,6 +17,11 @@ import androidx.media.app.NotificationCompat.MediaStyle
 import com.azokle.search.MainActivity
 import com.azokle.search.R
 
+/**
+ * Enterprise-Grade Android Foreground Media Playback Service.
+ * Holds CPU WakeLock and Low-Latency WifiLock to guarantee continuous
+ * background video and audio streaming when the screen is locked or switching apps.
+ */
 class MediaPlaybackService : Service() {
 
     private var wakeLock: PowerManager.WakeLock? = null
@@ -88,7 +93,7 @@ class MediaPlaybackService : Service() {
                     "Azokle:MediaPlaybackWakeLock"
                 )?.apply {
                     setReferenceCounted(false)
-                    acquire(6 * 60 * 60 * 1000L) // 6 hours safety timeout
+                    acquire(8 * 60 * 60 * 1000L) // 8 hours safety timeout
                 }
             }
         } catch (e: Exception) {
@@ -132,7 +137,6 @@ class MediaPlaybackService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         try {
-            // Unconditionally fulfill Android's startForeground requirement
             val currentNotification = buildNotification()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
@@ -277,8 +281,8 @@ class MediaPlaybackService : Service() {
                 return
             }
 
-            val isPlaying = state.status == PlaybackStatus.PLAYING
-            if (isPlaying) {
+            val isStreaming = state.status == PlaybackStatus.PLAYING || state.status == PlaybackStatus.BUFFERING
+            if (isStreaming) {
                 acquireLocks()
             } else {
                 releaseLocks()

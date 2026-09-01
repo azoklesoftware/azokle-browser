@@ -21,6 +21,9 @@ class GeckoMediaSessionBridge(
 
     override fun onActivated(session: GeckoSession, mediaSession: MediaSession) {
         activeMediaSession = mediaSession
+        try {
+            session.settings.suspendMediaWhenInactive = false
+        } catch (e: Exception) {}
         mainHandler.post {
             MediaPlaybackManager.onSessionActivated(
                 tabId = tabId,
@@ -44,6 +47,10 @@ class GeckoMediaSessionBridge(
         mediaSession: MediaSession,
         meta: MediaSession.Metadata
     ) {
+        try {
+            session.settings.suspendMediaWhenInactive = false
+        } catch (e: Exception) {}
+
         val title = meta.title ?: ""
         val artist = meta.artist ?: ""
         val album = meta.album ?: ""
@@ -107,6 +114,9 @@ class GeckoMediaSessionBridge(
     }
 
     override fun onPlay(session: GeckoSession, mediaSession: MediaSession) {
+        try {
+            session.settings.suspendMediaWhenInactive = false
+        } catch (e: Exception) {}
         mainHandler.post {
             MediaPlaybackManager.updatePlaybackStatus(tabId, PlaybackStatus.PLAYING)
         }

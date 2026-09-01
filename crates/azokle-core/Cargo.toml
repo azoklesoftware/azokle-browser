@@ -11,6 +11,15 @@ azokle-adblock = { path = "../adblock" }
 azokle-tracker-block = { path = "../tracker-block" }
 azokle-crypto = { path = "../crypto" }
 azokle-security = { path = "../security" }
+azokle-tor = { path = "../tor" }
+azokle-permissions = { path = "../permissions" }
+azokle-history = { path = "../history" }
+azokle-bookmarks = { path = "../bookmarks" }
+azokle-downloads = { path = "../downloads" }
+azokle-storage = { path = "../storage" }
+azokle-networking = { path = "../networking" }
+azokle-tabs = { path = "../tabs" }
+azokle-protocol = { path = "../protocol" }
 serde.workspace = true
 serde_json.workspace = true
 log.workspace = true

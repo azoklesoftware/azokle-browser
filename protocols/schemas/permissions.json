@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PermissionsDomainSchema",
+  "definitions": {
+    "PermissionType": {
+      "type": "string",
+      "enum": ["CAMERA", "MICROPHONE", "GEOLOCATION", "NOTIFICATIONS", "AUTOPLAY", "STORAGE_ACCESS", "MEDIA_KEY_SYSTEM", "MIDI", "CLIPBOARD"]
+    },
+    "PermissionState": {
+      "type": "string",
+      "enum": ["ALLOW", "BLOCK", "PROMPT"]
+    },
+    "PermissionSetCommand": {
+      "type": "object",
+      "required": ["origin", "permission_type", "state", "is_private"],
+      "properties": {
+        "origin": { "type": "string" },
+        "permission_type": { "$ref": "#/definitions/PermissionType" },
+        "state": { "$ref": "#/definitions/PermissionState" },
+        "is_private": { "type": "boolean" }
+      }
+    }
+  }
+}

@@ -3,15 +3,15 @@ package com.azokle.search.browser.permissions
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
+import com.azokle.search.core.AzokleCore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONObject
-import java.util.concurrent.ConcurrentHashMap
 
 /**
- * High-Performance, Privacy-Centric Website Permission Manager for Azokle Search.
- * Modeled after Brave & Firefox Quantum site permission architectures.
+ * Sovereign Website Permission Manager for Azokle Search.
+ * Powered directly by the native Rust Permissions Core (crates/permissions).
  * Strictly adheres to W3C WebAppSec Origin isolation with ephemeral Private/Tor browsing sandboxing.
  */
 class SitePermissionsManager private constructor(context: Context) {
@@ -20,12 +20,6 @@ class SitePermissionsManager private constructor(context: Context) {
         PREFS_NAME,
         Context.MODE_PRIVATE
     )
-
-    // Persistent Cache: Origin (e.g. "https://example.com:8443") -> (PermissionType -> PermissionState)
-    private val memoryCache = ConcurrentHashMap<String, MutableMap<SitePermissionType, SitePermissionState>>()
-
-    // Volatile Ephemeral Cache for Incognito / Tor Tabs (NEVER persisted to disk)
-    private val privateMemoryCache = ConcurrentHashMap<String, MutableMap<SitePermissionType, SitePermissionState>>()
 
     private val _updatesFlow = MutableStateFlow(System.currentTimeMillis())
     val updatesFlow: StateFlow<Long> = _updatesFlow.asStateFlow()
@@ -37,27 +31,7 @@ class SitePermissionsManager private constructor(context: Context) {
     private fun loadFromDisk() {
         try {
             val jsonStr = prefs.getString(KEY_SITE_PERMISSIONS, null) ?: return
-            val root = JSONObject(jsonStr)
-            val keys = root.keys()
-            while (keys.hasNext()) {
-                val originKey = keys.next()
-                val siteObj = root.optJSONObject(originKey) ?: continue
-                val canonicalKey = canonicalizeOrigin(originKey)
-                val map = mutableMapOf<SitePermissionType, SitePermissionState>()
-                for (type in SitePermissionType.values()) {
-                    if (siteObj.has(type.name)) {
-                        val stateStr = siteObj.getString(type.name)
-                        try {
-                            map[type] = SitePermissionState.valueOf(stateStr)
-                        } catch (e: Exception) {
-                            // Ignore invalid entries
-                        }
-                    }
-                }
-                if (map.isNotEmpty()) {
-                    memoryCache[canonicalKey] = map
-                }
-            }
+            AzokleCore.importPermissionsJson(jsonStr)
         } catch (e: Exception) {
             android.util.Log.e("SitePermissionsManager", "Failed to load permissions: ${e.message}")
         }
@@ -65,16 +39,8 @@ class SitePermissionsManager private constructor(context: Context) {
 
     private fun saveToDisk() {
         try {
-            val root = JSONObject()
-            for ((origin, map) in memoryCache) {
-                if (map.isEmpty()) continue
-                val siteObj = JSONObject()
-                for ((type, state) in map) {
-                    siteObj.put(type.name, state.name)
-                }
-                root.put(origin, siteObj)
-            }
-            prefs.edit().putString(KEY_SITE_PERMISSIONS, root.toString()).apply()
+            val jsonStr = AzokleCore.exportPermissionsJson()
+            prefs.edit().putString(KEY_SITE_PERMISSIONS, jsonStr).apply()
             _updatesFlow.value = System.currentTimeMillis()
         } catch (e: Exception) {
             android.util.Log.e("SitePermissionsManager", "Failed to save permissions: ${e.message}")
@@ -83,8 +49,6 @@ class SitePermissionsManager private constructor(context: Context) {
 
     /**
      * Strict W3C Origin Canonicalization: Scheme + Host + Port
-     * Preserves port isolation (e.g. https://domain.com:8443 vs https://domain.com:443)
-     * Normalizes default ports (:80 on http, :443 on https).
      */
     fun canonicalizeOrigin(rawHostOrUri: String): String {
         if (rawHostOrUri.isBlank() || rawHostOrUri.equals("about:blank", ignoreCase = true)) {
@@ -142,13 +106,12 @@ class SitePermissionsManager private constructor(context: Context) {
         val origin = canonicalizeOrigin(originOrUri)
         if (origin.isBlank()) return getGlobalDefault(type)
 
-        if (isPrivate) {
-            privateMemoryCache[origin]?.get(type)?.let { return it }
+        val rustStateStr = AzokleCore.getSitePermission(origin, type.name, isPrivate)
+        return when (rustStateStr.uppercase()) {
+            "ALLOW", "GRANTED" -> SitePermissionState.ALLOW
+            "BLOCK", "DENIED" -> SitePermissionState.BLOCK
+            else -> getGlobalDefault(type)
         }
-
-        memoryCache[origin]?.get(type)?.let { return it }
-
-        return getGlobalDefault(type)
     }
 
     fun setPermission(
@@ -160,67 +123,61 @@ class SitePermissionsManager private constructor(context: Context) {
         val origin = canonicalizeOrigin(originOrUri)
         if (origin.isBlank()) return
 
-        if (isPrivate) {
-            // Ephemeral in-memory store for Private / Tor mode (Zero disk footprint)
-            val map = privateMemoryCache.getOrPut(origin) { mutableMapOf() }
-            map[type] = state
+        AzokleCore.setSitePermission(origin, type.name, state.name, isPrivate)
+        if (!isPrivate) {
+            saveToDisk()
+        } else {
             _updatesFlow.value = System.currentTimeMillis()
-            return
         }
-
-        val map = memoryCache.getOrPut(origin) { mutableMapOf() }
-        map[type] = state
-        saveToDisk()
     }
 
     fun removePermission(originOrUri: String, type: SitePermissionType, isPrivate: Boolean = false) {
-        val origin = canonicalizeOrigin(originOrUri)
-        if (isPrivate) {
-            privateMemoryCache[origin]?.let { map ->
-                map.remove(type)
-                if (map.isEmpty()) privateMemoryCache.remove(origin)
-                _updatesFlow.value = System.currentTimeMillis()
-            }
-            return
-        }
-
-        val map = memoryCache[origin] ?: return
-        map.remove(type)
-        if (map.isEmpty()) {
-            memoryCache.remove(origin)
-        }
-        saveToDisk()
+        setPermission(originOrUri, type, SitePermissionState.ASK, isPrivate)
     }
 
     fun clearHostPermissions(originOrUri: String) {
         val origin = canonicalizeOrigin(originOrUri)
-        memoryCache.remove(origin)
-        privateMemoryCache.remove(origin)
+        AzokleCore.clearPermissionsForOrigin(origin)
         saveToDisk()
     }
 
     fun clearPrivatePermissions() {
-        privateMemoryCache.clear()
         _updatesFlow.value = System.currentTimeMillis()
     }
 
     fun clearAllPermissions() {
-        memoryCache.clear()
-        privateMemoryCache.clear()
+        AzokleCore.clearAllPermissions()
         saveToDisk()
     }
 
     fun getHostPermissions(originOrUri: String, isPrivate: Boolean = false): Map<SitePermissionType, SitePermissionState> {
         val origin = canonicalizeOrigin(originOrUri)
-        if (isPrivate) {
-            val privateMap = privateMemoryCache[origin]?.toMap()
-            if (!privateMap.isNullOrEmpty()) return privateMap
+        val json = AzokleCore.getSitePermissionsJson(origin, isPrivate)
+        val result = mutableMapOf<SitePermissionType, SitePermissionState>()
+        for (type in SitePermissionType.values()) {
+            if (json.has(type.name)) {
+                val stateStr = json.optString(type.name, "ASK")
+                val state = when (stateStr.uppercase()) {
+                    "ALLOW" -> SitePermissionState.ALLOW
+                    "BLOCK" -> SitePermissionState.BLOCK
+                    else -> SitePermissionState.ASK
+                }
+                result[type] = state
+            }
         }
-        return memoryCache[origin]?.toMap() ?: emptyMap()
+        return result
     }
 
     fun getAllCustomizedSites(): Map<String, Map<SitePermissionType, SitePermissionState>> {
-        return memoryCache.mapValues { it.value.toMap() }
+        val origins = AzokleCore.getAllCustomizedPermissionOrigins()
+        val result = mutableMapOf<String, Map<SitePermissionType, SitePermissionState>>()
+        for (origin in origins) {
+            val perms = getHostPermissions(origin, isPrivate = false)
+            if (perms.isNotEmpty()) {
+                result[origin] = perms
+            }
+        }
+        return result
     }
 
     fun getGlobalDefault(type: SitePermissionType): SitePermissionState {

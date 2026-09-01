@@ -307,15 +307,19 @@ object TabManager {
         val context = appContext ?: return
         scope.launch {
             try {
-                // Strictly persist ONLY non-private, non-Tor tabs
+                // Synchronize tabs into native Rust core
                 val persistableTabs = _tabs.value.filter { !it.isPrivate && !it.isTor }
-                val root = JSONObject()
                 val array = JSONArray()
                 persistableTabs.forEach { tab ->
                     array.put(tab.toJson())
                 }
-                root.put("activeTabId", _activeTabId.value ?: "")
-                root.put("tabs", array)
+                com.azokle.search.core.AzokleCore.tabImportPersistentJson(array.toString())
+
+                val jsonStr = com.azokle.search.core.AzokleCore.tabExportPersistentJson()
+                val root = JSONObject().apply {
+                    put("activeTabId", _activeTabId.value ?: "")
+                    put("tabs", JSONArray(jsonStr))
+                }
 
                 withContext(Dispatchers.IO) {
                     val atomicFile = AtomicFile(File(context.filesDir, TABS_STATE_FILE))
@@ -334,6 +338,7 @@ object TabManager {
     }
 
     fun closeEphemeralAndTorTabs() {
+        com.azokle.search.core.AzokleCore.tabClosePrivateSessions()
         val ephemeralTabs = _tabs.value.filter { it.isPrivate || it.isTor }
         for (tab in ephemeralTabs) {
             sessionMap.remove(tab.id)?.let {
@@ -360,13 +365,15 @@ object TabManager {
                 val array = root.optJSONArray("tabs") ?: return@launch
                 val savedActiveId = root.optString("activeTabId", "")
 
+                // Import into Rust
+                com.azokle.search.core.AzokleCore.tabImportPersistentJson(array.toString())
+
                 val restoredTabs = mutableListOf<TabSession>()
                 for (i in 0 until array.length()) {
                     val tabJson = array.getJSONObject(i)
                     restoredTabs.add(TabSession.fromJson(tabJson))
                 }
 
-                // Strictly ensure only standard non-Tor, non-private tabs are ever loaded into memory
                 val standardPersisted = restoredTabs.filter { !it.isPrivate && !it.isTor }
                 if (standardPersisted.isNotEmpty()) {
                     _tabs.value = standardPersisted

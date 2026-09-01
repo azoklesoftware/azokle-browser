@@ -70,6 +70,78 @@ object AzokleCore {
     private external fun getShieldStats(): String
     private external fun recordBlock(host: String, categoryId: Int)
 
+    // Tor & DNS JNI Native Declarations
+    private external fun torProbeSocks5(port: Int, timeoutMs: Int): Boolean
+    private external fun torRotateCircuit(controlPort: Int, auth: String): String
+    private external fun torVerifyExitIp(socksPort: Int): String
+    private external fun torResolveUrl(rawInput: String, searchQueryUrl: String): String
+    private external fun torIsOnionUrl(url: String): Boolean
+    private external fun dnsGetDoHEndpoint(providerName: String): String
+
+    // Website Permissions JNI Declarations
+    private external fun permSet(origin: String, permType: String, state: String, isPrivate: Boolean)
+    private external fun permGet(origin: String, permType: String, isPrivate: Boolean): String
+    private external fun permClearForOrigin(origin: String)
+    private external fun permClearAll()
+    private external fun permGetSitePermissionsJson(origin: String, isPrivate: Boolean): String
+    private external fun permGetAllCustomizedOrigins(): String
+    private external fun permExportJson(): String
+    private external fun permImportJson(jsonData: String): Int
+
+    // Browsing History JNI Declarations
+    private external fun historyRecordVisit(title: String, url: String, isPrivate: Boolean): String
+    private external fun historySearch(query: String, limit: Int): String
+    private external fun historyGetRecent(limit: Int, offset: Int): String
+    private external fun historyDeleteEntry(id: String): Boolean
+    private external fun historyDeleteUrl(url: String): Boolean
+    private external fun historyClearRange(fromMs: Long, toMs: Long): Int
+    private external fun historyClearAll()
+    private external fun historyExportJson(): String
+    private external fun historyImportJson(jsonData: String): Int
+
+    // Bookmarks JNI Declarations
+    private external fun bookmarkAdd(title: String, url: String, parentFolder: String, faviconUrl: String): String
+    private external fun bookmarkCreateFolder(title: String, parentFolder: String): String
+    private external fun bookmarkRemove(id: String): Boolean
+    private external fun bookmarkIsBookmarked(url: String): Boolean
+    private external fun bookmarkGetAll(): String
+    private external fun bookmarkSearch(query: String): String
+    private external fun bookmarkExportJson(): String
+    private external fun bookmarkImportJson(jsonData: String): Int
+
+    // Downloads JNI Declarations
+    private external fun downloadCreate(url: String, filename: String, destinationPath: String, totalBytes: Long, mimeType: String): String
+    private external fun downloadUpdateProgress(id: String, downloadedBytes: Long, totalBytes: Long, state: String): Boolean
+    private external fun downloadGetAll(): String
+    private external fun downloadDeleteItem(id: String): Boolean
+    private external fun downloadExtractFilename(url: String, contentDisposition: String, mimeType: String): String
+
+    // Settings JNI Declarations
+    private external fun settingsGetSearchEngine(): String
+    private external fun settingsSetSearchEngine(engine: String)
+    private external fun settingsGetRecentSearches(): String
+    private external fun settingsAddRecentSearch(query: String)
+    private external fun settingsClearRecentSearches()
+    private external fun settingsExportJson(): String
+    private external fun settingsImportJson(jsonData: String): Boolean
+
+    // Tab Management JNI Declarations
+    private external fun tabOpen(url: String, title: String, isPrivate: Boolean, isTor: Boolean, groupId: String, groupTitle: String): String
+    private external fun tabClose(id: String): String
+    private external fun tabRestoreRecentlyClosed(): String
+    private external fun tabGetActive(): String
+    private external fun tabSetActive(id: String): Boolean
+    private external fun tabUpdate(id: String, url: String, title: String): Boolean
+    private external fun tabGetAll(): String
+    private external fun tabCloseAll(includePrivate: Boolean)
+    private external fun tabClosePrivate()
+    private external fun tabAutoGroupByDomain()
+    private external fun tabExportJson(): String
+    private external fun tabImportJson(jsonData: String): Int
+
+    // Universal Protocol Dispatcher JNI Declaration
+    private external fun protocolDispatch(envelopeJson: String): String
+
     /**
      * Initializes the Rust Engine by asynchronously streaming all packaged AdBlock,
      * Tracker, Telemetry, Fingerprinting, and Cosmetic rules from assets.
@@ -255,6 +327,512 @@ object AzokleCore {
             }
         } catch (e: Exception) {
             // Ignore
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Tor & DNS Native Rust Subsystem API
+    // -------------------------------------------------------------------------
+
+    fun probeTorSocks5(port: Int = 9050, timeoutMs: Int = 1000): Boolean {
+        if (!isNativeLoaded) return false
+        return try {
+            torProbeSocks5(port, timeoutMs)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun rotateTorCircuit(controlPort: Int = 9051, auth: String = ""): Pair<Boolean, String> {
+        if (!isNativeLoaded) return Pair(false, "Native core not loaded")
+        return try {
+            val jsonStr = torRotateCircuit(controlPort, auth)
+            val json = JSONObject(jsonStr)
+            val success = json.optBoolean("success", false)
+            val circuitId = json.optString("circuit_id", "")
+            val err = json.optString("error", "Rotation failed")
+            if (success) Pair(true, circuitId) else Pair(false, err)
+        } catch (e: Exception) {
+            Pair(false, e.message ?: "Rotation exception")
+        }
+    }
+
+    fun verifyTorExit(socksPort: Int = 9050): JSONObject? {
+        if (!isNativeLoaded) return null
+        return try {
+            val jsonStr = torVerifyExitIp(socksPort)
+            val json = JSONObject(jsonStr)
+            if (json.optBoolean("success", false)) json else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun resolveTorUrl(rawInput: String, searchEngineQueryUrl: String = "https://duckduckgo.com/?q="): String {
+        if (!isNativeLoaded || rawInput.isBlank()) return rawInput
+        return try {
+            torResolveUrl(rawInput, searchEngineQueryUrl)
+        } catch (e: Exception) {
+            rawInput
+        }
+    }
+
+    fun isOnionUrl(url: String): Boolean {
+        if (!isNativeLoaded || url.isBlank()) return url.contains(".onion", ignoreCase = true)
+        return try {
+            torIsOnionUrl(url)
+        } catch (e: Exception) {
+            url.contains(".onion", ignoreCase = true)
+        }
+    }
+
+    fun getDoHEndpoint(providerName: String): String {
+        if (!isNativeLoaded) return "https://cloudflare-dns.com/dns-query"
+        return try {
+            dnsGetDoHEndpoint(providerName)
+        } catch (e: Exception) {
+            "https://cloudflare-dns.com/dns-query"
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Website Permissions Subsystem API
+    // -------------------------------------------------------------------------
+
+    fun setSitePermission(origin: String, permType: String, state: String, isPrivate: Boolean = false) {
+        if (!isNativeLoaded || origin.isBlank()) return
+        try {
+            permSet(origin, permType, state, isPrivate)
+        } catch (e: Exception) {}
+    }
+
+    fun getSitePermission(origin: String, permType: String, isPrivate: Boolean = false): String {
+        if (!isNativeLoaded || origin.isBlank()) return "PROMPT"
+        return try {
+            permGet(origin, permType, isPrivate)
+        } catch (e: Exception) {
+            "PROMPT"
+        }
+    }
+
+    fun clearPermissionsForOrigin(origin: String) {
+        if (!isNativeLoaded || origin.isBlank()) return
+        try {
+            permClearForOrigin(origin)
+        } catch (e: Exception) {}
+    }
+
+    fun clearAllPermissions() {
+        if (!isNativeLoaded) return
+        try {
+            permClearAll()
+        } catch (e: Exception) {}
+    }
+
+    fun getSitePermissionsJson(origin: String, isPrivate: Boolean = false): JSONObject {
+        if (!isNativeLoaded || origin.isBlank()) return JSONObject()
+        return try {
+            JSONObject(permGetSitePermissionsJson(origin, isPrivate))
+        } catch (e: Exception) {
+            JSONObject()
+        }
+    }
+
+    fun getAllCustomizedPermissionOrigins(): List<String> {
+        if (!isNativeLoaded) return emptyList()
+        return try {
+            val arr = org.json.JSONArray(permGetAllCustomizedOrigins())
+            List(arr.length()) { arr.getString(it) }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun exportPermissionsJson(): String {
+        if (!isNativeLoaded) return "{}"
+        return try {
+            permExportJson()
+        } catch (e: Exception) {
+            "{}"
+        }
+    }
+
+    fun importPermissionsJson(jsonData: String): Int {
+        if (!isNativeLoaded || jsonData.isBlank()) return 0
+        return try {
+            permImportJson(jsonData)
+        } catch (e: Exception) {
+            0
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Browsing History Subsystem API
+    // -------------------------------------------------------------------------
+
+    fun recordHistoryVisit(title: String, url: String, isPrivate: Boolean = false): JSONObject? {
+        if (!isNativeLoaded || url.isBlank() || isPrivate) return null
+        return try {
+            val res = historyRecordVisit(title, url, isPrivate)
+            if (res != "null") JSONObject(res) else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun searchHistory(query: String, limit: Int = 20): org.json.JSONArray {
+        if (!isNativeLoaded) return org.json.JSONArray()
+        return try {
+            org.json.JSONArray(historySearch(query, limit))
+        } catch (e: Exception) {
+            org.json.JSONArray()
+        }
+    }
+
+    fun getRecentHistory(limit: Int = 50, offset: Int = 0): org.json.JSONArray {
+        if (!isNativeLoaded) return org.json.JSONArray()
+        return try {
+            org.json.JSONArray(historyGetRecent(limit, offset))
+        } catch (e: Exception) {
+            org.json.JSONArray()
+        }
+    }
+
+    fun deleteHistoryEntry(id: String): Boolean {
+        if (!isNativeLoaded || id.isBlank()) return false
+        return try {
+            historyDeleteEntry(id)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun deleteHistoryUrl(url: String): Boolean {
+        if (!isNativeLoaded || url.isBlank()) return false
+        return try {
+            historyDeleteUrl(url)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun clearHistoryRange(fromMs: Long, toMs: Long): Int {
+        if (!isNativeLoaded) return 0
+        return try {
+            historyClearRange(fromMs, toMs)
+        } catch (e: Exception) {
+            0
+        }
+    }
+
+    fun clearAllHistory() {
+        if (!isNativeLoaded) return
+        try {
+            historyClearAll()
+        } catch (e: Exception) {}
+    }
+
+    fun exportHistoryJson(): String {
+        if (!isNativeLoaded) return "[]"
+        return try {
+            historyExportJson()
+        } catch (e: Exception) {
+            "[]"
+        }
+    }
+
+    fun importHistoryJson(jsonData: String): Int {
+        if (!isNativeLoaded || jsonData.isBlank()) return 0
+        return try {
+            historyImportJson(jsonData)
+        } catch (e: Exception) {
+            0
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Bookmarks Subsystem API
+    // -------------------------------------------------------------------------
+
+    fun addBookmark(title: String, url: String, parentFolder: String = "", faviconUrl: String = ""): JSONObject? {
+        if (!isNativeLoaded || url.isBlank()) return null
+        return try {
+            val res = bookmarkAdd(title, url, parentFolder, faviconUrl)
+            if (res != "null") JSONObject(res) else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun isUrlBookmarked(url: String): Boolean {
+        if (!isNativeLoaded || url.isBlank()) return false
+        return try {
+            bookmarkIsBookmarked(url)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun getAllBookmarks(): org.json.JSONArray {
+        if (!isNativeLoaded) return org.json.JSONArray()
+        return try {
+            org.json.JSONArray(bookmarkGetAll())
+        } catch (e: Exception) {
+            org.json.JSONArray()
+        }
+    }
+
+    fun searchBookmarks(query: String): org.json.JSONArray {
+        if (!isNativeLoaded) return org.json.JSONArray()
+        return try {
+            org.json.JSONArray(bookmarkSearch(query))
+        } catch (e: Exception) {
+            org.json.JSONArray()
+        }
+    }
+
+    fun removeBookmark(id: String): Boolean {
+        if (!isNativeLoaded || id.isBlank()) return false
+        return try {
+            bookmarkRemove(id)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Downloads Subsystem API
+    // -------------------------------------------------------------------------
+
+    fun createDownload(
+        url: String,
+        filename: String = "",
+        destinationPath: String = "",
+        totalBytes: Long = 0L,
+        mimeType: String = ""
+    ): JSONObject? {
+        if (!isNativeLoaded || url.isBlank()) return null
+        return try {
+            val res = downloadCreate(url, filename, destinationPath, totalBytes, mimeType)
+            if (res != "null") JSONObject(res) else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun updateDownloadProgress(
+        id: String,
+        downloadedBytes: Long,
+        totalBytes: Long,
+        state: String
+    ): Boolean {
+        if (!isNativeLoaded || id.isBlank()) return false
+        return try {
+            downloadUpdateProgress(id, downloadedBytes, totalBytes, state)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun getAllDownloads(): org.json.JSONArray {
+        if (!isNativeLoaded) return org.json.JSONArray()
+        return try {
+            org.json.JSONArray(downloadGetAll())
+        } catch (e: Exception) {
+            org.json.JSONArray()
+        }
+    }
+
+    fun deleteDownload(id: String): Boolean {
+        if (!isNativeLoaded || id.isBlank()) return false
+        return try {
+            downloadDeleteItem(id)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun extractDownloadFilename(url: String, contentDisposition: String = "", mimeType: String = ""): String {
+        if (!isNativeLoaded) return "download_${System.currentTimeMillis()}.bin"
+        return try {
+            downloadExtractFilename(url, contentDisposition, mimeType)
+        } catch (e: Exception) {
+            "download_${System.currentTimeMillis()}.bin"
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Settings Subsystem API
+    // -------------------------------------------------------------------------
+
+    fun getSearchEngine(): String {
+        if (!isNativeLoaded) return "duckduckgo"
+        return try {
+            settingsGetSearchEngine()
+        } catch (e: Exception) {
+            "duckduckgo"
+        }
+    }
+
+    fun setSearchEngine(engine: String) {
+        if (!isNativeLoaded || engine.isBlank()) return
+        try {
+            settingsSetSearchEngine(engine)
+        } catch (e: Exception) {}
+    }
+
+    fun getRecentSearchQueries(): List<String> {
+        if (!isNativeLoaded) return emptyList()
+        return try {
+            val arr = org.json.JSONArray(settingsGetRecentSearches())
+            List(arr.length()) { arr.getString(it) }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun addRecentSearchQuery(query: String) {
+        if (!isNativeLoaded || query.isBlank()) return
+        try {
+            settingsAddRecentSearch(query)
+        } catch (e: Exception) {}
+    }
+
+    fun clearRecentSearchQueries() {
+        if (!isNativeLoaded) return
+        try {
+            settingsClearRecentSearches()
+        } catch (e: Exception) {}
+    }
+
+    // -------------------------------------------------------------------------
+    // Tab Management Subsystem API
+    // -------------------------------------------------------------------------
+
+    fun tabOpenSession(
+        url: String,
+        title: String = "New Tab",
+        isPrivate: Boolean = false,
+        isTor: Boolean = false,
+        groupId: String = "",
+        groupTitle: String = ""
+    ): JSONObject? {
+        if (!isNativeLoaded) return null
+        return try {
+            val res = tabOpen(url, title, isPrivate, isTor, groupId, groupTitle)
+            if (res != "null") JSONObject(res) else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun tabCloseSession(id: String): JSONObject? {
+        if (!isNativeLoaded || id.isBlank()) return null
+        return try {
+            val res = tabClose(id)
+            if (res != "null") JSONObject(res) else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun tabRestoreClosed(): JSONObject? {
+        if (!isNativeLoaded) return null
+        return try {
+            val res = tabRestoreRecentlyClosed()
+            if (res != "null") JSONObject(res) else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun tabGetActiveSession(): JSONObject? {
+        if (!isNativeLoaded) return null
+        return try {
+            val res = tabGetActive()
+            if (res != "null") JSONObject(res) else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun tabSetActiveSession(id: String): Boolean {
+        if (!isNativeLoaded || id.isBlank()) return false
+        return try {
+            tabSetActive(id)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun tabUpdateSession(id: String, url: String, title: String): Boolean {
+        if (!isNativeLoaded || id.isBlank()) return false
+        return try {
+            tabUpdate(id, url, title)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun tabGetAllSessions(): org.json.JSONArray {
+        if (!isNativeLoaded) return org.json.JSONArray()
+        return try {
+            org.json.JSONArray(tabGetAll())
+        } catch (e: Exception) {
+            org.json.JSONArray()
+        }
+    }
+
+    fun tabCloseAllSessions(includePrivate: Boolean = false) {
+        if (!isNativeLoaded) return
+        try {
+            tabCloseAll(includePrivate)
+        } catch (e: Exception) {}
+    }
+
+    fun tabClosePrivateSessions() {
+        if (!isNativeLoaded) return
+        try {
+            tabClosePrivate()
+        } catch (e: Exception) {}
+    }
+
+    fun tabAutoGroupDomains() {
+        if (!isNativeLoaded) return
+        try {
+            tabAutoGroupByDomain()
+        } catch (e: Exception) {}
+    }
+
+    fun tabExportPersistentJson(): String {
+        if (!isNativeLoaded) return "[]"
+        return try {
+            tabExportJson()
+        } catch (e: Exception) {
+            "[]"
+        }
+    }
+
+    fun tabImportPersistentJson(jsonData: String): Int {
+        if (!isNativeLoaded || jsonData.isBlank()) return 0
+        return try {
+            tabImportJson(jsonData)
+        } catch (e: Exception) {
+            0
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Universal Protocol Dispatcher API
+    // -------------------------------------------------------------------------
+
+    fun dispatchProtocol(envelopeJson: String): JSONObject {
+        if (!isNativeLoaded || envelopeJson.isBlank()) return JSONObject()
+        return try {
+            val responseJson = protocolDispatch(envelopeJson)
+            JSONObject(responseJson)
+        } catch (e: Exception) {
+            JSONObject()
         }
     }
 }

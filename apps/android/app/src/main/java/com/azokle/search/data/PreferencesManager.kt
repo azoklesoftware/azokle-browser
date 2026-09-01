@@ -39,7 +39,22 @@ class PreferencesManager(private val context: Context) {
                     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
                 )
             } catch (e: Exception) {
-                context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+                try {
+                    context.deleteSharedPreferences(PREFS_FILE)
+                    val masterKey = MasterKey.Builder(context)
+                        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                        .build()
+
+                    EncryptedSharedPreferences.create(
+                        context,
+                        PREFS_FILE,
+                        masterKey,
+                        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                    )
+                } catch (e2: Exception) {
+                    context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+                }
             }
 
             // Seamless migration from legacy unencrypted SharedPreferences

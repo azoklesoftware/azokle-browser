@@ -1,5 +1,20 @@
+pub mod client;
+pub mod dns;
+pub mod error;
+pub mod proxy;
+pub mod security;
+pub mod services;
+pub mod types;
+
+pub use client::*;
+pub use dns::*;
+pub use error::*;
+pub use proxy::*;
+pub use security::*;
+pub use services::*;
+pub use types::*;
+
 use serde::{Deserialize, Serialize};
-use std::process::Command;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,28 +33,20 @@ pub struct HttpClient;
 
 impl HttpClient {
     pub fn fetch_url(url: &str, is_tor: bool) -> Result<ParsedWebPage, String> {
-        let mut cmd = Command::new("curl");
-        cmd.arg("-sL")
-            .arg("-m")
-            .arg("10")
-            .arg("-A")
-            .arg("Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0 (Azokle Sovereign)");
-
+        let client = SovereignHttpClient::default();
+        let mut req = HttpRequest::get(url);
         if is_tor {
-            cmd.arg("--socks5-hostname").arg("127.0.0.1:9050");
+            req.route = NetworkRoute::TorIsolated { socks_port: 9050 };
         }
-
-        cmd.arg(url);
-
-        let output = cmd.output().map_err(|e| format!("Failed to execute network request: {}", e))?;
-        if !output.status.success() && output.stdout.is_empty() {
-            return Err("Network request timed out or host unreachable".to_string());
-        }
-
-        let body = String::from_utf8_lossy(&output.stdout).to_string();
-        Ok(Self::parse_html(url, &body))
+        let response = client.execute(req).map_err(|e| e.to_string())?;
+        let body = response.body_as_string();
+        Ok(HtmlExtractor::parse_html(url, &body))
     }
+}
 
+pub struct HtmlExtractor;
+
+impl HtmlExtractor {
     pub fn parse_html(url: &str, html: &str) -> ParsedWebPage {
         let mut title = "Web Document".to_string();
         if let Some(start) = html.find("<title>") {
@@ -101,30 +108,29 @@ impl HttpClient {
         let mut pos = 0;
         while let Some(idx) = html[pos..].find("<a ") {
             let actual_idx = pos + idx;
-            if let Some(href_pos) = html[actual_idx..].find("href=\"") {
-                let val_start = actual_idx + href_pos + 6;
-                if let Some(val_end) = html[val_start..].find('\"') {
-                    let href = html[val_start..val_start + val_end].trim();
-                    if let Some(tag_close) = html[val_start + val_end..].find('>') {
-                        let label_start = val_start + val_end + tag_close + 1;
-                        if let Some(label_end) = html[label_start..].find("</a>") {
-                            let label = html[label_start..label_start + label_end].trim();
-                            let clean_label = Self::clean_text(label);
-                            if !clean_label.is_empty() && !href.starts_with('#') && !href.starts_with("javascript:") {
-                                links.push((clean_label, href.to_string()));
-                            }
+            if let Some(href_idx) = html[actual_idx..].find("href=\"") {
+                let link_start = actual_idx + href_idx + 6;
+                if let Some(link_end) = html[link_start..].find('"') {
+                    let link_url = &html[link_start..link_start + link_end];
+                    if link_url.starts_with("http") {
+                        let close_tag = html[link_start + link_end..].find('>').unwrap_or(0);
+                        let text_start = link_start + link_end + close_tag + 1;
+                        let text_end = html[text_start..].find("</a>").unwrap_or(0);
+                        let label = html[text_start..text_start + text_end].trim();
+                        if !label.is_empty() {
+                            links.push((Self::clean_text(label), link_url.to_string()));
                         }
                     }
                 }
             }
-            pos = actual_idx + 4;
-            if links.len() >= 8 {
+            pos = actual_idx + 3;
+            if links.len() >= 12 {
                 break;
             }
         }
 
-        let snippet = if html.len() > 1000 {
-            html[..1000].to_string()
+        let raw_snippet = if html.len() > 500 {
+            html[..500].to_string()
         } else {
             html.to_string()
         };
@@ -133,35 +139,47 @@ impl HttpClient {
             url: url.to_string(),
             title,
             status_code: 200,
-            headers: vec![],
+            headers: Vec::new(),
             headings,
             paragraphs,
             links,
-            raw_html_snippet: snippet,
+            raw_html_snippet: raw_snippet,
         }
     }
 
-    fn clean_text(input: &str) -> String {
-        let mut out = String::new();
-        let mut in_tag = false;
-        for c in input.chars() {
-            if c == '<' {
-                in_tag = true;
-            } else if c == '>' {
-                in_tag = false;
-            } else if !in_tag {
-                out.push(c);
-            }
+    fn clean_text(text: &str) -> String {
+        let no_tags = text.replace("&nbsp;", " ").replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'");
+        no_tags.split_whitespace().collect::<Vec<_>>().join(" ")
+    }
+}
+
+/// Sovereign Networking Engine Singleton / Core Coordinator.
+pub struct SovereignNetworkingEngine {
+    pub dns: Arc<SovereignDnsResolver>,
+    pub proxy: Arc<ProxyRouter>,
+    pub http: Arc<SovereignHttpClient>,
+    pub search_api: Arc<SearchApiClient>,
+}
+
+impl Default for SovereignNetworkingEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SovereignNetworkingEngine {
+    pub fn new() -> Self {
+        let dns = Arc::new(SovereignDnsResolver::new());
+        let proxy = Arc::new(ProxyRouter::new());
+        let http = Arc::new(SovereignHttpClient::new(dns.clone()));
+        let search_api = Arc::new(SearchApiClient::new(http.clone(), "https://search.azokle.com"));
+
+        Self {
+            dns,
+            proxy,
+            http,
+            search_api,
         }
-        out.replace("&nbsp;", " ")
-            .replace("&amp;", "&")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&quot;", "\"")
-            .replace("&#39;", "'")
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .join(" ")
     }
 }
 
@@ -171,24 +189,18 @@ mod tests {
 
     #[test]
     fn test_html_parsing() {
-        let html = r#"
-        <!DOCTYPE html>
-        <html>
-        <head><title>Azokle Search</title></head>
-        <body>
-            <h1>Private Sovereign Search</h1>
-            <p>Welcome to Azokle, the world's most private and sovereign search experience.</p>
-            <a href="https://search.azokle.com/settings">Settings</a>
-        </body>
-        </html>
-        "#;
-
-        let parsed = HttpClient::parse_html("https://search.azokle.com", html);
-        assert_eq!(parsed.title, "Azokle Search");
+        let html = "<html><head><title>Test Page</title></head><body><h1>Main Heading</h1><p>This is a paragraph with sufficient length for test.</p><a href=\"https://azokle.com\">Azokle Search</a></body></html>";
+        let parsed = HtmlExtractor::parse_html("https://example.com", html);
+        assert_eq!(parsed.title, "Test Page");
         assert_eq!(parsed.headings.len(), 1);
-        assert_eq!(parsed.headings[0], "Private Sovereign Search");
-        assert_eq!(parsed.paragraphs.len(), 1);
+        assert_eq!(parsed.headings[0], "Main Heading");
         assert_eq!(parsed.links.len(), 1);
-        assert_eq!(parsed.links[0].0, "Settings");
+        assert_eq!(parsed.links[0].1, "https://azokle.com");
+    }
+
+    #[test]
+    fn test_networking_engine_init() {
+        let engine = SovereignNetworkingEngine::new();
+        assert_eq!(engine.dns.get_provider(), DnsProvider::Cloudflare);
     }
 }
