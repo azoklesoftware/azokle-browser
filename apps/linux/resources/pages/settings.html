@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Settings - Azokle Browser</title>
+  <link rel="stylesheet" href="pages.css">
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-brand">⚙️ Azokle Settings</div>
+    <div class="sidebar-item active" onclick="showSection('privacy')">🛡️ Shield & Privacy</div>
+    <div class="sidebar-item" onclick="showSection('search')">🔍 Search Engine</div>
+    <div class="sidebar-item" onclick="showSection('passkeys')">🔑 Passkeys & Vault</div>
+    <div class="sidebar-item" onclick="showSection('tor')">🧅 Tor Onion Routing</div>
+    <div class="sidebar-item" onclick="showSection('appearance')">🎨 Appearance</div>
+    <div class="sidebar-item" onclick="showSection('clear')">🗑️ Clear Browsing Data</div>
+  </div>
+
+  <div class="content">
+    <h1 class="page-title" id="section-heading">Shield & Privacy Protection</h1>
+
+    <!-- Privacy Section -->
+    <div id="section-privacy" class="settings-section">
+      <div class="section-title">Trackers & Ads Blocking</div>
+      <div class="card">
+        <div class="card-row">
+          <div class="row-info">
+            <div class="row-title">Global Azokle Shield</div>
+            <div class="row-desc">Block known ads, analytics scripts, and third-party trackers automatically</div>
+          </div>
+          <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+        </div>
+
+        <div class="card-row">
+          <div class="row-info">
+            <div class="row-title">Aggressive Tracker Stripping</div>
+            <div class="row-desc">Remove tracking query parameters from all navigations</div>
+          </div>
+          <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+        </div>
+
+        <div class="card-row">
+          <div class="row-info">
+            <div class="row-title">Fingerprinting Protection</div>
+            <div class="row-desc">Resist canvas, audio, and WebGL hardware fingerprinting</div>
+          </div>
+          <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+        </div>
+
+        <div class="card-row">
+          <div class="row-info">
+            <div class="row-title">Cryptomining Defense</div>
+            <div class="row-desc">Block in-browser cryptocurrency mining scripts</div>
+          </div>
+          <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search Engine Section -->
+    <div id="section-search" class="settings-section" style="display: none;">
+      <div class="section-title">Default Search Provider</div>
+      <div class="card">
+        <div class="card-row">
+          <div class="row-info">
+            <div class="row-title">Search Engine used in Address Bar</div>
+            <div class="row-desc">Choose your default sovereign privacy search provider</div>
+          </div>
+          <select class="select-input">
+            <option selected>Azokle Sovereign Search (Private)</option>
+            <option>DuckDuckGo (.onion)</option>
+            <option>Google Search</option>
+            <option>Brave Search</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Passkeys Section -->
+    <div id="section-passkeys" class="settings-section" style="display: none;">
+      <div class="section-title">Registered Sovereign Passkeys (FIDO2 / WebAuthn)</div>
+      <div class="card">
+        <div class="card-row">
+          <div class="row-info">
+            <div class="row-title">search.azokle.com</div>
+            <div class="row-desc">User: developer | ECDSA P-256 Key</div>
+          </div>
+          <button class="btn btn-danger" onclick="alert('Passkey Revoked')">Revoke</button>
+        </div>
+        <div class="card-row">
+          <div class="row-info">
+            <div class="row-title">github.com</div>
+            <div class="row-desc">User: azokledeveloper | ECDSA P-256 Key</div>
+          </div>
+          <button class="btn btn-danger" onclick="alert('Passkey Revoked')">Revoke</button>
+        </div>
+        <div class="card-row">
+          <div class="row-info">
+            <div class="row-title">proton.me</div>
+            <div class="row-desc">User: sovereign_user | ECDSA P-256 Key</div>
+          </div>
+          <button class="btn btn-danger" onclick="alert('Passkey Revoked')">Revoke</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tor Section -->
+    <div id="section-tor" class="settings-section" style="display: none;">
+      <div class="section-title">Onion Routing Network</div>
+      <div class="card">
+        <div class="card-row">
+          <div class="row-info">
+            <div class="row-title">Automatic .onion Redirection</div>
+            <div class="row-desc">Route all hidden service addresses through sovereign 3-hop Tor circuits</div>
+          </div>
+          <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+        </div>
+        <div class="card-row">
+          <div class="row-info">
+            <div class="row-title">Tor Circuit Rotation Timer</div>
+            <div class="row-desc">Establish fresh cryptographic identities periodically</div>
+          </div>
+          <select class="select-input">
+            <option>Every 10 Minutes</option>
+            <option selected>Every 30 Minutes</option>
+            <option>Every 1 Hour</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clear Browsing Data Section -->
+    <div id="section-clear" class="settings-section" style="display: none;">
+      <div class="section-title">Clear Browsing Data</div>
+      <div class="card">
+        <div class="card-row">
+          <div class="row-info">
+            <div class="row-title">Browsing History & Cache</div>
+            <div class="row-desc">Clear visited websites, cached images, and temporary files</div>
+          </div>
+          <button class="btn btn-danger" onclick="alert('Browsing data cleared!')">Clear Data</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showSection(name) {
+      document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+
+      document.querySelectorAll('.settings-section').forEach(el => el.style.display = 'none');
+      const target = document.getElementById('section-' + name);
+      if (target) target.style.display = 'block';
+
+      const titles = {
+        privacy: 'Shield & Privacy Protection',
+        search: 'Search Engine Preferences',
+        passkeys: 'Sovereign Passkey Vault',
+        tor: 'Tor Onion Network Routing',
+        appearance: 'Appearance & UI Theme',
+        clear: 'Clear Browsing Data'
+      };
+      document.getElementById('section-heading').textContent = titles[name] || 'Settings';
+    }
+  </script>
+</body>
+</html>

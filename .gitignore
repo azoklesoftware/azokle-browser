@@ -1,0 +1,31 @@
+# Rust build artifacts
+/target/
+Cargo.lock
+
+# C++ / CMake build artifacts
+/build_linux/
+build/
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Android build artifacts
+.gradle/
+local.properties
+.idea/
+*.iml
+.DS_Store
+apps/android/.gradle/
+apps/android/build/
+apps/android/app/build/
+apps/android/.cxx/
+
+# Logs & temp
+*.log
+scratch/

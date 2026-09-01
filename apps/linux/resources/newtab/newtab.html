@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Tab</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="bg-layer"></div>
+  <div class="vignette"></div>
+
+  <!-- Top Shortcuts Bar -->
+  <div class="top-bar">
+    <a href="https://search.azokle.com/"><span class="top-bar-icon">⚡</span> Azokle AI</a>
+    <a href="https://github.com/"><span class="top-bar-icon">🐙</span> GitHub</a>
+    <a href="https://rust-lang.org"><span class="top-bar-icon">🦀</span> Rust</a>
+    <a href="https://proton.me"><span class="top-bar-icon">✉</span> Proton</a>
+    <a href="https://cloudflare.com"><span class="top-bar-icon">☁</span> Cloudflare</a>
+    <a href="https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion"><span class="top-bar-icon">🧅</span> Tor Onion</a>
+  </div>
+
+  <!-- Center Dashboard -->
+  <div class="center-container">
+    <!-- Horizontal Speed Dial Row (Exact Brave Style) -->
+    <div class="speed-dial-row">
+      <a href="https://search.azokle.com/" class="site-item">
+        <div class="site-tile" style="color: #38bdf8; background: #1a2233;">A</div>
+        <div class="site-label">Azokle</div>
+      </a>
+
+      <a href="https://github.com/azokle-browser" class="site-item">
+        <div class="site-tile" style="color: #ffffff; background: #1e2430;">🐙</div>
+        <div class="site-label">GitHub</div>
+      </a>
+
+      <a href="https://amazon.com" class="site-item">
+        <div class="site-tile" style="color: #f59e0b; background: #26201a;">🛒</div>
+        <div class="site-label">Amazon</div>
+      </a>
+
+      <a href="https://google.com" class="site-item">
+        <div class="site-tile" style="color: #ea4335; background: #241c1c;">G</div>
+        <div class="site-label">Google</div>
+      </a>
+
+      <a href="https://play.google.com" class="site-item">
+        <div class="site-tile" style="color: #34a853; background: #19241e;">▶</div>
+        <div class="site-label">Google Play</div>
+      </a>
+
+      <a href="https://cloudflare.com" class="site-item">
+        <div class="site-tile" style="color: #f97316; background: #291f1a;">☁</div>
+        <div class="site-label">Cloudflare</div>
+      </a>
+
+      <a href="https://gemini.google.com" class="site-item">
+        <div class="site-tile" style="color: #818cf8; background: #1e1e2d;">✨</div>
+        <div class="site-label">Gemini</div>
+      </a>
+
+      <a href="https://vercel.com" class="site-item">
+        <div class="site-tile" style="color: #ffffff; background: #181b22;">▲</div>
+        <div class="site-label">Vercel</div>
+      </a>
+
+      <a href="https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion" class="site-item">
+        <div class="site-tile" style="color: #c084fc; background: #24192d;">🧅</div>
+        <div class="site-label">DuckDuckGo</div>
+      </a>
+    </div>
+
+    <!-- Floating Search Bar -->
+    <div class="search-wrapper">
+      <form id="search-form" class="search-box">
+        <div class="search-shield-icon">🛡️</div>
+        <input 
+          type="text" 
+          id="search-input" 
+          class="search-input" 
+          placeholder="Ask anything, find anything..." 
+          autocomplete="off" 
+          autofocus
+        />
+      </form>
+    </div>
+  </div>
+
+  <!-- Bottom Bar with Exact Brave Stats Layout -->
+  <div class="bottom-bar">
+    <!-- Bottom Left Stats Card -->
+    <div class="stats-card">
+      <div class="stats-title">STATS</div>
+      <div class="stats-row">
+        <div class="stat-group">
+          <div class="stat-num" id="stat-trackers">93,481</div>
+          <div class="stat-text">Trackers & ads blocked</div>
+        </div>
+
+        <div class="stat-group">
+          <div class="stat-num green" id="stat-bandwidth">2.9 GB</div>
+          <div class="stat-text">Bandwidth saved</div>
+        </div>
+
+        <div class="stat-group">
+          <div class="stat-num" id="stat-time">1.3 Hours</div>
+          <div class="stat-text">Time saved</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Right Sovereign Passkey & Vault Widget -->
+    <div class="right-widget">
+      <button class="widget-icon-btn">🔑</button>
+      <div class="widget-info">
+        <div class="widget-title">Sovereign Passkey Vault</div>
+        <div class="widget-subtitle">Hardware-Backed FIDO2 & Tor Routing</div>
+      </div>
+      <button class="widget-action-btn" onclick="window.location.href='https://search.azokle.com/'">Open Vault</button>
+    </div>
+  </div>
+
+  <div class="photo-credit">Photo: Sovereign Architecture | Azokle Core Engine</div>
+
+  <script src="app.js"></script>
+</body>
+</html>

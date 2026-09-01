@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bookmarks - Azokle Browser</title>
+  <link rel="stylesheet" href="pages.css">
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-brand">★ Bookmarks</div>
+    <div class="sidebar-item active">All Bookmarks</div>
+    <div class="sidebar-item" onclick="window.location.href='history.html'">📜 History</div>
+    <div class="sidebar-item" onclick="window.location.href='downloads.html'">📥 Downloads</div>
+    <div class="sidebar-item" onclick="window.location.href='settings.html'">⚙️ Settings</div>
+  </div>
+
+  <div class="content">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h1 class="page-title" style="margin-bottom: 0;">Bookmarks Manager</h1>
+      <button class="btn" onclick="alert('Bookmark Added')">+ Add Bookmark</button>
+    </div>
+
+    <input type="text" class="search-filter" placeholder="Search bookmarks..." oninput="filterBookmarks(this.value)">
+
+    <div class="item-list" id="bookmark-list">
+      <div class="list-card">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="font-size: 20px; color: #38bdf8;">⚡</div>
+          <div>
+            <div style="font-weight: 600; color: #f8fafc;">Azokle Search</div>
+            <div style="font-size: 12px; color: #38bdf8;">https://search.azokle.com/</div>
+          </div>
+        </div>
+        <button class="btn" onclick="window.location.href='https://search.azokle.com/'">Open</button>
+      </div>
+
+      <div class="list-card">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="font-size: 20px; color: #ffffff;">🐙</div>
+          <div>
+            <div style="font-weight: 600; color: #f8fafc;">GitHub</div>
+            <div style="font-size: 12px; color: #38bdf8;">https://github.com/</div>
+          </div>
+        </div>
+        <button class="btn" onclick="window.location.href='https://github.com/'">Open</button>
+      </div>
+
+      <div class="list-card">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="font-size: 20px; color: #f97316;">🦀</div>
+          <div>
+            <div style="font-weight: 600; color: #f8fafc;">Rust Programming Language</div>
+            <div style="font-size: 12px; color: #38bdf8;">https://rust-lang.org/</div>
+          </div>
+        </div>
+        <button class="btn" onclick="window.location.href='https://rust-lang.org/'">Open</button>
+      </div>
+
+      <div class="list-card">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="font-size: 20px; color: #c084fc;">🧅</div>
+          <div>
+            <div style="font-weight: 600; color: #f8fafc;">DuckDuckGo (.onion)</div>
+            <div style="font-size: 12px; color: #c084fc;">https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/</div>
+          </div>
+        </div>
+        <button class="btn" onclick="window.location.href='https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/'">Open</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function filterBookmarks(query) {
+      const q = query.toLowerCase();
+      document.querySelectorAll('.list-card').forEach(card => {
+        card.style.display = card.innerText.toLowerCase().includes(q) ? 'flex' : 'none';
+      });
+    }
+  </script>
+</body>
+</html>

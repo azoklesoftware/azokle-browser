@@ -1,0 +1,70 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="160dp"
+    android:height="160dp"
+    android:viewportWidth="160"
+    android:viewportHeight="160">
+
+    <!-- Circular Ambient Glow Container -->
+    <path
+        android:pathData="M80,10 A70,70 0 1,0 80,150 A70,70 0 1,0 80,10 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="80"
+                android:centerY="80"
+                android:gradientRadius="70"
+                android:type="radial">
+                <item android:color="#1A38BDF8" android:offset="0.0" />
+                <item android:color="#0D818CF8" android:offset="0.6" />
+                <item android:color="#00000000" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Outer Rounded Hexagonal Shield Ring -->
+    <path
+        android:pathData="M80,26 L124,46 L124,96 L80,134 L36,96 L36,46 Z"
+        android:strokeWidth="2.5"
+        android:strokeColor="#38BDF8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="36"
+                android:startY="26"
+                android:endX="124"
+                android:endY="134"
+                android:type="linear">
+                <item android:color="#1F1E293B" android:offset="0.0" />
+                <item android:color="#2E0F172A" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Azokle Quantum Search Core Emblem -->
+    <path
+        android:pathData="M80,48 L108,62 L108,98 L80,116 L52,98 L52,62 Z"
+        android:strokeWidth="1.5"
+        android:strokeColor="#818CF8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="52"
+                android:startY="48"
+                android:endX="108"
+                android:endY="116"
+                android:type="linear">
+                <item android:color="#FF38BDF8" android:offset="0.0" />
+                <item android:color="#FF818CF8" android:offset="0.5" />
+                <item android:color="#FFC084FC" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Inner Keyhole / Sovereign Node Beam -->
+    <path
+        android:pathData="M80,68 A7,7 0 1,0 80,82 A7,7 0 1,0 80,68 Z M76,82 L84,82 L86,96 L74,96 Z"
+        android:fillColor="#FFFFFF" />
+
+</vector>

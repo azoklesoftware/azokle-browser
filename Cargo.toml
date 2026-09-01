@@ -1,0 +1,48 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/common",
+    "crates/adblock",
+    "crates/tracker-block",
+    "crates/crypto",
+    "crates/security",
+    "crates/storage",
+    "crates/bookmarks",
+    "crates/history",
+    "crates/tor",
+    "crates/permissions",
+    "crates/search",
+    "crates/downloads",
+    "crates/sync",
+    "crates/networking",
+    "crates/azokle-core",
+    "bindings/kotlin",
+    "bindings/c"
+]
+
+[workspace.package]
+version = "1.0.0"
+edition = "2021"
+authors = ["Azokle Developer <dev@azokle.com>"]
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.38", features = ["full"] }
+aho-corasick = "1.1"
+regex = "1.10"
+url = "2.5"
+argon2 = { version = "0.5", features = ["std", "rand"] }
+chacha20poly1305 = "0.10"
+p256 = { version = "0.13", features = ["ecdsa"] }
+ciborium = "0.2"
+base64ct = { version = "1.8", features = ["alloc"] }
+sha2 = "0.10"
+rand = "0.8"
+zeroize = { version = "1.8", features = ["derive"] }
+thiserror = "1.0"
+log = "0.4"
+android_logger = "0.13"
+jni = "0.21"
+parking_lot = "0.12"

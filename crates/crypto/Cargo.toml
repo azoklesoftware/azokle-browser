@@ -1,0 +1,20 @@
+[package]
+name = "azokle-crypto"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+argon2.workspace = true
+chacha20poly1305.workspace = true
+p256.workspace = true
+ciborium.workspace = true
+base64ct.workspace = true
+sha2.workspace = true
+rand.workspace = true
+zeroize.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+log.workspace = true

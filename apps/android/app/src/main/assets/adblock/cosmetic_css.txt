@@ -1,0 +1,28 @@
+/* Azokle Privacy & AdBlock Cosmetic Filtering Stylesheet */
+.ad, .ads, .advert, .advertisement, .ad-banner, .ad-container, .ad-wrapper,
+.ad-slot, .ad-box, .ad-unit, .adsbygoogle, .google-ad, .dfp-ad,
+[id^="google_ads_"], [id^="div-gpt-ad"], [class*="sponsored-post"],
+[class*="promoted-tweet"], [data-ad-unit], [data-ad-slot],
+.taboola, .outbrain, .mgid-widget, .criteo-ad, .revcontent,
+.cookie-banner, .cookie-consent, .cookie-notice, #onetrust-banner-sdk,
+#cookie-law-info-bar, .cmp-container, #qc-cmp2-container,
+.push-notification-prompt, .onesignal-bell-launcher,
+/* YouTube Dedicated Ad Selectors */
+ytd-promoted-video-renderer, ytd-display-ad-renderer,
+ytd-statement-banner-renderer, ytd-in-feed-ad-layout-renderer,
+ytd-banner-promo-renderer, #player-ads, #masthead-ad,
+.ytp-ad-overlay-container, ytm-promoted-sparkles-web-renderer,
+ytm-promoted-video-renderer, .ad-container, #ad-iframe,
+.ad-showing, .video-ads, .ytp-ad-module, .ytp-ad-image-overlay,
+.ytp-ad-text-overlay, ytm-companion-ad-renderer,
+ytd-action-companion-ad-renderer, ytd-ad-slot-renderer,
+ytm-ad-slot-renderer, ytd-in-feed-ad-layout-renderer,
+ytd-carousel-ad-renderer, #ad_creative_3, .sparkles-light-cta,
+ytm-promoted-sparkles-text-search-web-renderer {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}

@@ -1,0 +1,20 @@
+[package]
+name = "azokle-jni"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+name = "azokle_core"
+crate-type = ["cdylib"]
+doctest = false
+
+[dependencies]
+azokle-core = { path = "../../crates/azokle-core" }
+jni.workspace = true
+log.workspace = true
+android_logger.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+url.workspace = true

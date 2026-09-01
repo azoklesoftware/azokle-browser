@@ -1,0 +1,47 @@
+{
+  "manifest_version": 2,
+  "name": "Azokle Shield Core",
+  "version": "5.3",
+  "description": "Native Sovereign Ad Blocker, Anti-Fingerprinting, Tor SOCKS5 Proxy & YouTube V3 Annihilator",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "shield@azokle.com",
+      "strict_min_version": "68.0"
+    }
+  },
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "exclude_matches": [
+        "*://*.azokle.com/*",
+        "*://azokle.com/*",
+        "*://*.cloudflare.com/*",
+        "*://cloudflare.com/*",
+        "*://*.challenges.cloudflare.com/*",
+        "*://challenges.cloudflare.com/*",
+        "*://*.cloudflareinsights.com/*",
+        "*://*.hcaptcha.com/*",
+        "*://*.recaptcha.net/*"
+      ],
+      "js": ["content.js"],
+      "css": ["cosmetic.css"],
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_about_blank": true
+    }
+  ],
+  "incognito": "spanning",
+  "permissions": [
+    "<all_urls>",
+    "webRequest",
+    "webRequestBlocking",
+    "proxy",
+    "storage",
+    "nativeMessaging",
+    "nativeMessagingFromContent",
+    "geckoViewAddons"
+  ]
+}

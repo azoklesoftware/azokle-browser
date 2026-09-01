@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>History - Azokle Browser</title>
+  <link rel="stylesheet" href="pages.css">
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-brand">📜 History</div>
+    <div class="sidebar-item active">Browsing History</div>
+    <div class="sidebar-item" onclick="window.location.href='settings.html'">⚙️ Settings</div>
+    <div class="sidebar-item" onclick="window.location.href='downloads.html'">📥 Downloads</div>
+  </div>
+
+  <div class="content">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h1 class="page-title" style="margin-bottom: 0;">Browsing History</h1>
+      <button class="btn btn-danger" onclick="document.getElementById('history-list').innerHTML = '<p style=\'color:#94a3b8;\'>History cleared.</p>'">Clear All History</button>
+    </div>
+
+    <input type="text" class="search-filter" placeholder="Search browsing history..." oninput="filterHistory(this.value)">
+
+    <div class="item-list" id="history-list">
+      <div class="list-card">
+        <div>
+          <div style="font-weight: 600; color: #f8fafc;">Azokle Search - Privacy First Search Engine</div>
+          <div style="font-size: 12px; color: #38bdf8;">https://search.azokle.com/</div>
+        </div>
+        <div style="font-size: 12px; color: #64748b;">12:35 PM</div>
+      </div>
+
+      <div class="list-card">
+        <div>
+          <div style="font-weight: 600; color: #f8fafc;">GitHub - Sovereign Systems Architecture</div>
+          <div style="font-size: 12px; color: #38bdf8;">https://github.com/azokle-browser</div>
+        </div>
+        <div style="font-size: 12px; color: #64748b;">12:20 PM</div>
+      </div>
+
+      <div class="list-card">
+        <div>
+          <div style="font-weight: 600; color: #f8fafc;">Rust Programming Language</div>
+          <div style="font-size: 12px; color: #38bdf8;">https://rust-lang.org</div>
+        </div>
+        <div style="font-size: 12px; color: #64748b;">11:45 AM</div>
+      </div>
+
+      <div class="list-card">
+        <div>
+          <div style="font-weight: 600; color: #f8fafc;">DuckDuckGo Hidden Service</div>
+          <div style="font-size: 12px; color: #c084fc;">https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion</div>
+        </div>
+        <div style="font-size: 12px; color: #64748b;">11:10 AM</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function filterHistory(query) {
+      const q = query.toLowerCase();
+      document.querySelectorAll('.list-card').forEach(card => {
+        card.style.display = card.innerText.toLowerCase().includes(q) ? 'flex' : 'none';
+      });
+    }
+  </script>
+</body>
+</html>

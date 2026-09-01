@@ -1,0 +1,18 @@
+[package]
+name = "azokle-c-bridge"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+name = "azokle_c"
+crate-type = ["staticlib", "cdylib"]
+
+[dependencies]
+azokle-core = { path = "../../crates/azokle-core" }
+azokle-networking = { path = "../../crates/networking" }
+serde_json.workspace = true
+serde.workspace = true
+url.workspace = true
+log.workspace = true
