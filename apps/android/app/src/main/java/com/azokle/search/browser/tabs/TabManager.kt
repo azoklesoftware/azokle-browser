@@ -17,15 +17,18 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.mozilla.geckoview.GeckoSession
 import java.io.File
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedDeque
 
 /**
  * Sovereign High-Performance Tab & Session Orchestrator for Azokle Search.
  * Features:
- *  - Atomic JSON disk persistence for non-private tabs (survives Android LMK / process death)
+ *  - Full Hierarchical Tab Grouping (Brave/Chrome style Group Tabs & Bottom Strip Switcher)
+ *  - Atomic JSON disk persistence for non-private tabs & groups (survives Android LMK / process death)
  *  - Strict ephemeral in-memory isolation for Private and Tor tabs (Zero disk footprint)
- *  - Recently closed tab undo stack (max 10 items)
- *  - Real-time tab grouping (manual and auto-domain collections)
+ *  - Thread-Safe Recently closed tab undo stack (max 10 items)
+ *  - Real-time tab grouping (manual and auto-parent child collections)
  *  - Foreground/background session throttling
  */
 object TabManager {
@@ -35,14 +38,17 @@ object TabManager {
     private val _tabs = MutableStateFlow<List<TabSession>>(listOf(TabSession()))
     val tabs: StateFlow<List<TabSession>> = _tabs.asStateFlow()
 
+    private val _groups = MutableStateFlow<List<TabGroup>>(emptyList())
+    val groups: StateFlow<List<TabGroup>> = _groups.asStateFlow()
+
     private val _activeTabId = MutableStateFlow<String?>(_tabs.value.firstOrNull()?.id)
     val activeTabId: StateFlow<String?> = _activeTabId.asStateFlow()
 
     private val sessionMap = ConcurrentHashMap<String, GeckoSession>()
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    // Recently Closed Tabs Stack for Instant Undo
-    private val _recentlyClosed = mutableListOf<TabSession>()
+    // Thread-Safe Recently Closed Tabs Deque for Instant Undo
+    private val _recentlyClosed = ConcurrentLinkedDeque<TabSession>()
     val recentlyClosed: List<TabSession> get() = _recentlyClosed.toList()
 
     private var appContext: Context? = null
@@ -99,7 +105,9 @@ object TabManager {
         isPrivate: Boolean = false,
         isTor: Boolean = false,
         groupId: String? = null,
-        groupTitle: String? = null
+        groupTitle: String? = null,
+        groupColor: Long? = null,
+        parentTabId: String? = null
     ): String {
         val newTab = TabSession(
             url = url,
@@ -107,14 +115,32 @@ object TabManager {
             isPrivate = isPrivate,
             isTor = isTor,
             groupId = groupId,
-            groupTitle = groupTitle
+            groupTitle = groupTitle,
+            groupColor = groupColor,
+            parentTabId = parentTabId
         )
         _tabs.update { it + newTab }
+
+        // If assigned to a group, update group tabIds
+        if (groupId != null) {
+            _groups.update { list ->
+                list.map { g ->
+                    if (g.id == groupId && !g.tabIds.contains(newTab.id)) {
+                        g.copy(tabIds = g.tabIds + newTab.id)
+                    } else g
+                }
+            }
+        }
+
         selectTab(newTab.id)
         if (!isPrivate && !isTor) {
             persistTabs()
         }
         return newTab.id
+    }
+
+    fun openPrivateTab(url: String = "https://search.azokle.com", title: String = "Private Tab"): String {
+        return openTab(url = url, title = title, isPrivate = true, isTor = false)
     }
 
     fun openTorTab(context: Context? = null, url: String = "about:tor", title: String = "Tor Window"): String {
@@ -124,6 +150,73 @@ object TabManager {
             com.azokle.search.security.TorCircuitManager.startTorConnection()
         }
         return openTab(url = url, title = title, isPrivate = true, isTor = true)
+    }
+
+    /**
+     * Automatically groups child tabs opened via target="_blank" or long-press with their parent tab.
+     */
+    fun openTabFromParent(
+        url: String,
+        title: String = "New Tab",
+        parentTabId: String,
+        isPrivate: Boolean = false,
+        isTor: Boolean = false
+    ): String {
+        val parent = _tabs.value.find { it.id == parentTabId }
+        val targetGroupId: String
+        val targetGroupTitle: String
+        val targetGroupColor: Long
+
+        if (parent != null && parent.groupId != null) {
+            targetGroupId = parent.groupId
+            val group = _groups.value.find { it.id == targetGroupId }
+            targetGroupTitle = group?.title ?: parent.groupTitle ?: "Group"
+            targetGroupColor = group?.color ?: parent.groupColor ?: 0xFF38BDF8
+        } else if (parent != null) {
+            // Create a brand new group linking Parent + Child
+            val cleanTitle = parent.title.ifBlank {
+                try { Uri.parse(parent.url).host?.removePrefix("www.") ?: "Group" } catch (e: Exception) { "Group" }
+            }
+            val colorIndex = (_groups.value.size) % TabGroup.GROUP_PALETTE.size
+            targetGroupColor = TabGroup.GROUP_PALETTE[colorIndex]
+            targetGroupTitle = cleanTitle
+            targetGroupId = UUID.randomUUID().toString()
+
+            val newGroup = TabGroup(
+                id = targetGroupId,
+                title = targetGroupTitle,
+                color = targetGroupColor,
+                tabIds = listOf(parent.id),
+                parentTabId = parent.id,
+                isPrivate = isPrivate,
+                isTor = isTor
+            )
+            _groups.update { it + newGroup }
+
+            // Update parent tab with groupId
+            _tabs.update { list ->
+                list.map {
+                    if (it.id == parent.id) {
+                        it.copy(groupId = targetGroupId, groupTitle = targetGroupTitle, groupColor = targetGroupColor)
+                    } else it
+                }
+            }
+        } else {
+            targetGroupId = UUID.randomUUID().toString()
+            targetGroupTitle = "Group"
+            targetGroupColor = 0xFF38BDF8
+        }
+
+        return openTab(
+            url = url,
+            title = title,
+            isPrivate = isPrivate,
+            isTor = isTor,
+            groupId = targetGroupId,
+            groupTitle = targetGroupTitle,
+            groupColor = targetGroupColor,
+            parentTabId = parentTabId
+        )
     }
 
     fun selectTab(id: String) {
@@ -186,6 +279,19 @@ object TabManager {
         persistTabs()
     }
 
+    fun updateActiveTabFavicon(faviconUrl: String) {
+        val currentId = _activeTabId.value ?: return
+        _tabs.update { list ->
+            list.map { tab ->
+                if (tab.id == currentId) {
+                    tab.copy(faviconUrl = faviconUrl)
+                } else {
+                    tab
+                }
+            }
+        }
+    }
+
     fun updateActiveTabThumbnail(thumbnail: Bitmap) {
         val currentId = _activeTabId.value ?: return
         _tabs.update { list ->
@@ -200,35 +306,65 @@ object TabManager {
     }
 
     fun closeTab(id: String): TabSession? {
-        val currentList = _tabs.value
-        val tabToClose = currentList.find { it.id == id }
+        val tabToClose = _tabs.value.find { it.id == id } ?: return null
 
-        // Clean up and close native GeckoSession
+        // Add to thread-safe recently closed (if not private or tor)
+        if (!tabToClose.isPrivate && !tabToClose.isTor) {
+            _recentlyClosed.addFirst(tabToClose)
+            while (_recentlyClosed.size > 10) {
+                _recentlyClosed.pollLast()
+            }
+        }
+
+        // Close GeckoSession
         sessionMap.remove(id)?.let { session ->
             try {
                 session.close()
             } catch (e: Exception) {
-                // Ignore
+                Log.e(TAG, "Error closing GeckoSession: ${e.message}")
             }
         }
 
-        if (tabToClose != null && !tabToClose.isPrivate && !tabToClose.isTor) {
-            // Only save regular non-private/non-tor tabs to recently closed (max 10 items)
-            _recentlyClosed.add(0, tabToClose)
-            if (_recentlyClosed.size > 10) {
-                _recentlyClosed.removeAt(_recentlyClosed.lastIndex)
+        // Clean up group membership and tabs atomically
+        val gid = tabToClose.groupId
+        _tabs.update { list ->
+            val remaining = list.filter { it.id != id }
+            if (gid != null) {
+                val groupTabs = remaining.filter { it.groupId == gid }
+                if (groupTabs.size <= 1) {
+                    // Disband group on single lone tab or empty group
+                    remaining.map {
+                        if (it.groupId == gid) it.copy(groupId = null, groupTitle = null, groupColor = null) else it
+                    }
+                } else {
+                    remaining
+                }
+            } else {
+                remaining
             }
         }
 
-        val remaining = currentList.filter { it.id != id }
-        _tabs.value = remaining
+        if (gid != null) {
+            _groups.update { list ->
+                val remainingTabIds = _tabs.value.filter { it.groupId == gid }.map { it.id }
+                if (remainingTabIds.size <= 1) {
+                    list.filter { it.id != gid }
+                } else {
+                    list.map { g ->
+                        if (g.id == gid) g.copy(tabIds = remainingTabIds) else g
+                    }
+                }
+            }
+        }
 
+        // If the active tab was closed, pick adjacent tab
         if (_activeTabId.value == id) {
-            val newActiveId = remaining.lastOrNull()?.id
-            _activeTabId.value = newActiveId
-            if (newActiveId != null) {
-                selectTab(newActiveId)
-            }
+            _activeTabId.value = _tabs.value.firstOrNull()?.id
+        }
+
+        // Ensure at least 1 tab always exists
+        if (_tabs.value.isEmpty()) {
+            openTab("https://search.azokle.com", "Search")
         }
 
         persistTabs()
@@ -236,89 +372,246 @@ object TabManager {
     }
 
     fun undoCloseTab(): TabSession? {
-        if (_recentlyClosed.isEmpty()) return null
-        val restoredTab = _recentlyClosed.removeAt(0)
-        _tabs.update { it + restoredTab }
-        selectTab(restoredTab.id)
+        val restored = _recentlyClosed.pollFirst() ?: return null
+        _tabs.update { it + restored }
+        selectTab(restored.id)
         persistTabs()
-        return restoredTab
+        return restored
     }
 
     fun closeCategoryTabs(isPrivateOnly: Boolean = false, isTorOnly: Boolean = false) {
-        val tabsToClose = when {
-            isTorOnly -> _tabs.value.filter { it.isTor }
-            isPrivateOnly -> _tabs.value.filter { it.isPrivate && !it.isTor }
-            else -> _tabs.value.filter { !it.isPrivate && !it.isTor }
-        }
-        for (tab in tabsToClose) {
-            sessionMap.remove(tab.id)?.let {
-                try { it.close() } catch (e: Exception) {}
+        val tabsToClose = _tabs.value.filter {
+            when {
+                isTorOnly -> it.isTor
+                isPrivateOnly -> it.isPrivate && !it.isTor
+                else -> !it.isPrivate && !it.isTor
             }
         }
-        val remaining = _tabs.value.filter { it !in tabsToClose }
-        _tabs.value = remaining
-        if (_activeTabId.value !in remaining.map { it.id }) {
-            val nextId = remaining.firstOrNull()?.id
-            _activeTabId.value = nextId
-            if (nextId != null) selectTab(nextId)
-        }
-        persistTabs()
-    }
+        if (tabsToClose.isEmpty()) return
 
-    fun closeAllTabs(isPrivateOnly: Boolean = false) {
-        if (isPrivateOnly) {
-            closeCategoryTabs(isPrivateOnly = true)
-        } else {
-            for ((_, session) in sessionMap) {
-                try { session.close() } catch (e: Exception) {}
+        val idsToClose = tabsToClose.map { it.id }.toSet()
+
+        // Close GeckoSessions
+        for (id in idsToClose) {
+            sessionMap.remove(id)?.let { session ->
+                try {
+                    session.close()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error closing GeckoSession: ${e.message}")
+                }
             }
-            sessionMap.clear()
-            _tabs.value = emptyList()
-            _activeTabId.value = null
-            _recentlyClosed.clear()
         }
-        persistTabs()
-    }
 
-    fun groupTabsByDomain() {
+        // Batch update tabs
+        _tabs.update { list ->
+            list.filter { it.id !in idsToClose }
+        }
+
+        // Clean groups
+        _groups.update { list ->
+            list.mapNotNull { g ->
+                val remainingIds = g.tabIds.filter { it !in idsToClose }
+                if (remainingIds.size > 1) g.copy(tabIds = remainingIds) else null
+            }
+        }
+
+        // Fix lone tab group markers
         _tabs.update { list ->
             list.map { tab ->
-                if (!tab.isPrivate && !tab.isTor) {
-                    val domain = try {
-                        Uri.parse(tab.url).host?.removePrefix("www.")?.takeIf { it.isNotBlank() } ?: "Other"
-                    } catch (e: Exception) {
-                        "Other"
-                    }
-                    tab.copy(groupId = domain, groupTitle = domain.replaceFirstChar { it.uppercase() })
+                val gid = tab.groupId
+                if (gid != null && _groups.value.none { it.id == gid }) {
+                    tab.copy(groupId = null, groupTitle = null, groupColor = null)
+                } else tab
+            }
+        }
+
+        if (_activeTabId.value in idsToClose) {
+            _activeTabId.value = _tabs.value.firstOrNull()?.id
+        }
+
+        if (_tabs.value.isEmpty()) {
+            openTab("https://search.azokle.com", "Search")
+        }
+
+        // Persist once in batch
+        persistTabs()
+    }
+
+    fun closeAllTabs() {
+        for ((_, session) in sessionMap) {
+            try {
+                session.close()
+            } catch (e: Exception) {
+                // Ignore
+            }
+        }
+        sessionMap.clear()
+        _recentlyClosed.clear()
+        _groups.value = emptyList()
+        val defaultTab = TabSession()
+        _tabs.value = listOf(defaultTab)
+        _activeTabId.value = defaultTab.id
+        persistTabs()
+    }
+
+    // --- Tab Groups Operations ---
+
+    fun createGroup(
+        title: String,
+        color: Long = 0xFF38BDF8,
+        tabIds: List<String> = emptyList(),
+        parentTabId: String? = null,
+        isPrivate: Boolean = false,
+        isTor: Boolean = false
+    ): String {
+        val groupId = UUID.randomUUID().toString()
+        val newGroup = TabGroup(
+            id = groupId,
+            title = title,
+            color = color,
+            tabIds = tabIds,
+            parentTabId = parentTabId,
+            isPrivate = isPrivate,
+            isTor = isTor
+        )
+        _groups.update { it + newGroup }
+
+        // Update target tabs
+        _tabs.update { list ->
+            list.map { tab ->
+                if (tabIds.contains(tab.id)) {
+                    tab.copy(groupId = groupId, groupTitle = title, groupColor = color)
                 } else tab
             }
         }
         persistTabs()
+        return groupId
     }
 
-    fun clearTabGrouping() {
+    fun addTabToGroup(tabId: String, groupId: String) {
+        val group = _groups.value.find { it.id == groupId } ?: return
+        if (!group.tabIds.contains(tabId)) {
+            _groups.update { list ->
+                list.map { if (it.id == groupId) it.copy(tabIds = it.tabIds + tabId) else it }
+            }
+        }
         _tabs.update { list ->
-            list.map { it.copy(groupId = null, groupTitle = null) }
+            list.map { if (it.id == tabId) it.copy(groupId = groupId, groupTitle = group.title, groupColor = group.color) else it }
         }
         persistTabs()
     }
 
+    fun removeTabFromGroup(tabId: String) {
+        val tab = _tabs.value.find { it.id == tabId } ?: return
+        val gid = tab.groupId ?: return
+
+        _tabs.update { list ->
+            list.map { if (it.id == tabId) it.copy(groupId = null, groupTitle = null, groupColor = null) else it }
+        }
+
+        val remainingInGroup = _tabs.value.filter { it.groupId == gid && it.id != tabId }
+        if (remainingInGroup.size <= 1) {
+            // Disband group
+            _groups.update { it.filter { g -> g.id != gid } }
+            _tabs.update { list ->
+                list.map { if (it.groupId == gid) it.copy(groupId = null, groupTitle = null, groupColor = null) else it }
+            }
+        } else {
+            _groups.update { list ->
+                list.map { if (it.id == gid) it.copy(tabIds = it.tabIds.filter { id -> id != tabId }) else it }
+            }
+        }
+        persistTabs()
+    }
+
+    fun closeGroup(groupId: String) {
+        val tabsToClose = _tabs.value.filter { it.groupId == groupId }
+        for (t in tabsToClose) {
+            sessionMap.remove(t.id)?.let {
+                try { it.close() } catch (e: Exception) {}
+            }
+        }
+        _groups.update { it.filter { g -> g.id != groupId } }
+        val remaining = _tabs.value.filter { it.groupId != groupId }
+        _tabs.value = if (remaining.isNotEmpty()) remaining else listOf(TabSession())
+        if (_activeTabId.value !in _tabs.value.map { it.id }) {
+            _activeTabId.value = _tabs.value.first().id
+        }
+        persistTabs()
+    }
+
+    fun ungroupAll(groupId: String) {
+        _groups.update { it.filter { g -> g.id != groupId } }
+        _tabs.update { list ->
+            list.map { if (it.groupId == groupId) it.copy(groupId = null, groupTitle = null, groupColor = null) else it }
+        }
+        persistTabs()
+    }
+
+    fun renameGroup(groupId: String, newTitle: String, newColor: Long? = null) {
+        _groups.update { list ->
+            list.map { g ->
+                if (g.id == groupId) g.copy(title = newTitle, color = newColor ?: g.color) else g
+            }
+        }
+        val targetColor = newColor ?: _groups.value.find { it.id == groupId }?.color
+        _tabs.update { list ->
+            list.map { tab ->
+                if (tab.groupId == groupId) tab.copy(groupTitle = newTitle, groupColor = targetColor ?: tab.groupColor) else tab
+            }
+        }
+        persistTabs()
+    }
+
+    fun getActiveGroup(): TabGroup? {
+        val currentTab = activeTab ?: return null
+        val gid = currentTab.groupId ?: return null
+        return _groups.value.find { it.id == gid }
+    }
+
+    fun getActiveGroupTabs(): List<TabSession> {
+        val currentTab = activeTab ?: return emptyList()
+        val gid = currentTab.groupId ?: return emptyList()
+        return _tabs.value.filter { it.groupId == gid }
+    }
+
+    fun getTabsInGroup(groupId: String): List<TabSession> {
+        return _tabs.value.filter { it.groupId == groupId }
+    }
+
+    fun openTabInGroup(url: String, title: String = "New Tab", groupId: String): String {
+        val group = _groups.value.find { it.id == groupId }
+        return openTab(
+            url = url,
+            title = title,
+            isPrivate = group?.isPrivate ?: false,
+            isTor = group?.isTor ?: false,
+            groupId = groupId,
+            groupTitle = group?.title,
+            groupColor = group?.color
+        )
+    }
+
     private fun persistTabs() {
         val context = appContext ?: return
-        scope.launch {
+        scope.launch(Dispatchers.IO) {
             try {
-                // Synchronize tabs into native Rust core
-                val persistableTabs = _tabs.value.filter { !it.isPrivate && !it.isTor }
+                val standardTabs = _tabs.value.filter { !it.isPrivate && !it.isTor }
                 val array = JSONArray()
-                persistableTabs.forEach { tab ->
+                for (tab in standardTabs) {
                     array.put(tab.toJson())
                 }
-                com.azokle.search.core.AzokleCore.tabImportPersistentJson(array.toString())
 
-                val jsonStr = com.azokle.search.core.AzokleCore.tabExportPersistentJson()
+                val standardGroups = _groups.value.filter { !it.isPrivate && !it.isTor }
+                val groupsArray = JSONArray()
+                for (group in standardGroups) {
+                    groupsArray.put(group.toJson())
+                }
+
                 val root = JSONObject().apply {
                     put("activeTabId", _activeTabId.value ?: "")
-                    put("tabs", JSONArray(jsonStr))
+                    put("tabs", array)
+                    put("groups", groupsArray)
                 }
 
                 withContext(Dispatchers.IO) {
@@ -346,9 +639,10 @@ object TabManager {
             }
         }
         val remaining = _tabs.value.filter { !it.isPrivate && !it.isTor }
-        _tabs.value = remaining
-        if (_activeTabId.value !in remaining.map { it.id }) {
-            _activeTabId.value = remaining.firstOrNull()?.id
+        _tabs.value = if (remaining.isNotEmpty()) remaining else listOf(TabSession())
+        _groups.value = _groups.value.filter { !it.isPrivate && !it.isTor }
+        if (_activeTabId.value !in _tabs.value.map { it.id }) {
+            _activeTabId.value = _tabs.value.firstOrNull()?.id
         }
         persistTabs()
     }
@@ -363,10 +657,8 @@ object TabManager {
                 val jsonStr = String(bytes, Charsets.UTF_8)
                 val root = JSONObject(jsonStr)
                 val array = root.optJSONArray("tabs") ?: return@launch
+                val groupsArray = root.optJSONArray("groups") ?: JSONArray()
                 val savedActiveId = root.optString("activeTabId", "")
-
-                // Import into Rust
-                com.azokle.search.core.AzokleCore.tabImportPersistentJson(array.toString())
 
                 val restoredTabs = mutableListOf<TabSession>()
                 for (i in 0 until array.length()) {
@@ -374,9 +666,16 @@ object TabManager {
                     restoredTabs.add(TabSession.fromJson(tabJson))
                 }
 
+                val restoredGroups = mutableListOf<TabGroup>()
+                for (i in 0 until groupsArray.length()) {
+                    val groupJson = groupsArray.getJSONObject(i)
+                    restoredGroups.add(TabGroup.fromJson(groupJson))
+                }
+
                 val standardPersisted = restoredTabs.filter { !it.isPrivate && !it.isTor }
                 if (standardPersisted.isNotEmpty()) {
                     _tabs.value = standardPersisted
+                    _groups.value = restoredGroups.filter { !it.isPrivate && !it.isTor }
                     val targetId = if (standardPersisted.any { it.id == savedActiveId }) savedActiveId else standardPersisted.first().id
                     _activeTabId.value = targetId
                 }
@@ -386,4 +685,3 @@ object TabManager {
         }
     }
 }
-

@@ -12,11 +12,17 @@ pub struct TabSession {
     pub id: String,
     pub url: String,
     pub title: String,
+    #[serde(default)]
+    pub favicon_url: Option<String>,
     pub is_private: bool,
     pub is_tor: bool,
     pub is_sleeping: bool,
     pub group_id: Option<String>,
     pub group_title: Option<String>,
+    #[serde(default)]
+    pub group_color: Option<u64>,
+    #[serde(default)]
+    pub parent_tab_id: Option<String>,
     pub last_accessed_at: u64,
     pub created_at: u64,
 }
@@ -34,11 +40,14 @@ impl TabSession {
             id,
             url: if url.is_empty() { "https://search.azokle.com".to_string() } else { url.to_string() },
             title: if title.is_empty() { "New Tab".to_string() } else { title.to_string() },
+            favicon_url: None,
             is_private,
             is_tor,
             is_sleeping: false,
             group_id: group_id.map(|s| s.to_string()),
             group_title: group_title.map(|s| s.to_string()),
+            group_color: None,
+            parent_tab_id: None,
             last_accessed_at: now,
             created_at: now,
         }

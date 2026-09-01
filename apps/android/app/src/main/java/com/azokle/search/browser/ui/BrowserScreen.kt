@@ -82,6 +82,8 @@ import com.azokle.search.browser.permissions.SitePermissionType
 import com.azokle.search.browser.permissions.SitePermissionsManager
 import com.azokle.search.browser.ui.SitePermissionPromptSheet
 import com.azokle.search.browser.ui.SiteSettingsSheet
+import com.azokle.search.browser.ui.components.TabGroupBottomStrip
+import com.azokle.search.browser.ui.components.TabGroupDetailSheet
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
@@ -114,6 +116,7 @@ fun BrowserScreen(
     var showSecurityCertSheet by remember { mutableStateOf(false) }
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showDownloadsScreen by remember { mutableStateOf(false) }
+    var showBookmarksScreen by remember { mutableStateOf(false) }
     var showHistoryScreen by remember { mutableStateOf(false) }
     var showPwaInstallSheet by remember { mutableStateOf(false) }
     val pwaState by com.azokle.search.browser.pwa.PwaManager.activeTabPwaState.collectAsState()
@@ -163,8 +166,6 @@ fun BrowserScreen(
     var lastScrollY by remember { mutableIntStateOf(0) }
     var isBurningData by remember { mutableStateOf(false) }
     var activeLinkContextTarget: LinkContextTarget? by remember { mutableStateOf(null) }
-    var newTabNotification: TabSession? by remember { mutableStateOf(null) }
-    var tabSnackbarJob: Job? by remember { mutableStateOf(null) }
     var pendingDownloadPayload by remember { mutableStateOf<DownloadConfirmationPayload?>(null) }
 
     // Website Permissions Engine Integration
@@ -229,6 +230,7 @@ fun BrowserScreen(
 
     val shieldStats by AdBlockStats.currentStats.collectAsState()
     val openTabs by TabManager.tabs.collectAsState()
+    val groups by TabManager.groups.collectAsState()
     val bookmarks by vaultManager.bookmarksFlow.collectAsState()
     val isBookmarked = remember(currentUrl, bookmarks) {
         vaultManager.isBookmarked(currentUrl)
@@ -243,8 +245,27 @@ fun BrowserScreen(
     val isCurrentTabTor = currentActiveTab?.isTor == true
     val isCurrentTabPrivate = currentActiveTab?.isPrivate == true || isCurrentTabTor
 
+    val activeGroup = remember(openTabs, groups, activeTabId) {
+        val cur = openTabs.find { it.id == activeTabId } ?: openTabs.firstOrNull()
+        val gid = cur?.groupId
+        if (gid != null) groups.find { it.id == gid } else null
+    }
+    val activeGroupTabs = remember(openTabs, activeGroup) {
+        if (activeGroup != null) openTabs.filter { it.groupId == activeGroup.id } else emptyList()
+    }
+    var showGroupDetailSheet by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
         AdBlockEngine.instance.initialize(context)
+    }
+
+    LaunchedEffect(activeTabId) {
+        val tab = TabManager.activeTab
+        if (tab != null && tab.url.isNotBlank() && (tab.url != currentUrl || currentTitle != tab.title)) {
+            currentUrl = tab.url
+            currentTitle = tab.title
+            currentError = null
+        }
     }
 
     BackHandler(enabled = true) {
@@ -255,10 +276,14 @@ fun BrowserScreen(
             // Ignore back during burning
         } else if (activePermissionRequest != null) {
             activePermissionRequest?.let { handleDenyPermission(it, false) }
+        } else if (showGroupDetailSheet) {
+            showGroupDetailSheet = false
         } else if (activeLinkContextTarget != null) {
             activeLinkContextTarget = null
         } else if (showDownloadsScreen) {
             showDownloadsScreen = false
+        } else if (showBookmarksScreen) {
+            showBookmarksScreen = false
         } else if (showHistoryScreen) {
             showHistoryScreen = false
         } else if (showSiteSettingsSheet) {
@@ -574,79 +599,136 @@ fun BrowserScreen(
                                     activeLinkContextTarget = target
                                 },
                                 onNewWindowRequested = { targetUrl ->
-                                    val newId = TabManager.openTab(targetUrl, "New Tab")
-                                    val newTab = TabManager.tabs.value.find { it.id == newId }
-                                    newTabNotification = newTab
-                                },
-                                onLoadErrorChanged = { error ->
-                                    currentError = error
-                                },
-                                onFullScreenChanged = { fs ->
-                                    isFullScreenMode = fs
-                                },
-                                onPermissionPromptRequested = { req ->
-                                    activePermissionRequest = req
-                                },
-                                onDownloadConfirmationRequested = { payload ->
-                                    pendingDownloadPayload = payload
-                                },
-                                onSessionReady = { session, view ->
-                                    geckoSession = session
-                                    geckoView = view
-                                    val tabId = activeTabId ?: ""
-                                    if (tabId.isNotBlank()) {
-                                        TabManager.registerSession(tabId, session)
-                                    }
-                                }
-                            )
-                        }
+                                     val parentId = activeTabId ?: ""
+                                     val newId = if (parentId.isNotBlank()) {
+                                         TabManager.openTabFromParent(
+                                             url = targetUrl,
+                                             title = "New Tab",
+                                             parentTabId = parentId,
+                                             isPrivate = isCurrentTabPrivate,
+                                             isTor = isCurrentTabTor
+                                         )
+                                     } else {
+                                         TabManager.openTab(targetUrl, "New Tab", isPrivate = isCurrentTabPrivate, isTor = isCurrentTabTor)
+                                     }
+                                     TabManager.selectTab(newId)
+                                     currentUrl = targetUrl
+                                     currentTitle = "New Tab"
+                                     currentError = null
+                                     geckoSession?.loadUri(targetUrl)
+                                     com.azokle.search.ui.components.ToastManager.show("Tab added to group 📑")
+                                 },
+                                 onLoadErrorChanged = { error ->
+                                     currentError = error
+                                 },
+                                 onFullScreenChanged = { fs ->
+                                     isFullScreenMode = fs
+                                 },
+                                 onPermissionPromptRequested = { req ->
+                                     activePermissionRequest = req
+                                 },
+                                 onDownloadConfirmationRequested = { payload ->
+                                     pendingDownloadPayload = payload
+                                 },
+                                 onSessionReady = { session, view ->
+                                     geckoSession = session
+                                     geckoView = view
+                                     val tabId = activeTabId ?: ""
+                                     if (tabId.isNotBlank()) {
+                                         TabManager.registerSession(tabId, session)
+                                     }
+                                 }
+                             )
+                         }
 
-                        // Brave/Firefox-grade Luxury Error Screen Surface
-                        currentError?.let { err ->
-                            BrowserErrorScreen(
-                                error = err,
-                                failedUrl = currentUrl,
-                                onRetry = {
-                                    currentError = null
-                                    geckoSession?.reload()
-                                },
-                                onHome = onClose,
-                                onBypass = if (err.canBypass) {
-                                    {
-                                        currentError = null
-                                        geckoSession?.reload()
-                                    }
-                                } else null
-                            )
-                        }
-                    }
-                }
-            }
+                         // Brave/Firefox-grade Luxury Error Screen Surface
+                         currentError?.let { err ->
+                             BrowserErrorScreen(
+                                 error = err,
+                                 failedUrl = currentUrl,
+                                 onRetry = {
+                                     currentError = null
+                                     geckoSession?.reload()
+                                 },
+                                 onHome = onClose,
+                                 onBypass = if (err.canBypass) {
+                                     {
+                                         currentError = null
+                                         geckoSession?.reload()
+                                     }
+                                 } else null
+                             )
+                         }
+                     }
+                 }
+             }
 
-            // 3. Docked Bottom Action Toolbar (Zero overlap with webpage footer)
-            if (!isFullScreenMode && !isInPipMode) {
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = isBottomBarVisible,
-                    enter = androidx.compose.animation.expandVertically(
-                        animationSpec = androidx.compose.animation.core.tween(180)
-                    ) + androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(180)),
-                    exit = androidx.compose.animation.shrinkVertically(
-                        animationSpec = androidx.compose.animation.core.tween(180)
-                    ) + androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(180))
-                ) {
-                    BrowserBottomBar(
-                        openTabsCount = openTabs.size,
-                        onHomeClick = onClose,
-                        onSearchClick = { showUrlEditSheet = true },
-                        onTabsClick = { showTabGridSheet = true },
-                        onBurnDataClick = {
-                            isBurningData = true
-                        },
-                        onMenuClick = { showMenuSheet = true }
-                    )
-                }
-            }
-        }
+             // 3. Tab Group Bottom Strip + Docked Bottom Action Toolbar
+             if (!isFullScreenMode && !isInPipMode) {
+                 Column(
+                     modifier = Modifier.fillMaxWidth(),
+                     horizontalAlignment = Alignment.CenterHorizontally
+                 ) {
+                     // In-Viewport Brave-Style Favicon Switcher Strip
+                     TabGroupBottomStrip(
+                         group = activeGroup,
+                         groupTabs = activeGroupTabs,
+                         activeTabId = activeTabId,
+                         onTabSelected = { selectedTab ->
+                             TabManager.selectTab(selectedTab.id)
+                             currentUrl = selectedTab.url
+                             currentTitle = selectedTab.title
+                             geckoSession?.loadUri(selectedTab.url)
+                         },
+                         onAddTabInGroup = {
+                             activeGroup?.let { g ->
+                                 val newId = TabManager.openTabInGroup("https://search.azokle.com", "Search", g.id)
+                                 TabManager.selectTab(newId)
+                                 currentUrl = "https://search.azokle.com"
+                                 currentTitle = "Search"
+                                 geckoSession?.loadUri("https://search.azokle.com")
+                             }
+                         },
+                         onCloseActiveTab = {
+                             val curId = activeTabId ?: ""
+                             if (curId.isNotBlank()) {
+                                 TabManager.closeTab(curId)
+                                 val next = TabManager.activeTab
+                                 if (next != null) {
+                                     currentUrl = next.url
+                                     currentTitle = next.title
+                                     geckoSession?.loadUri(next.url)
+                                 }
+                             }
+                         },
+                         onOpenGroupOverview = {
+                             showGroupDetailSheet = true
+                         }
+                     )
+
+                     androidx.compose.animation.AnimatedVisibility(
+                         visible = isBottomBarVisible,
+                         enter = androidx.compose.animation.expandVertically(
+                             animationSpec = androidx.compose.animation.core.tween(180)
+                         ) + androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(180)),
+                         exit = androidx.compose.animation.shrinkVertically(
+                             animationSpec = androidx.compose.animation.core.tween(180)
+                         ) + androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(180))
+                     ) {
+                         BrowserBottomBar(
+                             openTabsCount = openTabs.size,
+                             onHomeClick = onClose,
+                             onDiscoverClick = onClose,
+                             onTabsClick = { showTabGridSheet = true },
+                             onBurnDataClick = {
+                                 isBurningData = true
+                             },
+                             onMenuClick = { showMenuSheet = true }
+                         )
+                     }
+                 }
+             }
+         }
 
         // Reader Mode Full Screen View
         activeArticleReader?.let { article ->
@@ -756,6 +838,11 @@ fun BrowserScreen(
                         executeFind(findInPageQuery)
                     }
                 },
+                isBrowserContext = true,
+                onOpenBookmarks = {
+                    showMenuSheet = false
+                    showBookmarksScreen = true
+                },
                 onOpenDownloads = {
                     showMenuSheet = false
                     showDownloadsScreen = true
@@ -779,26 +866,10 @@ fun BrowserScreen(
                     }
                     com.azokle.search.ui.components.ToastManager.showTor("Connecting to Isolated Tor Onion Network...")
                 },
-                onEnterPictureInPicture = if (com.azokle.search.browser.media.PictureInPictureHelper.supportsPictureInPicture(context)) {
-                    {
-                        val activity = context as? android.app.Activity
-                        if (activity != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                            val state = com.azokle.search.browser.media.MediaPlaybackManager.mediaState.value
-                            val isPlaying = state.status == com.azokle.search.browser.media.PlaybackStatus.PLAYING
-                            val params = com.azokle.search.browser.media.PictureInPictureHelper.buildPipParams(
-                                activity = activity,
-                                isPlaying = isPlaying,
-                                isFullscreen = true,
-                                aspectRatio = state.metadata.videoAspectRatio
-                            )
-                            try {
-                                activity.enterPictureInPictureMode(params)
-                            } catch (e: Exception) {
-                                // Safe ignore
-                            }
-                        }
-                    }
-                } else null,
+                onOpenSettings = {
+                    showMenuSheet = false
+                    showSettingsSheet = true
+                },
                 pwaEligibility = pwaState?.eligibility,
                 onInstallPwa = {
                     showMenuSheet = false
@@ -817,6 +888,27 @@ fun BrowserScreen(
             com.azokle.search.browser.pwa.ui.PwaInstallBottomSheet(
                 eligibility = pwaState!!.eligibility!!,
                 onDismiss = { showPwaInstallSheet = false }
+            )
+        }
+
+        // Dedicated Bookmarks & Quick Links Screen Overlay
+        if (showBookmarksScreen) {
+            com.azokle.search.browser.bookmarks.BookmarksScreen(
+                onDismiss = { showBookmarksScreen = false },
+                onNavigate = { targetUrl ->
+                    showBookmarksScreen = false
+                    currentUrl = targetUrl
+                    geckoSession?.loadUri(targetUrl)
+                },
+                onOpenTor = { targetUrl ->
+                    showBookmarksScreen = false
+                    val newTorTabId = TabManager.openTorTab(context, targetUrl, "Tor")
+                    val torTab = TabManager.tabs.value.find { it.id == newTorTabId }
+                    if (torTab != null) {
+                        currentUrl = torTab.url
+                        currentTitle = torTab.title
+                    }
+                }
             )
         }
 
@@ -914,89 +1006,69 @@ fun BrowserScreen(
             LinkContextMenuSheet(
                 target = target,
                 onOpenInNewTab = { url, title ->
-                    val newId = TabManager.openTab(url, title, isPrivate = false)
-                    val newTab = TabManager.tabs.value.find { it.id == newId }
-                    newTabNotification = newTab
-                    tabSnackbarJob?.cancel()
-                    tabSnackbarJob = scope.launch {
-                        delay(4500)
-                        newTabNotification = null
+                    val parentId = activeTabId ?: ""
+                    val newId = if (parentId.isNotBlank()) {
+                        TabManager.openTabFromParent(url, title, parentId, isPrivate = false)
+                    } else {
+                        TabManager.openTab(url, title, isPrivate = false)
                     }
+                    TabManager.selectTab(newId)
+                    currentUrl = url
+                    currentTitle = title
+                    currentError = null
+                    geckoSession?.loadUri(url)
+                    com.azokle.search.ui.components.ToastManager.show("Tab added to group 📑")
                 },
                 onOpenInPrivateTab = { url, title ->
-                    val newId = TabManager.openTab(url, title, isPrivate = true)
-                    val newTab = TabManager.tabs.value.find { it.id == newId }
-                    newTabNotification = newTab
-                    tabSnackbarJob?.cancel()
-                    tabSnackbarJob = scope.launch {
-                        delay(4500)
-                        newTabNotification = null
+                    val parentId = activeTabId ?: ""
+                    val newId = if (parentId.isNotBlank()) {
+                        TabManager.openTabFromParent(url, title, parentId, isPrivate = true)
+                    } else {
+                        TabManager.openTab(url, title, isPrivate = true)
                     }
+                    TabManager.selectTab(newId)
+                    currentUrl = url
+                    currentTitle = title
+                    currentError = null
+                    geckoSession?.loadUri(url)
+                    com.azokle.search.ui.components.ToastManager.show("Private tab added to group 📑")
                 },
                 onDismiss = { activeLinkContextTarget = null }
             )
         }
 
-        // Floating "Opened in New Tab • SWITCH" Action Pill (Brave/Arc pattern)
-        AnimatedVisibility(
-            visible = newTabNotification != null,
-            enter = slideInVertically(initialOffsetY = { it * 2 }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it * 2 }) + fadeOut(),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = if (isBottomBarVisible) 76.dp else 24.dp)
-        ) {
-            newTabNotification?.let { tab ->
-                Box(
-                    modifier = Modifier
-                        .shadow(16.dp, RoundedCornerShape(24.dp), spotColor = Color.White.copy(alpha = 0.15f))
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(Color(0xFF121218))
-                        .border(
-                            1.dp,
-                            Color(0xFF27272A),
-                            RoundedCornerShape(24.dp)
-                        )
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF38BDF8))
-                        )
-                        Spacer(modifier = Modifier.width(9.dp))
-                        Text(
-                            text = if (tab.isPrivate) stringResource(R.string.opened_in_private_tab) else stringResource(R.string.opened_in_new_tab),
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color.White)
-                                .clickable {
-                                    TabManager.selectTab(tab.id)
-                                    currentUrl = tab.url
-                                    currentTitle = tab.title
-                                    geckoSession?.loadUri(tab.url)
-                                    newTabNotification = null
-                                }
-                                .padding(horizontal = 12.dp, vertical = 5.dp)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.btn_switch),
-                                color = Color.Black,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+        // Tab Group Detail Modal Sheet (Overview, reorder, rename, palette picker)
+        if (showGroupDetailSheet && activeGroup != null) {
+            TabGroupDetailSheet(
+                group = activeGroup,
+                tabs = activeGroupTabs,
+                activeTabId = activeTabId,
+                onTabSelected = { selectedTab ->
+                    showGroupDetailSheet = false
+                    TabManager.selectTab(selectedTab.id)
+                    currentUrl = selectedTab.url
+                    currentTitle = selectedTab.title
+                    geckoSession?.loadUri(selectedTab.url)
+                },
+                onAddTabInGroup = {
+                    showGroupDetailSheet = false
+                    val newId = TabManager.openTabInGroup("https://search.azokle.com", "Search", activeGroup.id)
+                    TabManager.selectTab(newId)
+                    currentUrl = "https://search.azokle.com"
+                    currentTitle = "Search"
+                    geckoSession?.loadUri("https://search.azokle.com")
+                },
+                onCloseTab = { tabIdToClose ->
+                    TabManager.closeTab(tabIdToClose)
+                    val next = TabManager.activeTab
+                    if (next != null) {
+                        currentUrl = next.url
+                        currentTitle = next.title
+                        geckoSession?.loadUri(next.url)
                     }
-                }
-            }
+                },
+                onDismiss = { showGroupDetailSheet = false }
+            )
         }
 
         // 🔥 Full Screen Cinema-Grade Fire Incineration Overlay

@@ -12,6 +12,9 @@
         <!-- Status bar color. -->
         <item name="android:statusBarColor">#FAFAFA</item>
         <item name="android:windowLightStatusBar">true</item>
+        <!-- Floating Text Selection & ActionMode Overlay -->
+        <item name="windowActionModeOverlay">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
     </style>
 
     <!-- Modern Android 12+ SplashScreen Theme with backward compatibility -->

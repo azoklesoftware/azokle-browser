@@ -63,10 +63,10 @@ fun BrowserOmnibar(
     isShieldEnabled: Boolean,
     isLoading: Boolean,
     progress: Float,
-    onSecurityLockClick: () -> Unit,
-    onRefreshClick: () -> Unit,
-    onShieldClick: () -> Unit,
-    onReaderModeClick: () -> Unit,
+    onSecurityLockClick: () -> Unit = {},
+    onRefreshClick: () -> Unit = {},
+    onShieldClick: () -> Unit = {},
+    onReaderModeClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onMenuClick: () -> Unit = {},
     onUrlBarClick: () -> Unit
@@ -74,26 +74,47 @@ fun BrowserOmnibar(
     val colors = AzokleTheme.colors
     val haptic = LocalHapticFeedback.current
 
-    val uri = try {
-        Uri.parse(url)
-    } catch (e: Exception) {
-        null
+    val uri = remember(url) {
+        try {
+            Uri.parse(url)
+        } catch (e: Exception) {
+            null
+        }
     }
 
     val isHttp = url.startsWith("http://", ignoreCase = true)
     val isInternal = url.startsWith("about:", ignoreCase = true) || url.isBlank() || url == "about:blank"
 
-    val rawHost = uri?.host ?: url
-    val isOnion = rawHost.endsWith(".onion", ignoreCase = true) || url.contains(".onion", ignoreCase = true)
+    // RFC 3986 Anti-Spoofing Host Extraction:
+    // Strips embedded credentials/user-info prefixes (e.g. https://brand.com@evil.com -> evil.com)
+    val cleanHost = remember(url, uri) {
+        try {
+            val extracted = uri?.host?.removePrefix("www.")?.trim()
+            if (!extracted.isNullOrBlank()) {
+                extracted
+            } else {
+                url.removePrefix("https://")
+                    .removePrefix("http://")
+                    .substringBefore("/")
+                    .substringAfterLast("@")
+                    .removePrefix("www.")
+                    .trim()
+            }
+        } catch (e: Exception) {
+            url
+        }
+    }
+
+    val isOnion = cleanHost.endsWith(".onion", ignoreCase = true) || url.contains(".onion", ignoreCase = true)
 
     // Parse domain parts for Anti-Spoofing Visual Hierarchy
     val displayHost = when {
-        isInternal || rawHost.equals("about:blank", ignoreCase = true) -> {
+        isInternal || cleanHost.equals("about:blank", ignoreCase = true) || cleanHost.isBlank() -> {
             if (title.isNotBlank() && !title.equals("about:blank", ignoreCase = true)) title else "Search or type URL"
         }
-        else -> rawHost
+        else -> cleanHost
     }
-    val path = if (!isInternal && !rawHost.equals("about:blank", ignoreCase = true)) (uri?.path ?: "") else ""
+    val path = if (!isInternal && !cleanHost.equals("about:blank", ignoreCase = true)) (uri?.path ?: "") else ""
 
     val sslIcon = when {
         isOnion -> Icons.Default.Shield
@@ -127,34 +148,30 @@ fun BrowserOmnibar(
                 .padding(start = if (windowSize.widthDp < 360) 6.dp else 12.dp, end = if (windowSize.widthDp < 360) 4.dp else 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Center Address Capsule (Brave / DDG Style)
+            // Center Address Capsule (Clean, Minimalist Apple / Brave Style)
             Row(
                 modifier = Modifier
                     .weight(1f)
-                    .height(44.dp)
-                    .clip(AzokleRadius.full)
+                    .height(42.dp)
+                    .clip(CircleShape)
                     .background(colors.surface)
-                    .border(1.dp, colors.border, AzokleRadius.full)
+                    .border(1.dp, colors.border.copy(alpha = 0.6f), CircleShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(color = colors.textPrimary.copy(alpha = 0.1f)),
+                        indication = ripple(color = colors.textPrimary.copy(alpha = 0.08f)),
                         onClick = onUrlBarClick
                     )
-                    .padding(start = 4.dp, end = 4.dp)
-                    .semantics {
-                        role = Role.Button
-                        contentDescription = "Address bar, current address: $displayHost"
-                    },
+                    .padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // SSL Padlock / Certificate Viewer Button (Accessible 48dp Touch Delegate)
+                // SSL Padlock / Certificate Viewer (Clean, Zero Glow Bubble)
                 Box(
                     modifier = Modifier
-                        .sizeIn(minWidth = 40.dp, minHeight = 44.dp)
+                        .sizeIn(minWidth = 32.dp, minHeight = 36.dp)
                         .clip(CircleShape)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(bounded = false, radius = 18.dp, color = sslTint),
+                            indication = ripple(bounded = false, radius = 16.dp, color = sslTint),
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 onSecurityLockClick()
@@ -166,23 +183,15 @@ fun BrowserOmnibar(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(26.dp)
-                            .clip(CircleShape)
-                            .background(sslTint.copy(alpha = 0.12f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = sslIcon,
-                            contentDescription = null,
-                            tint = sslTint,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = sslIcon,
+                        contentDescription = null,
+                        tint = sslTint,
+                        modifier = Modifier.size(15.dp)
+                    )
                 }
 
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(6.dp))
 
                 // Domain & Path with Anti-Spoofing Hierarchy
                 Row(
@@ -193,7 +202,7 @@ fun BrowserOmnibar(
                         text = displayHost,
                         color = colors.textPrimary,
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -208,49 +217,59 @@ fun BrowserOmnibar(
                     }
                 }
 
-                // Shield Live Counter Badge (Accessible Touch Target)
+                // Shield Live Counter (Clean, Zero Background Glow Circle)
+                val isShieldActive = isShieldEnabled && blockedCount > 0
+                val shieldTint = when {
+                    isShieldActive -> colors.statusSuccess
+                    isShieldEnabled -> colors.textPrimary
+                    else -> colors.textMuted
+                }
+
                 Box(
                     modifier = Modifier
-                        .clip(AzokleRadius.full)
-                        .background(if (isShieldEnabled && blockedCount > 0) colors.statusSuccess.copy(alpha = 0.15f) else colors.surfaceElevated)
+                        .sizeIn(minWidth = 32.dp, minHeight = 36.dp)
+                        .clip(CircleShape)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(bounded = true, color = colors.statusSuccess),
+                            indication = ripple(bounded = false, radius = 16.dp, color = shieldTint),
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 onShieldClick()
                             }
                         )
-                        .padding(horizontal = 8.dp, vertical = 5.dp)
+                        .padding(horizontal = 4.dp)
                         .semantics {
                             role = Role.Button
                             contentDescription = if (isShieldEnabled) "Privacy Shield Active, $blockedCount trackers blocked" else "Privacy Shield Disabled"
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Shield,
                             contentDescription = null,
-                            tint = if (isShieldEnabled) (if (blockedCount > 0) colors.statusSuccess else colors.textPrimary) else colors.textMuted,
-                            modifier = Modifier.size(13.dp)
+                            tint = shieldTint,
+                            modifier = Modifier.size(16.5.dp)
                         )
                         if (blockedCount > 0) {
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "$blockedCount",
-                                fontSize = 11.sp,
+                                fontSize = 11.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace,
-                                color = if (isShieldEnabled) colors.statusSuccess else colors.textMuted
+                                color = shieldTint
                             )
                         }
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.width(2.dp))
-
-                // Refresh / Stop Action Icon (WCAG 48dp Touch Target)
+            if (showExtendedActions) {
+                // Settings Action Trigger (Clean 40dp Touch Target)
                 Box(
                     modifier = Modifier
                         .sizeIn(minWidth = 40.dp, minHeight = 44.dp)
@@ -258,62 +277,6 @@ fun BrowserOmnibar(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = ripple(bounded = false, radius = 18.dp, color = colors.textPrimary),
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                onRefreshClick()
-                            }
-                        )
-                        .semantics {
-                            role = Role.Button
-                            contentDescription = if (isLoading) "Stop loading" else "Reload page"
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (isLoading) Icons.Default.Close else Icons.Default.Refresh,
-                        contentDescription = null,
-                        tint = colors.textSecondary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-
-            if (showExtendedActions) {
-                // Reader Mode Icon Button (48dp Touch Target)
-                Box(
-                    modifier = Modifier
-                        .sizeIn(minWidth = 44.dp, minHeight = 48.dp)
-                        .clip(CircleShape)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(bounded = false, radius = 20.dp, color = colors.textPrimary),
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                onReaderModeClick()
-                            }
-                        )
-                        .semantics {
-                            role = Role.Button
-                            contentDescription = "Reader Mode"
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.MenuBook,
-                        contentDescription = null,
-                        tint = colors.textSecondary,
-                        modifier = Modifier.size(21.dp)
-                    )
-                }
-
-                // Settings Action Trigger (48dp Touch Target)
-                Box(
-                    modifier = Modifier
-                        .sizeIn(minWidth = 44.dp, minHeight = 48.dp)
-                        .clip(CircleShape)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(bounded = false, radius = 20.dp, color = colors.textPrimary),
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 onSettingsClick()
@@ -328,8 +291,8 @@ fun BrowserOmnibar(
                     Icon(
                         imageVector = Icons.Default.Settings,
                         contentDescription = null,
-                        tint = colors.textPrimary,
-                        modifier = Modifier.size(21.dp)
+                        tint = colors.textSecondary,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }

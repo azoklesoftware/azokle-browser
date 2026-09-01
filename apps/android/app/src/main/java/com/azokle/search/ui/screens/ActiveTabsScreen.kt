@@ -74,8 +74,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.azokle.search.browser.tabs.TabGroup
 import com.azokle.search.browser.tabs.TabManager
 import com.azokle.search.browser.tabs.TabSession
+import com.azokle.search.browser.ui.components.TabGroupCard
+import com.azokle.search.browser.ui.components.TabGroupDetailSheet
 import com.azokle.search.ui.theme.AzokleRadius
 import com.azokle.search.ui.theme.AzokleTheme
 import kotlinx.coroutines.Job
@@ -100,6 +103,7 @@ fun ActiveTabsScreen(
     val scope = rememberCoroutineScope()
 
     val tabs by TabManager.tabs.collectAsState()
+    val groups by TabManager.groups.collectAsState()
     val activeTabId by TabManager.activeTabId.collectAsState()
 
     val activeTab = remember(tabs, activeTabId) { tabs.find { it.id == activeTabId } }
@@ -117,10 +121,28 @@ fun ActiveTabsScreen(
     var isGroupedByDomain by remember { mutableStateOf(false) }
     var lastClosedTab by remember { mutableStateOf<TabSession?>(null) }
     var undoSnackbarJob by remember { mutableStateOf<Job?>(null) }
+    var expandedGroup by remember { mutableStateOf<TabGroup?>(null) }
 
     val standardCount = remember(tabs) { tabs.count { !it.isPrivate && !it.isTor } }
     val privateCount = remember(tabs) { tabs.count { it.isPrivate && !it.isTor } }
     val torCount = remember(tabs) { tabs.count { it.isTor } }
+
+    val categoryGroups = remember(groups, selectedCategory, searchQuery) {
+        groups.filter { group ->
+            when (selectedCategory) {
+                TabCategory.STANDARD -> !group.isPrivate && !group.isTor
+                TabCategory.PRIVATE -> group.isPrivate && !group.isTor
+                TabCategory.TOR -> group.isTor
+            }
+        }.filter { group ->
+            if (searchQuery.isBlank()) true
+            else group.title.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+    val groupedTabIds = remember(categoryGroups) {
+        categoryGroups.flatMap { it.tabIds }.toSet()
+    }
 
     val filteredTabs = remember(tabs, selectedCategory, searchQuery) {
         tabs.filter { tab ->
@@ -145,8 +167,14 @@ fun ActiveTabsScreen(
         }
     }
 
-    if (onClose != null) {
-        BackHandler {
+    val standaloneTabs = remember(displayTabs, groupedTabIds) {
+        displayTabs.filter { !groupedTabIds.contains(it.id) && it.groupId == null }
+    }
+
+    BackHandler(enabled = expandedGroup != null || onClose != null) {
+        if (expandedGroup != null) {
+            expandedGroup = null
+        } else if (onClose != null) {
             onClose()
         }
     }
@@ -638,7 +666,21 @@ fun ActiveTabsScreen(
                         .fillMaxWidth()
                         .weight(1f)
                 ) {
-                    items(displayTabs, key = { it.id }) { tab ->
+                    // 1. Render Tab Group Cards (Brave-Grade Multi-Tab Stack)
+                    items(categoryGroups, key = { "group_${it.id}" }) { group ->
+                        val groupTabs = tabs.filter { it.groupId == group.id }
+                        val isActive = groupTabs.any { it.id == activeTabId }
+                        TabGroupCard(
+                            group = group,
+                            tabs = groupTabs,
+                            isActive = isActive,
+                            onClick = { expandedGroup = group },
+                            onCloseGroup = { TabManager.closeGroup(group.id) }
+                        )
+                    }
+
+                    // 2. Render Standalone Tabs
+                    items(standaloneTabs, key = { it.id }) { tab ->
                         val isActive = tab.id == activeTabId
                         val shape = AzokleRadius.lg
 
@@ -987,6 +1029,30 @@ fun ActiveTabsScreen(
                     }
                 }
             }
+        }
+
+        // 5. Tab Group Detail Modal Sheet (Expanded Group View)
+        expandedGroup?.let { group ->
+            val groupTabs = tabs.filter { it.groupId == group.id }
+            TabGroupDetailSheet(
+                group = group,
+                tabs = groupTabs,
+                activeTabId = activeTabId,
+                onTabSelected = { selectedTab ->
+                    expandedGroup = null
+                    onTabSelected(selectedTab)
+                },
+                onAddTabInGroup = {
+                    expandedGroup = null
+                    val newId = TabManager.openTabInGroup("https://search.azokle.com", "Search", group.id)
+                    val newTab = TabManager.tabs.value.find { it.id == newId }
+                    if (newTab != null) onTabSelected(newTab)
+                },
+                onCloseTab = { tabIdToClose ->
+                    TabManager.closeTab(tabIdToClose)
+                },
+                onDismiss = { expandedGroup = null }
+            )
         }
     }
 }

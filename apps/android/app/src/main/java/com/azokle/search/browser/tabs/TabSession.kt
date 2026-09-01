@@ -8,6 +8,7 @@ data class TabSession(
     val id: String = UUID.randomUUID().toString(),
     val url: String = "https://search.azokle.com",
     val title: String = "New Tab",
+    val faviconUrl: String? = null,
     val thumbnail: Bitmap? = null,
     val isPrivate: Boolean = false,
     val isTor: Boolean = false,
@@ -16,6 +17,8 @@ data class TabSession(
     val canGoForward: Boolean = false,
     val groupId: String? = null,
     val groupTitle: String? = null,
+    val groupColor: Long? = null,
+    val parentTabId: String? = null,
     val lastAccessedAt: Long = System.currentTimeMillis(),
     val createdAt: Long = System.currentTimeMillis()
 ) {
@@ -24,11 +27,14 @@ data class TabSession(
             put("id", id)
             put("url", url)
             put("title", title)
+            put("favicon_url", faviconUrl ?: "")
             put("is_private", isPrivate)
             put("is_tor", isTor)
             put("is_sleeping", isSleeping)
             put("group_id", groupId ?: "")
             put("group_title", groupTitle ?: "")
+            if (groupColor != null) put("group_color", groupColor)
+            if (parentTabId != null) put("parent_tab_id", parentTabId)
             put("last_accessed_at", lastAccessedAt)
             put("created_at", createdAt)
         }
@@ -40,6 +46,7 @@ data class TabSession(
                 id = json.optString("id", UUID.randomUUID().toString()),
                 url = json.optString("url", "https://search.azokle.com"),
                 title = json.optString("title", "New Tab"),
+                faviconUrl = json.optString("favicon_url", "").takeIf { it.isNotBlank() },
                 isPrivate = json.optBoolean("is_private", json.optBoolean("isPrivate", false)),
                 isTor = json.optBoolean("is_tor", json.optBoolean("isTor", false)),
                 isSleeping = json.optBoolean("is_sleeping", json.optBoolean("isSleeping", false)),
@@ -47,6 +54,9 @@ data class TabSession(
                     ?: json.optString("groupId", "").takeIf { it.isNotBlank() }),
                 groupTitle = (json.optString("group_title", "").takeIf { it.isNotBlank() }
                     ?: json.optString("groupTitle", "").takeIf { it.isNotBlank() }),
+                groupColor = if (json.has("group_color")) json.optLong("group_color") else null,
+                parentTabId = (json.optString("parent_tab_id", "").takeIf { it.isNotBlank() }
+                    ?: json.optString("parentTabId", "").takeIf { it.isNotBlank() }),
                 lastAccessedAt = if (json.has("last_accessed_at")) json.optLong("last_accessed_at") else json.optLong("lastAccessedAt", System.currentTimeMillis()),
                 createdAt = if (json.has("created_at")) json.optLong("created_at") else json.optLong("createdAt", System.currentTimeMillis())
             )

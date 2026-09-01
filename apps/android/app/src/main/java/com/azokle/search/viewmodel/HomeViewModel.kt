@@ -55,10 +55,10 @@ data class HomeUiState(
     val isResultsScreenVisible: Boolean = false,
     val searchResults: List<SearchItem> = emptyList(),
     val isSearchingResults: Boolean = false,
-    val searchError: String? = null,
     val searchTotalCount: Long = 0,
     val searchTimeSeconds: Double = 0.0,
-    val isInPipMode: Boolean = false
+    val isInPipMode: Boolean = false,
+
 )
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -220,6 +220,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     isOnboardingVisible = false
                 )
             }
+        }
+    }
+
+    fun openNewsArticle(url: String) {
+        if (url.isBlank()) return
+        if (url.contains("news.google.com")) {
+            viewModelScope.launch {
+                val directUrl = com.azokle.search.data.news.GoogleNewsUrlDecoder.resolveDirectUrl(url)
+                openInAppBrowser(directUrl)
+            }
+        } else {
+            openInAppBrowser(url)
         }
     }
 

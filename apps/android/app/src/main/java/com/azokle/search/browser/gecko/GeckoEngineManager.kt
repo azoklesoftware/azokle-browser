@@ -186,6 +186,9 @@ object GeckoEngineManager {
                                     }
 
                                     val activeTabId = com.azokle.search.browser.tabs.TabManager.activeTabId.value ?: "active"
+                                    if (fallbackIcon != null) {
+                                        com.azokle.search.browser.tabs.TabManager.updateActiveTabFavicon(fallbackIcon)
+                                    }
                                     com.azokle.search.browser.pwa.PwaManager.onManifestDiscovered(
                                         tabId = activeTabId,
                                         manifestUrl = manifestUrl,

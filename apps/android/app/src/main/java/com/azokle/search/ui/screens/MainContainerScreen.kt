@@ -26,9 +26,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
+import com.azokle.search.browser.tabs.TabManager
+import com.azokle.search.browser.ui.BrowserBottomBar
+import com.azokle.search.browser.ui.BrowserMenuSheet
 import com.azokle.search.browser.ui.BrowserScreen
-import com.azokle.search.navigation.AppBottomNavBar
 import com.azokle.search.navigation.AppNavTab
+import com.azokle.search.ui.components.FireIncinerationOverlay
 import com.azokle.search.ui.theme.AzokleTheme
 import com.azokle.search.viewmodel.HomeViewModel
 
@@ -38,11 +42,27 @@ fun MainContainerScreen(
     onVoiceSearchRequest: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var currentTab by remember { mutableStateOf(AppNavTab.SEARCH) }
     var isAppBottomBarVisible by remember { mutableStateOf(true) }
-    val uiState by viewModel.uiState.collectAsState()
+    var isBurningData by remember { mutableStateOf(false) }
+    var showMenuSheet by remember { mutableStateOf(false) }
+    var showDownloadsScreen by remember { mutableStateOf(false) }
+    var showBookmarksScreen by remember { mutableStateOf(false) }
 
-    androidx.activity.compose.BackHandler(enabled = currentTab != AppNavTab.SEARCH) {
+    val uiState by viewModel.uiState.collectAsState()
+    val openTabs by TabManager.tabs.collectAsState()
+    val discoverViewModel: com.azokle.search.viewmodel.DiscoverViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+
+    androidx.activity.compose.BackHandler(enabled = showBookmarksScreen) {
+        showBookmarksScreen = false
+    }
+
+    androidx.activity.compose.BackHandler(enabled = !showBookmarksScreen && showDownloadsScreen) {
+        showDownloadsScreen = false
+    }
+
+    androidx.activity.compose.BackHandler(enabled = !showBookmarksScreen && !showDownloadsScreen && currentTab != AppNavTab.SEARCH) {
         currentTab = AppNavTab.SEARCH
     }
 
@@ -51,10 +71,8 @@ fun MainContainerScreen(
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val delta = available.y
                 if (delta < -12) {
-                    // Scrolled down -> hide bottom bar
                     isAppBottomBarVisible = false
                 } else if (delta > 12) {
-                    // Scrolled up -> show bottom bar
                     isAppBottomBarVisible = true
                 }
                 return Offset.Zero
@@ -62,7 +80,7 @@ fun MainContainerScreen(
         }
     }
 
-    // 1. Top-level In-Built Privacy Browser (Instantly renders header Omnibar & footer Toolbar together)
+    // 1. Top-level In-Built Privacy Browser
     if (uiState.inAppBrowserUrl != null) {
         BrowserScreen(
             initialUrl = uiState.inAppBrowserUrl!!,
@@ -72,7 +90,6 @@ fun MainContainerScreen(
         return
     }
 
-    // Determine if full-screen overlay is active (e.g. expanded search)
     val isFullScreenOverlay = uiState.isSearchExpanded
 
     Box(
@@ -103,26 +120,26 @@ fun MainContainerScreen(
                 }
                 AppNavTab.DISCOVER -> {
                     DiscoverScreen(
-                        viewModel = viewModel,
+                        viewModel = discoverViewModel,
                         onTopicClick = { topic ->
                             currentTab = AppNavTab.SEARCH
                             viewModel.onQueryChange(topic)
                             viewModel.executeSearch(topic)
                         },
                         onNewsClick = { url ->
-                            viewModel.openInAppBrowser(url)
+                            viewModel.openNewsArticle(url)
                         }
                     )
                 }
                 AppNavTab.TABS -> {
                     ActiveTabsScreen(
                         onTabSelected = { tab ->
-                            com.azokle.search.browser.tabs.TabManager.selectTab(tab.id)
+                            TabManager.selectTab(tab.id)
                             viewModel.openInAppBrowser(tab.url, isTor = tab.isTor)
                         },
                         onNewTabClick = {
-                            val newId = com.azokle.search.browser.tabs.TabManager.openTab("https://search.azokle.com", "Search")
-                            com.azokle.search.browser.tabs.TabManager.selectTab(newId)
+                            val newId = TabManager.openTab("https://search.azokle.com", "Search")
+                            TabManager.selectTab(newId)
                             viewModel.openInAppBrowser("https://search.azokle.com")
                         }
                     )
@@ -143,16 +160,98 @@ fun MainContainerScreen(
             }
         }
 
-        // Floating Glassmorphic Bottom Navigation Bar (Auto-hides on scroll down)
+        // Shared Unified BrowserBottomBar for Home & Discover
         AnimatedVisibility(
             visible = !isFullScreenOverlay && isAppBottomBarVisible,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
-            AppBottomNavBar(
-                currentTab = currentTab,
-                onTabSelected = { currentTab = it }
+            BrowserBottomBar(
+                openTabsCount = openTabs.size.coerceAtLeast(1),
+                isHomeSelected = currentTab == AppNavTab.SEARCH,
+                isDiscoverSelected = currentTab == AppNavTab.DISCOVER,
+                isTabsSelected = currentTab == AppNavTab.TABS,
+                onHomeClick = { currentTab = AppNavTab.SEARCH },
+                onDiscoverClick = { currentTab = AppNavTab.DISCOVER },
+                onTabsClick = { currentTab = AppNavTab.TABS },
+                onBurnDataClick = { isBurningData = true },
+                onMenuClick = { showMenuSheet = true }
+            )
+        }
+
+        // Shared Browser Menu Sheet for Home & Discover
+        if (showMenuSheet) {
+            BrowserMenuSheet(
+                url = "https://search.azokle.com",
+                title = "Azokle Search",
+                isDesktopMode = false,
+                isBookmarked = false,
+                blockedTrackersCount = 0,
+                isBrowserContext = false,
+                onOpenNewTab = {
+                    val newId = TabManager.openTab("https://search.azokle.com", "Search")
+                    TabManager.selectTab(newId)
+                    viewModel.openInAppBrowser("https://search.azokle.com")
+                },
+                onOpenNewPrivateTab = {
+                    val newId = TabManager.openPrivateTab("https://search.azokle.com", "Private Search")
+                    TabManager.selectTab(newId)
+                    viewModel.openInAppBrowser("https://search.azokle.com")
+                },
+                onOpenTorWindow = {
+                    val newTorId = TabManager.openTorTab(context, "https://check.torproject.org", "Tor")
+                    TabManager.selectTab(newTorId)
+                    viewModel.openInAppBrowser("https://check.torproject.org", isTor = true)
+                },
+                onOpenBookmarks = {
+                    showBookmarksScreen = true
+                },
+                onOpenDownloads = {
+                    showDownloadsScreen = true
+                },
+                onOpenHistory = { currentTab = AppNavTab.HISTORY },
+                onOpenShield = { viewModel.setPrivacyModalOpen(true) },
+                onOpenSettings = { viewModel.setSettingsOpen(true) },
+                onOpenAbout = { viewModel.setAboutModalOpen(true) },
+                onBurnData = { isBurningData = true },
+                onDismiss = { showMenuSheet = false }
+            )
+        }
+
+        // Dedicated Bookmarks & Quick Links Screen Overlay
+        if (showBookmarksScreen) {
+            com.azokle.search.browser.bookmarks.BookmarksScreen(
+                onDismiss = { showBookmarksScreen = false },
+                onNavigate = { targetUrl ->
+                    showBookmarksScreen = false
+                    viewModel.openInAppBrowser(targetUrl)
+                },
+                onOpenTor = { targetUrl ->
+                    showBookmarksScreen = false
+                    viewModel.openInAppBrowser(targetUrl, isTor = true)
+                }
+            )
+        }
+
+        // In-App Downloads Screen Overlay
+        if (showDownloadsScreen) {
+            com.azokle.search.browser.downloads.DownloadsScreen(
+                onDismiss = { showDownloadsScreen = false }
+            )
+        }
+
+        // Cinema-Grade Fire Incineration Overlay
+        if (isBurningData) {
+            FireIncinerationOverlay(
+                onComplete = {
+                    TabManager.closeAllTabs()
+                    com.azokle.search.browser.gecko.GeckoEngineManager.clearAllData(context)
+                    com.azokle.search.browser.history.HistoryManager.clearAll()
+                    com.azokle.search.data.PreferencesManager(context).clearRecentSearches()
+                    isBurningData = false
+                    currentTab = AppNavTab.SEARCH
+                }
             )
         }
     }

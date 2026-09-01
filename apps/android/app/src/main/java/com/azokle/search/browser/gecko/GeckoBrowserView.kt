@@ -14,6 +14,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import android.content.pm.PackageManager
 import com.azokle.search.browser.permissions.SitePermissionRequest
 import com.azokle.search.browser.permissions.SitePermissionState
@@ -174,6 +177,18 @@ fun GeckoBrowserView(
                         // 1. Block dangerous internal and privileged schemes (allow javascript for internal scripts)
                         if (scheme in setOf("file", "content", "chrome", "resource")) {
                             return org.mozilla.geckoview.GeckoResult.fromValue(org.mozilla.geckoview.AllowOrDeny.DENY)
+                        }
+
+                        // 1.5 Intercept & bypass Google News tracking redirect hops directly to publisher destination
+                        if (uriStr.contains("news.google.com/rss/articles/") || uriStr.contains("news.google.com/articles/")) {
+                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                val directUrl = com.azokle.search.data.news.GoogleNewsUrlDecoder.resolveDirectUrl(uriStr)
+                                if (directUrl != uriStr && !directUrl.contains("news.google.com")) {
+                                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                        session.loadUri(directUrl)
+                                    }
+                                }
+                            }
                         }
 
                         // 2. Standard web browsing, data/blob, and javascript schemes
@@ -519,7 +534,7 @@ fun GeckoBrowserView(
                     currentContext = currentContext.baseContext
                 }
                 if (currentContext is android.app.Activity) {
-                    session.selectionActionDelegate = AzokleSelectionDelegate(currentContext, this)
+                    session.selectionActionDelegate = AzokleSelectionDelegate(currentContext)
                 }
 
                 // 7. Permission Delegate (Two-Tier Brave-Grade Origin Security & Hardware Access Engine)
@@ -677,15 +692,41 @@ fun GeckoBrowserView(
                     session.open(runtime)
                 }
 
+                isFocusable = true
+                isFocusableInTouchMode = true
+                try {
+                    session.setFocused(true)
+                } catch (e: Exception) {}
+
+                setOnTouchListener { v, _ ->
+                    if (!v.isFocused) {
+                        v.requestFocus()
+                    }
+                    if (session.isOpen) {
+                        try {
+                            session.setFocused(true)
+                        } catch (e: Exception) {}
+                    }
+                    false
+                }
+
                 onSessionReady(session, this)
             }
 
             swipeRefresh.addView(geckoView)
             swipeRefresh
         },
-        onRelease = { _ ->
-            // Note: Do not destroy media session or call releaseSession() on transient view detachment.
-            // Active GeckoSession and MediaSession lifecycles are managed by TabManager and MediaPlaybackManager.
+        onRelease = { swipeRefresh ->
+            try {
+                for (i in 0 until swipeRefresh.childCount) {
+                    val child = swipeRefresh.getChildAt(i)
+                    if (child is org.mozilla.geckoview.GeckoView) {
+                        child.releaseSession()
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore transient release errors safely
+            }
         },
         modifier = modifier.fillMaxSize()
     )

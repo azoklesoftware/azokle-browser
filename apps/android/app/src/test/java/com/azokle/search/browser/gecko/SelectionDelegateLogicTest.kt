@@ -41,4 +41,15 @@ class SelectionDelegateLogicTest {
         assertTrue(isCollapsed)
         assertFalse(hasSelection)
     }
+
+    @Test
+    fun testCustomActionsListContainsAllRequiredActions() {
+        val actions = AzokleSelectionDelegate.CUSTOM_ACTIONS
+        assertTrue(actions.contains(SelectionActionDelegate.ACTION_CUT))
+        assertTrue(actions.contains(SelectionActionDelegate.ACTION_COPY))
+        assertTrue(actions.contains(SelectionActionDelegate.ACTION_PASTE))
+        assertTrue(actions.contains(SelectionActionDelegate.ACTION_SELECT_ALL))
+        assertTrue(actions.contains(AzokleSelectionDelegate.ACTION_SHARE))
+        assertTrue(actions.contains(AzokleSelectionDelegate.ACTION_SEARCH))
+    }
 }

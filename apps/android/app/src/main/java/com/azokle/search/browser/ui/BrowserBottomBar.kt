@@ -23,10 +23,10 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
@@ -40,29 +40,37 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.azokle.search.ui.theme.AzokleRadius
 import com.azokle.search.ui.theme.AzokleTheme
 import com.azokle.search.ui.theme.adaptiveContentWidth
 
+/**
+ * Shared Sovereign Bottom Navigation Bar for all screens (Home, Discover, Tabs, and In-App Browser):
+ * [1. Home, 2. Discover, 3. Active Tabs Badge, 4. Fire Burn, 5. 3-Dots Menu]
+ */
 @Composable
 fun BrowserBottomBar(
     openTabsCount: Int,
+    isHomeSelected: Boolean = false,
+    isDiscoverSelected: Boolean = false,
+    isTabsSelected: Boolean = false,
     onHomeClick: () -> Unit,
-    onSearchClick: () -> Unit,
+    onDiscoverClick: () -> Unit,
     onTabsClick: () -> Unit,
     onBurnDataClick: () -> Unit,
-    onMenuClick: () -> Unit
+    onMenuClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val colors = AzokleTheme.colors
     val haptic = LocalHapticFeedback.current
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .background(colors.cardBg)
             .border(1.dp, colors.border)
@@ -78,160 +86,167 @@ fun BrowserBottomBar(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 1. Home Button (48dp Touch Target)
-        Box(
-            modifier = Modifier
-                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                .clip(CircleShape)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = ripple(bounded = false, radius = 22.dp, color = colors.textPrimary),
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onHomeClick()
-                    }
-                )
-                .semantics {
-                    role = Role.Button
-                    contentDescription = "Home"
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Home,
-                contentDescription = null,
-                tint = colors.textPrimary,
-                modifier = Modifier.size(23.dp)
-            )
-        }
-
-        // 2. Search Button (48dp Touch Target)
-        Box(
-            modifier = Modifier
-                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                .clip(CircleShape)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = ripple(bounded = false, radius = 22.dp, color = colors.textPrimary),
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onSearchClick()
-                    }
-                )
-                .semantics {
-                    role = Role.Button
-                    contentDescription = "Search"
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = null,
-                tint = colors.textPrimary,
-                modifier = Modifier.size(23.dp)
-            )
-        }
-
-        // 3. Tab Switcher Badge Button (48dp Touch Target with Scale/Fade Transition)
-        Box(
-            modifier = Modifier
-                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                .clip(CircleShape)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = ripple(bounded = false, radius = 22.dp, color = colors.textPrimary),
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onTabsClick()
-                    }
-                )
-                .semantics {
-                    role = Role.Button
-                    contentDescription = "Active Tabs, $openTabsCount open"
-                },
-            contentAlignment = Alignment.Center
-        ) {
+            // 1. Home Button
             Box(
                 modifier = Modifier
-                    .size(34.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(colors.surface)
-                    .border(1.dp, colors.border, RoundedCornerShape(10.dp)),
+                    .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                    .clip(CircleShape)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = ripple(bounded = false, radius = 22.dp, color = colors.textPrimary),
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onHomeClick()
+                        }
+                    )
+                    .semantics {
+                        role = Role.Tab
+                        selected = isHomeSelected
+                        contentDescription = "Home"
+                    },
                 contentAlignment = Alignment.Center
             ) {
-                AnimatedContent(
-                    targetState = openTabsCount,
-                    transitionSpec = {
-                        val enter = fadeIn(animationSpec = tween(180)) + scaleIn(initialScale = 0.8f, animationSpec = tween(180))
-                        val exit = fadeOut(animationSpec = tween(140)) + scaleOut(targetScale = 1.2f, animationSpec = tween(140))
-                        enter togetherWith exit
-                    },
-                    label = "tabCountAnim"
-                ) { count ->
-                    Text(
-                        text = "$count",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        color = colors.textPrimary
+                Icon(
+                    imageVector = Icons.Default.Home,
+                    contentDescription = null,
+                    tint = if (isHomeSelected) colors.statusAccent else colors.textSecondary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            // 2. Discover Button
+            Box(
+                modifier = Modifier
+                    .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                    .clip(CircleShape)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = ripple(bounded = false, radius = 22.dp, color = colors.textPrimary),
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onDiscoverClick()
+                        }
                     )
+                    .semantics {
+                        role = Role.Tab
+                        selected = isDiscoverSelected
+                        contentDescription = "Discover"
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Explore,
+                    contentDescription = null,
+                    tint = if (isDiscoverSelected) colors.statusAccent else colors.textSecondary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            // 3. Active Tabs Switcher Button (Square Badge with animated tab count)
+            Box(
+                modifier = Modifier
+                    .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                    .clip(CircleShape)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = ripple(bounded = false, radius = 22.dp, color = colors.textPrimary),
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onTabsClick()
+                        }
+                    )
+                    .semantics {
+                        role = Role.Tab
+                        selected = isTabsSelected
+                        contentDescription = "Active Tabs, $openTabsCount open"
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isTabsSelected) colors.actionPrimaryBg else colors.surface)
+                        .border(
+                            1.dp,
+                            if (isTabsSelected) colors.statusAccent else colors.border,
+                            RoundedCornerShape(10.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AnimatedContent(
+                        targetState = openTabsCount,
+                        transitionSpec = {
+                            val enter = fadeIn(animationSpec = tween(180)) + scaleIn(initialScale = 0.8f, animationSpec = tween(180))
+                            val exit = fadeOut(animationSpec = tween(140)) + scaleOut(targetScale = 1.2f, animationSpec = tween(140))
+                            enter togetherWith exit
+                        },
+                        label = "tabCountAnim"
+                    ) { count ->
+                        Text(
+                            text = "$count",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            color = if (isTabsSelected) colors.actionPrimaryText else colors.textPrimary
+                        )
+                    }
                 }
             }
-        }
 
-        // 4. DuckDuckGo-Style Flame / Incinerator Button (48dp Touch Target)
-        Box(
-            modifier = Modifier
-                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                .clip(CircleShape)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = ripple(bounded = false, radius = 22.dp, color = colors.statusDestructive),
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onBurnDataClick()
-                    }
+            // 4. Fire Burn / Incinerator Button (Flame Icon)
+            Box(
+                modifier = Modifier
+                    .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                    .clip(CircleShape)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = ripple(bounded = false, radius = 22.dp, color = colors.statusDestructive),
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onBurnDataClick()
+                        }
+                    )
+                    .semantics {
+                        role = Role.Button
+                        contentDescription = "Burn Data and close tabs"
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LocalFireDepartment,
+                    contentDescription = null,
+                    tint = colors.statusDestructive,
+                    modifier = Modifier.size(24.dp)
                 )
-                .semantics {
-                    role = Role.Button
-                    contentDescription = "Burn Data and close tabs"
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.LocalFireDepartment,
-                contentDescription = null,
-                tint = colors.statusDestructive,
-                modifier = Modifier.size(24.dp)
-            )
-        }
+            }
 
-        // 5. 3-Dots Action Menu Trigger (48dp Touch Target)
-        Box(
-            modifier = Modifier
-                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                .clip(CircleShape)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = ripple(bounded = false, radius = 22.dp, color = colors.textPrimary),
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onMenuClick()
-                    }
+            // 5. 3-Dots Action Menu Trigger
+            Box(
+                modifier = Modifier
+                    .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                    .clip(CircleShape)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = ripple(bounded = false, radius = 22.dp, color = colors.textPrimary),
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onMenuClick()
+                        }
+                    )
+                    .semantics {
+                        role = Role.Button
+                        contentDescription = "Menu"
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = null,
+                    tint = colors.textPrimary,
+                    modifier = Modifier.size(24.dp)
                 )
-                .semantics {
-                    role = Role.Button
-                    contentDescription = "Browser Menu"
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = null,
-                tint = colors.textPrimary,
-                modifier = Modifier.size(23.dp)
-            )
+            }
         }
     }
-}
 }
