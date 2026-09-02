@@ -160,4 +160,25 @@ class TabManagerTest {
             assertEquals(expectedHost, cleanHost)
         }
     }
+
+    @Test
+    fun testTabSessionDesktopModeSerialization() {
+        val tabMobile = TabSession(id = "tab-mob", url = "https://example.com", isDesktopMode = false)
+        val tabDesktop = TabSession(id = "tab-desk", url = "https://example.com", isDesktopMode = true)
+
+        assertFalse(tabMobile.isDesktopMode)
+        assertTrue(tabDesktop.isDesktopMode)
+
+        val jsonMobile = tabMobile.toJson()
+        val jsonDesktop = tabDesktop.toJson()
+
+        assertEquals(false, jsonMobile.getBoolean("is_desktop_mode"))
+        assertEquals(true, jsonDesktop.getBoolean("is_desktop_mode"))
+
+        val restoredMobile = TabSession.fromJson(jsonMobile)
+        val restoredDesktop = TabSession.fromJson(jsonDesktop)
+
+        assertFalse(restoredMobile.isDesktopMode)
+        assertTrue(restoredDesktop.isDesktopMode)
+    }
 }

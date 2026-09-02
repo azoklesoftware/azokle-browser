@@ -23,11 +23,23 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.Brush
+import com.azokle.search.ui.theme.AudiowideFontFamily
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -48,6 +60,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -236,6 +252,59 @@ fun TabGroupDetailSheet(
                         onClose = { onCloseTab(tab.id) }
                     )
                 }
+
+                // Interactive Add Tab Card within Group
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp)
+                            .clip(AzokleRadius.lg)
+                            .background(colors.surfaceElevated.copy(alpha = 0.5f))
+                            .border(1.dp, colors.border, AzokleRadius.lg)
+                            .clickable {
+                                onAddTabInGroup()
+                                onDismiss()
+                            }
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(group.color).copy(alpha = 0.15f))
+                                    .border(1.dp, Color(group.color).copy(alpha = 0.3f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Add Tab",
+                                    tint = Color(group.color),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "New Tab",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.textPrimary
+                            )
+                            Text(
+                                text = "in ${group.title}",
+                                fontSize = 11.sp,
+                                color = colors.textSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -260,84 +329,275 @@ private fun GroupTabGridItem(
     onClick: () -> Unit,
     onClose: () -> Unit
 ) {
-    val context = LocalContext.current
     val colors = AzokleTheme.colors
+    val isHome = tab.url.isBlank() || tab.url == "about:home" || tab.url == "about:blank"
 
-    val host = try {
-        android.net.Uri.parse(tab.url).host?.removePrefix("www.") ?: tab.url
-    } catch (e: Exception) {
-        tab.url
+    val host = remember(tab.url) {
+        try {
+            android.net.Uri.parse(tab.url).host?.removePrefix("www.")?.ifBlank { tab.url } ?: tab.url
+        } catch (e: Exception) {
+            tab.url
+        }
     }
-    val faviconUrl = tab.faviconUrl ?: "https://www.google.com/s2/favicons?domain=$host&sz=64"
+
+    val shape = RoundedCornerShape(16.dp)
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(130.dp)
-            .clip(AzokleRadius.lg)
+            .height(210.dp)
+            .clip(shape)
             .background(colors.cardBg)
             .border(
                 width = if (isActive) 2.dp else 1.dp,
-                color = if (isActive) groupColor else colors.border,
-                shape = AzokleRadius.lg
+                color = if (isActive) groupColor else colors.border.copy(alpha = 0.7f),
+                shape = shape
             )
             .clickable(onClick = onClick)
-            .padding(10.dp)
+            .semantics {
+                role = Role.Button
+                contentDescription = "Tab: ${tab.title.ifBlank { if (isHome) "New Tab" else host }}${if (isActive) ", Active" else ""}"
+            }
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
+            // 1. Tab Card Top Header Bar
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(36.dp)
+                    .background(colors.surfaceElevated)
+                    .padding(start = 8.dp, end = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(colors.surface),
-                    contentAlignment = Alignment.Center
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
                 ) {
-                    FaviconImage(
-                        url = tab.url,
-                        faviconUrl = tab.faviconUrl,
-                        isTor = tab.isTor,
-                        size = 16.dp
+                    if (isHome) {
+                        Icon(
+                            imageVector = Icons.Default.Home,
+                            contentDescription = null,
+                            tint = groupColor,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    } else if (tab.isTor) {
+                        Text(text = "🧅", fontSize = 12.sp)
+                    } else if (tab.isPrivate) {
+                        Icon(
+                            imageVector = Icons.Default.VisibilityOff,
+                            contentDescription = null,
+                            tint = Color(0xFFA855F7),
+                            modifier = Modifier.size(14.dp)
+                        )
+                    } else {
+                        FaviconImage(
+                            url = tab.url,
+                            faviconUrl = tab.faviconUrl,
+                            isTor = tab.isTor,
+                            size = 14.dp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    Text(
+                        text = if (isHome) "New Tab" else tab.title.ifBlank { host },
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                IconButton(
-                    onClick = onClose,
-                    modifier = Modifier.size(22.dp)
+                // Close Tab Button
+                Box(
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple(bounded = false, radius = 13.dp, color = colors.statusDestructive),
+                            onClick = onClose
+                        )
+                        .semantics {
+                            role = Role.Button
+                            contentDescription = "Close tab: ${tab.title}"
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Close tab",
+                        contentDescription = null,
                         tint = colors.textSecondary,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(12.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            // 2. Webpage Live Screenshot or Miniature Wallpaper Home Screen
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .background(colors.surfaceElevated),
+                contentAlignment = Alignment.Center
+            ) {
+                if (tab.thumbnail != null) {
+                    Image(
+                        bitmap = tab.thumbnail.asImageBitmap(),
+                        contentDescription = tab.title,
+                        contentScale = ContentScale.Crop,
+                        alignment = Alignment.TopCenter,
+                        modifier = Modifier.fillMaxSize()
+                    )
 
-            Text(
-                text = tab.title,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = colors.textPrimary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(Color.Transparent, Color(0x10000000), Color(0x55000000))
+                                )
+                            )
+                    )
+                } else if (isHome) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        Image(
+                            painter = painterResource(id = com.azokle.search.R.drawable.bg_home),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color(0x40000000))
+                        )
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "azokle",
+                                fontFamily = AudiowideFontFamily,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .width(100.dp)
+                                    .height(24.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0x99000000))
+                                    .border(0.5.dp, Color(0x66FFFFFF), CircleShape)
+                                    .padding(horizontal = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = null,
+                                        tint = Color.White.copy(alpha = 0.8f),
+                                        modifier = Modifier.size(10.dp)
+                                    )
+                                    Text(
+                                        text = "Search",
+                                        fontSize = 8.sp,
+                                        color = Color.White.copy(alpha = 0.8f)
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.Mic,
+                                        contentDescription = null,
+                                        tint = Color.White.copy(alpha = 0.8f),
+                                        modifier = Modifier.size(10.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(colors.surfaceElevated, colors.cardBg)
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(colors.surface)
+                                    .border(1.dp, colors.border, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                FaviconImage(
+                                    url = tab.url,
+                                    faviconUrl = tab.faviconUrl,
+                                    isTor = tab.isTor,
+                                    size = 20.dp
+                                )
+                            }
 
-            Spacer(modifier = Modifier.weight(1f))
+                            Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = host,
-                fontSize = 10.sp,
-                color = colors.textMuted,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+                            Box(
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(colors.surface)
+                                    .border(0.5.dp, colors.border, CircleShape)
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = host,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = colors.textPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Active Badge
+                if (isActive) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(6.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(groupColor)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "ACTIVE",
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
         }
     }
 }

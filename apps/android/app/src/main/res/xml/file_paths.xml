@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Restrict FileProvider strictly to private app cache, internal files, and app downloads -->
-    <cache-path name="app_cache" path="." />
-    <files-path name="app_files" path="." />
+    <!-- Restrict FileProvider strictly to private app cache, downloads, and shared files -->
+    <cache-path name="app_cache" path="shared/" />
+    <files-path name="app_files" path="downloads/" />
     <external-files-path name="app_downloads" path="." />
 </paths>

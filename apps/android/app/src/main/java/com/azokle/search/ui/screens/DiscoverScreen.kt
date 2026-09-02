@@ -228,10 +228,9 @@ fun DiscoverScreen(
         )
 
         Column(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding(),
+                .statusBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Column(

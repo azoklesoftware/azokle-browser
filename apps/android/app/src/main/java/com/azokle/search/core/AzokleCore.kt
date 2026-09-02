@@ -83,6 +83,7 @@ object AzokleCore {
     private external fun permGet(origin: String, permType: String, isPrivate: Boolean): String
     private external fun permClearForOrigin(origin: String)
     private external fun permClearAll()
+    private external fun permClearEphemeral()
     private external fun permGetSitePermissionsJson(origin: String, isPrivate: Boolean): String
     private external fun permGetAllCustomizedOrigins(): String
     private external fun permExportJson(): String
@@ -426,6 +427,13 @@ object AzokleCore {
         if (!isNativeLoaded) return
         try {
             permClearAll()
+        } catch (e: Exception) {}
+    }
+
+    fun clearEphemeralPermissions() {
+        if (!isNativeLoaded) return
+        try {
+            permClearEphemeral()
         } catch (e: Exception) {}
     }
 

@@ -53,15 +53,17 @@ object GeckoEngineManager {
                 else -> GeckoRuntimeSettings.COLOR_SCHEME_SYSTEM
             }
 
+            val isDebug = (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
             val settings = GeckoRuntimeSettings.Builder()
                 .javaScriptEnabled(true)
                 .consoleOutput(true)
                 .aboutConfigEnabled(false)
+                .remoteDebuggingEnabled(isDebug)
                 .contentBlocking(
                     ContentBlocking.Settings.Builder()
-                        .antiTracking(ContentBlocking.AntiTracking.NONE)
-                        .enhancedTrackingProtectionLevel(ContentBlocking.EtpLevel.DEFAULT)
-                        .cookieBehavior(ContentBlocking.CookieBehavior.ACCEPT_ALL)
+                        .antiTracking(ContentBlocking.AntiTracking.DEFAULT)
+                        .enhancedTrackingProtectionLevel(ContentBlocking.EtpLevel.STRICT)
+                        .cookieBehavior(ContentBlocking.CookieBehavior.ACCEPT_FIRST_PARTY_AND_ISOLATE_OTHERS)
                         .safeBrowsing(ContentBlocking.SafeBrowsing.DEFAULT)
                         .build()
                 )
@@ -283,6 +285,46 @@ object GeckoEngineManager {
         } catch (e: Exception) {
             // Safe fallback
         }
+    }
+
+    fun printPageToPdf(
+        context: Context,
+        session: GeckoSession,
+        title: String,
+        url: String,
+        onComplete: (java.io.File?) -> Unit
+    ) {
+        val safeTitle = title.replace(Regex("[^a-zA-Z0-9._-]"), "_").take(40).ifBlank { "webpage" }
+        val fileName = "$safeTitle-${System.currentTimeMillis()}.pdf"
+        val downloadDir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir
+        val targetFile = java.io.File(downloadDir, fileName)
+
+        session.setPrintDelegate(object : GeckoSession.PrintDelegate {
+            override fun onPrint(input: java.io.InputStream) {
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    try {
+                        targetFile.outputStream().use { out ->
+                            input.copyTo(out)
+                        }
+                        com.azokle.search.browser.downloads.DownloadManager.recordCompletedDownload(
+                            context = context,
+                            url = url,
+                            file = targetFile,
+                            mimeType = "application/pdf"
+                        )
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            onComplete(targetFile)
+                        }
+                    } catch (e: Exception) {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            onComplete(null)
+                        }
+                    }
+                }
+            }
+        })
+
+        session.printPageContent()
     }
 
     fun shutdown() {

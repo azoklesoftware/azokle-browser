@@ -73,10 +73,15 @@ fun BrowserBottomBar(
         modifier = modifier
             .fillMaxWidth()
             .background(colors.cardBg)
-            .border(1.dp, colors.border)
             .navigationBarsPadding(),
         contentAlignment = Alignment.Center
     ) {
+        androidx.compose.material3.HorizontalDivider(
+            modifier = Modifier.align(Alignment.TopCenter),
+            thickness = 1.dp,
+            color = colors.border
+        )
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()

@@ -508,6 +508,14 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permClearAll(
 }
 
 #[no_mangle]
+pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permClearEphemeral(
+    _env: JNIEnv,
+    _class: JClass,
+) {
+    get_core().permissions.clear_ephemeral();
+}
+
+#[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permGetSitePermissionsJson(
     mut env: JNIEnv,
     _class: JClass,

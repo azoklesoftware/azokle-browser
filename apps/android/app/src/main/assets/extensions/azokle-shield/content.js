@@ -115,6 +115,96 @@
                 window.onpagehide = null;
                 window.onvisibilitychange = null;
                 document.onvisibilitychange = null;
+            // =================================================================
+            // 2. Sovereign RFP (Resist Fingerprinting) Canvas & Audio Shield
+            // Injects micro-variance into Canvas and Audio buffers to neutralize
+            // cross-site tracking fingerprints without degrading visual fidelity.
+            // =================================================================
+            try {
+                if (typeof HTMLCanvasElement !== 'undefined' && HTMLCanvasElement.prototype) {
+                    var origToDataURL = HTMLCanvasElement.prototype.toDataURL;
+                    HTMLCanvasElement.prototype.toDataURL = function() {
+                        try {
+                            var ctx = this.getContext('2d');
+                            if (ctx && this.width > 0 && this.height > 0) {
+                                var imgData = ctx.getImageData(0, 0, Math.min(this.width, 16), Math.min(this.height, 16));
+                                for (var i = 0; i < imgData.data.length; i += 4) {
+                                    imgData.data[i] ^= (Math.random() > 0.5 ? 1 : 0);
+                                }
+                                ctx.putImageData(imgData, 0, 0);
+                            }
+                        } catch(e) {}
+                        return origToDataURL.apply(this, arguments);
+                    };
+
+                    if (typeof CanvasRenderingContext2D !== 'undefined' && CanvasRenderingContext2D.prototype) {
+                        var origGetImageData = CanvasRenderingContext2D.prototype.getImageData;
+                        CanvasRenderingContext2D.prototype.getImageData = function() {
+                            var res = origGetImageData.apply(this, arguments);
+                            try {
+                                if (res && res.data && res.data.length > 0) {
+                                    for (var j = 0; j < Math.min(res.data.length, 64); j += 4) {
+                                        res.data[j] = (res.data[j] ^ 1);
+                                    }
+                                }
+                            } catch(e) {}
+                            return res;
+                        };
+                    }
+                }
+
+                if (typeof AudioBuffer !== 'undefined' && AudioBuffer.prototype.getChannelData) {
+                    var origGetChannelData = AudioBuffer.prototype.getChannelData;
+                    AudioBuffer.prototype.getChannelData = function() {
+                        var channel = origGetChannelData.apply(this, arguments);
+                        try {
+                            if (channel && channel.length > 0) {
+                                for (var k = 0; k < Math.min(channel.length, 32); k++) {
+                                    channel[k] += (Math.random() - 0.5) * 1e-7;
+                                }
+                            }
+                        } catch(e) {}
+                        return channel;
+                    };
+                }
+
+                safeDef(navigator, 'hardwareConcurrency', 8);
+                safeDef(navigator, 'deviceMemory', 8);
+
+                // WebGL Hardware Cloaking (Defeat GPU Model Fingerprinting)
+                var cloakWebGL = function(proto) {
+                    if (!proto || !proto.getParameter) return;
+                    var origGetParameter = proto.getParameter;
+                    proto.getParameter = function(param) {
+                        if (param === 0x9245) return "Google Inc. (Mozilla)";
+                        if (param === 0x9246) return "ANGLE (Mozilla, Generic Vulkan / OpenGL ES 1.0, Mesa)";
+                        return origGetParameter.apply(this, arguments);
+                    };
+                };
+                if (typeof WebGLRenderingContext !== 'undefined') cloakWebGL(WebGLRenderingContext.prototype);
+                if (typeof WebGL2RenderingContext !== 'undefined') cloakWebGL(WebGL2RenderingContext.prototype);
+
+                // Spectre Side-Channel Mitigation: Reduced Timer Precision
+                if (typeof performance !== 'undefined' && performance.now) {
+                    var origNow = performance.now.bind(performance);
+                    performance.now = function() {
+                        var t = origNow();
+                        return Math.floor(t / 20) * 20;
+                    };
+                }
+
+                // Battery API Annihilation (Eliminates Battery Discharge Fingerprinting)
+                if (typeof navigator !== 'undefined') {
+                    navigator.getBattery = function() {
+                        return Promise.reject(new Error("Battery API disabled for privacy"));
+                    };
+                }
+
+                // Sensor Neutralization
+                try {
+                    window.DeviceOrientationEvent = undefined;
+                    window.DeviceMotionEvent = undefined;
+                } catch(e) {}
             } catch(e) {}
         } catch(e) {}
     })();

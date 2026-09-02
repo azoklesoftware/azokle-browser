@@ -4,9 +4,13 @@ import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import android.content.ClipboardManager
+import android.content.Context
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,7 +30,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Warning
@@ -42,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -55,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import com.azokle.search.ui.theme.AzokleRadius
 import com.azokle.search.ui.theme.AzokleTheme
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BrowserOmnibar(
     url: String,
@@ -67,11 +75,12 @@ fun BrowserOmnibar(
     onRefreshClick: () -> Unit = {},
     onShieldClick: () -> Unit = {},
     onReaderModeClick: () -> Unit = {},
-    onSettingsClick: () -> Unit = {},
     onMenuClick: () -> Unit = {},
+    onVoiceClick: () -> Unit = {},
     onUrlBarClick: () -> Unit
 ) {
     val colors = AzokleTheme.colors
+    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
 
     val uri = remember(url) {
@@ -109,8 +118,8 @@ fun BrowserOmnibar(
 
     // Parse domain parts for Anti-Spoofing Visual Hierarchy
     val displayHost = when {
-        isInternal || cleanHost.equals("about:blank", ignoreCase = true) || cleanHost.isBlank() -> {
-            if (title.isNotBlank() && !title.equals("about:blank", ignoreCase = true)) title else "Search or type URL"
+        isInternal || cleanHost.equals("about:blank", ignoreCase = true) || cleanHost.equals("about:tor", ignoreCase = true) || cleanHost.isBlank() -> {
+            "Search or type URL"
         }
         else -> cleanHost
     }
@@ -138,14 +147,11 @@ fun BrowserOmnibar(
             .background(colors.cardBg)
             .statusBarsPadding()
     ) {
-        val windowSize = com.azokle.search.ui.theme.rememberWindowSize()
-        val showExtendedActions = windowSize.widthDp >= 360
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(58.dp)
-                .padding(start = if (windowSize.widthDp < 360) 6.dp else 12.dp, end = if (windowSize.widthDp < 360) 4.dp else 6.dp),
+                .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Center Address Capsule (Clean, Minimalist Apple / Brave Style)
@@ -153,45 +159,66 @@ fun BrowserOmnibar(
                 modifier = Modifier
                     .weight(1f)
                     .height(42.dp)
-                    .clip(CircleShape)
-                    .background(colors.surface)
-                    .border(1.dp, colors.border.copy(alpha = 0.6f), CircleShape)
-                    .clickable(
+                    .clip(AzokleRadius.md)
+                    .background(colors.surfaceElevated)
+                    .border(1.dp, colors.border, AzokleRadius.md)
+                    .combinedClickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = ripple(color = colors.textPrimary.copy(alpha = 0.08f)),
-                        onClick = onUrlBarClick
+                        onClick = onUrlBarClick,
+                        onLongClick = {
+                            if (url.isNotBlank() && !isInternal) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                                val clipData = android.content.ClipData.newPlainText("URL", url)
+                                clipboard?.setPrimaryClip(clipData)
+                                com.azokle.search.ui.components.ToastManager.showCopy("URL copied to clipboard")
+                            }
+                        }
                     )
                     .padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // SSL Padlock / Certificate Viewer (Clean, Zero Glow Bubble)
-                Box(
-                    modifier = Modifier
-                        .sizeIn(minWidth = 32.dp, minHeight = 36.dp)
-                        .clip(CircleShape)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(bounded = false, radius = 16.dp, color = sslTint),
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                onSecurityLockClick()
-                            }
+                // SSL Padlock / Certificate Viewer (Only shown for external websites)
+                if (!isInternal && cleanHost.isNotBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .sizeIn(minWidth = 32.dp, minHeight = 36.dp)
+                            .clip(CircleShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = false, radius = 16.dp, color = sslTint),
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onSecurityLockClick()
+                                }
+                            )
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = sslDesc
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = sslIcon,
+                            contentDescription = null,
+                            tint = sslTint,
+                            modifier = Modifier.size(15.dp)
                         )
-                        .semantics {
-                            role = Role.Button
-                            contentDescription = sslDesc
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+                } else {
+                    // Search Lens Icon on Home Page
                     Icon(
-                        imageVector = sslIcon,
+                        imageVector = Icons.Default.Search,
                         contentDescription = null,
-                        tint = sslTint,
-                        modifier = Modifier.size(15.dp)
+                        tint = colors.textMuted,
+                        modifier = Modifier
+                            .padding(start = 2.dp, end = 8.dp)
+                            .size(16.dp)
                     )
                 }
-
-                Spacer(modifier = Modifier.width(6.dp))
 
                 // Domain & Path with Anti-Spoofing Hierarchy
                 Row(
@@ -217,83 +244,85 @@ fun BrowserOmnibar(
                     }
                 }
 
-                // Shield Live Counter (Clean, Zero Background Glow Circle)
-                val isShieldActive = isShieldEnabled && blockedCount > 0
-                val shieldTint = when {
-                    isShieldActive -> colors.statusSuccess
-                    isShieldEnabled -> colors.textPrimary
-                    else -> colors.textMuted
-                }
+                // Shield Live Counter (Clean, Zero Background Glow Circle - Only on active web pages)
+                if (!isInternal && cleanHost.isNotBlank()) {
+                    val isShieldActive = isShieldEnabled && blockedCount > 0
+                    val shieldTint = when {
+                        isShieldActive -> colors.statusSuccess
+                        isShieldEnabled -> colors.textPrimary
+                        else -> colors.textMuted
+                    }
 
-                Box(
-                    modifier = Modifier
-                        .sizeIn(minWidth = 32.dp, minHeight = 36.dp)
-                        .clip(CircleShape)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(bounded = false, radius = 16.dp, color = shieldTint),
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                onShieldClick()
-                            }
-                        )
-                        .padding(horizontal = 4.dp)
-                        .semantics {
-                            role = Role.Button
-                            contentDescription = if (isShieldEnabled) "Privacy Shield Active, $blockedCount trackers blocked" else "Privacy Shield Disabled"
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Shield,
-                            contentDescription = null,
-                            tint = shieldTint,
-                            modifier = Modifier.size(16.5.dp)
-                        )
-                        if (blockedCount > 0) {
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "$blockedCount",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace,
-                                color = shieldTint
+                    Box(
+                        modifier = Modifier
+                            .sizeIn(minWidth = 32.dp, minHeight = 36.dp)
+                            .clip(CircleShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = false, radius = 16.dp, color = shieldTint),
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onShieldClick()
+                                }
                             )
+                            .padding(horizontal = 4.dp)
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = if (isShieldActive) "Privacy Shield Active, $blockedCount trackers blocked" else if (isShieldEnabled) "Privacy Shield Protected" else "Privacy Shield Disabled"
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Shield,
+                                contentDescription = null,
+                                tint = shieldTint,
+                                modifier = Modifier.size(16.5.dp)
+                            )
+                            if (isShieldActive && blockedCount > 0) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "$blockedCount",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = shieldTint
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            if (showExtendedActions) {
-                // Settings Action Trigger (Clean 40dp Touch Target)
-                Box(
-                    modifier = Modifier
-                        .sizeIn(minWidth = 40.dp, minHeight = 44.dp)
-                        .clip(CircleShape)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(bounded = false, radius = 18.dp, color = colors.textPrimary),
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                onSettingsClick()
-                            }
+                // Voice Search Trigger in Omnibar (when on home/blank tab)
+                if (isInternal || cleanHost.isBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = false, radius = 18.dp, color = colors.statusAccent),
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onVoiceClick()
+                                }
+                            )
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = "Voice search"
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = null,
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(22.dp)
                         )
-                        .semantics {
-                            role = Role.Button
-                            contentDescription = "Settings"
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = null,
-                        tint = colors.textSecondary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    }
                 }
             }
         }

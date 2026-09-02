@@ -331,64 +331,80 @@ fun GeckoBrowserView(
                             }
                         }
 
-                        // Capture Lightweight Screenshot Thumbnail for Active Tabs Grid
-                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                            try {
-                                val view = this@apply
-                                val activity = view.context as? android.app.Activity
-                                if (activity != null && (activity.isFinishing || activity.isDestroyed)) return@postDelayed
-                                if (view.width > 0 && view.height > 0) {
-                                    val targetW = 320
-                                    val targetH = (320f * view.height / view.width).toInt().coerceIn(180, 480)
-                                    val bitmap = android.graphics.Bitmap.createBitmap(
-                                        targetW,
-                                        targetH,
-                                        android.graphics.Bitmap.Config.ARGB_8888
-                                    )
+                        // Capture Lightweight Screenshot Thumbnail for Active Tabs Grid (Strictly Non-Private/Non-Tor Only)
+                        if (!isPrivate && !isTor) {
+                            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                try {
+                                    val view = this@apply
+                                    val activity = view.context as? android.app.Activity
+                                    if (activity != null && (activity.isFinishing || activity.isDestroyed)) return@postDelayed
+                                    if (view.width > 0 && view.height > 0) {
+                                        val targetW = 320
+                                        val targetH = (320f * view.height / view.width).toInt().coerceIn(180, 480)
+                                        val bitmap = android.graphics.Bitmap.createBitmap(
+                                            targetW,
+                                            targetH,
+                                            android.graphics.Bitmap.Config.ARGB_8888
+                                        )
 
-                                    var surfaceView: android.view.SurfaceView? = null
-                                    val vg: android.view.ViewGroup? = view as? android.view.ViewGroup
-                                    if (vg != null) {
-                                        for (i in 0 until vg.childCount) {
-                                            val child = vg.getChildAt(i)
-                                            if (child is android.view.SurfaceView) {
-                                                surfaceView = child
-                                                break
+                                        var surfaceView: android.view.SurfaceView? = null
+                                        var textureView: android.view.TextureView? = null
+                                        fun findViews(parent: android.view.ViewGroup) {
+                                            for (i in 0 until parent.childCount) {
+                                                val child = parent.getChildAt(i)
+                                                if (child is android.view.SurfaceView) {
+                                                    surfaceView = child
+                                                } else if (child is android.view.TextureView) {
+                                                    textureView = child
+                                                } else if (child is android.view.ViewGroup) {
+                                                    findViews(child)
+                                                }
                                             }
                                         }
-                                    }
+                                        val vg = view as? android.view.ViewGroup
+                                        if (vg != null) findViews(vg)
 
-                                    var copyDispatched = false
-                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && surfaceView != null && surfaceView.holder.surface.isValid) {
-                                        try {
-                                            android.view.PixelCopy.request(
-                                                surfaceView,
-                                                bitmap,
-                                                { copyResult ->
-                                                    if (copyResult == android.view.PixelCopy.SUCCESS) {
-                                                        TabManager.updateActiveTabThumbnail(bitmap)
-                                                    } else {
-                                                        bitmap.recycle()
-                                                    }
-                                                },
-                                                android.os.Handler(android.os.Looper.getMainLooper())
-                                            )
-                                            copyDispatched = true
-                                        } catch (e: Exception) {
-                                            copyDispatched = false
+                                        var copyDispatched = false
+                                        if (textureView != null) {
+                                            try {
+                                                val texBmp = textureView?.getBitmap(targetW, targetH)
+                                                if (texBmp != null) {
+                                                    TabManager.updateActiveTabThumbnail(texBmp)
+                                                    copyDispatched = true
+                                                }
+                                            } catch (e: Exception) {}
+                                        }
+                                        if (!copyDispatched && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && surfaceView != null && surfaceView?.holder?.surface?.isValid == true) {
+                                            try {
+                                                android.view.PixelCopy.request(
+                                                    surfaceView!!,
+                                                    bitmap,
+                                                    { copyResult ->
+                                                        if (copyResult == android.view.PixelCopy.SUCCESS) {
+                                                            TabManager.updateActiveTabThumbnail(bitmap)
+                                                        } else {
+                                                            bitmap.recycle()
+                                                        }
+                                                    },
+                                                    android.os.Handler(android.os.Looper.getMainLooper())
+                                                )
+                                                copyDispatched = true
+                                            } catch (e: Exception) {
+                                                copyDispatched = false
+                                            }
+                                        }
+                                        if (!copyDispatched) {
+                                            val canvas = android.graphics.Canvas(bitmap)
+                                            canvas.scale(targetW.toFloat() / view.width, targetH.toFloat() / view.height)
+                                            view.draw(canvas)
+                                            TabManager.updateActiveTabThumbnail(bitmap)
                                         }
                                     }
-                                    if (!copyDispatched) {
-                                        val canvas = android.graphics.Canvas(bitmap)
-                                        canvas.scale(targetW.toFloat() / view.width, targetH.toFloat() / view.height)
-                                        view.draw(canvas)
-                                        TabManager.updateActiveTabThumbnail(bitmap)
-                                    }
+                                } catch (e: Exception) {
+                                    // Ignore
                                 }
-                            } catch (e: Exception) {
-                                // Ignore
-                            }
-                        }, 450)
+                            }, 450)
+                        }
                     }
 
                     override fun onProgressChange(session: GeckoSession, progress: Int) {
@@ -584,8 +600,14 @@ fun GeckoBrowserView(
                             return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
                         }
 
+                        // Hard-deny persistent storage in Private / Tor mode
+                        if (isTabPrivate && mappedType == SitePermissionType.PERSISTENT_STORAGE) {
+                            return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
+                        }
+
+                        // Sovereign Gatekeeper: Hard-deny unknown hardware / sensor APIs by default
                         if (mappedType == null) {
-                            return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_PROMPT)
+                            return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
                         }
 
                         val siteState = permManager.getPermission(origin, mappedType, isPrivate = isTabPrivate)

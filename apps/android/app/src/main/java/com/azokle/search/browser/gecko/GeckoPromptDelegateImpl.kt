@@ -291,7 +291,150 @@ class GeckoPromptDelegateImpl(
     ): GeckoResult<PromptResponse>? {
         val result = GeckoResult<PromptResponse>()
         android.os.Handler(android.os.Looper.getMainLooper()).post {
-            result.complete(prompt.dismiss())
+            val mainActivity = unwrapActivity(context) as? com.azokle.search.MainActivity
+            if (mainActivity != null && !mainActivity.isFinishing && !mainActivity.isDestroyed) {
+                mainActivity.launchFilePicker(prompt, result)
+            } else {
+                result.complete(prompt.dismiss())
+            }
+        }
+        return result
+    }
+
+    override fun onColorPrompt(
+        session: GeckoSession,
+        prompt: ColorPrompt
+    ): GeckoResult<PromptResponse>? {
+        val result = GeckoResult<PromptResponse>()
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            val activity = unwrapActivity(context)
+            if (activity == null || activity.isFinishing || activity.isDestroyed) {
+                result.complete(prompt.dismiss())
+                return@post
+            }
+
+            val defaultHex = prompt.defaultValue?.takeIf { it.isNotBlank() } ?: "#3B82F6"
+            val palette = prompt.predefinedValues?.takeIf { it.isNotEmpty() } ?: arrayOf(
+                "#EF4444", "#F97316", "#F59E0B", "#10B981", "#06B6D4", "#3B82F6",
+                "#6366F1", "#8B5CF6", "#EC4899", "#111827", "#6B7280", "#FFFFFF"
+            )
+
+            android.app.AlertDialog.Builder(activity)
+                .setTitle("Select Color")
+                .setItems(palette) { _, which ->
+                    result.complete(prompt.confirm(palette[which]))
+                }
+                .setNegativeButton(android.R.string.cancel) { _, _ ->
+                    result.complete(prompt.dismiss())
+                }
+                .setOnCancelListener { result.complete(prompt.dismiss()) }
+                .show()
+        }
+        return result
+    }
+
+    override fun onSharePrompt(
+        session: GeckoSession,
+        prompt: SharePrompt
+    ): GeckoResult<PromptResponse>? {
+        val result = GeckoResult<PromptResponse>()
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            val activity = unwrapActivity(context)
+            try {
+                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    prompt.title?.takeIf { it.isNotBlank() }?.let { putExtra(android.content.Intent.EXTRA_SUBJECT, it) }
+                    val content = listOfNotNull(
+                        prompt.title?.takeIf { it.isNotBlank() },
+                        prompt.text?.takeIf { it.isNotBlank() },
+                        prompt.uri?.takeIf { it.isNotBlank() }
+                    ).joinToString("\n\n")
+                    putExtra(android.content.Intent.EXTRA_TEXT, content.ifBlank { prompt.uri ?: "" })
+                    flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                val chooser = android.content.Intent.createChooser(shareIntent, "Share with").apply {
+                    flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                if (activity != null && !activity.isFinishing && !activity.isDestroyed) {
+                    activity.startActivity(chooser)
+                } else {
+                    context.startActivity(chooser)
+                }
+                result.complete(prompt.confirm(SharePrompt.Result.SUCCESS))
+            } catch (e: Exception) {
+                result.complete(prompt.confirm(SharePrompt.Result.FAILURE))
+            }
+        }
+        return result
+    }
+
+    override fun onDateTimePrompt(
+        session: GeckoSession,
+        prompt: DateTimePrompt
+    ): GeckoResult<PromptResponse>? {
+        val result = GeckoResult<PromptResponse>()
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            val activity = unwrapActivity(context)
+            if (activity == null || activity.isFinishing || activity.isDestroyed) {
+                result.complete(prompt.dismiss())
+                return@post
+            }
+
+            val cal = java.util.Calendar.getInstance()
+            when (prompt.type) {
+                DateTimePrompt.Type.TIME -> {
+                    val timePicker = android.app.TimePickerDialog(
+                        activity,
+                        { _, hourOfDay, minute ->
+                            val formatted = String.format(java.util.Locale.US, "%02d:%02d", hourOfDay, minute)
+                            result.complete(prompt.confirm(formatted))
+                        },
+                        cal.get(java.util.Calendar.HOUR_OF_DAY),
+                        cal.get(java.util.Calendar.MINUTE),
+                        android.text.format.DateFormat.is24HourFormat(activity)
+                    )
+                    timePicker.setOnCancelListener { result.complete(prompt.dismiss()) }
+                    timePicker.show()
+                }
+                else -> {
+                    // Date, Month, Week, DateTimeLocal
+                    val datePicker = android.app.DatePickerDialog(
+                        activity,
+                        { _, year, month, dayOfMonth ->
+                            if (prompt.type == DateTimePrompt.Type.DATETIME_LOCAL) {
+                                val timePicker = android.app.TimePickerDialog(
+                                    activity,
+                                    { _, hourOfDay, minute ->
+                                        val formatted = String.format(
+                                            java.util.Locale.US,
+                                            "%04d-%02d-%02dT%02d:%02d",
+                                            year, month + 1, dayOfMonth, hourOfDay, minute
+                                        )
+                                        result.complete(prompt.confirm(formatted))
+                                    },
+                                    cal.get(java.util.Calendar.HOUR_OF_DAY),
+                                    cal.get(java.util.Calendar.MINUTE),
+                                    android.text.format.DateFormat.is24HourFormat(activity)
+                                )
+                                timePicker.setOnCancelListener { result.complete(prompt.dismiss()) }
+                                timePicker.show()
+                            } else {
+                                val formatted = String.format(
+                                    java.util.Locale.US,
+                                    "%04d-%02d-%02d",
+                                    year, month + 1, dayOfMonth
+                                )
+                                result.complete(prompt.confirm(formatted))
+                            }
+                        },
+                        cal.get(java.util.Calendar.YEAR),
+                        cal.get(java.util.Calendar.MONTH),
+                        cal.get(java.util.Calendar.DAY_OF_MONTH)
+                    )
+                    datePicker.setOnCancelListener { result.complete(prompt.dismiss()) }
+                    datePicker.show()
+                }
+            }
         }
         return result
     }

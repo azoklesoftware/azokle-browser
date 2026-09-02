@@ -139,11 +139,11 @@ object TabManager {
         return newTab.id
     }
 
-    fun openPrivateTab(url: String = "https://search.azokle.com", title: String = "Private Tab"): String {
+    fun openPrivateTab(url: String = "", title: String = "Private Tab"): String {
         return openTab(url = url, title = title, isPrivate = true, isTor = false)
     }
 
-    fun openTorTab(context: Context? = null, url: String = "about:tor", title: String = "Tor Window"): String {
+    fun openTorTab(context: Context? = null, url: String = "", title: String = "Tor Window"): String {
         if (context != null) {
             com.azokle.search.security.TorCircuitManager.startTorService(context)
         } else {
@@ -224,15 +224,47 @@ object TabManager {
             _activeTabId.value = id
             wakeTab(id)
 
-            // Throttling: activate foreground session and throttle background sessions
+            // Throttling & Priority: activate foreground session with PRIORITY_HIGH and throttle background
             for ((tabId, session) in sessionMap) {
                 try {
-                    session.setActive(tabId == id)
+                    val isForeground = tabId == id
+                    session.setActive(isForeground)
+                    session.setPriorityHint(
+                        if (isForeground) org.mozilla.geckoview.GeckoSession.PRIORITY_HIGH
+                        else org.mozilla.geckoview.GeckoSession.PRIORITY_DEFAULT
+                    )
                 } catch (e: Exception) {
                     // Ignore
                 }
             }
+
+            // RAM Reclamation: reclaim inactive tab sessions to keep memory lean
+            reclaimInactiveTabMemory()
             persistTabs()
+        }
+    }
+
+    fun reclaimInactiveTabMemory(maxActiveSessions: Int = 3) {
+        val currentId = _activeTabId.value ?: return
+        if (sessionMap.size <= maxActiveSessions) return
+
+        val sortedTabs = _tabs.value.sortedByDescending { it.lastAccessedAt }
+        val tabsToKeep = sortedTabs.take(maxActiveSessions).map { it.id }.toSet() + currentId
+
+        val sessionsToDiscard = sessionMap.keys.filter { it !in tabsToKeep }
+        for (tabId in sessionsToDiscard) {
+            sessionMap.remove(tabId)?.let { session ->
+                try {
+                    session.close()
+                } catch (e: Exception) {
+                    // Safe ignore
+                }
+            }
+        }
+        _tabs.update { list ->
+            list.map { tab ->
+                if (tab.id in sessionsToDiscard) tab.copy(isSleeping = true) else tab
+            }
         }
     }
 
@@ -268,7 +300,7 @@ object TabManager {
             list.map { tab ->
                 if (tab.id == currentId) {
                     tab.copy(
-                        url = if (url.isNotBlank()) url else tab.url,
+                        url = if (url.isNotBlank() || title == "New Tab") url else tab.url,
                         title = if (title.isNotBlank()) title else tab.title
                     )
                 } else {
@@ -277,6 +309,23 @@ object TabManager {
             }
         }
         persistTabs()
+    }
+
+    fun toggleDesktopMode(tabId: String? = null): Boolean {
+        val targetId = tabId ?: _activeTabId.value ?: return false
+        var newMode = false
+        _tabs.update { list ->
+            list.map { tab ->
+                if (tab.id == targetId) {
+                    newMode = !tab.isDesktopMode
+                    tab.copy(isDesktopMode = newMode)
+                } else {
+                    tab
+                }
+            }
+        }
+        persistTabs()
+        return newMode
     }
 
     fun updateActiveTabFavicon(faviconUrl: String) {
@@ -325,29 +374,33 @@ object TabManager {
             }
         }
 
-        // Clean up group membership and tabs atomically
+        // Determine the ideal fallback tab BEFORE removing the tab
+        val currentTabList = _tabs.value
+        val currentIndex = currentTabList.indexOfFirst { it.id == id }
         val gid = tabToClose.groupId
-        _tabs.update { list ->
-            val remaining = list.filter { it.id != id }
-            if (gid != null) {
-                val groupTabs = remaining.filter { it.groupId == gid }
-                if (groupTabs.size <= 1) {
-                    // Disband group on single lone tab or empty group
-                    remaining.map {
-                        if (it.groupId == gid) it.copy(groupId = null, groupTitle = null, groupColor = null) else it
-                    }
-                } else {
-                    remaining
-                }
-            } else {
-                remaining
-            }
+        val groupTabs = if (gid != null) currentTabList.filter { it.groupId == gid } else emptyList()
+        val groupIndex = groupTabs.indexOfFirst { it.id == id }
+
+        val fallbackTabId: String? = when {
+            // 1. In the same group: pick previous tab in group, or next tab in group
+            groupIndex > 0 -> groupTabs[groupIndex - 1].id
+            groupIndex == 0 && groupTabs.size > 1 -> groupTabs[1].id
+            // 2. Otherwise: pick previous tab in general tab list, or next tab
+            currentIndex > 0 -> currentTabList[currentIndex - 1].id
+            currentIndex == 0 && currentTabList.size > 1 -> currentTabList[1].id
+            else -> null
         }
 
+        // Clean up tabs atomically
+        _tabs.update { list ->
+            list.filter { it.id != id }
+        }
+
+        // Only delete tab group if all tabs in it have been closed
         if (gid != null) {
             _groups.update { list ->
                 val remainingTabIds = _tabs.value.filter { it.groupId == gid }.map { it.id }
-                if (remainingTabIds.size <= 1) {
+                if (remainingTabIds.isEmpty()) {
                     list.filter { it.id != gid }
                 } else {
                     list.map { g ->
@@ -357,14 +410,14 @@ object TabManager {
             }
         }
 
-        // If the active tab was closed, pick adjacent tab
+        // If the active tab was closed, fallback to previous opened tab
         if (_activeTabId.value == id) {
-            _activeTabId.value = _tabs.value.firstOrNull()?.id
+            _activeTabId.value = fallbackTabId ?: _tabs.value.firstOrNull()?.id
         }
 
-        // Ensure at least 1 tab always exists
+        // Ensure at least 1 tab always exists (opens clean home tab, never forces search.azokle.com)
         if (_tabs.value.isEmpty()) {
-            openTab("https://search.azokle.com", "Search")
+            openTab("", "New Tab")
         }
 
         persistTabs()
@@ -430,7 +483,7 @@ object TabManager {
         }
 
         if (_tabs.value.isEmpty()) {
-            openTab("https://search.azokle.com", "Search")
+            openTab("", "New Tab")
         }
 
         // Persist once in batch
@@ -532,8 +585,10 @@ object TabManager {
             }
         }
         _groups.update { it.filter { g -> g.id != groupId } }
-        val remaining = _tabs.value.filter { it.groupId != groupId }
-        _tabs.value = if (remaining.isNotEmpty()) remaining else listOf(TabSession())
+        _tabs.update { list ->
+            val remaining = list.filter { it.groupId != groupId }
+            if (remaining.isNotEmpty()) remaining else listOf(TabSession())
+        }
         if (_activeTabId.value !in _tabs.value.map { it.id }) {
             _activeTabId.value = _tabs.value.first().id
         }
@@ -632,15 +687,22 @@ object TabManager {
 
     fun closeEphemeralAndTorTabs() {
         com.azokle.search.core.AzokleCore.tabClosePrivateSessions()
+        appContext?.let {
+            com.azokle.search.browser.permissions.SitePermissionsManager.getInstance(it).clearPrivatePermissions()
+        }
         val ephemeralTabs = _tabs.value.filter { it.isPrivate || it.isTor }
         for (tab in ephemeralTabs) {
             sessionMap.remove(tab.id)?.let {
                 try { it.close() } catch (e: Exception) {}
             }
         }
-        val remaining = _tabs.value.filter { !it.isPrivate && !it.isTor }
-        _tabs.value = if (remaining.isNotEmpty()) remaining else listOf(TabSession())
-        _groups.value = _groups.value.filter { !it.isPrivate && !it.isTor }
+        _tabs.update { list ->
+            val remaining = list.filter { !it.isPrivate && !it.isTor }
+            if (remaining.isNotEmpty()) remaining else listOf(TabSession())
+        }
+        _groups.update { list ->
+            list.filter { !it.isPrivate && !it.isTor }
+        }
         if (_activeTabId.value !in _tabs.value.map { it.id }) {
             _activeTabId.value = _tabs.value.firstOrNull()?.id
         }

@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
@@ -75,6 +76,7 @@ data class LinkContextTarget(
 @Composable
 fun LinkContextMenuSheet(
     target: LinkContextTarget,
+    onOpenInNewTabGroup: (String, String) -> Unit,
     onOpenInNewTab: (String, String) -> Unit,
     onOpenInPrivateTab: (String, String) -> Unit,
     onDismiss: () -> Unit,
@@ -213,6 +215,21 @@ fun LinkContextMenuSheet(
             ) {
                 // Link Navigation Actions
                 if (target.url.isNotBlank()) {
+                    // 1. Open in New Tab in Group (Adds to group or creates group with parent)
+                    ContextActionRow(
+                        icon = Icons.Default.FolderOpen,
+                        title = "Open in New Tab in Group",
+                        colors = colors,
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onOpenInNewTabGroup(target.url, target.title.ifBlank { cleanHost })
+                            onDismiss()
+                        }
+                    )
+
+                    ContextDivider(colors = colors)
+
+                    // 2. Open in New Tab (Standalone Separate Tab, NO Group)
                     ContextActionRow(
                         icon = Icons.AutoMirrored.Filled.OpenInNew,
                         title = "Open in New Tab",
@@ -226,6 +243,7 @@ fun LinkContextMenuSheet(
 
                     ContextDivider(colors = colors)
 
+                    // 3. Open in Private Tab
                     ContextActionRow(
                         icon = Icons.Default.Security,
                         title = "Open in Private Tab",

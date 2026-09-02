@@ -571,7 +571,8 @@ fun SettingsSheet(
                                     checkedThumbColor = androidx.compose.ui.graphics.Color.White,
                                     checkedTrackColor = colors.actionPrimaryBg,
                                     uncheckedThumbColor = colors.textMuted,
-                                    uncheckedTrackColor = colors.surface
+                                    uncheckedTrackColor = colors.surfaceElevated,
+                                    uncheckedBorderColor = colors.border
                                 )
                             )
                         },

@@ -189,13 +189,13 @@ fun BrowserUrlEditSheet(
                         .height(50.dp)
                         .shadow(
                             elevation = if (colors.isDark) 8.dp else 4.dp,
-                            shape = AzokleRadius.full,
+                            shape = AzokleRadius.md,
                             ambientColor = colors.textPrimary.copy(alpha = if (colors.isDark) 0.08f else 0.04f),
                             spotColor = colors.textPrimary.copy(alpha = if (colors.isDark) 0.12f else 0.08f)
                         )
-                        .clip(AzokleRadius.full)
+                        .clip(AzokleRadius.md)
                         .background(colors.cardBg)
-                        .border(1.dp, colors.border, AzokleRadius.full)
+                        .border(1.dp, colors.border, AzokleRadius.md)
                         .padding(start = 14.dp, end = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -420,6 +420,7 @@ fun BrowserUrlEditSheet(
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                             val clipData = android.content.ClipData.newPlainText("URL", textValue.text)
                             clipboard?.setPrimaryClip(clipData)
+                            com.azokle.search.ui.components.ToastManager.showCopy("URL copied to clipboard")
                         }
                     )
                 }

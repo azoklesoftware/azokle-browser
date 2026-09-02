@@ -210,16 +210,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun openInAppBrowser(url: String, isTor: Boolean = false) {
-        if (url.isNotBlank()) {
+        if (url.isNotBlank() && TabManager.tabs.value.none { it.id == TabManager.activeTabId.value && it.url == url }) {
             TabManager.openTab(url, if (isTor) "Tor Browsing" else "Webpage", isTor = isTor)
-            _uiState.update {
-                it.copy(
-                    inAppBrowserUrl = url,
-                    searchQuery = "",
-                    suggestions = emptyList(),
-                    isOnboardingVisible = false
-                )
-            }
+        }
+        _uiState.update {
+            it.copy(
+                inAppBrowserUrl = url,
+                searchQuery = "",
+                suggestions = emptyList(),
+                isOnboardingVisible = false
+            )
         }
     }
 

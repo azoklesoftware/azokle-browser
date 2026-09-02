@@ -1,5 +1,7 @@
 package com.azokle.search.browser.bookmarks
 
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,6 +32,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Language
@@ -589,6 +592,17 @@ private fun BookmarkCard(
                     }
                 )
                 DropdownMenuItem(
+                    text = { Text("Copy Link", color = colors.textPrimary) },
+                    leadingIcon = { Icon(Icons.Default.ContentCopy, null, tint = colors.textSecondary) },
+                    onClick = {
+                        showMenu = false
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                        val clipData = android.content.ClipData.newPlainText("URL", bookmark.url)
+                        clipboard?.setPrimaryClip(clipData)
+                        com.azokle.search.ui.components.ToastManager.showCopy("Link copied to clipboard")
+                    }
+                )
+                DropdownMenuItem(
                     text = { Text("Edit Bookmark", color = colors.textPrimary) },
                     leadingIcon = { Icon(Icons.Default.Edit, null, tint = colors.textSecondary) },
                     onClick = {
@@ -602,6 +616,7 @@ private fun BookmarkCard(
                     onClick = {
                         showMenu = false
                         onDelete()
+                        com.azokle.search.ui.components.ToastManager.show("Bookmark removed")
                     }
                 )
             }

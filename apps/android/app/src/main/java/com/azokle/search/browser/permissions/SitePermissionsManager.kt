@@ -142,6 +142,7 @@ class SitePermissionsManager private constructor(context: Context) {
     }
 
     fun clearPrivatePermissions() {
+        AzokleCore.clearEphemeralPermissions()
         _updatesFlow.value = System.currentTimeMillis()
     }
 

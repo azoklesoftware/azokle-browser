@@ -48,7 +48,7 @@ sealed class TorConnectionState {
         val exitCountry: String,
         val exitIp: String,
         val circuitId: String,
-        val latencyMs: Int = 184
+        val latencyMs: Int
     ) : TorConnectionState()
     data class Error(val message: String, val canRetry: Boolean = true) : TorConnectionState()
 }
@@ -216,7 +216,7 @@ object TorCircuitManager {
                 if (exitResult != null && exitResult.first.isNotBlank() && exitResult.second) {
                     isVerified = true
                     setTorMode(true)
-                    val exitIp = exitResult.first
+                    val (exitIp, _, measuredLatency) = exitResult
                     _connectionState.value = TorConnectionState.Connected(
                         guardNode = "Entry Guard Relay (Layer 1)",
                         guardCountry = "Encrypted Onion Hop 🧅",
@@ -225,7 +225,8 @@ object TorCircuitManager {
                         exitNode = "Tor Exit Relay (Layer 3)",
                         exitCountry = "Verified Tor Network 🧅",
                         exitIp = exitIp,
-                        circuitId = "0x" + LongArray(1) { System.currentTimeMillis() }[0].toString(16).takeLast(8).uppercase()
+                        circuitId = "0x" + LongArray(1) { System.currentTimeMillis() }[0].toString(16).takeLast(8).uppercase(),
+                        latencyMs = measuredLatency
                     )
                     break
                 }
@@ -240,14 +241,14 @@ object TorCircuitManager {
         }
     }
 
-    private fun fetchRealTorExitIp(port: Int): Pair<String, Boolean>? {
-        // First check with Rust Tor subsystem
+    private fun fetchRealTorExitIp(port: Int): Triple<String, Boolean, Int>? {
+        val callStart = System.currentTimeMillis()
         val rustVerification = AzokleCore.verifyTorExit(port)
         if (rustVerification != null) {
             val isTor = rustVerification.optBoolean("is_tor", false)
             val ip = rustVerification.optString("ip", "")
+            val rustLatency = rustVerification.optInt("latency_ms", (System.currentTimeMillis() - callStart).toInt())
             if (isTor && ip.isNotBlank()) {
-                // Also double check real IP via SOCKS5 tunnel
                 try {
                     val socksProxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress.createUnresolved("127.0.0.1", port))
                     val client = OkHttpClient.Builder()
@@ -263,22 +264,24 @@ object TorCircuitManager {
                         .header("User-Agent", "Mozilla/5.0 (Android; Tor Browser)")
                         .build()
 
+                    val netStart = System.currentTimeMillis()
                     client.newCall(request).execute().use { response ->
                         if (response.isSuccessful) {
                             val body = response.body?.string() ?: ""
                             if (body.isNotBlank()) {
+                                val netLatency = (System.currentTimeMillis() - netStart).toInt().coerceAtLeast(1)
                                 val json = JSONObject(body)
                                 val verifiedIp = json.optString("IP", ip).trim()
                                 val verifiedIsTor = json.optBoolean("IsTor", true)
-                                return Pair(verifiedIp, verifiedIsTor)
+                                return Triple(verifiedIp, verifiedIsTor, netLatency)
                             }
                         }
                     }
                 } catch (e: Exception) {
-                    // Fallback to Rust verification result
-                    return Pair(ip, isTor)
+                    val fallbackLatency = (System.currentTimeMillis() - callStart).toInt().coerceAtLeast(1)
+                    return Triple(ip, isTor, fallbackLatency)
                 }
-                return Pair(ip, isTor)
+                return Triple(ip, isTor, rustLatency.coerceAtLeast(1))
             }
         }
 
@@ -307,7 +310,7 @@ object TorCircuitManager {
 
             if (exitResult != null && exitResult.first.isNotBlank() && exitResult.second) {
                 setTorMode(true)
-                val exitIp = exitResult.first
+                val (exitIp, _, measuredLatency) = exitResult
                 _connectionState.value = TorConnectionState.Connected(
                     guardNode = "Entry Guard Relay (Layer 1)",
                     guardCountry = "Encrypted Onion Hop 🧅",
@@ -316,7 +319,8 @@ object TorCircuitManager {
                     exitNode = "Tor Exit Relay (Layer 3)",
                     exitCountry = "Verified Tor Network 🧅",
                     exitIp = exitIp,
-                    circuitId = "0x" + LongArray(1) { System.currentTimeMillis() }[0].toString(16).takeLast(8).uppercase()
+                    circuitId = "0x" + LongArray(1) { System.currentTimeMillis() }[0].toString(16).takeLast(8).uppercase(),
+                    latencyMs = measuredLatency
                 )
             } else {
                 startTorConnection()

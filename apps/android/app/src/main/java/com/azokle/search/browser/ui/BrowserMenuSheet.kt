@@ -84,6 +84,7 @@ fun BrowserMenuSheet(
     onToggleBookmark: () -> Unit = {},
     onShare: () -> Unit = {},
     onToggleDesktopMode: () -> Unit = {},
+    onSaveAsPdf: () -> Unit = {},
     onOpenReaderMode: () -> Unit = {},
     onOpenFindInPage: () -> Unit = {},
     onOpenNewTab: () -> Unit = {},
@@ -364,10 +365,24 @@ fun BrowserMenuSheet(
                                 checkedThumbColor = Color.White,
                                 checkedTrackColor = colors.statusAccent,
                                 uncheckedThumbColor = colors.textSecondary,
-                                uncheckedTrackColor = colors.surface
+                                uncheckedTrackColor = colors.surfaceElevated,
+                                uncheckedBorderColor = colors.border
                             )
                         )
                     }
+
+                    HorizontalDivider(color = colors.border, thickness = 1.dp)
+
+                    // Save as PDF / Print
+                    MenuActionRow(
+                        icon = Icons.Default.Download,
+                        title = "Save as PDF",
+                        subtitle = "Export high-fidelity vector PDF to downloads",
+                        onClick = {
+                            onDismiss()
+                            onSaveAsPdf()
+                        }
+                    )
 
                     HorizontalDivider(color = colors.border, thickness = 1.dp)
                 }

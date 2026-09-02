@@ -383,7 +383,8 @@ fun SiteSecurityCertificateSheet(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = colors.statusSuccess,
                             uncheckedThumbColor = colors.textMuted,
-                            uncheckedTrackColor = colors.surface
+                            uncheckedTrackColor = colors.surfaceElevated,
+                            uncheckedBorderColor = colors.border
                         )
                     )
                 }

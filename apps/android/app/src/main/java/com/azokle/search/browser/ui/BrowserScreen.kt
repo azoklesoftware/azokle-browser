@@ -26,6 +26,18 @@ import androidx.compose.foundation.layout.width
 import com.azokle.search.browser.gecko.DownloadConfirmationPayload
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.Brush
+import com.azokle.search.ui.theme.AudiowideFontFamily
+import com.azokle.search.ui.theme.AzokleWhite
+import com.azokle.search.ui.theme.adaptiveContentWidth
+import com.azokle.search.ui.components.SearchBarCapsule
+import com.azokle.search.ui.components.VoiceSearchModal
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.OpenInNew
@@ -66,6 +78,10 @@ import com.azokle.search.browser.reader.ReaderModeScreen
 import com.azokle.search.browser.tabs.TabManager
 import com.azokle.search.browser.tabs.TabSession
 import com.azokle.search.data.vault.EncryptedVaultManager
+import com.azokle.search.ui.components.ChooseSearchEngineSheet
+import com.azokle.search.ui.components.ChooseLanguageSheet
+import com.azokle.search.ui.components.ProUpgradeDialog
+import com.azokle.search.ui.components.InfoDialog
 import com.azokle.search.ui.screens.ActiveTabsScreen
 import com.azokle.search.ui.theme.AzokleDarkBg
 import com.azokle.search.util.UrlHelper
@@ -112,13 +128,16 @@ fun BrowserScreen(
     var showShieldSheet by remember { mutableStateOf(false) }
     var showTabGridSheet by remember { mutableStateOf(false) }
     var showUrlEditSheet by remember { mutableStateOf(false) }
+    var showVoiceModal by remember { mutableStateOf(false) }
     var showMenuSheet by remember { mutableStateOf(false) }
     var showSecurityCertSheet by remember { mutableStateOf(false) }
+    var showTorCircuitSheet by remember { mutableStateOf(false) }
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showDownloadsScreen by remember { mutableStateOf(false) }
     var showBookmarksScreen by remember { mutableStateOf(false) }
     var showHistoryScreen by remember { mutableStateOf(false) }
     var showPwaInstallSheet by remember { mutableStateOf(false) }
+    var showDiscoverScreen by remember { mutableStateOf(false) }
     val pwaState by com.azokle.search.browser.pwa.PwaManager.activeTabPwaState.collectAsState()
 
     var geckoSession: GeckoSession? by remember { mutableStateOf(null) }
@@ -164,6 +183,7 @@ fun BrowserScreen(
 
     var isBottomBarVisible by remember { mutableStateOf(true) }
     var lastScrollY by remember { mutableIntStateOf(0) }
+    var showBurnConfirmationSheet by remember { mutableStateOf(false) }
     var isBurningData by remember { mutableStateOf(false) }
     var activeLinkContextTarget: LinkContextTarget? by remember { mutableStateOf(null) }
     var pendingDownloadPayload by remember { mutableStateOf<DownloadConfirmationPayload?>(null) }
@@ -261,10 +281,19 @@ fun BrowserScreen(
 
     LaunchedEffect(activeTabId) {
         val tab = TabManager.activeTab
-        if (tab != null && tab.url.isNotBlank() && (tab.url != currentUrl || currentTitle != tab.title)) {
-            currentUrl = tab.url
-            currentTitle = tab.title
-            currentError = null
+        if (tab != null) {
+            isDesktopMode = tab.isDesktopMode
+            if (tab.url.isNotBlank() && (tab.url != currentUrl || currentTitle != tab.title)) {
+                currentUrl = tab.url
+                currentTitle = tab.title
+                currentError = null
+            }
+        }
+    }
+
+    LaunchedEffect(currentUrl) {
+        if (currentUrl.isBlank() || currentUrl == "about:home" || currentUrl == "about:blank" || currentUrl.startsWith("about:")) {
+            com.azokle.search.browser.adblock.AdBlockStats.resetForPage("", "", true)
         }
     }
 
@@ -274,6 +303,8 @@ fun BrowserScreen(
             geckoSession?.exitFullScreen()
         } else if (isBurningData) {
             // Ignore back during burning
+        } else if (showBurnConfirmationSheet) {
+            showBurnConfirmationSheet = false
         } else if (activePermissionRequest != null) {
             activePermissionRequest?.let { handleDenyPermission(it, false) }
         } else if (showGroupDetailSheet) {
@@ -294,22 +325,51 @@ fun BrowserScreen(
             showShieldSheet = false
         } else if (showUrlEditSheet) {
             showUrlEditSheet = false
+        } else if (showVoiceModal) {
+            showVoiceModal = false
         } else if (showTabGridSheet) {
             showTabGridSheet = false
+        } else if (homeUiState?.isSearchEngineSheetOpen == true) {
+            viewModel?.setSearchEngineSheetOpen(false)
+        } else if (homeUiState?.isLanguageSheetOpen == true) {
+            viewModel?.setLanguageSheetOpen(false)
+        } else if (homeUiState?.isProModalOpen == true) {
+            viewModel?.setProModalOpen(false)
+        } else if (homeUiState?.isPrivacyModalOpen == true) {
+            viewModel?.setPrivacyModalOpen(false)
+        } else if (homeUiState?.isTermsModalOpen == true) {
+            viewModel?.setTermsModalOpen(false)
+        } else if (homeUiState?.isAboutModalOpen == true) {
+            viewModel?.setAboutModalOpen(false)
         } else if (showSettingsSheet) {
             showSettingsSheet = false
         } else if (showSecurityCertSheet) {
             showSecurityCertSheet = false
+        } else if (showTorCircuitSheet) {
+            showTorCircuitSheet = false
         } else if (isFindInPageVisible) {
             isFindInPageVisible = false
             executeFind("")
         } else if (activeArticleReader != null) {
             activeArticleReader = null
+        } else if (showDiscoverScreen) {
+            showDiscoverScreen = false
         } else if (currentError != null) {
             currentError = null
-            if (canGoBack) geckoSession?.goBack() else onClose()
+            if (canGoBack) {
+                geckoSession?.goBack()
+            } else {
+                currentUrl = ""
+                currentTitle = "New Tab"
+                TabManager.updateActiveTab("", "New Tab")
+            }
         } else if (canGoBack) {
             geckoSession?.goBack()
+        } else if (currentUrl.isNotBlank() && currentUrl != "about:home" && currentUrl != "about:blank") {
+            currentUrl = ""
+            currentTitle = "New Tab"
+            com.azokle.search.browser.adblock.AdBlockStats.resetForPage("", "", true)
+            TabManager.updateActiveTab("", "New Tab")
         } else {
             onClose()
         }
@@ -349,7 +409,7 @@ fun BrowserScreen(
                 .fillMaxSize()
         ) {
             // 1. Header Omnibar or Find In Page Toolbar
-            if (!isFullScreenMode && !isInPipMode) {
+            if (!isFullScreenMode && !isInPipMode && !showDiscoverScreen) {
                 if (isFindInPageVisible) {
                     FindInPageBar(
                         query = findInPageQuery,
@@ -379,11 +439,17 @@ fun BrowserScreen(
                     BrowserOmnibar(
                         url = currentUrl,
                         title = currentTitle,
-                        blockedCount = shieldStats.adsBlockedCount,
+                        blockedCount = if (currentUrl.isBlank() || currentUrl == "about:home" || currentUrl == "about:blank" || currentUrl.startsWith("about:")) 0 else shieldStats.adsBlockedCount,
                         isShieldEnabled = shieldStats.isShieldEnabled,
                         isLoading = isLoading,
                         progress = progress,
-                        onSecurityLockClick = { showSecurityCertSheet = true },
+                        onSecurityLockClick = {
+                            if (isCurrentTabTor) {
+                                showTorCircuitSheet = true
+                            } else {
+                                showSecurityCertSheet = true
+                            }
+                        },
                         onRefreshClick = {
                             currentError = null
                             if (isLoading) {
@@ -405,9 +471,22 @@ fun BrowserScreen(
                                 activeArticleReader = article
                             }
                         },
-                        onSettingsClick = { showSettingsSheet = true },
                         onMenuClick = { showMenuSheet = true },
+                        onVoiceClick = { showVoiceModal = true },
                         onUrlBarClick = { showUrlEditSheet = true }
+                    )
+                }
+
+                // 🧅 Tor Circuit Status Stripe (below Omnibar when in a Tor tab/window)
+                if (isCurrentTabTor && !showDiscoverScreen) {
+                    com.azokle.search.browser.ui.components.TorCircuitStatusStripe(
+                        onNewCircuit = {
+                            com.azokle.search.security.TorCircuitManager.requestNewCircuit()
+                            com.azokle.search.ui.components.ToastManager.showTor("Building new 3-hop Tor circuit 🧅...")
+                        },
+                        onOpenDetails = {
+                            showTorCircuitSheet = true
+                        }
                     )
                 }
             }
@@ -443,114 +522,52 @@ fun BrowserScreen(
                     }
                 }
 
-                if (!isFullScreenMode && !isInPipMode && isCurrentTabTor) {
-                    val torState by com.azokle.search.security.TorCircuitManager.connectionState.collectAsState()
-                    val isDarkTheme = colors.isDark
-                    val bannerBg = if (isDarkTheme) Color(0xFF0D0D0D) else Color(0xFFFAFAFA)
-                    val bannerBorder = if (isDarkTheme) Color(0xFF242424) else Color(0xFFE4E4E7)
-                    val btnBg = if (isDarkTheme) Color(0xFF161616) else Color(0xFFF4F4F5)
-                    val textColor = if (isDarkTheme) Color(0xFFFFFFFF) else Color(0xFF000000)
-                    val mutedColor = if (isDarkTheme) Color(0xFFA1A1AA) else Color(0xFF52525B)
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(bannerBg)
-                            .border(0.5.dp, bannerBorder)
-                            .padding(horizontal = 14.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = null,
-                                tint = textColor,
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Spacer(modifier = Modifier.width(7.dp))
-                            when (val state = torState) {
-                                is com.azokle.search.security.TorConnectionState.Connected -> {
-                                    Text(
-                                        text = "Circuit: ${state.exitCountry} (${state.exitIp})",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontFamily = FontFamily.Monospace,
-                                        color = textColor
-                                    )
-                                }
-                                is com.azokle.search.security.TorConnectionState.Bootstrapping -> {
-                                    Text(
-                                        text = "Connecting Tor (${state.progress}%)...",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        fontFamily = FontFamily.Monospace,
-                                        color = mutedColor
-                                    )
-                                }
-                                is com.azokle.search.security.TorConnectionState.Starting -> {
-                                    Text(
-                                        text = "Starting Tor daemon...",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        fontFamily = FontFamily.Monospace,
-                                        color = mutedColor
-                                    )
-                                }
-                                else -> {
-                                    Text(
-                                        text = "Tor Circuit Ready",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontFamily = FontFamily.Monospace,
-                                        color = textColor
-                                    )
-                                }
-                            }
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(btnBg)
-                                .border(0.5.dp, bannerBorder, RoundedCornerShape(6.dp))
-                                .clickable {
-                                     com.azokle.search.security.TorCircuitManager.requestNewCircuit()
-                                     geckoSession?.reload()
-                                     com.azokle.search.ui.components.ToastManager.showTor("New Tor Circuit Established")
-                                 }
-                                .padding(horizontal = 8.dp, vertical = 3.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Refresh,
-                                    contentDescription = null,
-                                    tint = textColor,
-                                    modifier = Modifier.size(11.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "New Circuit",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = textColor
-                                )
-                            }
-                        }
-                    }
-                }
 
                 Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                    if (isCurrentTabTor && (currentUrl == "about:tor" || currentUrl.isBlank())) {
-                        TorConnectScreen(
-                            onNavigate = { targetUrl ->
+                    if (showDiscoverScreen) {
+                        val discoverViewModel: com.azokle.search.viewmodel.DiscoverViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+                        com.azokle.search.ui.screens.DiscoverScreen(
+                            viewModel = discoverViewModel,
+                            onTopicClick = { topic ->
+                                showDiscoverScreen = false
+                                val searchEngineConfig = com.azokle.search.data.SEARCH_ENGINE_PROVIDERS.find { it.id == viewModel?.uiState?.value?.selectedSearchEngine }
+                                    ?: com.azokle.search.data.SEARCH_ENGINE_PROVIDERS[0]
+                                val targetUrl = com.azokle.search.util.UrlHelper.resolveSearchOrUrl(
+                                    input = topic,
+                                    searchEngineQueryUrl = searchEngineConfig.queryUrl
+                                )
                                 currentUrl = targetUrl
-                                currentTitle = "Tor Browsing"
+                                currentTitle = topic
                                 currentError = null
-                                TabManager.updateActiveTab(targetUrl, "Tor Browsing")
+                                TabManager.updateActiveTab(targetUrl, topic)
                                 geckoSession?.loadUri(targetUrl)
                             },
-                            onClose = onClose
+                            onNewsClick = { url ->
+                                showDiscoverScreen = false
+                                currentUrl = url
+                                currentTitle = "News"
+                                currentError = null
+                                TabManager.updateActiveTab(url, "News")
+                                geckoSession?.loadUri(url)
+                            }
+                        )
+                    } else if (currentUrl.isBlank() || currentUrl == "about:home" || currentUrl == "about:blank" || currentUrl == "about:tor") {
+                        // Render Photographic Wallpaper Browser Home Page (Unified for Normal, Private, and Tor tabs)
+                        BrowserHomeScreenContent(
+                            onNavigate = { targetUrl ->
+                                currentUrl = targetUrl
+                                currentTitle = if (isCurrentTabTor) "Tor Browsing" else "Search"
+                                currentError = null
+                                TabManager.updateActiveTab(targetUrl, currentTitle)
+                                geckoSession?.loadUri(targetUrl)
+                            },
+                            onOpenSearchSheet = {
+                                showUrlEditSheet = true
+                            },
+                            onVoiceClick = {
+                                showVoiceModal = true
+                            }
                         )
                     } else {
                         androidx.compose.runtime.key(activeTabId) {
@@ -650,7 +667,12 @@ fun BrowserScreen(
                                      currentError = null
                                      geckoSession?.reload()
                                  },
-                                 onHome = onClose,
+                                 onHome = {
+                                     currentError = null
+                                     currentUrl = ""
+                                     currentTitle = "New Tab"
+                                     TabManager.updateActiveTab("", "New Tab")
+                                 },
                                  onBypass = if (err.canBypass) {
                                      {
                                          currentError = null
@@ -669,45 +691,46 @@ fun BrowserScreen(
                      modifier = Modifier.fillMaxWidth(),
                      horizontalAlignment = Alignment.CenterHorizontally
                  ) {
-                     // In-Viewport Brave-Style Favicon Switcher Strip
-                     TabGroupBottomStrip(
-                         group = activeGroup,
-                         groupTabs = activeGroupTabs,
-                         activeTabId = activeTabId,
-                         onTabSelected = { selectedTab ->
-                             TabManager.selectTab(selectedTab.id)
-                             currentUrl = selectedTab.url
-                             currentTitle = selectedTab.title
-                             geckoSession?.loadUri(selectedTab.url)
-                         },
-                         onAddTabInGroup = {
-                             activeGroup?.let { g ->
-                                 val newId = TabManager.openTabInGroup("https://search.azokle.com", "Search", g.id)
-                                 TabManager.selectTab(newId)
-                                 currentUrl = "https://search.azokle.com"
-                                 currentTitle = "Search"
-                                 geckoSession?.loadUri("https://search.azokle.com")
-                             }
-                         },
-                         onCloseActiveTab = {
-                             val curId = activeTabId ?: ""
-                             if (curId.isNotBlank()) {
-                                 TabManager.closeTab(curId)
-                                 val next = TabManager.activeTab
-                                 if (next != null) {
-                                     currentUrl = next.url
-                                     currentTitle = next.title
-                                     geckoSession?.loadUri(next.url)
-                                 }
-                             }
-                         },
-                         onOpenGroupOverview = {
-                             showGroupDetailSheet = true
-                         }
-                     )
+                      if (!showDiscoverScreen) {
+                          TabGroupBottomStrip(
+                              group = activeGroup,
+                              groupTabs = activeGroupTabs,
+                              activeTabId = activeTabId,
+                              onTabSelected = { selectedTab ->
+                                  TabManager.selectTab(selectedTab.id)
+                                  currentUrl = selectedTab.url
+                                  currentTitle = selectedTab.title
+                                  if (selectedTab.url.isNotBlank() && selectedTab.url != "about:home" && selectedTab.url != "about:blank") {
+                                      geckoSession?.loadUri(selectedTab.url)
+                                  }
+                              },
+                              onAddTabInGroup = {
+                                  activeGroup?.let { g ->
+                                      val newId = TabManager.openTabInGroup("", "New Tab", g.id)
+                                      TabManager.selectTab(newId)
+                                      currentUrl = ""
+                                      currentTitle = "New Tab"
+                                  }
+                              },
+                              onCloseTab = { tabIdToClose ->
+                                  TabManager.closeTab(tabIdToClose)
+                                  val next = TabManager.activeTab
+                                  if (next != null) {
+                                      currentUrl = next.url
+                                      currentTitle = next.title
+                                      if (next.url.isNotBlank() && next.url != "about:home" && next.url != "about:blank") {
+                                          geckoSession?.loadUri(next.url)
+                                      }
+                                  }
+                              },
+                              onOpenGroupOverview = {
+                                  showGroupDetailSheet = true
+                              }
+                          )
+                      }
 
                      androidx.compose.animation.AnimatedVisibility(
-                         visible = isBottomBarVisible,
+                         visible = isBottomBarVisible || showDiscoverScreen || currentUrl.isBlank() || currentUrl == "about:home",
                          enter = androidx.compose.animation.expandVertically(
                              animationSpec = androidx.compose.animation.core.tween(180)
                          ) + androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(180)),
@@ -717,11 +740,26 @@ fun BrowserScreen(
                      ) {
                          BrowserBottomBar(
                              openTabsCount = openTabs.size,
-                             onHomeClick = onClose,
-                             onDiscoverClick = onClose,
+                             isHomeSelected = !showDiscoverScreen && !showTabGridSheet && (currentUrl.isBlank() || currentUrl == "about:home"),
+                             isDiscoverSelected = showDiscoverScreen,
+                             isTabsSelected = showTabGridSheet,
+                             onHomeClick = {
+                                 showDiscoverScreen = false
+                                 showTabGridSheet = false
+                                 com.azokle.search.browser.adblock.AdBlockStats.resetForPage("", "", true)
+                                 if (currentUrl.isNotBlank() && currentUrl != "about:home" && currentUrl != "about:blank") {
+                                     currentUrl = ""
+                                     currentTitle = "New Tab"
+                                     currentError = null
+                                     TabManager.updateActiveTab("", "New Tab")
+                                 }
+                             },
+                             onDiscoverClick = {
+                                 showDiscoverScreen = true
+                             },
                              onTabsClick = { showTabGridSheet = true },
                              onBurnDataClick = {
-                                 isBurningData = true
+                                 showBurnConfirmationSheet = true
                              },
                              onMenuClick = { showMenuSheet = true }
                          )
@@ -755,6 +793,14 @@ fun BrowserScreen(
                 securityInfo = currentSecurityInfo,
                 onDismiss = { showSecurityCertSheet = false },
                 onReload = { geckoSession?.reload() }
+            )
+        }
+
+        // Live 3-Hop Tor Circuit Inspector & Node Visualizer
+        if (showTorCircuitSheet) {
+            TorCircuitVisualizerSheet(
+                url = currentUrl,
+                onDismiss = { showTorCircuitSheet = false }
             )
         }
 
@@ -811,12 +857,33 @@ fun BrowserScreen(
                 },
                 onToggleDesktopMode = {
                     showMenuSheet = false
-                    isDesktopMode = !isDesktopMode
+                    val newMode = TabManager.toggleDesktopMode(activeTabId)
+                    isDesktopMode = newMode
                     currentError = null
                     geckoSession?.reload()
                     com.azokle.search.ui.components.ToastManager.show(
-                        if (isDesktopMode) "Desktop site enabled 💻" else "Mobile site enabled 📱"
+                        if (newMode) "Desktop site enabled 💻" else "Mobile site enabled 📱"
                     )
+                },
+                onSaveAsPdf = {
+                    showMenuSheet = false
+                    val session = geckoSession
+                    if (session != null && session.isOpen) {
+                        com.azokle.search.browser.gecko.GeckoEngineManager.printPageToPdf(
+                            context = context,
+                            session = session,
+                            title = currentTitle,
+                            url = currentUrl
+                        ) { file: java.io.File? ->
+                            if (file != null) {
+                                com.azokle.search.ui.components.ToastManager.show("📄 PDF saved: ${file.name}")
+                            } else {
+                                com.azokle.search.ui.components.ToastManager.show("Failed to generate PDF")
+                            }
+                        }
+                    } else {
+                        com.azokle.search.ui.components.ToastManager.show("Page not loaded yet")
+                    }
                 },
                 onOpenReaderMode = {
                     showMenuSheet = false
@@ -855,10 +922,27 @@ fun BrowserScreen(
                     showMenuSheet = false
                     showShieldSheet = true
                 },
+                onOpenNewTab = {
+                    showMenuSheet = false
+                    showDiscoverScreen = false
+                    val newId = TabManager.openTab("", "New Tab")
+                    TabManager.selectTab(newId)
+                    currentUrl = ""
+                    currentTitle = "New Tab"
+                },
+                onOpenNewPrivateTab = {
+                    showMenuSheet = false
+                    showDiscoverScreen = false
+                    val newId = TabManager.openPrivateTab("", "Private Tab")
+                    TabManager.selectTab(newId)
+                    currentUrl = ""
+                    currentTitle = "Private Tab"
+                },
                 onOpenTorWindow = {
                     showMenuSheet = false
+                    showDiscoverScreen = false
                     currentError = null
-                    val newTorTabId = TabManager.openTorTab(context, "about:tor", "Tor Window")
+                    val newTorTabId = TabManager.openTorTab(context, "", "Tor Window")
                     val torTab = TabManager.tabs.value.find { it.id == newTorTabId }
                     if (torTab != null) {
                         currentUrl = torTab.url
@@ -877,7 +961,7 @@ fun BrowserScreen(
                 },
                 onBurnData = {
                     showMenuSheet = false
-                    isBurningData = true
+                    showBurnConfirmationSheet = true
                 },
                 onDismiss = { showMenuSheet = false }
             )
@@ -897,11 +981,13 @@ fun BrowserScreen(
                 onDismiss = { showBookmarksScreen = false },
                 onNavigate = { targetUrl ->
                     showBookmarksScreen = false
+                    showDiscoverScreen = false
                     currentUrl = targetUrl
                     geckoSession?.loadUri(targetUrl)
                 },
                 onOpenTor = { targetUrl ->
                     showBookmarksScreen = false
+                    showDiscoverScreen = false
                     val newTorTabId = TabManager.openTorTab(context, targetUrl, "Tor")
                     val torTab = TabManager.tabs.value.find { it.id == newTorTabId }
                     if (torTab != null) {
@@ -925,6 +1011,7 @@ fun BrowserScreen(
                 viewModel = viewModel ?: androidx.lifecycle.viewmodel.compose.viewModel(),
                 onHistoryQueryClick = { query ->
                     showHistoryScreen = false
+                    showDiscoverScreen = false
                     currentError = null
                     val searchEngineConfig = com.azokle.search.data.SEARCH_ENGINE_PROVIDERS.find { it.id == viewModel?.uiState?.value?.selectedSearchEngine }
                         ?: com.azokle.search.data.SEARCH_ENGINE_PROVIDERS[0]
@@ -938,6 +1025,7 @@ fun BrowserScreen(
                 },
                 onOpenUrl = { url ->
                     showHistoryScreen = false
+                    showDiscoverScreen = false
                     currentError = null
                     currentUrl = url
                     TabManager.updateActiveTab(url, "")
@@ -952,6 +1040,7 @@ fun BrowserScreen(
             ActiveTabsScreen(
                 onTabSelected = { selectedTab ->
                     showTabGridSheet = false
+                    showDiscoverScreen = false
                     currentError = null
                     TabManager.selectTab(selectedTab.id)
                     currentUrl = selectedTab.url
@@ -960,12 +1049,12 @@ fun BrowserScreen(
                 },
                 onNewTabClick = {
                     showTabGridSheet = false
+                    showDiscoverScreen = false
                     currentError = null
-                    val newTabId = TabManager.openTab("https://search.azokle.com", "Search")
+                    val newTabId = TabManager.openTab("", "New Tab")
                     TabManager.selectTab(newTabId)
-                    currentUrl = "https://search.azokle.com"
-                    currentTitle = "Search"
-                    geckoSession?.loadUri("https://search.azokle.com")
+                    currentUrl = ""
+                    currentTitle = "New Tab"
                 },
                 onClose = {
                     showTabGridSheet = false
@@ -1001,11 +1090,70 @@ fun BrowserScreen(
             )
         }
 
+        // Choose Search Engine Sheet
+        if (homeUiState?.isSearchEngineSheetOpen == true) {
+            ChooseSearchEngineSheet(
+                selectedEngineId = homeUiState.selectedSearchEngine,
+                onSelectEngine = { engineId ->
+                    viewModel?.setSearchEngine(engineId)
+                    viewModel?.setSearchEngineSheetOpen(false)
+                },
+                onDismiss = { viewModel?.setSearchEngineSheetOpen(false) }
+            )
+        }
+
+        // Choose Language Sheet
+        if (homeUiState?.isLanguageSheetOpen == true) {
+            ChooseLanguageSheet(
+                selectedLanguageCode = homeUiState.selectedLanguage,
+                onSelectLanguage = { langCode ->
+                    viewModel?.setAppLanguage(langCode)
+                    viewModel?.setLanguageSheetOpen(false)
+                },
+                onDismiss = { viewModel?.setLanguageSheetOpen(false) }
+            )
+        }
+
+        // Pro Upgrade Dialog
+        if (homeUiState?.isProModalOpen == true) {
+            ProUpgradeDialog(
+                onDismiss = { viewModel?.setProModalOpen(false) }
+            )
+        }
+
+        // Privacy Policy Dialog
+        if (homeUiState?.isPrivacyModalOpen == true) {
+            InfoDialog(
+                title = androidx.compose.ui.res.stringResource(com.azokle.search.R.string.privacy_policy),
+                content = androidx.compose.ui.res.stringResource(com.azokle.search.R.string.privacy_policy_content),
+                onDismiss = { viewModel?.setPrivacyModalOpen(false) }
+            )
+        }
+
+        // Terms of Service Dialog
+        if (homeUiState?.isTermsModalOpen == true) {
+            InfoDialog(
+                title = androidx.compose.ui.res.stringResource(com.azokle.search.R.string.terms_service),
+                content = androidx.compose.ui.res.stringResource(com.azokle.search.R.string.terms_service_content),
+                onDismiss = { viewModel?.setTermsModalOpen(false) }
+            )
+        }
+
+        // About Dialog
+        if (homeUiState?.isAboutModalOpen == true) {
+            InfoDialog(
+                title = androidx.compose.ui.res.stringResource(com.azokle.search.R.string.about_app),
+                content = androidx.compose.ui.res.stringResource(com.azokle.search.R.string.about_app_content),
+                onDismiss = { viewModel?.setAboutModalOpen(false) }
+            )
+        }
+
         // Link Context Menu Sheet (Long-Press hyperlink)
         activeLinkContextTarget?.let { target ->
             LinkContextMenuSheet(
                 target = target,
-                onOpenInNewTab = { url, title ->
+                onOpenInNewTabGroup = { url, title ->
+                    // Adds to current group or creates a new group containing parent + child
                     val parentId = activeTabId ?: ""
                     val newId = if (parentId.isNotBlank()) {
                         TabManager.openTabFromParent(url, title, parentId, isPrivate = false)
@@ -1017,21 +1165,27 @@ fun BrowserScreen(
                     currentTitle = title
                     currentError = null
                     geckoSession?.loadUri(url)
-                    com.azokle.search.ui.components.ToastManager.show("Tab added to group 📑")
+                    com.azokle.search.ui.components.ToastManager.show("Opened in tab group 📑")
                 },
-                onOpenInPrivateTab = { url, title ->
-                    val parentId = activeTabId ?: ""
-                    val newId = if (parentId.isNotBlank()) {
-                        TabManager.openTabFromParent(url, title, parentId, isPrivate = true)
-                    } else {
-                        TabManager.openTab(url, title, isPrivate = true)
-                    }
+                onOpenInNewTab = { url, title ->
+                    // ALWAYS opens as a separate, standalone tab with NO group
+                    val newId = TabManager.openTab(url, title, isPrivate = false)
                     TabManager.selectTab(newId)
                     currentUrl = url
                     currentTitle = title
                     currentError = null
                     geckoSession?.loadUri(url)
-                    com.azokle.search.ui.components.ToastManager.show("Private tab added to group 📑")
+                    com.azokle.search.ui.components.ToastManager.show("Opened in new tab 🗂️")
+                },
+                onOpenInPrivateTab = { url, title ->
+                    // Standalone private tab with NO group
+                    val newId = TabManager.openTab(url, title, isPrivate = true)
+                    TabManager.selectTab(newId)
+                    currentUrl = url
+                    currentTitle = title
+                    currentError = null
+                    geckoSession?.loadUri(url)
+                    com.azokle.search.ui.components.ToastManager.show("Opened in private tab 🕵️")
                 },
                 onDismiss = { activeLinkContextTarget = null }
             )
@@ -1052,11 +1206,10 @@ fun BrowserScreen(
                 },
                 onAddTabInGroup = {
                     showGroupDetailSheet = false
-                    val newId = TabManager.openTabInGroup("https://search.azokle.com", "Search", activeGroup.id)
+                    val newId = TabManager.openTabInGroup("", "New Tab", activeGroup.id)
                     TabManager.selectTab(newId)
-                    currentUrl = "https://search.azokle.com"
-                    currentTitle = "Search"
-                    geckoSession?.loadUri("https://search.azokle.com")
+                    currentUrl = ""
+                    currentTitle = "New Tab"
                 },
                 onCloseTab = { tabIdToClose ->
                     TabManager.closeTab(tabIdToClose)
@@ -1064,10 +1217,23 @@ fun BrowserScreen(
                     if (next != null) {
                         currentUrl = next.url
                         currentTitle = next.title
-                        geckoSession?.loadUri(next.url)
+                        if (next.url.isNotBlank() && next.url != "about:home" && next.url != "about:blank") {
+                            geckoSession?.loadUri(next.url)
+                        }
                     }
                 },
                 onDismiss = { showGroupDetailSheet = false }
+            )
+        }
+
+        // 🔥 Burn Data Confirmation Sheet
+        if (showBurnConfirmationSheet) {
+            com.azokle.search.ui.components.BurnConfirmationSheet(
+                onConfirm = {
+                    showBurnConfirmationSheet = false
+                    isBurningData = true
+                },
+                onDismiss = { showBurnConfirmationSheet = false }
             )
         }
 
@@ -1079,8 +1245,23 @@ fun BrowserScreen(
                     com.azokle.search.browser.gecko.GeckoEngineManager.clearAllData(context)
                     com.azokle.search.browser.history.HistoryManager.clearAll()
                     com.azokle.search.data.PreferencesManager(context).clearRecentSearches()
+                    com.azokle.search.browser.adblock.AdBlockStats.resetForPage("", "", true)
+
+                    // Open fresh new tab on the Wallpaper Home Screen
+                    val newTabId = TabManager.openTab("", "New Tab")
+                    TabManager.selectTab(newTabId)
+
+                    currentUrl = ""
+                    currentTitle = "New Tab"
+                    currentError = null
+                    showDiscoverScreen = false
+                    showTabGridSheet = false
+                    showGroupDetailSheet = false
+                    showMenuSheet = false
+                    showBurnConfirmationSheet = false
                     isBurningData = false
-                    onClose()
+
+                    com.azokle.search.ui.components.ToastManager.showSuccess("All browsing data burned 🔥")
                 }
             )
         }
@@ -1157,7 +1338,177 @@ fun BrowserScreen(
             )
         }
 
+        // Voice Search Modal in Browser Screen
+        if (showVoiceModal) {
+            VoiceSearchModal(
+                onResult = { recognizedQuery ->
+                    showVoiceModal = false
+                    val searchEngineConfig = com.azokle.search.data.SEARCH_ENGINE_PROVIDERS.find { it.id == viewModel?.uiState?.value?.selectedSearchEngine }
+                        ?: com.azokle.search.data.SEARCH_ENGINE_PROVIDERS[0]
+                    val targetUrl = com.azokle.search.util.UrlHelper.resolveSearchOrUrl(
+                        input = recognizedQuery,
+                        searchEngineQueryUrl = searchEngineConfig.queryUrl
+                    )
+                    currentUrl = targetUrl
+                    currentTitle = recognizedQuery
+                    currentError = null
+                    TabManager.updateActiveTab(targetUrl, recognizedQuery)
+                    geckoSession?.loadUri(targetUrl)
+                },
+                onDismiss = { showVoiceModal = false }
+            )
+        }
+
         // 🌟 Premium Floating Toast HUD
         com.azokle.search.ui.components.AzokleToastHost()
     }
 }
+
+@Composable
+private fun BrowserHomeScreenContent(
+    onNavigate: (String) -> Unit,
+    onOpenSearchSheet: () -> Unit,
+    onVoiceClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = com.azokle.search.ui.theme.AzokleTheme.colors
+
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        // 1. High-Resolution Photographic Wallpaper Backdrop
+        Image(
+            painter = painterResource(id = R.drawable.bg_home),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Top Status Bar Scrim
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp)
+                .align(Alignment.TopCenter)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color.Black.copy(alpha = 0.60f),
+                            Color.Black.copy(alpha = 0.20f),
+                            Color.Transparent
+                        )
+                    )
+                )
+        )
+
+        // Bottom Navigation Scrim
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(140.dp)
+                .align(Alignment.BottomCenter)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.35f),
+                            Color.Black.copy(alpha = 0.70f)
+                        )
+                    )
+                )
+        )
+
+        // Center Content Stack: Logo, Search Capsule, Quick Shortcuts
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .adaptiveContentWidth(640.dp)
+                .padding(horizontal = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Audiowide Brand Logo in Lowercase (Exact match to Home Page)
+            Text(
+                text = "azokle",
+                color = AzokleWhite,
+                fontFamily = AudiowideFontFamily,
+                fontSize = 52.sp,
+                fontWeight = FontWeight.Normal,
+                letterSpacing = (-1.0).sp,
+                textAlign = TextAlign.Center
+            )
+
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(24.dp))
+
+            // Exact Home Page Search Bar Capsule
+            SearchBarCapsule(
+                query = "",
+                placeholderText = stringResource(R.string.search_placeholder),
+                onQueryChange = {},
+                onSearch = { onNavigate(it) },
+                onVoiceClick = onVoiceClick,
+                onCapsuleClick = onOpenSearchSheet,
+                isReadOnly = true
+            )
+
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(24.dp))
+
+            // Quick Speed Dial Shortcuts (YouTube, Google, Wikipedia, GitHub, Reddit, X)
+            val shortcuts = listOf(
+                BrowserShortcut("YouTube", "https://www.youtube.com", "▶", Color(0xFFFF0000)),
+                BrowserShortcut("Google", "https://www.google.com", "G", Color(0xFF4285F4)),
+                BrowserShortcut("Wikipedia", "https://www.wikipedia.org", "W", Color(0xFFFFFFFF)),
+                BrowserShortcut("GitHub", "https://github.com", "🐙", Color(0xFF24292F)),
+                BrowserShortcut("Reddit", "https://www.reddit.com", "👾", Color(0xFFFF4500)),
+                BrowserShortcut("X", "https://x.com", "𝕏", Color(0xFF000000))
+            )
+
+            androidx.compose.foundation.layout.Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                shortcuts.forEach { item ->
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onNavigate(item.url) }
+                            .padding(4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(colors.cardBg.copy(alpha = 0.88f))
+                                .border(1.dp, colors.borderLight, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = item.iconText,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (item.iconText == "W" || item.iconText == "G") item.tintColor else colors.textPrimary
+                            )
+                        }
+                        androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = item.label,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White.copy(alpha = 0.9f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private data class BrowserShortcut(
+    val label: String,
+    val url: String,
+    val iconText: String,
+    val tintColor: Color
+)

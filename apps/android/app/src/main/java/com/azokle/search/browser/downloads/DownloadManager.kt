@@ -324,6 +324,29 @@ object DownloadManager {
         saveHistory(context)
     }
 
+    fun recordCompletedDownload(
+        context: Context,
+        url: String,
+        file: File,
+        mimeType: String = "application/pdf"
+    ) {
+        init(context)
+        val item = DownloadItem(
+            id = UUID.randomUUID().toString(),
+            url = url,
+            filename = file.name,
+            filePath = file.absolutePath,
+            mimeType = mimeType,
+            totalBytes = file.length(),
+            downloadedBytes = file.length(),
+            status = DownloadStatus.COMPLETED,
+            timestamp = System.currentTimeMillis()
+        )
+        _downloads.update { listOf(item) + it }
+        saveHistory(context)
+        postCompletionNotification(context, item, isSuccess = true)
+    }
+
     /**
      * Safely opens a completed file using Android FileProvider.
      */

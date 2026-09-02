@@ -127,7 +127,7 @@ object UrlHelper {
         basePath: String = "/search"
     ): String {
         val trimmed = input.trim()
-        if (trimmed.isEmpty()) return "https://search.azokle.com"
+        if (trimmed.isEmpty()) return ""
 
         // Block dangerous protocol injections
         val colonIndex = trimmed.indexOf(":")

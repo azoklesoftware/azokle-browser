@@ -27,7 +27,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
 import com.azokle.search.data.PreferencesManager
-import com.azokle.search.ui.screens.MainContainerScreen
 import com.azokle.search.ui.theme.AzokleSearchTheme
 import com.azokle.search.util.LocaleHelper
 import com.azokle.search.viewmodel.HomeViewModel
@@ -54,6 +53,61 @@ class MainActivity : FragmentActivity() {
                 viewModel.onQueryChange(spokenText)
                 viewModel.executeSearch(spokenText)
             }
+        }
+    }
+
+    private var pendingFilePrompt: Pair<org.mozilla.geckoview.GeckoSession.PromptDelegate.FilePrompt, org.mozilla.geckoview.GeckoResult<org.mozilla.geckoview.GeckoSession.PromptDelegate.PromptResponse>>? = null
+
+    private val filePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { res ->
+        val pending = pendingFilePrompt
+        pendingFilePrompt = null
+        if (pending == null) return@registerForActivityResult
+        val (prompt, result) = pending
+
+        if (res.resultCode == Activity.RESULT_OK) {
+            val data = res.data
+            val singleUri = data?.data
+            val clipData = data?.clipData
+            if (clipData != null && clipData.itemCount > 0) {
+                val uris = Array(clipData.itemCount) { clipData.getItemAt(it).uri }
+                result.complete(prompt.confirm(this, uris))
+            } else if (singleUri != null) {
+                result.complete(prompt.confirm(this, singleUri))
+            } else {
+                result.complete(prompt.dismiss())
+            }
+        } else {
+            result.complete(prompt.dismiss())
+        }
+    }
+
+    fun launchFilePicker(
+        prompt: org.mozilla.geckoview.GeckoSession.PromptDelegate.FilePrompt,
+        result: org.mozilla.geckoview.GeckoResult<org.mozilla.geckoview.GeckoSession.PromptDelegate.PromptResponse>
+    ) {
+        pendingFilePrompt = Pair(prompt, result)
+        try {
+            val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                val types = prompt.mimeTypes?.filter { it.isNotBlank() }
+                if (!types.isNullOrEmpty()) {
+                    type = types.first()
+                    if (types.size > 1) {
+                        putExtra(Intent.EXTRA_MIME_TYPES, types.toTypedArray())
+                    }
+                } else {
+                    type = "*/*"
+                }
+                if (prompt.type == org.mozilla.geckoview.GeckoSession.PromptDelegate.FilePrompt.Type.MULTIPLE) {
+                    putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                }
+            }
+            filePickerLauncher.launch(Intent.createChooser(intent, "Select File"))
+        } catch (e: Exception) {
+            pendingFilePrompt = null
+            result.complete(prompt.dismiss())
         }
     }
 
@@ -125,9 +179,12 @@ class MainActivity : FragmentActivity() {
                                     onFinish = { viewModel.completeOnboarding() }
                                 )
                             } else {
-                                MainContainerScreen(
-                                    viewModel = viewModel,
-                                    onVoiceSearchRequest = { viewModel.setVoiceModalOpen(true) }
+                                com.azokle.search.browser.ui.BrowserScreen(
+                                    initialUrl = com.azokle.search.browser.tabs.TabManager.activeTab?.url ?: "",
+                                    onClose = {
+                                        this@MainActivity.moveTaskToBack(true)
+                                    },
+                                    viewModel = viewModel
                                 )
                             }
                             com.azokle.search.ui.components.AzokleToastHost()

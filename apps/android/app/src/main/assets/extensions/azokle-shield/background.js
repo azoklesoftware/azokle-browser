@@ -284,26 +284,20 @@
     // browser.proxy.onRequest: Synchronous instant proxy routing.
     // Zero latency, zero hanging, zero white screen.
     // proxyDNS=true guarantees DNS resolution happens on Tor exit relay.
+    // Fail-Closed Security: .onion and Tor requests NEVER fall back to direct cleartext.
     browser.proxy.onRequest.addListener(
         function(requestInfo) {
             var url = requestInfo.url || '';
+            var isOnion = url.indexOf('.onion') !== -1;
+            var isTorCandidate = isOnion || (isTorRoutingActive && requestInfo.incognito === true);
 
-            // 1. Any .onion domain ALWAYS routes via Tor SOCKS5 proxy (Fail-Closed)
-            if (url.indexOf('.onion') !== -1) {
+            if (isTorCandidate) {
+                // If Tor routing is required, ensure active port and proxy via SOCKS5
+                var port = activeSocksPort || 9050;
                 return {
                     type: 'socks',
                     host: '127.0.0.1',
-                    port: activeSocksPort || 9050,
-                    proxyDNS: true
-                };
-            }
-
-            // 2. Strict Tab Isolation: Route traffic through SOCKS5 127.0.0.1:9050 ONLY for Tor/Incognito tabs
-            if (isTorRoutingActive && requestInfo.incognito === true) {
-                return {
-                    type: 'socks',
-                    host: '127.0.0.1',
-                    port: activeSocksPort || 9050,
+                    port: port,
                     proxyDNS: true
                 };
             }

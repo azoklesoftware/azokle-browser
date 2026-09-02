@@ -44,8 +44,20 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.ui.res.painterResource
+import com.azokle.search.browser.ui.components.FaviconImage
+import com.azokle.search.ui.theme.AudiowideFontFamily
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -122,6 +134,9 @@ fun ActiveTabsScreen(
     var lastClosedTab by remember { mutableStateOf<TabSession?>(null) }
     var undoSnackbarJob by remember { mutableStateOf<Job?>(null) }
     var expandedGroup by remember { mutableStateOf<TabGroup?>(null) }
+    var showCloseAllDialog by remember { mutableStateOf(false) }
+    var showNewTabMenu by remember { mutableStateOf(false) }
+    var showCreateGroupDialog by remember { mutableStateOf(false) }
 
     val standardCount = remember(tabs) { tabs.count { !it.isPrivate && !it.isTor } }
     val privateCount = remember(tabs) { tabs.count { it.isPrivate && !it.isTor } }
@@ -360,13 +375,7 @@ fun ActiveTabsScreen(
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = ripple(bounded = false, radius = 18.dp, color = colors.statusDestructive),
-                                    onClick = {
-                                        when (selectedCategory) {
-                                            TabCategory.STANDARD -> TabManager.closeCategoryTabs(isPrivateOnly = false, isTorOnly = false)
-                                            TabCategory.PRIVATE -> TabManager.closeCategoryTabs(isPrivateOnly = true, isTorOnly = false)
-                                            TabCategory.TOR -> TabManager.closeCategoryTabs(isPrivateOnly = false, isTorOnly = true)
-                                        }
-                                    }
+                                    onClick = { showCloseAllDialog = true }
                                 )
                                 .semantics {
                                     role = Role.Button
@@ -392,19 +401,95 @@ fun ActiveTabsScreen(
                         }
                     }
 
-                    // New Tab Button (+ Solid Primary) (48dp Touch Target)
+                    // New Tab Group Button (48dp Touch Target)
                     Box(
                         modifier = Modifier
                             .sizeIn(minWidth = 40.dp, minHeight = 40.dp)
                             .clip(CircleShape)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(bounded = false, radius = 18.dp, color = colors.actionPrimaryBg),
+                                indication = ripple(bounded = false, radius = 18.dp, color = colors.statusTor),
+                                onClick = { showCreateGroupDialog = true }
+                            )
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = "Create new tab group"
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(colors.cardBg)
+                                .border(1.dp, colors.border, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CreateNewFolder,
+                                contentDescription = null,
+                                tint = colors.statusTor,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+
+                    // New Tab Button (+ Solid Primary with Dropdown Options) (48dp Touch Target)
+                    Box(contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier
+                                .sizeIn(minWidth = 40.dp, minHeight = 40.dp)
+                                .clip(CircleShape)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = ripple(bounded = false, radius = 18.dp, color = colors.actionPrimaryBg),
+                                    onClick = { showNewTabMenu = true }
+                                )
+                                .semantics {
+                                    role = Role.Button
+                                    contentDescription = when (selectedCategory) {
+                                        TabCategory.STANDARD -> "Open new tab or group"
+                                        TabCategory.PRIVATE -> "Open new private tab or group"
+                                        TabCategory.TOR -> "Open new Tor window or group"
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(colors.actionPrimaryBg),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = null,
+                                    tint = colors.actionPrimaryText,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showNewTabMenu,
+                            onDismissRequest = { showNewTabMenu = false },
+                            modifier = Modifier.background(colors.modalBg)
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text("New Tab", fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                                        Text("Open a single tab", fontSize = 11.sp, color = colors.textMuted)
+                                    }
+                                },
+                                leadingIcon = { Icon(Icons.Default.Add, contentDescription = null, tint = colors.statusAccent) },
                                 onClick = {
+                                    showNewTabMenu = false
                                     when (selectedCategory) {
                                         TabCategory.STANDARD -> onNewTabClick()
                                         TabCategory.PRIVATE -> {
-                                            val newId = TabManager.openTab("https://search.azokle.com", "Private Search", isPrivate = true)
+                                            val newId = TabManager.openTab("", "Private Tab", isPrivate = true)
                                             val newTab = TabManager.tabs.value.find { it.id == newId }
                                             if (newTab != null) onTabSelected(newTab)
                                         }
@@ -416,28 +501,18 @@ fun ActiveTabsScreen(
                                     }
                                 }
                             )
-                            .semantics {
-                                role = Role.Button
-                                contentDescription = when (selectedCategory) {
-                                    TabCategory.STANDARD -> "Open new tab"
-                                    TabCategory.PRIVATE -> "Open new private tab"
-                                    TabCategory.TOR -> "Open new Tor window"
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text("New Tab Group", fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                                        Text("Create group & open tab", fontSize = 11.sp, color = colors.textMuted)
+                                    }
+                                },
+                                leadingIcon = { Icon(Icons.Default.CreateNewFolder, contentDescription = null, tint = colors.statusTor) },
+                                onClick = {
+                                    showNewTabMenu = false
+                                    showCreateGroupDialog = true
                                 }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(colors.actionPrimaryBg),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = null,
-                                tint = colors.actionPrimaryText,
-                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
@@ -603,55 +678,92 @@ fun ActiveTabsScreen(
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // Primary CTA Button
-                        Box(
-                            modifier = Modifier
-                                .clip(AzokleRadius.full)
-                                .background(colors.actionPrimaryBg)
-                                .clickable {
-                                    when (selectedCategory) {
-                                        TabCategory.STANDARD -> onNewTabClick()
-                                        TabCategory.PRIVATE -> {
-                                            val newId = TabManager.openTab("https://search.azokle.com", "Private Search", isPrivate = true)
-                                            val newTab = TabManager.tabs.value.find { it.id == newId }
-                                            if (newTab != null) onTabSelected(newTab)
-                                        }
-                                        TabCategory.TOR -> {
-                                            val newId = TabManager.openTorTab(context, "about:tor", "Tor Window")
-                                            val newTab = TabManager.tabs.value.find { it.id == newId }
-                                            if (newTab != null) onTabSelected(newTab)
-                                        }
-                                    }
-                                }
-                                .padding(horizontal = 20.dp, vertical = 12.dp)
-                                .semantics {
-                                    role = Role.Button
-                                    contentDescription = when (selectedCategory) {
-                                        TabCategory.STANDARD -> "Open New Tab"
-                                        TabCategory.PRIVATE -> "Open Private Tab"
-                                        TabCategory.TOR -> "Open Tor Window"
-                                    }
-                                },
-                            contentAlignment = Alignment.Center
+                        // Actions Row in Empty State (New Tab + New Tab Group)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = if (selectedCategory == TabCategory.TOR) Icons.Default.Security else Icons.Default.Add,
-                                    contentDescription = null,
-                                    tint = colors.actionPrimaryText,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = when (selectedCategory) {
-                                        TabCategory.STANDARD -> "Open New Tab"
-                                        TabCategory.PRIVATE -> "Open Private Tab"
-                                        TabCategory.TOR -> "Open Tor Window"
+                            // Primary CTA Button: Open New Tab
+                            Box(
+                                modifier = Modifier
+                                    .clip(AzokleRadius.full)
+                                    .background(colors.actionPrimaryBg)
+                                    .clickable {
+                                        when (selectedCategory) {
+                                            TabCategory.STANDARD -> onNewTabClick()
+                                            TabCategory.PRIVATE -> {
+                                                val newId = TabManager.openTab("", "Private Tab", isPrivate = true)
+                                                val newTab = TabManager.tabs.value.find { it.id == newId }
+                                                if (newTab != null) onTabSelected(newTab)
+                                            }
+                                            TabCategory.TOR -> {
+                                                val newId = TabManager.openTorTab(context, "about:tor", "Tor Window")
+                                                val newTab = TabManager.tabs.value.find { it.id == newId }
+                                                if (newTab != null) onTabSelected(newTab)
+                                            }
+                                        }
+                                    }
+                                    .padding(horizontal = 18.dp, vertical = 11.dp)
+                                    .semantics {
+                                        role = Role.Button
+                                        contentDescription = when (selectedCategory) {
+                                            TabCategory.STANDARD -> "Open New Tab"
+                                            TabCategory.PRIVATE -> "Open Private Tab"
+                                            TabCategory.TOR -> "Open Tor Window"
+                                        }
                                     },
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = colors.actionPrimaryText
-                                )
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = if (selectedCategory == TabCategory.TOR) Icons.Default.Security else Icons.Default.Add,
+                                        contentDescription = null,
+                                        tint = colors.actionPrimaryText,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = when (selectedCategory) {
+                                            TabCategory.STANDARD -> "New Tab"
+                                            TabCategory.PRIVATE -> "Private Tab"
+                                            TabCategory.TOR -> "Tor Window"
+                                        },
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.actionPrimaryText
+                                    )
+                                }
+                            }
+
+                            // Secondary CTA Button: New Tab Group
+                            Box(
+                                modifier = Modifier
+                                    .clip(AzokleRadius.full)
+                                    .background(colors.surfaceElevated)
+                                    .border(1.dp, colors.border, AzokleRadius.full)
+                                    .clickable { showCreateGroupDialog = true }
+                                    .padding(horizontal = 16.dp, vertical = 11.dp)
+                                    .semantics {
+                                        role = Role.Button
+                                        contentDescription = "Create New Tab Group"
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.CreateNewFolder,
+                                        contentDescription = null,
+                                        tint = colors.statusTor,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "New Group",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colors.textPrimary
+                                    )
+                                }
                             }
                         }
                     }
@@ -682,66 +794,99 @@ fun ActiveTabsScreen(
                     // 2. Render Standalone Tabs
                     items(standaloneTabs, key = { it.id }) { tab ->
                         val isActive = tab.id == activeTabId
-                        val shape = AzokleRadius.lg
+                        val shape = RoundedCornerShape(18.dp)
+                        val isHome = tab.url.isBlank() || tab.url == "about:home" || tab.url == "about:blank"
+                        val host = remember(tab.url) {
+                            try {
+                                Uri.parse(tab.url).host?.removePrefix("www.")?.ifBlank { tab.url } ?: tab.url
+                            } catch (e: Exception) {
+                                tab.url
+                            }
+                        }
 
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(210.dp)
+                                .height(236.dp)
                                 .shadow(
-                                    elevation = if (isActive) 12.dp else 3.dp,
+                                    elevation = if (isActive) 12.dp else 2.dp,
                                     shape = shape,
-                                    ambientColor = if (isActive) colors.statusAccent.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.08f),
-                                    spotColor = if (isActive) colors.statusAccent.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.12f)
+                                    ambientColor = if (isActive) colors.statusAccent.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.08f),
+                                    spotColor = if (isActive) colors.statusAccent.copy(alpha = 0.35f) else Color.Black.copy(alpha = 0.12f)
                                 )
                                 .clip(shape)
                                 .background(colors.cardBg)
                                 .border(
-                                    width = if (isActive) 1.5.dp else 1.dp,
-                                    color = if (isActive) colors.statusAccent else colors.border,
+                                    width = if (isActive) 2.dp else 1.dp,
+                                    color = if (isActive) colors.statusAccent else colors.border.copy(alpha = 0.7f),
                                     shape = shape
                                 )
                                 .clickable { onTabSelected(tab) }
                                 .semantics {
                                     role = Role.Button
-                                    contentDescription = "Tab: ${tab.title.ifBlank { tab.url }}${if (isActive) ", Active" else ""}"
+                                    contentDescription = "Tab: ${tab.title.ifBlank { if (isHome) "New Tab" else host }}${if (isActive) ", Active" else ""}"
                                 }
                         ) {
                             // 1. Tab Card Header Bar
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(colors.surface)
-                                    .padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                                    .height(38.dp)
+                                    .background(colors.surfaceElevated)
+                                    .padding(start = 10.dp, end = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = if (tab.isTor) Icons.Default.Security else if (tab.isPrivate) Icons.Default.VisibilityOff else if (tab.url.startsWith("https://")) Icons.Default.Lock else Icons.Default.Language,
-                                    contentDescription = null,
-                                    tint = if (tab.url.startsWith("https://")) colors.statusSuccess else colors.textMuted,
-                                    modifier = Modifier.size(13.dp)
-                                )
+                                if (isHome) {
+                                    Icon(
+                                        imageVector = Icons.Default.Home,
+                                        contentDescription = null,
+                                        tint = colors.statusAccent,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                } else if (tab.isTor) {
+                                    Text(
+                                        text = "🧅",
+                                        fontSize = 13.sp
+                                    )
+                                } else if (tab.isPrivate) {
+                                    Icon(
+                                        imageVector = Icons.Default.VisibilityOff,
+                                        contentDescription = null,
+                                        tint = Color(0xFFA855F7),
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                } else {
+                                    FaviconImage(
+                                        url = tab.url,
+                                        faviconUrl = tab.faviconUrl,
+                                        isTor = tab.isTor,
+                                        size = 16.dp
+                                    )
+                                }
 
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(7.dp))
 
                                 Text(
-                                    text = tab.title.ifBlank { tab.url },
+                                    text = if (isHome) "New Tab" else tab.title.ifBlank { host },
                                     fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.SemiBold,
                                     color = colors.textPrimary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f)
                                 )
 
-                                // Close Tab Button (44dp Accessible Touch Delegate)
+                                Spacer(modifier = Modifier.width(4.dp))
+
+                                // Close Tab Button (Accessible Touch Delegate)
                                 Box(
                                     modifier = Modifier
-                                        .sizeIn(minWidth = 40.dp, minHeight = 40.dp)
+                                        .size(28.dp)
                                         .clip(CircleShape)
+                                        .background(colors.surface)
                                         .clickable(
                                             interactionSource = remember { MutableInteractionSource() },
-                                            indication = ripple(bounded = false, radius = 18.dp, color = colors.statusDestructive),
+                                            indication = ripple(bounded = false, radius = 14.dp, color = colors.statusDestructive),
                                             onClick = {
                                                 val closed = TabManager.closeTab(tab.id)
                                                 if (closed != null) {
@@ -760,24 +905,16 @@ fun ActiveTabsScreen(
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .clip(CircleShape)
-                                            .background(colors.surfaceElevated),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = null,
-                                            tint = colors.textPrimary,
-                                            modifier = Modifier.size(13.dp)
-                                        )
-                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = null,
+                                        tint = colors.textSecondary,
+                                        modifier = Modifier.size(13.dp)
+                                    )
                                 }
                             }
 
-                            // 2. Webpage Live Screenshot or Blueprint Wireframe Preview
+                            // 2. Webpage Live Screenshot or Miniature Wallpaper Home Screen
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -790,93 +927,139 @@ fun ActiveTabsScreen(
                                         bitmap = tab.thumbnail.asImageBitmap(),
                                         contentDescription = tab.title,
                                         contentScale = ContentScale.Crop,
+                                        alignment = Alignment.TopCenter,
                                         modifier = Modifier.fillMaxSize()
                                     )
 
-                                    // Subtle solid contrast overlay (zero gradient)
+                                    // Subtle top-to-bottom contrast gradient
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .background(if (colors.isDark) Color(0x33000000) else Color(0x14000000))
+                                            .background(
+                                                Brush.verticalGradient(
+                                                    listOf(
+                                                        Color.Transparent,
+                                                        Color(0x10000000),
+                                                        Color(0x55000000)
+                                                    )
+                                                )
+                                            )
                                     )
-                                } else {
-                                    // Web Blueprint Fallback
-                                    val host = remember(tab.url) {
-                                        try { Uri.parse(tab.url).host?.removePrefix("www.") ?: tab.url } catch (e: Exception) { tab.url }
-                                    }
-
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                                    ) {
-                                        // Mini domain capsule
+                                } else if (isHome) {
+                                    // High-definition miniature Wallpaper Home Page preview
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        Image(
+                                            painter = painterResource(id = com.azokle.search.R.drawable.bg_home),
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
                                         Box(
                                             modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clip(AzokleRadius.sm)
-                                                .background(colors.cardBg)
-                                                .border(0.5.dp, colors.border, AzokleRadius.sm)
-                                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                                            contentAlignment = Alignment.CenterStart
+                                                .fillMaxSize()
+                                                .background(Color(0x40000000))
+                                        )
+                                        Column(
+                                            modifier = Modifier.fillMaxSize(),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
                                         ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(
-                                                    imageVector = if (tab.isTor) Icons.Default.Security else Icons.Default.Lock,
-                                                    contentDescription = null,
-                                                    tint = colors.textMuted,
-                                                    modifier = Modifier.size(9.dp)
+                                            Text(
+                                                text = "azokle",
+                                                fontFamily = AudiowideFontFamily,
+                                                fontSize = 20.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Box(
+                                                modifier = Modifier
+                                                    .width(116.dp)
+                                                    .height(26.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color(0x99000000))
+                                                    .border(0.5.dp, Color(0x66FFFFFF), CircleShape)
+                                                    .padding(horizontal = 8.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Search,
+                                                        contentDescription = null,
+                                                        tint = Color.White.copy(alpha = 0.8f),
+                                                        modifier = Modifier.size(11.dp)
+                                                    )
+                                                    Text(
+                                                        text = "Search",
+                                                        fontSize = 8.5.sp,
+                                                        color = Color.White.copy(alpha = 0.8f)
+                                                    )
+                                                    Icon(
+                                                        imageVector = Icons.Default.Mic,
+                                                        contentDescription = null,
+                                                        tint = Color.White.copy(alpha = 0.8f),
+                                                        modifier = Modifier.size(11.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // Elegant fallback card with brand favicon & domain badge
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(
+                                                Brush.verticalGradient(
+                                                    listOf(colors.surfaceElevated, colors.cardBg)
                                                 )
-                                                Spacer(modifier = Modifier.width(4.dp))
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center,
+                                            modifier = Modifier.padding(12.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(46.dp)
+                                                    .clip(CircleShape)
+                                                    .background(colors.surface)
+                                                    .border(1.dp, colors.border, CircleShape),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                FaviconImage(
+                                                    url = tab.url,
+                                                    faviconUrl = tab.faviconUrl,
+                                                    isTor = tab.isTor,
+                                                    size = 24.dp
+                                                )
+                                            }
+
+                                            Spacer(modifier = Modifier.height(10.dp))
+
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(CircleShape)
+                                                    .background(colors.surface)
+                                                    .border(0.5.dp, colors.border, CircleShape)
+                                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                                            ) {
                                                 Text(
                                                     text = host,
-                                                    fontSize = 10.sp,
-                                                    color = colors.textSecondary,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = colors.textPrimary,
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
                                             }
                                         }
-
-                                        Spacer(modifier = Modifier.height(12.dp))
-
-                                        // Initial monogram badge
-                                        Box(
-                                            modifier = Modifier
-                                                .size(34.dp)
-                                                .clip(CircleShape)
-                                                .background(colors.surfaceElevated)
-                                                .border(1.dp, colors.border, CircleShape),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = if (tab.isTor) "🧅" else (host.firstOrNull()?.uppercase() ?: "A"),
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = colors.textPrimary
-                                            )
-                                        }
-
-                                        Spacer(modifier = Modifier.height(10.dp))
-
-                                        // Skeleton bars
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth(0.7f)
-                                                .height(4.dp)
-                                                .clip(RoundedCornerShape(2.dp))
-                                                .background(colors.border)
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth(0.5f)
-                                                .height(4.dp)
-                                                .clip(RoundedCornerShape(2.dp))
-                                                .background(colors.surface)
-                                        )
                                     }
                                 }
 
@@ -884,22 +1067,22 @@ fun ActiveTabsScreen(
                                 Row(
                                     modifier = Modifier
                                         .align(Alignment.BottomEnd)
-                                        .padding(6.dp),
+                                        .padding(8.dp),
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    if (isActive) {
+                                    if (tab.isPrivate) {
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(6.dp))
-                                                .background(colors.actionPrimaryBg)
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                .background(Color(0xFFA855F7))
+                                                .padding(horizontal = 7.dp, vertical = 3.dp)
                                         ) {
                                             Text(
-                                                text = "ACTIVE",
-                                                fontSize = 8.sp,
+                                                text = "PRIVATE",
+                                                fontSize = 8.5.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 fontFamily = FontFamily.Monospace,
-                                                color = colors.actionPrimaryText
+                                                color = Color.White
                                             )
                                         }
                                     }
@@ -908,32 +1091,32 @@ fun ActiveTabsScreen(
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(6.dp))
-                                                .background(colors.surface)
-                                                .border(0.5.dp, colors.border, RoundedCornerShape(6.dp))
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                .background(Color(0xFF8B5CF6))
+                                                .padding(horizontal = 7.dp, vertical = 3.dp)
                                         ) {
                                             Text(
                                                 text = "TOR",
-                                                fontSize = 8.sp,
+                                                fontSize = 8.5.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 fontFamily = FontFamily.Monospace,
-                                                color = colors.textPrimary
+                                                color = Color.White
                                             )
                                         }
-                                    } else if (tab.isPrivate) {
+                                    }
+
+                                    if (isActive) {
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(6.dp))
-                                                .background(colors.surface)
-                                                .border(0.5.dp, colors.border, RoundedCornerShape(6.dp))
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                .background(colors.statusAccent)
+                                                .padding(horizontal = 7.dp, vertical = 3.dp)
                                         ) {
                                             Text(
-                                                text = "PRIVATE",
-                                                fontSize = 8.sp,
+                                                text = "ACTIVE",
+                                                fontSize = 8.5.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 fontFamily = FontFamily.Monospace,
-                                                color = colors.textSecondary
+                                                color = Color.White
                                             )
                                         }
                                     }
@@ -1044,7 +1227,7 @@ fun ActiveTabsScreen(
                 },
                 onAddTabInGroup = {
                     expandedGroup = null
-                    val newId = TabManager.openTabInGroup("https://search.azokle.com", "Search", group.id)
+                    val newId = TabManager.openTabInGroup("", "New Tab", group.id)
                     val newTab = TabManager.tabs.value.find { it.id == newId }
                     if (newTab != null) onTabSelected(newTab)
                 },
@@ -1054,5 +1237,211 @@ fun ActiveTabsScreen(
                 onDismiss = { expandedGroup = null }
             )
         }
+
+        // 6. Close All Tabs Confirmation Dialog
+        if (showCloseAllDialog) {
+            AlertDialog(
+                onDismissRequest = { showCloseAllDialog = false },
+                containerColor = colors.modalBg,
+                titleContentColor = colors.textPrimary,
+                textContentColor = colors.textSecondary,
+                shape = AzokleRadius.xl,
+                title = {
+                    Text(
+                        text = when (selectedCategory) {
+                            TabCategory.STANDARD -> "Close all tabs?"
+                            TabCategory.PRIVATE -> "Close all private tabs?"
+                            TabCategory.TOR -> "Close all Tor windows?"
+                        },
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp
+                    )
+                },
+                text = {
+                    Text(
+                        text = "All ${filteredTabs.size} open tabs in this view will be closed. Are you sure you want to proceed?",
+                        fontSize = 13.5.sp,
+                        color = colors.textSecondary
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showCloseAllDialog = false
+                            when (selectedCategory) {
+                                TabCategory.STANDARD -> TabManager.closeCategoryTabs(isPrivateOnly = false, isTorOnly = false)
+                                TabCategory.PRIVATE -> TabManager.closeCategoryTabs(isPrivateOnly = true, isTorOnly = false)
+                                TabCategory.TOR -> TabManager.closeCategoryTabs(isPrivateOnly = false, isTorOnly = true)
+                            }
+                            com.azokle.search.ui.components.ToastManager.show("Tabs closed in this mode")
+                        }
+                    ) {
+                        Text("Close All", color = colors.statusDestructive, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCloseAllDialog = false }) {
+                        Text("Cancel", color = colors.textSecondary)
+                    }
+                }
+            )
+        }
+
+        // 7. Create Tab Group Modal Dialog
+        if (showCreateGroupDialog) {
+            CreateTabGroupDialog(
+                colors = colors,
+                onConfirm = { title, color ->
+                    showCreateGroupDialog = false
+                    val isPriv = selectedCategory == TabCategory.PRIVATE
+                    val isTor = selectedCategory == TabCategory.TOR
+                    val newGroupId = TabManager.createGroup(
+                        title = title,
+                        color = color,
+                        isPrivate = isPriv,
+                        isTor = isTor
+                    )
+                    val defaultUrl = if (isTor) "about:tor" else ""
+                    val newTabId = TabManager.openTabInGroup(
+                        url = defaultUrl,
+                        title = if (isTor) "Tor Window" else "New Tab",
+                        groupId = newGroupId
+                    )
+                    val newTab = TabManager.tabs.value.find { it.id == newTabId }
+                    if (newTab != null) onTabSelected(newTab)
+                    com.azokle.search.ui.components.ToastManager.show("Tab group \"$title\" created 📑")
+                },
+                onDismiss = { showCreateGroupDialog = false }
+            )
+        }
     }
+}
+
+@Composable
+private fun CreateTabGroupDialog(
+    colors: com.azokle.search.ui.theme.AzokleThemeColors,
+    onConfirm: (title: String, color: Long) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var groupName by remember { mutableStateOf("") }
+    val colorOptions = listOf(
+        0xFF38BDF8, // Sky Blue
+        0xFF22C55E, // Emerald
+        0xFFA855F7, // Purple
+        0xFFF59E0B, // Amber
+        0xFFF43F5E, // Rose
+        0xFF6366F1  // Indigo
+    )
+    var selectedColor by remember { mutableStateOf(colorOptions[0]) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = colors.modalBg,
+        titleContentColor = colors.textPrimary,
+        textContentColor = colors.textSecondary,
+        shape = AzokleRadius.xl,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.CreateNewFolder,
+                    contentDescription = null,
+                    tint = Color(selectedColor),
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "New Tab Group",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            }
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Group tabs together to organize your research, reading, or projects.",
+                    fontSize = 13.sp,
+                    color = colors.textSecondary
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = groupName,
+                    onValueChange = { groupName = it },
+                    placeholder = { Text("Group name (e.g. Work, Research)", fontSize = 14.sp) },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(selectedColor),
+                        unfocusedBorderColor = colors.border,
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary,
+                        focusedContainerColor = colors.surfaceElevated,
+                        unfocusedContainerColor = colors.surfaceElevated
+                    ),
+                    shape = AzokleRadius.md,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "THEME COLOR",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textSecondary,
+                    letterSpacing = 0.5.sp
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    colorOptions.forEach { col ->
+                        val isSelected = selectedColor == col
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(Color(col))
+                                .border(
+                                    width = if (isSelected) 3.dp else 0.dp,
+                                    color = if (isSelected) colors.textPrimary else Color.Transparent,
+                                    shape = CircleShape
+                                )
+                                .clickable { selectedColor = col },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isSelected) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.White)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val finalTitle = groupName.trim().ifBlank { "New Group" }
+                    onConfirm(finalTitle, selectedColor)
+                }
+            ) {
+                Text("Create & Open Tab", color = colors.actionPrimaryBg, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = colors.textSecondary)
+            }
+        }
+    )
 }

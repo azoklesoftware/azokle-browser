@@ -400,7 +400,7 @@ fun PwaContainerScreen(
                                 }
 
                                 if (mappedType == null) {
-                                    return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_PROMPT)
+                                    return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
                                 }
 
                                 val siteState = permissionsManager.getPermission(origin, mappedType, isPrivate = false)
