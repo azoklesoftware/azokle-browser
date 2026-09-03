@@ -96,13 +96,19 @@ fun GeckoBrowserView(
         }
     }
 
-    LaunchedEffect(url) {
-        if (url.isNotBlank() && !url.equals("about:blank", ignoreCase = true) && !url.equals(lastLoadedUrl, ignoreCase = true)) {
-            lastLoadedUrl = url
-            if (!session.isOpen) {
-                session.open(runtime)
+    LaunchedEffect(tabId, url) {
+        if (url.isNotBlank() && !url.equals("about:blank", ignoreCase = true) && !url.equals("about:home", ignoreCase = true)) {
+            val isAlreadyLoaded = (tabId != null && TabManager.isTabLoaded(tabId, url))
+            if (!isAlreadyLoaded) {
+                if (tabId != null) {
+                    TabManager.markTabLoaded(tabId, url)
+                }
+                lastLoadedUrl = url
+                if (!session.isOpen) {
+                    session.open(runtime)
+                }
+                session.loadUri(url)
             }
-            session.loadUri(url)
         }
     }
 
@@ -160,6 +166,9 @@ fun GeckoBrowserView(
                         url?.let {
                             if (it.isNotBlank() && !it.equals("about:blank", ignoreCase = true)) {
                                 lastLoadedUrl = it
+                                if (tabId != null) {
+                                    TabManager.markTabLoaded(tabId, it)
+                                }
                                 onUrlChanged(it)
                                 TabManager.updateActiveTab(it, "")
                                 onLoadErrorChanged(null)

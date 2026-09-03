@@ -176,6 +176,8 @@ class MainActivity : FragmentActivity() {
                         androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
                             if (uiState.isOnboardingVisible) {
                                 com.azokle.search.ui.screens.OnboardingScreen(
+                                    selectedSearchEngineId = uiState.selectedSearchEngine,
+                                    onSelectSearchEngine = { viewModel.setSearchEngine(it) },
                                     onFinish = { viewModel.completeOnboarding() }
                                 )
                             } else {

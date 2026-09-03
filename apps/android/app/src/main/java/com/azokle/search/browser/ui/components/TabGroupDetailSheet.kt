@@ -465,7 +465,7 @@ private fun GroupTabGridItem(
                 } else if (isHome) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         Image(
-                            painter = painterResource(id = com.azokle.search.R.drawable.bg_home),
+                            painter = painterResource(id = tab.wallpaperResId ?: com.azokle.search.browser.wallpaper.WallpaperManager.getCurrentWallpaper()),
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()

@@ -181,6 +181,9 @@ fun ChooseSearchEngineSheet(
                             onSelectEngine(engine.id)
                             Toast.makeText(context, "${engine.name} set as default", Toast.LENGTH_SHORT).show()
                             onDismiss()
+                            if (!com.azokle.search.util.DefaultBrowserManager.isDefaultBrowser(context)) {
+                                com.azokle.search.util.DefaultBrowserManager.launchSetDefaultBrowser(context)
+                            }
                         }
                     )
 
@@ -240,21 +243,30 @@ private fun SearchEngineGroupedRow(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f)
         ) {
-            // Minimal Letter / Icon Badge
+            // Engine Icon Badge
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(34.dp)
                     .clip(CircleShape)
-                    .background(colors.surfaceElevated),
+                    .background(colors.surfaceElevated)
+                    .border(0.8.dp, if (isSelected) colors.statusAccent.copy(alpha = 0.5f) else colors.border, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = engine.name.take(1).uppercase(),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    color = colors.textPrimary
-                )
+                if (engine.iconRes != 0) {
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(engine.iconRes),
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                } else {
+                    Text(
+                        text = engine.name.take(1).uppercase(),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        color = colors.textPrimary
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))

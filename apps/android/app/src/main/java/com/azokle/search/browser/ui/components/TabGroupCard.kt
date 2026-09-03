@@ -43,6 +43,11 @@ import coil.request.ImageRequest
 import com.azokle.search.browser.tabs.TabGroup
 import com.azokle.search.browser.tabs.TabSession
 import com.azokle.search.ui.theme.AzokleRadius
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import com.azokle.search.ui.theme.AudiowideFontFamily
+import com.azokle.search.browser.wallpaper.WallpaperManager
 import com.azokle.search.ui.theme.AzokleTheme
 
 /**
@@ -200,6 +205,37 @@ private fun MiniTabTile(
                 .clip(RoundedCornerShape(8.dp))
                 .background(colors.cardBg.copy(alpha = 0.3f))
         )
+        return
+    }
+
+    val isHome = tab.url.isBlank() || tab.url == "about:home" || tab.url == "about:blank"
+    if (isHome) {
+        val wallpaperRes = tab.wallpaperResId ?: WallpaperManager.getCurrentWallpaper()
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(8.dp))
+                .border(1.dp, colors.border.copy(alpha = 0.5f), RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(id = wallpaperRes),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0x33000000))
+            )
+            Text(
+                text = "azokle",
+                fontFamily = AudiowideFontFamily,
+                fontSize = 8.sp,
+                color = Color.White
+            )
+        }
         return
     }
 

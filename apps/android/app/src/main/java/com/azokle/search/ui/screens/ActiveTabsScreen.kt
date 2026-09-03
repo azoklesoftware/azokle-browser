@@ -142,7 +142,7 @@ fun ActiveTabsScreen(
     val privateCount = remember(tabs) { tabs.count { it.isPrivate && !it.isTor } }
     val torCount = remember(tabs) { tabs.count { it.isTor } }
 
-    val categoryGroups = remember(groups, selectedCategory, searchQuery) {
+    val categoryGroups = remember(groups, selectedCategory, searchQuery, tabs) {
         groups.filter { group ->
             when (selectedCategory) {
                 TabCategory.STANDARD -> !group.isPrivate && !group.isTor
@@ -151,7 +151,11 @@ fun ActiveTabsScreen(
             }
         }.filter { group ->
             if (searchQuery.isBlank()) true
-            else group.title.contains(searchQuery, ignoreCase = true)
+            else {
+                val groupTabList = tabs.filter { it.groupId == group.id }
+                group.title.contains(searchQuery, ignoreCase = true) ||
+                groupTabList.any { it.title.contains(searchQuery, ignoreCase = true) || it.url.contains(searchQuery, ignoreCase = true) }
+            }
         }
     }
 
@@ -182,8 +186,9 @@ fun ActiveTabsScreen(
         }
     }
 
-    val standaloneTabs = remember(displayTabs, groupedTabIds) {
-        displayTabs.filter { !groupedTabIds.contains(it.id) && it.groupId == null }
+    val allActiveGroupIds = remember(groups) { groups.map { it.id }.toSet() }
+    val standaloneTabs = remember(displayTabs, groupedTabIds, allActiveGroupIds) {
+        displayTabs.filter { !groupedTabIds.contains(it.id) && (it.groupId == null || !allActiveGroupIds.contains(it.groupId)) }
     }
 
     BackHandler(enabled = expandedGroup != null || onClose != null) {
@@ -949,7 +954,7 @@ fun ActiveTabsScreen(
                                     // High-definition miniature Wallpaper Home Page preview
                                     Box(modifier = Modifier.fillMaxSize()) {
                                         Image(
-                                            painter = painterResource(id = com.azokle.search.R.drawable.bg_home),
+                                            painter = painterResource(id = tab.wallpaperResId ?: com.azokle.search.browser.wallpaper.WallpaperManager.getCurrentWallpaper()),
                                             contentDescription = null,
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier.fillMaxSize()
@@ -1214,8 +1219,13 @@ fun ActiveTabsScreen(
             }
         }
 
-        // 5. Tab Group Detail Modal Sheet (Expanded Group View)
-        expandedGroup?.let { group ->
+        // 5. Tab Group Detail Modal Sheet (Expanded Group View with Live State)
+        val liveExpandedGroup = remember(expandedGroup, groups) {
+            if (expandedGroup == null) null
+            else groups.find { it.id == expandedGroup?.id }
+        }
+
+        liveExpandedGroup?.let { group ->
             val groupTabs = tabs.filter { it.groupId == group.id }
             TabGroupDetailSheet(
                 group = group,
@@ -1233,6 +1243,9 @@ fun ActiveTabsScreen(
                 },
                 onCloseTab = { tabIdToClose ->
                     TabManager.closeTab(tabIdToClose)
+                    if (groupTabs.size <= 1) {
+                        expandedGroup = null
+                    }
                 },
                 onDismiss = { expandedGroup = null }
             )

@@ -57,7 +57,8 @@ fun FindInPageBar(
     onNextMatch: () -> Unit,
     onPreviousMatch: () -> Unit,
     onClose: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    includeStatusBarPadding: Boolean = true
 ) {
     val colors = AzokleTheme.colors
     val focusRequester = remember { FocusRequester() }
@@ -73,7 +74,7 @@ fun FindInPageBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .statusBarsPadding()
+            .then(if (includeStatusBarPadding) Modifier.statusBarsPadding() else Modifier)
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         val barShape = AzokleRadius.full

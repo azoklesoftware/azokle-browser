@@ -11,31 +11,28 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FindInPage
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -57,8 +54,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.azokle.search.ui.theme.AzokleRadius
@@ -66,10 +63,11 @@ import com.azokle.search.ui.theme.AzokleTheme
 import com.azokle.search.ui.theme.adaptiveContentWidth
 
 /**
- * Sovereign Shared Menu Sheet:
- *  - Context-Aware: In browser shows live webpage tools (Reader Mode, Find in Page, Desktop switch).
- *    In Home mode shows app-level tools (New Tab, New Private Tab, New Tor, Bookmarks), hiding page-only actions.
- *  - Excludes Picture-in-Picture completely.
+ * Premium Sovereign Browser Menu Sheet:
+ *  - Ultra-clean, distraction-free iOS / Arc-style grouped design.
+ *  - Context-Aware: Webpage tools (Desktop switch, Reader View, Find in Page, Save PDF) when browsing.
+ *  - Core browser actions: Bookmarks, History, Downloads, New Tor Window, Settings, Burn Session.
+ *  - Zero redundant paragraph bloat or billboard warning cards.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -124,200 +122,110 @@ fun BrowserMenuSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .adaptiveContentWidth(560.dp)
-                .padding(horizontal = 20.dp, vertical = 8.dp),
+                .adaptiveContentWidth(540.dp)
+                .padding(horizontal = 20.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 1. Top Quick Action Icons Bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(AzokleRadius.lg)
-                    .background(colors.cardBg)
-                    .border(1.dp, colors.border, AzokleRadius.lg)
-                    .padding(vertical = 12.dp, horizontal = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (isBrowserContext) {
-                    // Reload Current Webpage
-                    QuickMenuIconButton(
-                        icon = Icons.Default.Refresh,
-                        label = "Reload",
-                        tint = colors.textPrimary,
-                        onClick = {
-                            onReload()
-                            onDismiss()
-                        }
+            // Optional Page Header Capsule (when on a live webpage)
+            val isWebpage = isBrowserContext && url.isNotBlank() && url != "about:home" && url != "about:blank" && url != "about:tor"
+            if (isWebpage) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = if (title.isNotBlank()) title else "Webpage",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-
-                    // Bookmark Current Webpage
-                    QuickMenuIconButton(
-                        icon = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                        label = if (isBookmarked) "Saved" else "Bookmark",
-                        tint = if (isBookmarked) colors.statusWarning else colors.textPrimary,
-                        onClick = {
-                            onToggleBookmark()
-                            onDismiss()
-                        }
-                    )
-
-                    // Share Webpage URL
-                    QuickMenuIconButton(
-                        icon = Icons.Default.Share,
-                        label = "Share",
-                        tint = colors.textPrimary,
-                        onClick = {
-                            onShare()
-                            onDismiss()
-                        }
-                    )
-
-                    // Shield HUD
-                    QuickMenuIconButton(
-                        icon = Icons.Default.Shield,
-                        label = "Shield ($blockedTrackersCount)",
-                        tint = colors.statusSuccess,
-                        onClick = {
-                            onDismiss()
-                            onOpenShield()
-                        }
-                    )
-                } else {
-                    // Home Context 1: New Tab
-                    QuickMenuIconButton(
-                        icon = Icons.Default.Add,
-                        label = "New Tab",
-                        tint = colors.textPrimary,
-                        onClick = {
-                            onDismiss()
-                            onOpenNewTab()
-                        }
-                    )
-
-                    // Home Context 2: New Private Tab
-                    QuickMenuIconButton(
-                        icon = Icons.Default.Shield,
-                        label = "Private",
-                        tint = colors.statusAccent,
-                        onClick = {
-                            onDismiss()
-                            onOpenNewPrivateTab()
-                        }
-                    )
-
-                    // Home Context 3: New Tor
-                    QuickMenuIconButton(
-                        icon = Icons.Default.Public,
-                        label = "New Tor",
-                        tint = colors.statusTor,
-                        onClick = {
-                            onDismiss()
-                            onOpenTorWindow()
-                        }
-                    )
-
-                    // Home Context 4: Bookmarks
-                    QuickMenuIconButton(
-                        icon = Icons.Default.Bookmark,
-                        label = "Bookmarks",
-                        tint = colors.statusWarning,
-                        onClick = {
-                            onDismiss()
-                            onOpenBookmarks()
-                        }
+                    Text(
+                        text = try {
+                            val host = android.net.Uri.parse(url).host?.removePrefix("www.")
+                            host ?: url
+                        } catch (e: Exception) {
+                            url
+                        },
+                        fontSize = 11.sp,
+                        color = colors.textMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // 2. Main Action Items Group
-            Column(
+            // 1. Top Quick Action Buttons Row (Share, Bookmark, Find in Page, Save PDF)
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(AzokleRadius.lg)
+                    .clip(AzokleRadius.xl)
                     .background(colors.cardBg)
-                    .border(1.dp, colors.border, AzokleRadius.lg)
+                    .border(1.dp, colors.border.copy(alpha = 0.6f), AzokleRadius.xl)
+                    .padding(vertical = 12.dp, horizontal = 12.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // New Tor Private Window
-                Row(
+                // Share
+                QuickActionPill(
+                    icon = Icons.Default.Share,
+                    label = "Share",
+                    tint = colors.textPrimary,
+                    onClick = {
+                        onDismiss()
+                        onShare()
+                    }
+                )
+
+                // Bookmark
+                QuickActionPill(
+                    icon = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                    label = if (isBookmarked) "Saved" else "Bookmark",
+                    tint = if (isBookmarked) colors.statusWarning else colors.textPrimary,
+                    onClick = {
+                        onToggleBookmark()
+                        onDismiss()
+                    }
+                )
+
+                // Find in Page
+                QuickActionPill(
+                    icon = Icons.Default.FindInPage,
+                    label = "Find",
+                    tint = colors.textPrimary,
+                    onClick = {
+                        onDismiss()
+                        onOpenFindInPage()
+                    }
+                )
+
+                // Save as PDF
+                QuickActionPill(
+                    icon = Icons.Default.Download,
+                    label = "Save PDF",
+                    tint = colors.textPrimary,
+                    onClick = {
+                        onDismiss()
+                        onSaveAsPdf()
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 2. Webpage Controls Card (Desktop Site & Reader Mode & PWA)
+            if (isWebpage) {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(bounded = true, color = colors.statusTor.copy(alpha = 0.15f)),
-                            onClick = {
-                                onDismiss()
-                                onOpenTorWindow()
-                            }
-                        )
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
-                        .semantics {
-                            role = Role.Button
-                            contentDescription = "Open new Tor private window"
-                        },
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .clip(AzokleRadius.lg)
+                        .background(colors.cardBg)
+                        .border(1.dp, colors.border.copy(alpha = 0.6f), AzokleRadius.lg)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(30.dp)
-                                .clip(CircleShape)
-                                .background(colors.statusTor.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = "🧅", fontSize = 16.sp)
-                        }
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column {
-                            Text(
-                                text = "New Tor Window",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = colors.statusTor
-                            )
-                            Text(
-                                text = "Isolated 3-hop onion circuit • .onion support",
-                                fontSize = 11.sp,
-                                color = colors.textMuted
-                            )
-                        }
-                    }
-                }
-
-                HorizontalDivider(color = colors.border, thickness = 1.dp)
-
-                // Webpage Only Tools: Distraction-Free Reader Mode & Find in Page & Desktop Site
-                if (isBrowserContext) {
-                    // Distraction-Free Reader Mode
-                    MenuActionRow(
-                        icon = Icons.AutoMirrored.Filled.MenuBook,
-                        title = "Distraction-Free Reader Mode",
-                        subtitle = "Clean typography without ads, trackers or clutter",
-                        onClick = {
-                            onDismiss()
-                            onOpenReaderMode()
-                        }
-                    )
-
-                    HorizontalDivider(color = colors.border, thickness = 1.dp)
-
-                    // Find in Webpage
-                    MenuActionRow(
-                        icon = Icons.Default.FindInPage,
-                        title = "Find in Webpage",
-                        subtitle = "Search text occurrences across the live page",
-                        onClick = {
-                            onDismiss()
-                            onOpenFindInPage()
-                        }
-                    )
-
-                    HorizontalDivider(color = colors.border, thickness = 1.dp)
-
                     // Desktop Site Toggle Switch
                     Row(
                         modifier = Modifier
@@ -336,26 +244,17 @@ fun BrowserMenuSheet(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Devices,
-                                contentDescription = null,
-                                tint = colors.textSecondary,
-                                modifier = Modifier.size(20.dp)
+                            MenuIconBadge(
+                                icon = Icons.Default.Devices,
+                                tint = colors.textPrimary
                             )
                             Spacer(modifier = Modifier.width(14.dp))
-                            Column {
-                                Text(
-                                    text = "Desktop Site",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = colors.textPrimary
-                                )
-                                Text(
-                                    text = "Request desktop user-agent view",
-                                    fontSize = 11.sp,
-                                    color = colors.textMuted
-                                )
-                            }
+                            Text(
+                                text = "Desktop Site",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = colors.textPrimary
+                            )
                         }
 
                         Switch(
@@ -371,144 +270,128 @@ fun BrowserMenuSheet(
                         )
                     }
 
-                    HorizontalDivider(color = colors.border, thickness = 1.dp)
+                    HorizontalDivider(color = colors.border.copy(alpha = 0.5f), thickness = 0.5.dp)
 
-                    // Save as PDF / Print
-                    MenuActionRow(
-                        icon = Icons.Default.Download,
-                        title = "Save as PDF",
-                        subtitle = "Export high-fidelity vector PDF to downloads",
+                    // Distraction-Free Reader Mode
+                    CleanMenuRow(
+                        icon = Icons.AutoMirrored.Filled.MenuBook,
+                        title = "Reader View",
                         onClick = {
                             onDismiss()
-                            onSaveAsPdf()
+                            onOpenReaderMode()
                         }
                     )
 
-                    HorizontalDivider(color = colors.border, thickness = 1.dp)
+                    // PWA Install (if available)
+                    if (pwaEligibility != null) {
+                        HorizontalDivider(color = colors.border.copy(alpha = 0.5f), thickness = 0.5.dp)
+                        CleanMenuRow(
+                            icon = Icons.Default.InstallMobile,
+                            title = "Add to Home Screen",
+                            onClick = {
+                                onDismiss()
+                                onInstallPwa()
+                            }
+                        )
+                    }
                 }
 
-                // Bookmarks & Quick Links
-                MenuActionRow(
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // 3. Navigation & Library Card
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(AzokleRadius.lg)
+                    .background(colors.cardBg)
+                    .border(1.dp, colors.border.copy(alpha = 0.6f), AzokleRadius.lg)
+            ) {
+                // New Tor Window
+                CleanMenuRow(
+                    iconText = "🧅",
+                    title = "New Tor Window",
+                    titleColor = colors.statusTor,
+                    iconBg = colors.statusTor.copy(alpha = 0.14f),
+                    trailingTint = colors.statusTor,
+                    onClick = {
+                        onDismiss()
+                        onOpenTorWindow()
+                    }
+                )
+
+                HorizontalDivider(color = colors.border.copy(alpha = 0.5f), thickness = 0.5.dp)
+
+                // Bookmarks
+                CleanMenuRow(
                     icon = Icons.Default.Star,
-                    title = "Bookmarks & Quick Links",
-                    subtitle = "Manage saved links, shortcuts and reading list",
+                    title = "Bookmarks",
                     onClick = {
                         onDismiss()
                         onOpenBookmarks()
                     }
                 )
 
-                HorizontalDivider(color = colors.border, thickness = 1.dp)
+                HorizontalDivider(color = colors.border.copy(alpha = 0.5f), thickness = 0.5.dp)
 
-                // Downloads
-                MenuActionRow(
-                    icon = Icons.Default.Download,
-                    title = "Downloads",
-                    subtitle = "Manage offline files and saved resources",
-                    onClick = {
-                        onDismiss()
-                        onOpenDownloads()
-                    }
-                )
-
-                HorizontalDivider(color = colors.border, thickness = 1.dp)
-
-                // Browsing History
-                MenuActionRow(
+                // History
+                CleanMenuRow(
                     icon = Icons.Default.History,
                     title = "History",
-                    subtitle = "Encrypted local browsing activity",
                     onClick = {
                         onDismiss()
                         onOpenHistory()
                     }
                 )
 
-                HorizontalDivider(color = colors.border, thickness = 1.dp)
+                HorizontalDivider(color = colors.border.copy(alpha = 0.5f), thickness = 0.5.dp)
 
+                // Downloads
+                CleanMenuRow(
+                    icon = Icons.Default.Download,
+                    title = "Downloads",
+                    onClick = {
+                        onDismiss()
+                        onOpenDownloads()
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 4. Settings & Burn Browsing Session Card
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(AzokleRadius.lg)
+                    .background(colors.cardBg)
+                    .border(1.dp, colors.border.copy(alpha = 0.6f), AzokleRadius.lg)
+            ) {
                 // Settings
-                MenuActionRow(
+                CleanMenuRow(
                     icon = Icons.Default.Settings,
                     title = "Settings",
-                    subtitle = "Search engines, DNS, security & appearance",
                     onClick = {
                         onDismiss()
                         onOpenSettings()
                     }
                 )
 
-                if (!isBrowserContext) {
-                    HorizontalDivider(color = colors.border, thickness = 1.dp)
+                HorizontalDivider(color = colors.border.copy(alpha = 0.5f), thickness = 0.5.dp)
 
-                    // About
-                    MenuActionRow(
-                        icon = Icons.Default.Info,
-                        title = "About Azokle",
-                        subtitle = "v-1.0.9 • Sovereign Privacy Engine",
-                        onClick = {
-                            onDismiss()
-                            onOpenAbout()
-                        }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // 3. Cinema-Grade Fire Incineration Destruction Card
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(AzokleRadius.lg)
-                    .background(colors.cardBg)
-                    .border(1.dp, colors.statusDestructive.copy(alpha = 0.4f), AzokleRadius.lg)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(bounded = true, color = colors.statusDestructive.copy(alpha = 0.2f)),
-                        onClick = {
-                            onDismiss()
-                            onBurnData()
-                        }
-                    )
-                    .padding(16.dp)
-                    .semantics {
-                        role = Role.Button
-                        contentDescription = "Burn all tabs and browsing data"
+                // Burn Browsing Session (Clean Destructive Item)
+                CleanMenuRow(
+                    icon = Icons.Default.LocalFireDepartment,
+                    title = "Burn Browsing Session",
+                    titleColor = colors.statusDestructive,
+                    iconTint = colors.statusDestructive,
+                    iconBg = colors.statusDestructive.copy(alpha = 0.12f),
+                    trailingTint = colors.statusDestructive,
+                    onClick = {
+                        onDismiss()
+                        onBurnData()
                     }
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(colors.statusDestructive.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.LocalFireDepartment,
-                            contentDescription = null,
-                            tint = colors.statusDestructive,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(14.dp))
-                    Column {
-                        Text(
-                            text = "Burn Browsing Session",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.statusDestructive
-                        )
-                        Text(
-                            text = "Instantly wipe all ephemeral tabs, cache & recent history",
-                            fontSize = 11.sp,
-                            color = colors.textMuted
-                        )
-                    }
-                }
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -516,8 +399,11 @@ fun BrowserMenuSheet(
     }
 }
 
+/**
+ * Sleek Top Quick Action Pill (Share, Bookmark, Find, PDF)
+ */
 @Composable
-private fun QuickMenuIconButton(
+private fun QuickActionPill(
     icon: ImageVector,
     label: String,
     tint: Color,
@@ -528,78 +414,145 @@ private fun QuickMenuIconButton(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .sizeIn(minWidth = 54.dp)
             .clip(AzokleRadius.md)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = ripple(bounded = false, radius = 22.dp, color = colors.textPrimary),
+                indication = ripple(bounded = false, radius = 24.dp, color = colors.textPrimary),
                 onClick = onClick
             )
-            .padding(vertical = 4.dp, horizontal = 6.dp)
+            .padding(horizontal = 10.dp, vertical = 4.dp)
             .semantics {
                 role = Role.Button
                 contentDescription = label
             }
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = tint,
-            modifier = Modifier.size(22.dp)
-        )
-        Spacer(modifier = Modifier.height(4.dp))
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .clip(CircleShape)
+                .background(colors.surfaceElevated)
+                .border(0.5.dp, colors.border.copy(alpha = 0.4f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(5.dp))
         Text(
             text = label,
-            fontSize = 10.sp,
+            fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
             color = colors.textSecondary
         )
     }
 }
 
+/**
+ * Premium, Single-Line Menu Action Row with Leading Icon & Subtle Trailing Chevron
+ */
 @Composable
-private fun MenuActionRow(
-    icon: ImageVector,
+private fun CleanMenuRow(
     title: String,
-    subtitle: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    icon: ImageVector? = null,
+    iconText: String? = null,
+    titleColor: Color? = null,
+    iconTint: Color? = null,
+    iconBg: Color? = null,
+    trailingTint: Color? = null
 ) {
     val colors = AzokleTheme.colors
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 48.dp)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = ripple(bounded = true, color = colors.textPrimary.copy(alpha = 0.08f)),
                 onClick = onClick
             )
-            .padding(horizontal = 16.dp, vertical = 13.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
             .semantics {
                 role = Role.Button
                 contentDescription = title
             },
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
+            if (iconText != null) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(AzokleRadius.sm)
+                        .background(iconBg ?: colors.surfaceElevated),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = iconText, fontSize = 16.sp)
+                }
+            } else if (icon != null) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(AzokleRadius.sm)
+                        .background(iconBg ?: colors.surfaceElevated),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = iconTint ?: colors.textPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Text(
+                text = title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = titleColor ?: colors.textPrimary
+            )
+        }
+
+        Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = trailingTint ?: colors.textMuted.copy(alpha = 0.5f),
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}
+
+/**
+ * Rounded icon badge container for leading menu row icons
+ */
+@Composable
+private fun MenuIconBadge(
+    icon: ImageVector,
+    tint: Color
+) {
+    val colors = AzokleTheme.colors
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .clip(AzokleRadius.sm)
+            .background(colors.surfaceElevated),
+        contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = colors.textSecondary,
-            modifier = Modifier.size(20.dp)
+            tint = tint,
+            modifier = Modifier.size(18.dp)
         )
-        Spacer(modifier = Modifier.width(14.dp))
-        Column {
-            Text(
-                text = title,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = colors.textPrimary
-            )
-            Text(
-                text = subtitle,
-                fontSize = 11.sp,
-                color = colors.textMuted
-            )
-        }
     }
 }

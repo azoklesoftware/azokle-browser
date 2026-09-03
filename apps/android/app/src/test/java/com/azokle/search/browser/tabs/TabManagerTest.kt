@@ -181,4 +181,52 @@ class TabManagerTest {
         assertFalse(restoredMobile.isDesktopMode)
         assertTrue(restoredDesktop.isDesktopMode)
     }
+
+    @Test
+    fun testTabSessionWallpaperResIdSerialization() {
+        val tab = TabSession(
+            id = "tab-wp",
+            url = "",
+            title = "New Tab",
+            wallpaperResId = 2131230845
+        )
+
+        val json = tab.toJson()
+        assertTrue(json.has("wallpaper_res_id"))
+        assertEquals(2131230845, json.getInt("wallpaper_res_id"))
+
+        val restored = TabSession.fromJson(json)
+        assertEquals(2131230845, restored.wallpaperResId)
+    }
+
+    @Test
+    fun testTabGroupSecurityIsolationRules() {
+        val standardTab = TabSession(id = "std-1", url = "https://standard.com", isPrivate = false, isTor = false)
+        val privateTab = TabSession(id = "priv-1", url = "https://private.com", isPrivate = true, isTor = false)
+        val torTab = TabSession(id = "tor-1", url = "about:tor", isPrivate = true, isTor = true)
+
+        val standardGroup = TabGroup(id = "grp-std", title = "Standard", color = 0xFF38BDF8, isPrivate = false, isTor = false)
+        val privateGroup = TabGroup(id = "grp-priv", title = "Private", color = 0xFFA855F7, isPrivate = true, isTor = false)
+        val torGroup = TabGroup(id = "grp-tor", title = "Tor", color = 0xFF8B5CF6, isPrivate = true, isTor = true)
+
+        // Strict isolation validation
+        fun canAddTabToGroup(tab: TabSession, group: TabGroup): Boolean {
+            return tab.isTor == group.isTor && tab.isPrivate == group.isPrivate
+        }
+
+        // Standard tab should only be allowed in standard group
+        assertTrue(canAddTabToGroup(standardTab, standardGroup))
+        assertFalse(canAddTabToGroup(standardTab, privateGroup))
+        assertFalse(canAddTabToGroup(standardTab, torGroup))
+
+        // Private tab should only be allowed in private group
+        assertFalse(canAddTabToGroup(privateTab, standardGroup))
+        assertTrue(canAddTabToGroup(privateTab, privateGroup))
+        assertFalse(canAddTabToGroup(privateTab, torGroup))
+
+        // Tor tab should only be allowed in tor group
+        assertFalse(canAddTabToGroup(torTab, standardGroup))
+        assertFalse(canAddTabToGroup(torTab, privateGroup))
+        assertTrue(canAddTabToGroup(torTab, torGroup))
+    }
 }

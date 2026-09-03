@@ -212,7 +212,8 @@ data class SearchEngineConfig(
     val queryUrl: String,
     val subtitle: String,
     val isDefault: Boolean = false,
-    val domain: String
+    val domain: String,
+    val iconRes: Int = 0
 )
 
 val SEARCH_ENGINE_PROVIDERS = listOf(
@@ -222,7 +223,8 @@ val SEARCH_ENGINE_PROVIDERS = listOf(
         queryUrl = "https://search.azokle.com/search?q=",
         subtitle = "Decentralized AI & sovereign privacy search",
         isDefault = true,
-        domain = "search.azokle.com"
+        domain = "search.azokle.com",
+        iconRes = com.azokle.search.R.drawable.ic_engine_azokle
     ),
     SearchEngineConfig(
         id = "duckduckgo",
@@ -230,7 +232,8 @@ val SEARCH_ENGINE_PROVIDERS = listOf(
         queryUrl = "https://duckduckgo.com/?q=",
         subtitle = "Privacy, simplified. No profiling or tracker tracking",
         isDefault = false,
-        domain = "duckduckgo.com"
+        domain = "duckduckgo.com",
+        iconRes = com.azokle.search.R.drawable.ic_engine_duckduckgo
     ),
     SearchEngineConfig(
         id = "brave",
@@ -238,7 +241,8 @@ val SEARCH_ENGINE_PROVIDERS = listOf(
         queryUrl = "https://search.brave.com/search?q=",
         subtitle = "Independent search index with complete privacy",
         isDefault = false,
-        domain = "search.brave.com"
+        domain = "search.brave.com",
+        iconRes = com.azokle.search.R.drawable.ic_engine_brave
     ),
     SearchEngineConfig(
         id = "startpage",
@@ -246,6 +250,7 @@ val SEARCH_ENGINE_PROVIDERS = listOf(
         queryUrl = "https://www.startpage.com/sp/search?query=",
         subtitle = "Private search engine with Google-grade indexing",
         isDefault = false,
-        domain = "startpage.com"
+        domain = "startpage.com",
+        iconRes = com.azokle.search.R.drawable.ic_engine_startpage
     )
 )

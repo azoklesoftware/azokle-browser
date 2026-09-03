@@ -77,7 +77,9 @@ fun BrowserOmnibar(
     onReaderModeClick: () -> Unit = {},
     onMenuClick: () -> Unit = {},
     onVoiceClick: () -> Unit = {},
-    onUrlBarClick: () -> Unit
+    onUrlBarClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    includeStatusBarPadding: Boolean = true
 ) {
     val colors = AzokleTheme.colors
     val context = LocalContext.current
@@ -142,10 +144,10 @@ fun BrowserOmnibar(
     }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .background(colors.cardBg)
-            .statusBarsPadding()
+            .then(if (includeStatusBarPadding) Modifier.statusBarsPadding() else Modifier)
     ) {
         Row(
             modifier = Modifier

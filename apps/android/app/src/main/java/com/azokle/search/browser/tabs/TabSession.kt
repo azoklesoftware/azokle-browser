@@ -20,6 +20,7 @@ data class TabSession(
     val groupColor: Long? = null,
     val parentTabId: String? = null,
     val isDesktopMode: Boolean = false,
+    val wallpaperResId: Int? = null,
     val lastAccessedAt: Long = System.currentTimeMillis(),
     val createdAt: Long = System.currentTimeMillis()
 ) {
@@ -37,6 +38,7 @@ data class TabSession(
             put("group_title", groupTitle ?: "")
             if (groupColor != null) put("group_color", groupColor)
             if (parentTabId != null) put("parent_tab_id", parentTabId)
+            if (wallpaperResId != null) put("wallpaper_res_id", wallpaperResId)
             put("last_accessed_at", lastAccessedAt)
             put("created_at", createdAt)
         }
@@ -60,6 +62,7 @@ data class TabSession(
                 groupColor = if (json.has("group_color")) json.optLong("group_color") else null,
                 parentTabId = (json.optString("parent_tab_id", "").takeIf { it.isNotBlank() }
                     ?: json.optString("parentTabId", "").takeIf { it.isNotBlank() }),
+                wallpaperResId = if (json.has("wallpaper_res_id")) json.optInt("wallpaper_res_id") else null,
                 lastAccessedAt = if (json.has("last_accessed_at")) json.optLong("last_accessed_at") else json.optLong("lastAccessedAt", System.currentTimeMillis()),
                 createdAt = if (json.has("created_at")) json.optLong("created_at") else json.optLong("createdAt", System.currentTimeMillis())
             )
