@@ -1,12 +1,15 @@
 package com.azokle.search.browser.ui.components
 
 import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
+import androidx.compose.ui.res.painterResource
+import com.azokle.search.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,7 +49,11 @@ fun FaviconImage(
             modifier = modifier.size(size),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = "🧅", fontSize = (size.value * 0.7).sp)
+            Image(
+                painter = painterResource(id = R.drawable.ic_tor),
+                contentDescription = "Tor Favicon",
+                modifier = Modifier.size(size)
+            )
         }
         return
     }

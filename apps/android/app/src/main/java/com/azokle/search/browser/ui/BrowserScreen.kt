@@ -86,6 +86,7 @@ import androidx.compose.ui.unit.sp
 import com.azokle.search.browser.adblock.AdBlockEngine
 import com.azokle.search.browser.adblock.AdBlockStats
 import com.azokle.search.browser.gecko.GeckoBrowserView
+import com.azokle.search.browser.gecko.TextSelectionPayload
 import com.azokle.search.browser.reader.ArticleContent
 import com.azokle.search.browser.reader.ReaderExtractor
 import com.azokle.search.browser.reader.ReaderModeScreen
@@ -96,6 +97,7 @@ import com.azokle.search.ui.components.ChooseSearchEngineSheet
 import com.azokle.search.ui.components.ChooseLanguageSheet
 import com.azokle.search.ui.components.ProUpgradeDialog
 import com.azokle.search.ui.components.InfoDialog
+import com.azokle.search.browser.ui.components.TextSelectionFloatingToolbar
 import com.azokle.search.ui.screens.ActiveTabsScreen
 import com.azokle.search.ui.theme.AzokleDarkBg
 import com.azokle.search.util.UrlHelper
@@ -205,6 +207,7 @@ fun BrowserScreen(
     var showBurnConfirmationSheet by remember { mutableStateOf(false) }
     var isBurningData by remember { mutableStateOf(false) }
     var activeLinkContextTarget: LinkContextTarget? by remember { mutableStateOf(null) }
+    var activeTextSelection: TextSelectionPayload? by remember { mutableStateOf(null) }
     var pendingDownloadPayload by remember { mutableStateOf<DownloadConfirmationPayload?>(null) }
 
     // Website Permissions Engine Integration
@@ -330,6 +333,9 @@ fun BrowserScreen(
             showGroupDetailSheet = false
         } else if (activeLinkContextTarget != null) {
             activeLinkContextTarget = null
+        } else if (activeTextSelection != null) {
+            activeTextSelection?.onDismiss?.invoke()
+            activeTextSelection = null
         } else if (showDownloadsScreen) {
             showDownloadsScreen = false
         } else if (showBookmarksScreen) {
@@ -549,7 +555,11 @@ fun BrowserScreen(
                                 onMenuClick = { showMenuSheet = true },
                                 onVoiceClick = { showVoiceModal = true },
                                 onUrlBarClick = { showUrlEditSheet = true },
-                                includeStatusBarPadding = false
+                                includeStatusBarPadding = false,
+                                selectedSearchEngine = homeUiState?.selectedSearchEngine ?: "azokle",
+                                onSelectSearchEngine = { engineId ->
+                                    viewModel?.setSearchEngine(engineId)
+                                }
                             )
                         }
 
@@ -647,6 +657,10 @@ fun BrowserScreen(
                             },
                             onVoiceClick = {
                                 showVoiceModal = true
+                            },
+                            selectedSearchEngine = homeUiState?.selectedSearchEngine ?: "azokle",
+                            onSelectSearchEngine = { engineId ->
+                                viewModel?.setSearchEngine(engineId)
                             }
                         )
                     } else {
@@ -708,7 +722,11 @@ fun BrowserScreen(
                                      }
                                  },
                                 onLinkLongPressed = { target ->
+                                    activeTextSelection = null
                                     activeLinkContextTarget = target
+                                },
+                                onTextSelectionChanged = { selection ->
+                                    activeTextSelection = selection
                                 },
                                 onNewWindowRequested = { targetUrl ->
                                      val parentId = activeTabId ?: ""
@@ -952,7 +970,11 @@ fun BrowserScreen(
                     TabManager.updateActiveTab(resolved, "")
                     geckoSession?.loadUri(resolved)
                 },
-                onDismiss = { showUrlEditSheet = false }
+                onDismiss = { showUrlEditSheet = false },
+                initialSearchEngine = homeUiState?.selectedSearchEngine ?: "azokle",
+                onEngineSelected = { engineId ->
+                    viewModel?.setSearchEngine(engineId)
+                }
             )
         }
 
@@ -1340,6 +1362,29 @@ fun BrowserScreen(
             )
         }
 
+        // Text Selection Floating Context Menu (Copy, Share, Web Search, Select All)
+        TextSelectionFloatingToolbar(
+            payload = activeTextSelection,
+            onSearchRequested = { query ->
+                val searchUrl = com.azokle.search.util.UrlHelper.resolveSearchOrUrl(
+                    context = context,
+                    input = query
+                )
+                val newId = TabManager.openTab(
+                    url = searchUrl,
+                    title = "Search",
+                    isPrivate = isCurrentTabPrivate,
+                    isTor = isCurrentTabTor
+                )
+                TabManager.selectTab(newId)
+                currentUrl = searchUrl
+                currentTitle = "Search"
+                currentError = null
+                geckoSession?.loadUri(searchUrl)
+                com.azokle.search.ui.components.ToastManager.show("Searching web 🔍")
+            }
+        )
+
         // Tab Group Detail Modal Sheet (Overview, reorder, rename, palette picker)
         if (showGroupDetailSheet && activeGroup != null) {
             TabGroupDetailSheet(
@@ -1518,7 +1563,9 @@ private fun BrowserHomeScreenContent(
     onNavigate: (String) -> Unit,
     onOpenSearchSheet: () -> Unit,
     onVoiceClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    selectedSearchEngine: String = "azokle",
+    onSelectSearchEngine: (String) -> Unit = {}
 ) {
     val colors = com.azokle.search.ui.theme.AzokleTheme.colors
 
@@ -1607,7 +1654,9 @@ private fun BrowserHomeScreenContent(
                 onSearch = { onNavigate(it) },
                 onVoiceClick = onVoiceClick,
                 onCapsuleClick = onOpenSearchSheet,
-                isReadOnly = true
+                isReadOnly = true,
+                selectedEngineId = selectedSearchEngine,
+                onEngineSelected = onSelectSearchEngine
             )
 
             androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(28.dp))

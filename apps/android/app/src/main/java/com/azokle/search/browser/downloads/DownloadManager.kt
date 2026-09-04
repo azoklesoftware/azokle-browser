@@ -53,8 +53,31 @@ object DownloadManager {
         )
     }
 
-    private fun sanitizeFilename(name: String): String {
-        return name.replace("..", "_").replace(Regex("[^a-zA-Z0-9._-]"), "_").take(128)
+    /**
+     * Sanitizes incoming filenames from Content-Disposition, URL paths, or external delegates.
+     * Prevents path traversal (e.g. "../../", "..\", null bytes, control chars, reserved names)
+     * and strictly keeps files within the target download directory.
+     */
+    fun sanitizeFilename(name: String): String {
+        var cleaned = name
+            .replace("\u0000", "")
+            .replace('\\', '/')
+            .substringAfterLast('/')
+            .trim()
+
+        while (cleaned.contains("..")) {
+            cleaned = cleaned.replace("..", "_")
+        }
+
+        cleaned = cleaned.trimStart('.', ' ', '\t')
+        cleaned = cleaned.replace(Regex("""[/\?%*:|"<>\\#\x00-\x1F\x7F]"""), "_")
+
+        val hasAlphanumeric = cleaned.any { it.isLetterOrDigit() }
+        if (!hasAlphanumeric || cleaned.isBlank() || cleaned == "." || cleaned == "..") {
+            cleaned = "download_${System.currentTimeMillis()}"
+        }
+
+        return cleaned.take(128)
     }
 
     /**
@@ -69,9 +92,23 @@ object DownloadManager {
         headers: Map<String, String>? = null
     ): String {
         init(context)
-        val safeName = filename?.takeIf { it.isNotBlank() } ?: extractFilename(url, mimeType = mimeType)
+        val rawName = filename?.takeIf { it.isNotBlank() } ?: extractFilename(url, mimeType = mimeType)
+        val safeName = sanitizeFilename(rawName)
         val downloadDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir
         var targetFile = File(downloadDir, safeName)
+
+        // Enforce strict canonical containment to prevent directory traversal
+        try {
+            val downloadCanonical = downloadDir.canonicalFile
+            val targetCanonical = targetFile.canonicalFile
+            if (!targetCanonical.path.startsWith(downloadCanonical.path + File.separator)) {
+                val fallbackName = "download_${UUID.randomUUID().toString().take(8)}" +
+                    (targetFile.extension.takeIf { it.isNotBlank() }?.let { ".$it" } ?: "")
+                targetFile = File(downloadDir, fallbackName)
+            }
+        } catch (e: Exception) {
+            targetFile = File(downloadDir, "download_${UUID.randomUUID().toString().take(8)}")
+        }
 
         // Prevent collisions
         var counter = 1

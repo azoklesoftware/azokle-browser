@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.ui.res.painterResource
+import com.azokle.search.R
 import com.azokle.search.browser.ui.components.FaviconImage
 import com.azokle.search.ui.theme.AudiowideFontFamily
 import androidx.compose.material3.AlertDialog
@@ -314,11 +315,10 @@ fun ActiveTabsScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Security,
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_tor),
                                 contentDescription = null,
-                                tint = if (selectedCategory == TabCategory.TOR) colors.actionPrimaryText else colors.textMuted,
-                                modifier = Modifier.size(13.dp)
+                                modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
@@ -642,6 +642,13 @@ fun ActiveTabsScreen(
                                 .border(1.dp, colors.border, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
+                        if (selectedCategory == TabCategory.TOR) {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_tor),
+                                contentDescription = null,
+                                modifier = Modifier.size(36.dp)
+                            )
+                        } else {
                             Icon(
                                 imageVector = when (selectedCategory) {
                                     TabCategory.STANDARD -> Icons.Default.Layers
@@ -653,8 +660,9 @@ fun ActiveTabsScreen(
                                 modifier = Modifier.size(32.dp)
                             )
                         }
+                    }
 
-                        Spacer(modifier = Modifier.height(18.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
                         Text(
                             text = when (selectedCategory) {
@@ -720,12 +728,20 @@ fun ActiveTabsScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = if (selectedCategory == TabCategory.TOR) Icons.Default.Security else Icons.Default.Add,
-                                        contentDescription = null,
-                                        tint = colors.actionPrimaryText,
-                                        modifier = Modifier.size(15.dp)
-                                    )
+                                    if (selectedCategory == TabCategory.TOR) {
+                                        Image(
+                                            painter = painterResource(id = R.drawable.ic_tor),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.Add,
+                                            contentDescription = null,
+                                            tint = colors.actionPrimaryText,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                    }
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = when (selectedCategory) {
@@ -849,9 +865,10 @@ fun ActiveTabsScreen(
                                         modifier = Modifier.size(15.dp)
                                     )
                                 } else if (tab.isTor) {
-                                    Text(
-                                        text = "🧅",
-                                        fontSize = 13.sp
+                                    Image(
+                                        painter = painterResource(id = R.drawable.ic_tor),
+                                        contentDescription = "Tor Tab",
+                                        modifier = Modifier.size(15.dp)
                                     )
                                 } else if (tab.isPrivate) {
                                     Icon(
@@ -1097,15 +1114,25 @@ fun ActiveTabsScreen(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(6.dp))
                                                 .background(Color(0xFF8B5CF6))
-                                                .padding(horizontal = 7.dp, vertical = 3.dp)
+                                                .padding(horizontal = 6.dp, vertical = 3.dp)
                                         ) {
-                                            Text(
-                                                text = "TOR",
-                                                fontSize = 8.5.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                fontFamily = FontFamily.Monospace,
-                                                color = Color.White
-                                            )
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                            ) {
+                                                Image(
+                                                    painter = painterResource(id = R.drawable.ic_tor),
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(10.dp)
+                                                )
+                                                Text(
+                                                    text = "TOR",
+                                                    fontSize = 8.5.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontFamily = FontFamily.Monospace,
+                                                    color = Color.White
+                                                )
+                                            }
                                         }
                                     }
 

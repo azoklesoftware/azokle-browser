@@ -420,21 +420,21 @@ object AzokleCore {
         if (!isNativeLoaded || origin.isBlank()) return
         try {
             permClearForOrigin(origin)
-        } catch (e: Exception) {}
+        } catch (e: Throwable) {}
     }
 
     fun clearAllPermissions() {
         if (!isNativeLoaded) return
         try {
             permClearAll()
-        } catch (e: Exception) {}
+        } catch (e: Throwable) {}
     }
 
     fun clearEphemeralPermissions() {
         if (!isNativeLoaded) return
         try {
             permClearEphemeral()
-        } catch (e: Exception) {}
+        } catch (e: Throwable) {}
     }
 
     fun getSitePermissionsJson(origin: String, isPrivate: Boolean = false): JSONObject {

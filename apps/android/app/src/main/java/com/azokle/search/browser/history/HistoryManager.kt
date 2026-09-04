@@ -43,8 +43,13 @@ object HistoryManager {
     /**
      * Records a visited web page. Strictly excludes private/Tor browsing, about/blank schemes, and assets.
      */
+    /**
+     * Records a visited web page. Strictly excludes private/Tor browsing, about/blank schemes, and assets.
+     */
     fun recordVisit(url: String, title: String = "", isPrivate: Boolean = false) {
         if (isPrivate || url.isBlank() || isIgnoredScheme(url)) return
+        val active = com.azokle.search.browser.tabs.TabManager.activeTab
+        if (active != null && (active.isPrivate || active.isTor)) return
         val context = appContext ?: return
 
         scope.launch {
@@ -56,8 +61,10 @@ object HistoryManager {
     /**
      * Updates page title after GeckoView completes parsing document title.
      */
-    fun updateTitle(url: String, title: String) {
-        if (url.isBlank() || title.isBlank() || isIgnoredScheme(url)) return
+    fun updateTitle(url: String, title: String, isPrivate: Boolean = false) {
+        if (isPrivate || url.isBlank() || title.isBlank() || isIgnoredScheme(url)) return
+        val active = com.azokle.search.browser.tabs.TabManager.activeTab
+        if (active != null && (active.isPrivate || active.isTor)) return
         val context = appContext ?: return
 
         scope.launch {
@@ -123,13 +130,16 @@ object HistoryManager {
     }
 
     private fun isIgnoredScheme(url: String): Boolean {
-        val lower = url.lowercase()
+        val lower = url.lowercase().trim()
         return lower.startsWith("about:") ||
                 lower.startsWith("chrome:") ||
                 lower.startsWith("javascript:") ||
                 lower.startsWith("data:") ||
                 lower.startsWith("blob:") ||
-                lower.startsWith("file:")
+                lower.startsWith("file:") ||
+                lower.startsWith("content:") ||
+                lower.startsWith("resource:") ||
+                lower.startsWith("intent:")
     }
 
     private fun refreshFromRust(context: Context) {

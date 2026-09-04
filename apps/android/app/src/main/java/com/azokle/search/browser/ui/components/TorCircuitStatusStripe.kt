@@ -3,6 +3,7 @@ package com.azokle.search.browser.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,6 +36,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
+import com.azokle.search.R
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -98,7 +101,11 @@ fun TorCircuitStatusStripe(
                     contentDescription = "Tor circuit status details"
                 }
         ) {
-            Text(text = "🧅", fontSize = 13.sp)
+            Image(
+                painter = painterResource(id = R.drawable.ic_tor),
+                contentDescription = "Tor Circuit",
+                modifier = Modifier.size(15.dp)
+            )
 
             Spacer(modifier = Modifier.width(6.dp))
 

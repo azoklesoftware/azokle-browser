@@ -1,5 +1,6 @@
 package com.azokle.search.browser.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,6 +36,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import com.azokle.search.R
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -100,7 +103,11 @@ fun TorCircuitVisualizerSheet(
                             .background(colors.statusTor.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = "🧅", fontSize = 18.sp)
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_tor),
+                            contentDescription = "Tor Onion Circuit",
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {

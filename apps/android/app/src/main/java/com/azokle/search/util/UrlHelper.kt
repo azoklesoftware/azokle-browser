@@ -4,8 +4,9 @@ import android.content.Context
 import android.net.Uri
 
 object UrlHelper {
-    private val TLD_REGEX = Regex("""^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(/.*)?$""")
-    private val IP_REGEX = Regex("""^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]+)?(/.*)?$""")
+    private val TLD_REGEX = Regex("""^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(:[0-9]{1,5})?(/.*)?$""")
+    private val IP_REGEX = Regex("""^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]{1,5})?(/.*)?$""")
+    private val IPV6_REGEX = Regex("""^\[(?:[0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}\](?::[0-9]{1,5})?(/.*)?$""")
 
     private val ALLOWED_SCHEMES = setOf("https", "http", "about")
 
@@ -22,9 +23,33 @@ object UrlHelper {
         "tag_id", "campid", "customid", "trk_contact", "trk_msg", "trk_module"
     )
 
-    fun isAllowedScheme(url: String): Boolean {
+    /**
+     * RFC 3986 compliant scheme extractor. Differentiates URI schemes from host:port and IPv6.
+     */
+    fun extractScheme(url: String): String? {
         val trimmed = url.trim()
-        val scheme = try { Uri.parse(trimmed).scheme?.lowercase() } catch (e: Exception) { null }
+        if (trimmed.startsWith("[")) return null
+
+        val colonIndex = trimmed.indexOf(':')
+        if (colonIndex <= 0) return null
+
+        val candidate = trimmed.substring(0, colonIndex)
+        if (candidate.contains('.') || candidate.contains('/')) return null
+
+        val afterColon = trimmed.substring(colonIndex + 1)
+        val digits = afterColon.takeWhile { it.isDigit() }
+        if (digits.isNotEmpty() && (digits.length == afterColon.length || afterColon[digits.length] == '/' || afterColon[digits.length] == '?')) {
+            return null
+        }
+
+        if (candidate.first().isLetter() && candidate.all { it.isLetterOrDigit() || it == '+' || it == '-' }) {
+            return candidate.lowercase()
+        }
+        return null
+    }
+
+    fun isAllowedScheme(url: String): Boolean {
+        val scheme = extractScheme(url)
         return scheme == null || scheme in ALLOWED_SCHEMES
     }
 
@@ -33,30 +58,37 @@ object UrlHelper {
         if (trimmed.isBlank() || trimmed.startsWith("about:", ignoreCase = true)) return trimmed
 
         return try {
-            val uri = Uri.parse(trimmed)
-            if (!uri.isHierarchical || uri.query.isNullOrBlank()) return trimmed
+            val questionIdx = trimmed.indexOf('?')
+            if (questionIdx == -1) return trimmed
 
-            val queryParamNames = uri.queryParameterNames
-            var hasTrackingParam = false
+            val base = trimmed.substring(0, questionIdx)
+            val queryWithFragment = trimmed.substring(questionIdx + 1)
+            val hashIdx = queryWithFragment.indexOf('#')
+            val query = if (hashIdx != -1) queryWithFragment.substring(0, hashIdx) else queryWithFragment
+            val fragment = if (hashIdx != -1) queryWithFragment.substring(hashIdx) else ""
 
-            for (param in queryParamNames) {
-                if (param.lowercase() in TRACKING_PARAMS) {
-                    hasTrackingParam = true
-                    break
+            if (query.isBlank()) return trimmed
+
+            val params = query.split('&').filter { it.isNotBlank() }
+            var hasTracking = false
+            val retained = mutableListOf<String>()
+
+            for (p in params) {
+                val key = p.substringBefore('=').lowercase()
+                if (key in TRACKING_PARAMS) {
+                    hasTracking = true
+                } else {
+                    retained.add(p)
                 }
             }
 
-            if (!hasTrackingParam) return trimmed
+            if (!hasTracking) return trimmed
 
-            val builder = uri.buildUpon().clearQuery()
-            for (param in queryParamNames) {
-                if (param.lowercase() !in TRACKING_PARAMS) {
-                    for (value in uri.getQueryParameters(param)) {
-                        builder.appendQueryParameter(param, value)
-                    }
-                }
+            if (retained.isEmpty()) {
+                "$base$fragment"
+            } else {
+                "$base?${retained.joinToString("&")}$fragment"
             }
-            builder.build().toString()
         } catch (e: Exception) {
             trimmed
         }
@@ -67,7 +99,7 @@ object UrlHelper {
         if (trimmed.contains(" ") || trimmed.isEmpty()) return false
 
         // Block dangerous schemes
-        val scheme = try { Uri.parse(trimmed).scheme?.lowercase() } catch (e: Exception) { null }
+        val scheme = extractScheme(trimmed)
         if (scheme != null && scheme !in ALLOWED_SCHEMES) {
             return false
         }
@@ -77,12 +109,13 @@ object UrlHelper {
             trimmed.startsWith("about:blank", ignoreCase = true) ||
             trimmed.startsWith("www.", ignoreCase = true) ||
             trimmed.startsWith("localhost:", ignoreCase = true) ||
-            trimmed == "localhost"
+            trimmed.startsWith("localhost/", ignoreCase = true) ||
+            trimmed.equals("localhost", ignoreCase = true)
         ) {
             return true
         }
 
-        return TLD_REGEX.matches(trimmed) || IP_REGEX.matches(trimmed)
+        return TLD_REGEX.matches(trimmed) || IP_REGEX.matches(trimmed) || IPV6_REGEX.matches(trimmed)
     }
 
     fun getSearchEngineQueryUrl(context: Context?): String {
@@ -130,8 +163,7 @@ object UrlHelper {
         if (trimmed.isEmpty()) return ""
 
         // Block dangerous protocol injections
-        val colonIndex = trimmed.indexOf(":")
-        val scheme = if (colonIndex > 0) trimmed.substring(0, colonIndex).lowercase() else null
+        val scheme = extractScheme(trimmed)
         if (scheme != null && scheme !in ALLOWED_SCHEMES) {
             return buildSearchUrl(trimmed, searchEngineQueryUrl, locationCode, safeSearch, basePath)
         }

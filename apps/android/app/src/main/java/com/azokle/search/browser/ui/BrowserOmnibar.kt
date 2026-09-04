@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -50,6 +51,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
+import com.azokle.search.R
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -79,7 +82,9 @@ fun BrowserOmnibar(
     onVoiceClick: () -> Unit = {},
     onUrlBarClick: () -> Unit,
     modifier: Modifier = Modifier,
-    includeStatusBarPadding: Boolean = true
+    includeStatusBarPadding: Boolean = true,
+    selectedSearchEngine: String = "azokle",
+    onSelectSearchEngine: (String) -> Unit = {}
 ) {
     val colors = AzokleTheme.colors
     val context = LocalContext.current
@@ -201,24 +206,31 @@ fun BrowserOmnibar(
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = sslIcon,
-                            contentDescription = null,
-                            tint = sslTint,
-                            modifier = Modifier.size(15.dp)
-                        )
+                        if (isOnion) {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_tor),
+                                contentDescription = sslDesc,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = sslIcon,
+                                contentDescription = null,
+                                tint = sslTint,
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.width(6.dp))
                 } else {
-                    // Search Lens Icon on Home Page
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = null,
-                        tint = colors.textMuted,
-                        modifier = Modifier
-                            .padding(start = 2.dp, end = 8.dp)
-                            .size(16.dp)
+                    // Search Engine Selector Icon on Home Page (Azokle, DuckDuckGo, Brave, Startpage)
+                    com.azokle.search.ui.components.SearchEngineIconDropdown(
+                        selectedEngineId = selectedSearchEngine,
+                        onEngineSelected = onSelectSearchEngine,
+                        iconSize = 16.dp,
+                        showDropdownArrow = true,
+                        modifier = Modifier.padding(start = 0.dp, end = 4.dp)
                     )
                 }
 

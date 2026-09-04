@@ -60,7 +60,9 @@ fun SearchBarCapsule(
     onVoiceClick: () -> Unit,
     onCapsuleClick: () -> Unit,
     modifier: Modifier = Modifier,
-    isReadOnly: Boolean = false
+    isReadOnly: Boolean = false,
+    selectedEngineId: String = "azokle",
+    onEngineSelected: (String) -> Unit = {}
 ) {
     val colors = AzokleTheme.colors
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -100,17 +102,16 @@ fun SearchBarCapsule(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            // Search Magnifier Icon
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = null,
-                tint = colors.textSecondary,
-                modifier = Modifier
-                    .padding(start = 4.dp)
-                    .size(20.dp)
+            // Search Engine Selector Icon (Azokle Search, DuckDuckGo, Brave, Startpage)
+            SearchEngineIconDropdown(
+                selectedEngineId = selectedEngineId,
+                onEngineSelected = onEngineSelected,
+                iconSize = 20.dp,
+                showDropdownArrow = true,
+                modifier = Modifier.padding(start = 2.dp)
             )
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
             // Input / Placeholder Area
             Box(

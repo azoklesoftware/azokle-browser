@@ -445,7 +445,11 @@ class GeckoPromptDelegateImpl(
     ): GeckoResult<PromptResponse>? {
         val targetUri = prompt.targetUri ?: ""
         if (targetUri.isNotBlank()) {
-            onPopupRequested?.invoke(targetUri)
+            val scheme = com.azokle.search.util.UrlHelper.extractScheme(targetUri)
+            val dangerousSchemes = setOf("file", "content", "chrome", "resource", "javascript", "data")
+            if (scheme == null || scheme !in dangerousSchemes) {
+                onPopupRequested?.invoke(targetUri)
+            }
         }
         return GeckoResult.fromValue(prompt.dismiss())
     }

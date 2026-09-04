@@ -25,11 +25,22 @@ data class InstalledPwa(
     val iconBase64: String? = null,
     val installedAt: Long = System.currentTimeMillis()
 ) {
-    fun getIconBitmap(): Bitmap? {
+    fun getIconBitmap(reqWidth: Int = 192, reqHeight: Int = 192): Bitmap? {
         if (iconBase64.isNullOrBlank()) return null
         return try {
             val bytes = Base64.decode(iconBase64, Base64.DEFAULT)
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            // First decode with inJustDecodeBounds=true to check dimensions without allocating memory
+            val options = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+
+            // Calculate inSampleSize to downsample large bitmaps and prevent memory exhaustion
+            options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight)
+            options.inJustDecodeBounds = false
+            options.inPreferredConfig = Bitmap.Config.ARGB_8888
+
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
         } catch (e: Exception) {
             null
         }
@@ -62,6 +73,21 @@ data class InstalledPwa(
                 iconBase64 = json.optString("iconBase64", "").takeIf { it.isNotBlank() },
                 installedAt = json.optLong("installedAt", System.currentTimeMillis())
             )
+        }
+
+        fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
+            val height = options.outHeight
+            val width = options.outWidth
+            var inSampleSize = 1
+
+            if (height > reqHeight || width > reqWidth) {
+                val halfHeight = height / 2
+                val halfWidth = width / 2
+                while ((halfHeight / inSampleSize) >= reqHeight && (halfWidth / inSampleSize) >= reqWidth) {
+                    inSampleSize *= 2
+                }
+            }
+            return inSampleSize
         }
     }
 }

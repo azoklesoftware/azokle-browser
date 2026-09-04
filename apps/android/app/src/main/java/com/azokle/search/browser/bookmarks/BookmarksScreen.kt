@@ -3,6 +3,7 @@ package com.azokle.search.browser.bookmarks
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -61,6 +62,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import com.azokle.search.R
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -577,7 +580,13 @@ private fun BookmarkCard(
                 )
                 DropdownMenuItem(
                     text = { Text("Open in Tor Window", color = colors.statusTor) },
-                    leadingIcon = { Text("🧅", fontSize = 14.sp) },
+                    leadingIcon = {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_tor),
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    },
                     onClick = {
                         showMenu = false
                         onOpenTor()

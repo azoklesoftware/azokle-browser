@@ -10,20 +10,38 @@ import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoSession.SelectionActionDelegate
 
 /**
+ * Text Selection event payload providing text, screen coordinates, and action execution triggers to Compose.
+ */
+data class TextSelectionPayload(
+    val text: String,
+    val screenRect: android.graphics.RectF,
+    val canCopy: Boolean = true,
+    val canCut: Boolean = false,
+    val canPaste: Boolean = false,
+    val canSelectAll: Boolean = true,
+    val onCopy: () -> Unit = {},
+    val onCut: () -> Unit = {},
+    val onPaste: () -> Unit = {},
+    val onSelectAll: () -> Unit = {},
+    val onDismiss: () -> Unit = {}
+)
+
+/**
  * Sovereign Text Selection & Floating Contextual Action Delegate for Azokle Browser.
  * Extends Mozilla GeckoView's native Quantum Selection engine (BasicSelectionActionDelegate).
- * Provides seamless floating action mode (Copy, Cut, Paste, Paste as Plain Text, Select All,
- * Share, Web Search, and Android 6.0+ Process Text actions) with exact window coordinate mapping.
+ * Dispatches selection coordinates and actions directly to modern Jetpack Compose floating UI,
+ * while maintaining backward-compatible fallback to Android's native action mode.
  */
 class AzokleSelectionDelegate(
-    private val activity: Activity
+    private val activity: Activity,
+    private val onSelectionAction: ((TextSelectionPayload?) -> Unit)? = null
 ) : BasicSelectionActionDelegate(activity, true) {
 
     companion object {
         const val ACTION_SHARE = "com.azokle.search.SHARE"
         const val ACTION_SEARCH = "com.azokle.search.SEARCH"
 
-        private val CUSTOM_ACTIONS = arrayOf(
+        val CUSTOM_ACTIONS = arrayOf(
             SelectionActionDelegate.ACTION_CUT,
             SelectionActionDelegate.ACTION_COPY,
             SelectionActionDelegate.ACTION_PASTE,
@@ -109,5 +127,72 @@ class AzokleSelectionDelegate(
     ): GeckoResult<AllowOrDeny>? {
         // Automatically allow user-initiated paste from clipboard without blocking prompt
         return GeckoResult.fromValue(AllowOrDeny.ALLOW)
+    }
+
+    override fun onShowActionRequest(
+        session: GeckoSession,
+        selection: SelectionActionDelegate.Selection
+    ) {
+        val selectedText = selection.text?.trim() ?: ""
+        val rect = selection.screenRect ?: android.graphics.RectF(0f, 0f, 0f, 0f)
+        val canCut = selection.isActionAvailable(SelectionActionDelegate.ACTION_CUT)
+        val canCopy = selection.isActionAvailable(SelectionActionDelegate.ACTION_COPY) || selectedText.isNotEmpty()
+        val canPaste = selection.isActionAvailable(SelectionActionDelegate.ACTION_PASTE)
+        val canSelectAll = selection.isActionAvailable(SelectionActionDelegate.ACTION_SELECT_ALL)
+
+        val payload = TextSelectionPayload(
+            text = selectedText,
+            screenRect = rect,
+            canCopy = canCopy,
+            canCut = canCut,
+            canPaste = canPaste,
+            canSelectAll = canSelectAll,
+            onCopy = {
+                try {
+                    selection.copy()
+                } catch (e: Exception) {}
+            },
+            onCut = {
+                try {
+                    selection.cut()
+                } catch (e: Exception) {}
+            },
+            onPaste = {
+                try {
+                    selection.paste()
+                } catch (e: Exception) {}
+            },
+            onSelectAll = {
+                try {
+                    selection.selectAll()
+                } catch (e: Exception) {}
+            },
+            onDismiss = {
+                try {
+                    selection.unselect()
+                } catch (e: Exception) {}
+            }
+        )
+
+        // Dispatch selection payload to Compose UI layer on main thread
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            onSelectionAction?.invoke(payload)
+        }
+
+        try {
+            super.onShowActionRequest(session, selection)
+        } catch (e: Exception) {
+            // Gracefully ignore any window ActionMode attachment issues in Compose
+        }
+    }
+
+    override fun onHideAction(session: GeckoSession, reason: Int) {
+        // Clear Compose floating selection menu when user dismisses or scrolls
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            onSelectionAction?.invoke(null)
+        }
+        try {
+            super.onHideAction(session, reason)
+        } catch (e: Exception) {}
     }
 }

@@ -96,7 +96,9 @@ import kotlinx.coroutines.launch
 fun BrowserUrlEditSheet(
     initialText: String,
     onNavigate: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    initialSearchEngine: String? = null,
+    onEngineSelected: ((String) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val colors = AzokleTheme.colors
@@ -108,6 +110,10 @@ fun BrowserUrlEditSheet(
 
     var recentSearches by remember { mutableStateOf(preferences.getRecentSearches()) }
 
+    var selectedEngineId by remember {
+        mutableStateOf(initialSearchEngine ?: preferences.getSearchEngine())
+    }
+
     var textValue by remember {
         mutableStateOf(
             TextFieldValue(
@@ -117,9 +123,8 @@ fun BrowserUrlEditSheet(
         )
     }
 
-    val searchEngineConfig = remember(preferences) {
-        val engineId = preferences.getSearchEngine()
-        com.azokle.search.data.SEARCH_ENGINE_PROVIDERS.find { it.id == engineId }
+    val searchEngineConfig = remember(selectedEngineId) {
+        com.azokle.search.data.SEARCH_ENGINE_PROVIDERS.find { it.id.equals(selectedEngineId, ignoreCase = true) }
             ?: com.azokle.search.data.SEARCH_ENGINE_PROVIDERS[0]
     }
     val locationCode = remember(preferences) { preferences.getLocation() }
@@ -199,14 +204,20 @@ fun BrowserUrlEditSheet(
                         .padding(start = 14.dp, end = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = if (isUrl) Icons.Default.Language else Icons.Default.Search,
-                        contentDescription = null,
-                        tint = if (isUrl) colors.statusAccent else colors.textMuted,
-                        modifier = Modifier.size(20.dp)
+                    // Search Engine Selector Icon & Dropdown
+                    com.azokle.search.ui.components.SearchEngineIconDropdown(
+                        selectedEngineId = selectedEngineId,
+                        onEngineSelected = { newEngineId ->
+                            preferences.setSearchEngine(newEngineId)
+                            selectedEngineId = newEngineId
+                            onEngineSelected?.invoke(newEngineId)
+                        },
+                        iconSize = 20.dp,
+                        showDropdownArrow = true,
+                        modifier = Modifier.padding(start = 0.dp)
                     )
 
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     BasicTextField(
                         value = textValue,

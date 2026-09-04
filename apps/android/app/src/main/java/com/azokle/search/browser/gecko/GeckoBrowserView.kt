@@ -62,6 +62,7 @@ fun GeckoBrowserView(
     onFullScreenChanged: (Boolean) -> Unit = {},
     onPermissionPromptRequested: (SitePermissionRequest) -> Unit = {},
     onDownloadConfirmationRequested: ((DownloadConfirmationPayload) -> Unit)? = null,
+    onTextSelectionChanged: ((TextSelectionPayload?) -> Unit)? = null,
     onSessionReady: (GeckoSession, GeckoView) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -252,7 +253,11 @@ fun GeckoBrowserView(
 
                     override fun onNewSession(session: GeckoSession, uri: String): GeckoResult<GeckoSession>? {
                         if (uri.isNotBlank()) {
-                            onNewWindowRequested(uri)
+                            val scheme = com.azokle.search.util.UrlHelper.extractScheme(uri)
+                            val dangerousSchemes = setOf("file", "content", "chrome", "resource", "javascript", "data")
+                            if (scheme == null || scheme !in dangerousSchemes) {
+                                onNewWindowRequested(uri)
+                            }
                         }
                         return null
                     }
@@ -459,18 +464,38 @@ fun GeckoBrowserView(
                         screenY: Int,
                         element: GeckoSession.ContentDelegate.ContextElement
                     ) {
-                        val linkUri = element.linkUri
+                        val baseUri = element.baseUri
+                        val rawLink = element.linkUri
                         val srcUri = element.srcUri
-                        val title = element.title ?: element.altText ?: ""
-                        if (!linkUri.isNullOrBlank() || !srcUri.isNullOrBlank()) {
-                            onLinkLongPressed(
-                                com.azokle.search.browser.ui.LinkContextTarget(
-                                    url = linkUri ?: "",
-                                    title = title,
-                                    isImage = !srcUri.isNullOrBlank(),
-                                    imageSrc = srcUri
-                                )
+                        val title = element.title?.takeIf { it.isNotBlank() }
+                            ?: element.linkText?.takeIf { it.isNotBlank() }
+                            ?: element.altText?.takeIf { it.isNotBlank() }
+                            ?: ""
+
+                        val effectiveBaseUri = if (!baseUri.isNullOrBlank()) baseUri else url
+                        val resolvedLink = if (!rawLink.isNullOrBlank() && !rawLink.startsWith("http://") && !rawLink.startsWith("https://") && !effectiveBaseUri.isNullOrBlank()) {
+                            try {
+                                java.net.URI(effectiveBaseUri).resolve(rawLink).toString()
+                            } catch (e: Exception) {
+                                rawLink
+                            }
+                        } else {
+                            rawLink
+                        }
+
+                        if (!resolvedLink.isNullOrBlank() || !srcUri.isNullOrBlank()) {
+                            val target = com.azokle.search.browser.ui.LinkContextTarget(
+                                url = resolvedLink ?: "",
+                                title = title,
+                                isImage = !srcUri.isNullOrBlank(),
+                                imageSrc = srcUri
                             )
+                            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                try {
+                                    this@apply.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                                } catch (e: Exception) {}
+                                onLinkLongPressed(target)
+                            }
                         }
                     }
 
@@ -550,7 +575,11 @@ fun GeckoBrowserView(
 
                 // 6. Prompt Delegate (JavaScript alerts, confirms, prompts, HTTP Auth, Popups)
                 session.promptDelegate = GeckoPromptDelegateImpl(context) { targetUri ->
-                    onNewWindowRequested(targetUri)
+                    val scheme = com.azokle.search.util.UrlHelper.extractScheme(targetUri)
+                    val dangerousSchemes = setOf("file", "content", "chrome", "resource", "javascript", "data")
+                    if (scheme == null || scheme !in dangerousSchemes) {
+                        onNewWindowRequested(targetUri)
+                    }
                 }
 
                 // 6.1 Selection Action Delegate (Native Floating ActionMode: Copy, Cut, Paste, Select All, Share, Web Search)
@@ -559,7 +588,7 @@ fun GeckoBrowserView(
                     currentContext = currentContext.baseContext
                 }
                 if (currentContext is android.app.Activity) {
-                    session.selectionActionDelegate = AzokleSelectionDelegate(currentContext)
+                    session.selectionActionDelegate = AzokleSelectionDelegate(currentContext, onTextSelectionChanged)
                 }
 
                 // 7. Permission Delegate (Two-Tier Brave-Grade Origin Security & Hardware Access Engine)
@@ -723,20 +752,42 @@ fun GeckoBrowserView(
                     session.open(runtime)
                 }
 
+
                 isFocusable = true
                 isFocusableInTouchMode = true
                 try {
                     session.setFocused(true)
                 } catch (e: Exception) {}
 
-                setOnTouchListener { v, _ ->
-                    if (!v.isFocused) {
-                        v.requestFocus()
-                    }
-                    if (session.isOpen) {
-                        try {
-                            session.setFocused(true)
-                        } catch (e: Exception) {}
+                var touchDownX = 0f
+                var touchDownY = 0f
+                setOnTouchListener { v, event ->
+                    when (event.actionMasked) {
+                        android.view.MotionEvent.ACTION_DOWN -> {
+                            touchDownX = event.x
+                            touchDownY = event.y
+                            // Disallow SwipeRefreshLayout from stealing touch while user is holding for long-press
+                            swipeRefresh.requestDisallowInterceptTouchEvent(true)
+                            if (!v.isFocused) {
+                                v.requestFocus()
+                            }
+                            if (session.isOpen) {
+                                try {
+                                    session.setFocused(true)
+                                } catch (e: Exception) {}
+                            }
+                        }
+                        android.view.MotionEvent.ACTION_MOVE -> {
+                            val dy = event.y - touchDownY
+                            val dx = Math.abs(event.x - touchDownX)
+                            // Only allow SwipeRefreshLayout to intercept if pulling down from the top with clear vertical swipe
+                            if (dy > 35 && dy > dx * 1.5f && swipeRefresh.isEnabled) {
+                                swipeRefresh.requestDisallowInterceptTouchEvent(false)
+                            }
+                        }
+                        android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                            swipeRefresh.requestDisallowInterceptTouchEvent(false)
+                        }
                     }
                     false
                 }

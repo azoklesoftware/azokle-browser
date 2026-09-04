@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.ui.res.painterResource
+import com.azokle.search.R
 import androidx.compose.ui.graphics.Brush
 import com.azokle.search.ui.theme.AudiowideFontFamily
 import androidx.compose.material3.AlertDialog
@@ -382,7 +383,11 @@ private fun GroupTabGridItem(
                             modifier = Modifier.size(14.dp)
                         )
                     } else if (tab.isTor) {
-                        Text(text = "🧅", fontSize = 12.sp)
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_tor),
+                            contentDescription = "Tor Tab",
+                            modifier = Modifier.size(14.dp)
+                        )
                     } else if (tab.isPrivate) {
                         Icon(
                             imageVector = Icons.Default.VisibilityOff,

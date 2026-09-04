@@ -386,7 +386,7 @@ object TabManager {
         }
     }
 
-    fun closeTab(id: String): TabSession? {
+    fun closeTab(id: String): TabSession? = synchronized(this) {
         val tabToClose = _tabs.value.find { it.id == id } ?: return null
 
         // Add to thread-safe recently closed (if not private or tor)
@@ -425,14 +425,13 @@ object TabManager {
         }
 
         // Clean up tabs atomically
-        _tabs.update { list ->
-            list.filter { it.id != id }
-        }
+        val updatedTabs = currentTabList.filter { it.id != id }
+        _tabs.value = updatedTabs
 
         // Only delete tab group if all tabs in it have been closed
         if (gid != null) {
+            val remainingTabIds = updatedTabs.filter { it.groupId == gid }.map { it.id }
             _groups.update { list ->
-                val remainingTabIds = _tabs.value.filter { it.groupId == gid }.map { it.id }
                 if (remainingTabIds.isEmpty()) {
                     list.filter { it.id != gid }
                 } else {
@@ -445,7 +444,7 @@ object TabManager {
 
         // If the active tab was closed, fallback to previous opened tab
         if (_activeTabId.value == id) {
-            _activeTabId.value = fallbackTabId ?: _tabs.value.firstOrNull()?.id
+            _activeTabId.value = fallbackTabId ?: updatedTabs.firstOrNull()?.id
         }
 
         // Ensure at least 1 tab always exists (opens clean home tab, never forces search.azokle.com)

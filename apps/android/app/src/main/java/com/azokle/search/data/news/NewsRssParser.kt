@@ -1,10 +1,5 @@
 package com.azokle.search.data.news
 
-import android.net.Uri
-import android.util.Xml
-import org.xmlpull.v1.XmlPullParser
-import java.io.InputStream
-import java.io.StringReader
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -42,81 +37,76 @@ object NewsRssParser {
     fun parse(xmlString: String, category: String): List<NewsArticle> {
         val articles = mutableListOf<NewsArticle>()
         try {
-            val parser = Xml.newPullParser()
-            parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
-            parser.setInput(StringReader(xmlString))
+            val factory = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+            factory.isNamespaceAware = true
+            val builder = factory.newDocumentBuilder()
+            val doc = builder.parse(java.io.ByteArrayInputStream(xmlString.toByteArray(Charsets.UTF_8)))
+            val items = doc.getElementsByTagName("item")
 
-            var eventType = parser.eventType
-            var insideItem = false
+            for (i in 0 until items.length) {
+                val itemNode = items.item(i)
+                if (itemNode.nodeType != org.w3c.dom.Node.ELEMENT_NODE) continue
+                val itemElem = itemNode as org.w3c.dom.Element
 
-            var currentTitle: String? = null
-            var currentLink: String? = null
-            var currentPubDate: String? = null
-            var currentDescription: String? = null
-            var currentSourceName: String? = null
-            var currentSourceUrl: String? = null
-            var currentThumbnailUrl: String? = null
-
-            while (eventType != XmlPullParser.END_DOCUMENT) {
-                val tagName = parser.name?.lowercase(Locale.ROOT)
-
-                when (eventType) {
-                    XmlPullParser.START_TAG -> {
-                        if (tagName == "item") {
-                            insideItem = true
-                            currentTitle = null
-                            currentLink = null
-                            currentPubDate = null
-                            currentDescription = null
-                            currentSourceName = null
-                            currentSourceUrl = null
-                            currentThumbnailUrl = null
-                        } else if (insideItem) {
-                            when (tagName) {
-                                "title" -> currentTitle = parser.nextText().trim()
-                                "link" -> currentLink = parser.nextText().trim()
-                                "pubdate" -> currentPubDate = parser.nextText().trim()
-                                "description" -> currentDescription = parser.nextText().trim()
-                                "source" -> {
-                                    currentSourceUrl = parser.getAttributeValue(null, "url")?.trim()
-                                    currentSourceName = parser.nextText().trim()
-                                }
-                                "media:content", "enclosure" -> {
-                                    val url = parser.getAttributeValue(null, "url")
-                                    val type = parser.getAttributeValue(null, "type")
-                                    if (!url.isNullOrBlank() && (type == null || type.startsWith("image/"))) {
-                                        val sanitizedImg = sanitizeImageUrl(url)
-                                        if (sanitizedImg != null && currentThumbnailUrl == null) {
-                                            currentThumbnailUrl = sanitizedImg
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                fun getChildText(tagName: String): String? {
+                    val nodes = itemElem.getElementsByTagName(tagName)
+                    if (nodes.length > 0) {
+                        return nodes.item(0).textContent?.trim()
                     }
-                    XmlPullParser.END_TAG -> {
-                        if (tagName == "item" && insideItem) {
-                            insideItem = false
-                            val article = buildArticle(
-                                rawTitle = currentTitle,
-                                rawLink = currentLink,
-                                rawPubDate = currentPubDate,
-                                rawDescription = currentDescription,
-                                rawSourceName = currentSourceName,
-                                rawSourceUrl = currentSourceUrl,
-                                rawThumbnailUrl = currentThumbnailUrl,
-                                category = category
-                            )
-                            if (article != null) {
-                                articles.add(article)
-                            }
+                    return null
+                }
+
+                val title = getChildText("title")
+                val link = getChildText("link")
+                val pubDate = getChildText("pubDate") ?: getChildText("pubdate")
+                val description = getChildText("description")
+
+                var sourceName: String? = null
+                var sourceUrl: String? = null
+                val sourceNodes = itemElem.getElementsByTagName("source")
+                if (sourceNodes.length > 0) {
+                    val sElem = sourceNodes.item(0) as? org.w3c.dom.Element
+                    sourceName = sElem?.textContent?.trim()
+                    sourceUrl = sElem?.getAttribute("url")?.trim()
+                }
+
+                var thumbnailUrl: String? = null
+                val mediaNodes = itemElem.getElementsByTagName("media:content")
+                if (mediaNodes.length > 0) {
+                    val mElem = mediaNodes.item(0) as? org.w3c.dom.Element
+                    val mUrl = mElem?.getAttribute("url")
+                    if (!mUrl.isNullOrBlank()) {
+                        thumbnailUrl = sanitizeImageUrl(mUrl)
+                    }
+                }
+                if (thumbnailUrl == null) {
+                    val encNodes = itemElem.getElementsByTagName("enclosure")
+                    if (encNodes.length > 0) {
+                        val eElem = encNodes.item(0) as? org.w3c.dom.Element
+                        val type = eElem?.getAttribute("type")
+                        val eUrl = eElem?.getAttribute("url")
+                        if (!eUrl.isNullOrBlank() && (type == null || type.startsWith("image/"))) {
+                            thumbnailUrl = sanitizeImageUrl(eUrl)
                         }
                     }
                 }
-                eventType = parser.next()
+
+                val article = buildArticle(
+                    rawTitle = title,
+                    rawLink = link,
+                    rawPubDate = pubDate,
+                    rawDescription = description,
+                    rawSourceName = sourceName,
+                    rawSourceUrl = sourceUrl,
+                    rawThumbnailUrl = thumbnailUrl,
+                    category = category
+                )
+                if (article != null) {
+                    articles.add(article)
+                }
             }
         } catch (e: Exception) {
-            android.util.Log.e("NewsRssParser", "Error parsing RSS: ${e.message}")
+            // Ignore parse failures
         }
         return articles
     }
@@ -199,7 +189,7 @@ object NewsRssParser {
         }
 
         return try {
-            val host = Uri.parse(trimmed).host?.lowercase(Locale.ROOT) ?: return null
+            val host = extractHost(trimmed) ?: return null
             val isGoogleProxy = GOOGLE_PROXY_DOMAINS.any { host == it || host.endsWith(".$it") }
             if (isGoogleProxy) null else trimmed
         } catch (e: Exception) {
@@ -212,19 +202,28 @@ object NewsRssParser {
      */
     fun cleanUrlTracking(urlStr: String): String {
         return try {
-            val uri = Uri.parse(urlStr)
-            if (!uri.isHierarchical) return urlStr
+            val questionIdx = urlStr.indexOf('?')
+            if (questionIdx == -1) return urlStr
 
-            val queryParamNames = uri.queryParameterNames
-            if (queryParamNames.isEmpty()) return urlStr
+            val base = urlStr.substring(0, questionIdx)
+            val queryWithFragment = urlStr.substring(questionIdx + 1)
+            val hashIdx = queryWithFragment.indexOf('#')
+            val query = if (hashIdx != -1) queryWithFragment.substring(0, hashIdx) else queryWithFragment
+            val fragment = if (hashIdx != -1) queryWithFragment.substring(hashIdx) else ""
 
-            val builder = uri.buildUpon().clearQuery()
-            for (param in queryParamNames) {
-                if (param.lowercase(Locale.ROOT) !in TRACKING_PARAMS) {
-                    builder.appendQueryParameter(param, uri.getQueryParameter(param))
+            val filteredParams = query.split('&')
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .filter { param ->
+                    val key = param.substringBefore('=').lowercase(Locale.ROOT)
+                    key !in TRACKING_PARAMS
                 }
+
+            if (filteredParams.isEmpty()) {
+                "$base$fragment"
+            } else {
+                "$base?${filteredParams.joinToString("&")}$fragment"
             }
-            builder.build().toString()
         } catch (e: Exception) {
             urlStr
         }
@@ -272,8 +271,9 @@ object NewsRssParser {
     private fun extractHost(urlStr: String?): String? {
         if (urlStr.isNullOrBlank()) return null
         return try {
-            val uri = Uri.parse(urlStr)
-            uri.host?.lowercase(Locale.ROOT)
+            val withoutScheme = if (urlStr.contains("://")) urlStr.substringAfter("://") else urlStr
+            val hostPort = withoutScheme.substringBefore('/').substringBefore('?')
+            hostPort.substringBefore(':').lowercase(Locale.ROOT)
         } catch (e: Exception) {
             null
         }

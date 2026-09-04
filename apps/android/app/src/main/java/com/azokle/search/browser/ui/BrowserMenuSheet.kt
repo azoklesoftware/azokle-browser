@@ -1,5 +1,6 @@
 package com.azokle.search.browser.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -50,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -58,6 +60,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.azokle.search.R
 import com.azokle.search.ui.theme.AzokleRadius
 import com.azokle.search.ui.theme.AzokleTheme
 import com.azokle.search.ui.theme.adaptiveContentWidth
@@ -309,7 +312,7 @@ fun BrowserMenuSheet(
             ) {
                 // New Tor Window
                 CleanMenuRow(
-                    iconText = "🧅",
+                    iconRes = R.drawable.ic_tor,
                     title = "New Tor Window",
                     titleColor = colors.statusTor,
                     iconBg = colors.statusTor.copy(alpha = 0.14f),
@@ -459,6 +462,7 @@ private fun CleanMenuRow(
     title: String,
     onClick: () -> Unit,
     icon: ImageVector? = null,
+    iconRes: Int? = null,
     iconText: String? = null,
     titleColor: Color? = null,
     iconTint: Color? = null,
@@ -488,7 +492,21 @@ private fun CleanMenuRow(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f)
         ) {
-            if (iconText != null) {
+            if (iconRes != null) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(AzokleRadius.sm)
+                        .background(iconBg ?: colors.surfaceElevated),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = iconRes),
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            } else if (iconText != null) {
                 Box(
                     modifier = Modifier
                         .size(32.dp)
