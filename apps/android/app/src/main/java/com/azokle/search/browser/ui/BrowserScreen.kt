@@ -100,6 +100,12 @@ import com.azokle.search.ui.components.InfoDialog
 import com.azokle.search.browser.ui.components.TextSelectionFloatingToolbar
 import com.azokle.search.ui.screens.ActiveTabsScreen
 import com.azokle.search.ui.theme.AzokleDarkBg
+import com.azokle.search.ui.tour.TourStep
+import com.azokle.search.ui.tour.TourShape
+import com.azokle.search.ui.tour.TourState
+import com.azokle.search.ui.tour.rememberTourState
+import com.azokle.search.ui.tour.tourTarget
+import com.azokle.search.ui.tour.DriverTourOverlay
 import com.azokle.search.util.UrlHelper
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -297,6 +303,87 @@ fun BrowserScreen(
     }
     var showGroupDetailSheet by remember { mutableStateOf(false) }
 
+    val preferencesManager = remember { com.azokle.search.data.PreferencesManager(context) }
+    var forceStartTabsTour by remember { mutableStateOf(false) }
+
+    val homeTourSteps = remember {
+        listOf(
+            TourStep(
+                id = "home_omnibar_engine",
+                title = "Change Search Engine (Top Bar)",
+                description = "Tap this icon in the top bar to easily pick your search engine: Azokle, DuckDuckGo, Brave, Startpage, Mojeek, or Qwant.",
+                shape = TourShape.CIRCLE,
+                paddingDp = 6f
+            ),
+            TourStep(
+                id = "home_omnibar_bar",
+                title = "Search or Type Web Address",
+                description = "Type what you want to search, or enter any website address here to browse immediately.",
+                shape = TourShape.ROUNDED_RECT,
+                paddingDp = 6f,
+                cornerRadiusDp = 14f
+            ),
+            TourStep(
+                id = "home_search_engine",
+                title = "Change Search Engine (Search Box)",
+                description = "You can also tap this icon right inside the search box to switch your search engine anytime.",
+                shape = TourShape.CIRCLE,
+                paddingDp = 6f
+            ),
+            TourStep(
+                id = "home_search_box",
+                title = "Search the Web",
+                description = "Tap here to search questions or websites. You can also tap the microphone to speak your search hands-free.",
+                shape = TourShape.ROUNDED_RECT,
+                paddingDp = 6f,
+                cornerRadiusDp = 24f
+            ),
+            TourStep(
+                id = "home_shortcuts",
+                title = "Favorite Websites",
+                description = "Tap any shortcut to quickly open popular sites like YouTube, Wikipedia, and Google without typing.",
+                shape = TourShape.ROUNDED_RECT,
+                paddingDp = 6f,
+                cornerRadiusDp = 16f
+            ),
+            TourStep(
+                id = "home_tabs",
+                title = "See Your Open Tabs",
+                description = "Tap here to see all your open pages, switch between them, or organize them into groups.",
+                shape = TourShape.CIRCLE,
+                paddingDp = 6f
+            ),
+            TourStep(
+                id = "home_burn",
+                title = "Erase Everything",
+                description = "Tap the flame icon to close all open tabs and wipe your browsing history with one touch.",
+                shape = TourShape.CIRCLE,
+                paddingDp = 6f
+            ),
+            TourStep(
+                id = "home_menu",
+                title = "Menu & Settings",
+                description = "Find your saved bookmarks, downloaded files, browsing history, and app settings here.",
+                shape = TourShape.CIRCLE,
+                paddingDp = 6f
+            )
+        )
+    }
+
+    val homeTourState = rememberTourState(
+        steps = homeTourSteps,
+        onTourFinished = {
+            preferencesManager.setHomeTourCompleted(true)
+        }
+    )
+
+    LaunchedEffect(Unit) {
+        if (!preferencesManager.hasCompletedHomeTour()) {
+            delay(650)
+            homeTourState.start()
+        }
+    }
+
     LaunchedEffect(Unit) {
         AdBlockEngine.instance.initialize(context)
     }
@@ -320,7 +407,9 @@ fun BrowserScreen(
     }
 
     BackHandler(enabled = true) {
-        if (isFullScreenMode) {
+        if (homeTourState.isVisible) {
+            homeTourState.skip()
+        } else if (isFullScreenMode) {
             isFullScreenMode = false
             geckoSession?.exitFullScreen()
         } else if (isBurningData) {
@@ -556,10 +645,12 @@ fun BrowserScreen(
                                 onVoiceClick = { showVoiceModal = true },
                                 onUrlBarClick = { showUrlEditSheet = true },
                                 includeStatusBarPadding = false,
-                                selectedSearchEngine = homeUiState?.selectedSearchEngine ?: "azokle",
+                                selectedSearchEngine = viewModel?.uiState?.collectAsState()?.value?.selectedSearchEngine ?: "azokle",
                                 onSelectSearchEngine = { engineId ->
                                     viewModel?.setSearchEngine(engineId)
-                                }
+                                },
+                                searchEngineModifier = Modifier.tourTarget(homeTourSteps[0], homeTourState),
+                                omnibarCapsuleModifier = Modifier.tourTarget(homeTourSteps[1], homeTourState)
                             )
                         }
 
@@ -658,10 +749,13 @@ fun BrowserScreen(
                             onVoiceClick = {
                                 showVoiceModal = true
                             },
-                            selectedSearchEngine = homeUiState?.selectedSearchEngine ?: "azokle",
+                            selectedSearchEngine = viewModel?.uiState?.collectAsState()?.value?.selectedSearchEngine ?: "azokle",
                             onSelectSearchEngine = { engineId ->
                                 viewModel?.setSearchEngine(engineId)
-                            }
+                            },
+                            searchEngineModifier = Modifier.tourTarget(homeTourSteps[2], homeTourState),
+                            searchBarModifier = Modifier.tourTarget(homeTourSteps[3], homeTourState),
+                            shortcutsModifier = Modifier.tourTarget(homeTourSteps[4], homeTourState)
                         )
                     } else {
                         androidx.compose.runtime.key(activeTabId) {
@@ -911,7 +1005,10 @@ fun BrowserScreen(
                               onMenuClick = {
                                   isBottomBarVisible = true
                                   showMenuSheet = true
-                              }
+                              },
+                              tabsModifier = Modifier.tourTarget(homeTourSteps[5], homeTourState),
+                              burnModifier = Modifier.tourTarget(homeTourSteps[6], homeTourState),
+                              menuModifier = Modifier.tourTarget(homeTourSteps[7], homeTourState)
                           )
                       }
                   }
@@ -1226,7 +1323,9 @@ fun BrowserScreen(
                     if (TabManager.tabs.value.isEmpty()) {
                         onClose()
                     }
-                }
+                },
+                forceStartTour = forceStartTabsTour,
+                onTourConsumed = { forceStartTabsTour = false }
             )
         }
 
@@ -1243,6 +1342,22 @@ fun BrowserScreen(
                 selectedLanguageCode = uiState?.selectedLanguage ?: "system",
                 onOpenLanguage = { viewModel?.setLanguageSheetOpen(true) },
                 onDismiss = { showSettingsSheet = false },
+                onReplayHomeTour = {
+                    showSettingsSheet = false
+                    if (currentUrl.isNotBlank() && currentUrl != "about:home" && currentUrl != "about:blank") {
+                        currentUrl = ""
+                        currentTitle = "Search"
+                    }
+                    scope.launch {
+                        delay(350)
+                        homeTourState.start()
+                    }
+                },
+                onReplayTabsTour = {
+                    showSettingsSheet = false
+                    forceStartTabsTour = true
+                    showTabGridSheet = true
+                },
                 onOpenPro = { viewModel?.setProModalOpen(true) },
                 onOpenPrivacyPolicy = { viewModel?.setPrivacyModalOpen(true) },
                 onOpenTerms = { viewModel?.setTermsModalOpen(true) },
@@ -1552,8 +1667,12 @@ fun BrowserScreen(
             )
         }
 
-        // 🌟 Premium Floating Toast HUD
-        com.azokle.search.ui.components.AzokleToastHost()
+        // 🌟 Clean & Premium Floating Toast HUD (Positioned safely below the Omnibar)
+        val extraToastOffset = if (isCurrentTabTor && !showDiscoverScreen) 34.dp else 0.dp
+        com.azokle.search.ui.components.AzokleToastHost(extraTopOffset = extraToastOffset)
+
+        // 🚀 Driver.js-Grade Interactive Spotlight Tour Guide (Home Screen)
+        DriverTourOverlay(tourState = homeTourState)
     }
 }
 
@@ -1565,7 +1684,10 @@ private fun BrowserHomeScreenContent(
     onVoiceClick: () -> Unit,
     modifier: Modifier = Modifier,
     selectedSearchEngine: String = "azokle",
-    onSelectSearchEngine: (String) -> Unit = {}
+    onSelectSearchEngine: (String) -> Unit = {},
+    searchBarModifier: Modifier = Modifier,
+    searchEngineModifier: Modifier = Modifier,
+    shortcutsModifier: Modifier = Modifier
 ) {
     val colors = com.azokle.search.ui.theme.AzokleTheme.colors
 
@@ -1656,7 +1778,9 @@ private fun BrowserHomeScreenContent(
                 onCapsuleClick = onOpenSearchSheet,
                 isReadOnly = true,
                 selectedEngineId = selectedSearchEngine,
-                onEngineSelected = onSelectSearchEngine
+                onEngineSelected = onSelectSearchEngine,
+                modifier = searchBarModifier,
+                searchEngineModifier = searchEngineModifier
             )
 
             androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(28.dp))
@@ -1680,6 +1804,7 @@ private fun BrowserHomeScreenContent(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .then(shortcutsModifier)
                     .padding(horizontal = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {

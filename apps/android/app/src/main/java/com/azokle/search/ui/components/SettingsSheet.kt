@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
@@ -37,6 +38,7 @@ import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Lock
@@ -118,7 +120,10 @@ fun SettingsSheet(
     onOpenPrivacyPolicy: () -> Unit = {},
     onOpenTerms: () -> Unit = {},
     onOpenAbout: () -> Unit = {},
-    onOpenUrl: (String) -> Unit = {}
+    onOpenUrl: (String) -> Unit = {},
+    onReplayTour: (() -> Unit)? = null,
+    onReplayHomeTour: (() -> Unit)? = null,
+    onReplayTabsTour: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val colors = AzokleTheme.colors
@@ -585,6 +590,54 @@ fun SettingsSheet(
                     )
 
                     SettingsDivider(colors = colors)
+
+                    // 2D. Interactive Tour Guides
+                    val effectiveHomeReplay = onReplayHomeTour ?: onReplayTour
+                    if (effectiveHomeReplay != null) {
+                        SettingsRowItem(
+                            icon = Icons.Default.AutoAwesome,
+                            title = "Home Screen Tour",
+                            subtitle = "Learn about search, shortcuts, and quick controls",
+                            trailingContent = {
+                                Icon(
+                                    imageVector = Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = colors.textMuted,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            colors = colors,
+                            onClick = {
+                                onDismiss()
+                                effectiveHomeReplay()
+                            }
+                        )
+
+                        SettingsDivider(colors = colors)
+                    }
+
+                    if (onReplayTabsTour != null) {
+                        SettingsRowItem(
+                            icon = Icons.Default.Layers,
+                            title = "Tabs Screen Tour",
+                            subtitle = "Learn about switching tabs, private modes, and the new tab button",
+                            trailingContent = {
+                                Icon(
+                                    imageVector = Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = colors.textMuted,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            colors = colors,
+                            onClick = {
+                                onDismiss()
+                                onReplayTabsTour()
+                            }
+                        )
+
+                        SettingsDivider(colors = colors)
+                    }
 
                     // 2D. Clear History
                     SettingsRowItem(

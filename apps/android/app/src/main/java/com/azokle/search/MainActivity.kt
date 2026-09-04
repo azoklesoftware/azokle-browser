@@ -189,7 +189,6 @@ class MainActivity : FragmentActivity() {
                                     viewModel = viewModel
                                 )
                             }
-                            com.azokle.search.ui.components.AzokleToastHost()
                         }
                     }
                 }

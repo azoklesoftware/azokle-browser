@@ -84,7 +84,9 @@ fun BrowserOmnibar(
     modifier: Modifier = Modifier,
     includeStatusBarPadding: Boolean = true,
     selectedSearchEngine: String = "azokle",
-    onSelectSearchEngine: (String) -> Unit = {}
+    onSelectSearchEngine: (String) -> Unit = {},
+    omnibarCapsuleModifier: Modifier = Modifier,
+    searchEngineModifier: Modifier = Modifier
 ) {
     val colors = AzokleTheme.colors
     val context = LocalContext.current
@@ -166,6 +168,7 @@ fun BrowserOmnibar(
                 modifier = Modifier
                     .weight(1f)
                     .height(42.dp)
+                    .then(omnibarCapsuleModifier)
                     .clip(AzokleRadius.md)
                     .background(colors.surfaceElevated)
                     .border(1.dp, colors.border, AzokleRadius.md)
@@ -230,7 +233,9 @@ fun BrowserOmnibar(
                         onEngineSelected = onSelectSearchEngine,
                         iconSize = 16.dp,
                         showDropdownArrow = true,
-                        modifier = Modifier.padding(start = 0.dp, end = 4.dp)
+                        modifier = Modifier
+                            .padding(start = 0.dp, end = 4.dp)
+                            .then(searchEngineModifier)
                     )
                 }
 

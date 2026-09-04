@@ -40,6 +40,23 @@ class UrlHelperTest {
     }
 
     @Test
+    fun testMojeekSearchEngineResolution() {
+        val mojeekQueryUrl = "https://www.mojeek.com/search?q="
+        val query = "independent web crawler"
+        val resolved = UrlHelper.resolveSearchOrUrl(query, searchEngineQueryUrl = mojeekQueryUrl)
+        assertTrue(resolved.startsWith("https://www.mojeek.com/search?q="))
+    }
+
+    @Test
+    fun testQwantSearchEngineResolution() {
+        val qwantQueryUrl = "https://www.qwant.com/?q="
+        val query = "european search privacy"
+        val resolved = UrlHelper.resolveSearchOrUrl(query, searchEngineQueryUrl = qwantQueryUrl)
+        assertTrue(resolved.startsWith("https://www.qwant.com/?q="))
+    }
+
+
+    @Test
     fun testCustomPortResolution() {
         val resolvedDomainPort = UrlHelper.resolveSearchOrUrl("example.com:8080/test")
         assertEquals("https://example.com:8080/test", resolvedDomainPort)

@@ -204,7 +204,40 @@ class PreferencesManager(private val context: Context) {
     fun setBackgroundAudioEnabled(enabled: Boolean) {
         prefs.edit().putBoolean("pref_background_audio", enabled).apply()
     }
+
+    fun hasCompletedTour(): Boolean {
+        return hasCompletedHomeTour()
+    }
+
+    fun setTourCompleted(completed: Boolean) {
+        setHomeTourCompleted(completed)
+    }
+
+    fun hasCompletedHomeTour(): Boolean {
+        return prefs.getBoolean("has_completed_home_tour", false)
+    }
+
+    fun setHomeTourCompleted(completed: Boolean) {
+        prefs.edit().putBoolean("has_completed_home_tour", completed).apply()
+    }
+
+    fun hasCompletedTabsTour(): Boolean {
+        return prefs.getBoolean("has_completed_tabs_tour", false)
+    }
+
+    fun setTabsTourCompleted(completed: Boolean) {
+        prefs.edit().putBoolean("has_completed_tabs_tour", completed).apply()
+    }
+
+    fun resetTours() {
+        prefs.edit()
+            .remove("has_completed_home_tour")
+            .remove("has_completed_tabs_tour")
+            .remove("has_completed_driver_tour")
+            .apply()
+    }
 }
+
 
 data class SearchEngineConfig(
     val id: String,
@@ -252,5 +285,24 @@ val SEARCH_ENGINE_PROVIDERS = listOf(
         isDefault = false,
         domain = "startpage.com",
         iconRes = com.azokle.search.R.drawable.ic_engine_startpage
+    ),
+    SearchEngineConfig(
+        id = "mojeek",
+        name = "Mojeek",
+        queryUrl = "https://www.mojeek.com/search?q=",
+        subtitle = "Independent web crawler with complete search privacy",
+        isDefault = false,
+        domain = "mojeek.com",
+        iconRes = com.azokle.search.R.drawable.ic_engine_mojeek
+    ),
+    SearchEngineConfig(
+        id = "qwant",
+        name = "Qwant",
+        queryUrl = "https://www.qwant.com/?q=",
+        subtitle = "European privacy search with zero profiling or ad-tracking",
+        isDefault = false,
+        domain = "qwant.com",
+        iconRes = com.azokle.search.R.drawable.ic_engine_qwant
     )
 )
+

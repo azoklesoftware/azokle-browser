@@ -62,7 +62,8 @@ fun SearchBarCapsule(
     modifier: Modifier = Modifier,
     isReadOnly: Boolean = false,
     selectedEngineId: String = "azokle",
-    onEngineSelected: (String) -> Unit = {}
+    onEngineSelected: (String) -> Unit = {},
+    searchEngineModifier: Modifier = Modifier
 ) {
     val colors = AzokleTheme.colors
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -108,7 +109,9 @@ fun SearchBarCapsule(
                 onEngineSelected = onEngineSelected,
                 iconSize = 20.dp,
                 showDropdownArrow = true,
-                modifier = Modifier.padding(start = 2.dp)
+                modifier = Modifier
+                    .padding(start = 2.dp)
+                    .then(searchEngineModifier)
             )
 
             Spacer(modifier = Modifier.width(8.dp))

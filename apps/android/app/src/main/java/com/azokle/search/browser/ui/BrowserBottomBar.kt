@@ -64,7 +64,10 @@ fun BrowserBottomBar(
     onTabsClick: () -> Unit,
     onBurnDataClick: () -> Unit,
     onMenuClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    tabsModifier: Modifier = Modifier,
+    burnModifier: Modifier = Modifier,
+    menuModifier: Modifier = Modifier
 ) {
     val colors = AzokleTheme.colors
     val haptic = LocalHapticFeedback.current
@@ -98,7 +101,7 @@ fun BrowserBottomBar(
                     .clip(CircleShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(bounded = false, radius = 22.dp, color = colors.textPrimary),
+                        indication = ripple(bounded = false, radius = 22.dp, color = colors.actionPrimaryBg),
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onHomeClick()
@@ -107,26 +110,26 @@ fun BrowserBottomBar(
                     .semantics {
                         role = Role.Tab
                         selected = isHomeSelected
-                        contentDescription = "Home"
+                        contentDescription = "Home Wallpaper"
                     },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Home,
                     contentDescription = null,
-                    tint = if (isHomeSelected) colors.statusAccent else colors.textSecondary,
+                    tint = if (isHomeSelected) colors.textPrimary else colors.textMuted,
                     modifier = Modifier.size(24.dp)
                 )
             }
 
-            // 2. Discover Button
+            // 2. Sovereign Discover Button (RSS/News Feed)
             Box(
                 modifier = Modifier
                     .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                     .clip(CircleShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(bounded = false, radius = 22.dp, color = colors.textPrimary),
+                        indication = ripple(bounded = false, radius = 22.dp, color = colors.actionPrimaryBg),
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onDiscoverClick()
@@ -135,26 +138,27 @@ fun BrowserBottomBar(
                     .semantics {
                         role = Role.Tab
                         selected = isDiscoverSelected
-                        contentDescription = "Discover"
+                        contentDescription = "Discover news"
                     },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Explore,
                     contentDescription = null,
-                    tint = if (isDiscoverSelected) colors.statusAccent else colors.textSecondary,
+                    tint = if (isDiscoverSelected) colors.textPrimary else colors.textMuted,
                     modifier = Modifier.size(24.dp)
                 )
             }
 
-            // 3. Active Tabs Switcher Button (Square Badge with animated tab count)
+            // 3. Tab Management Button (Badge with Count)
             Box(
                 modifier = Modifier
                     .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                    .then(tabsModifier)
                     .clip(CircleShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(bounded = false, radius = 22.dp, color = colors.textPrimary),
+                        indication = ripple(bounded = false, radius = 22.dp, color = colors.actionPrimaryBg),
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onTabsClick()
@@ -203,6 +207,7 @@ fun BrowserBottomBar(
             Box(
                 modifier = Modifier
                     .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                    .then(burnModifier)
                     .clip(CircleShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -230,6 +235,7 @@ fun BrowserBottomBar(
             Box(
                 modifier = Modifier
                     .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                    .then(menuModifier)
                     .clip(CircleShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
