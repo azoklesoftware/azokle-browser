@@ -59,6 +59,17 @@ object GeckoEngineManager {
                 .consoleOutput(true)
                 .aboutConfigEnabled(false)
                 .remoteDebuggingEnabled(isDebug)
+                .fissionEnabled(true)
+                .lowMemoryDetection(true)
+                .enterpriseRootsEnabled(true)
+                .globalPrivacyControlEnabled(true)
+                .forceUserScalableEnabled(true)
+                .doubleTapZoomingEnabled(true)
+                .webManifest(true)
+                .extensionsProcessEnabled(true)
+                .glMsaaLevel(2)
+                .isolatedProcessEnabled(true)
+                .appZygoteProcessEnabled(true)
                 .contentBlocking(
                     ContentBlocking.Settings.Builder()
                         .antiTracking(ContentBlocking.AntiTracking.DEFAULT)
@@ -325,6 +336,16 @@ object GeckoEngineManager {
         })
 
         session.printPageContent()
+    }
+
+    fun onTrimMemory(level: Int) {
+        try {
+            if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+                com.azokle.search.browser.tabs.TabManager.reclaimInactiveTabMemory(maxActiveSessions = 1)
+            }
+        } catch (e: Exception) {
+            // Safe fallback
+        }
     }
 
     fun shutdown() {

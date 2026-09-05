@@ -78,6 +78,31 @@ object TabManager {
         loadPersistedTabs(context)
     }
 
+    private val sessionStateMap = ConcurrentHashMap<String, GeckoSession.SessionState>()
+
+    fun updateTabSessionState(id: String, state: GeckoSession.SessionState) {
+        sessionStateMap[id] = state
+    }
+
+    fun saveTabSessionState(id: String) {
+        val session = sessionMap[id] ?: return
+        try {
+            session.flushSessionState()
+        } catch (e: Exception) {
+            // Safe fallback
+        }
+    }
+
+    fun restoreTabSessionState(id: String, session: GeckoSession): Boolean {
+        val state = sessionStateMap[id] ?: return false
+        return try {
+            session.restoreState(state)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     fun registerSession(id: String, session: GeckoSession) {
         sessionMap[id] = session
         val isActive = id == _activeTabId.value
@@ -109,6 +134,7 @@ object TabManager {
             } catch (e: Exception) {
                 // Ignore
             }
+            restoreTabSessionState(id, s)
             s
         }
     }
@@ -252,6 +278,10 @@ object TabManager {
 
     fun selectTab(id: String) {
         if (_tabs.value.any { it.id == id }) {
+            val oldId = _activeTabId.value
+            if (oldId != null && oldId != id) {
+                saveTabSessionState(oldId)
+            }
             _activeTabId.value = id
             wakeTab(id)
 
@@ -284,6 +314,7 @@ object TabManager {
 
         val sessionsToDiscard = sessionMap.keys.filter { it !in tabsToKeep }
         for (tabId in sessionsToDiscard) {
+            saveTabSessionState(tabId)
             clearTabLoaded(tabId)
             sessionMap.remove(tabId)?.let { session ->
                 try {
@@ -399,6 +430,7 @@ object TabManager {
 
         // Close GeckoSession
         clearTabLoaded(id)
+        sessionStateMap.remove(id)
         sessionMap.remove(id)?.let { session ->
             try {
                 session.close()

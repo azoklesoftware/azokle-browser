@@ -3,10 +3,25 @@ package com.azokle.search.ui.screens
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.isActive
 import com.azokle.search.data.PreferencesManager
 import com.azokle.search.ui.tour.DriverTourOverlay
 import com.azokle.search.ui.tour.TourShape
@@ -773,347 +788,24 @@ fun ActiveTabsScreen(
                         val isFirstCard = tab.id == standaloneTabs.firstOrNull()?.id
                         val cardTourModifier = if (isFirstCard) Modifier.tourTarget(tabsTourSteps[1], tabsTourState) else Modifier
                         val isActive = tab.id == activeTabId
-                        val shape = RoundedCornerShape(18.dp)
-                        val isHome = tab.url.isBlank() || tab.url == "about:home" || tab.url == "about:blank"
-                        val host = remember(tab.url) {
-                            try {
-                                Uri.parse(tab.url).host?.removePrefix("www.")?.ifBlank { tab.url } ?: tab.url
-                            } catch (e: Exception) {
-                                tab.url
-                            }
-                        }
 
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(236.dp)
-                                .then(cardTourModifier)
-                                .shadow(
-                                    elevation = if (isActive) 12.dp else 2.dp,
-                                    shape = shape,
-                                    ambientColor = if (isActive) colors.statusAccent.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.08f),
-                                    spotColor = if (isActive) colors.statusAccent.copy(alpha = 0.35f) else Color.Black.copy(alpha = 0.12f)
-                                )
-                                .clip(shape)
-                                .background(colors.cardBg)
-                                .border(
-                                    width = if (isActive) 2.dp else 1.dp,
-                                    color = if (isActive) colors.statusAccent else colors.border.copy(alpha = 0.7f),
-                                    shape = shape
-                                )
-                                .clickable { onTabSelected(tab) }
-                                .semantics {
-                                    role = Role.Button
-                                    contentDescription = "Tab: ${tab.title.ifBlank { if (isHome) "New Tab" else host }}${if (isActive) ", Active" else ""}"
-                                }
-                        ) {
-                            // 1. Tab Card Header Bar
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(38.dp)
-                                    .background(colors.surfaceElevated)
-                                    .padding(start = 10.dp, end = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                if (isHome) {
-                                    Icon(
-                                        imageVector = Icons.Default.Home,
-                                        contentDescription = null,
-                                        tint = colors.statusAccent,
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                } else if (tab.isTor) {
-                                    Image(
-                                        painter = painterResource(id = R.drawable.ic_tor),
-                                        contentDescription = "Tor Tab",
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                } else if (tab.isPrivate) {
-                                    Icon(
-                                        imageVector = Icons.Default.VisibilityOff,
-                                        contentDescription = null,
-                                        tint = Color(0xFFA855F7),
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                } else {
-                                    FaviconImage(
-                                        url = tab.url,
-                                        faviconUrl = tab.faviconUrl,
-                                        isTor = tab.isTor,
-                                        size = 16.dp
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(7.dp))
-
-                                Text(
-                                    text = if (isHome) "New Tab" else tab.title.ifBlank { host },
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = colors.textPrimary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
-                                )
-
-                                Spacer(modifier = Modifier.width(4.dp))
-
-                                // Close Tab Button (Accessible Touch Delegate)
-                                Box(
-                                    modifier = Modifier
-                                        .size(28.dp)
-                                        .clip(CircleShape)
-                                        .background(colors.surface)
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = ripple(bounded = false, radius = 14.dp, color = colors.statusDestructive),
-                                            onClick = {
-                                                val closed = TabManager.closeTab(tab.id)
-                                                if (closed != null) {
-                                                    lastClosedTab = closed
-                                                    undoSnackbarJob?.cancel()
-                                                    undoSnackbarJob = scope.launch {
-                                                        delay(4500)
-                                                        lastClosedTab = null
-                                                    }
-                                                }
-                                            }
-                                        )
-                                        .semantics {
-                                            role = Role.Button
-                                            contentDescription = "Close tab: ${tab.title}"
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = null,
-                                        tint = colors.textSecondary,
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                }
-                            }
-
-                            // 2. Webpage Live Screenshot or Miniature Wallpaper Home Screen
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f)
-                                    .background(colors.surfaceElevated),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (tab.thumbnail != null) {
-                                    Image(
-                                        bitmap = tab.thumbnail.asImageBitmap(),
-                                        contentDescription = tab.title,
-                                        contentScale = ContentScale.Crop,
-                                        alignment = Alignment.TopCenter,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-
-                                    // Subtle top-to-bottom contrast gradient
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(
-                                                Brush.verticalGradient(
-                                                    listOf(
-                                                        Color.Transparent,
-                                                        Color(0x10000000),
-                                                        Color(0x55000000)
-                                                    )
-                                                )
-                                            )
-                                    )
-                                } else if (isHome) {
-                                    // High-definition miniature Wallpaper Home Page preview
-                                    Box(modifier = Modifier.fillMaxSize()) {
-                                        Image(
-                                            painter = painterResource(id = tab.wallpaperResId ?: com.azokle.search.browser.wallpaper.WallpaperManager.getCurrentWallpaper()),
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .background(Color(0x40000000))
-                                        )
-                                        Column(
-                                            modifier = Modifier.fillMaxSize(),
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.Center
-                                        ) {
-                                            Text(
-                                                text = "azokle",
-                                                fontFamily = AudiowideFontFamily,
-                                                fontSize = 20.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color.White
-                                            )
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            Box(
-                                                modifier = Modifier
-                                                    .width(116.dp)
-                                                    .height(26.dp)
-                                                    .clip(CircleShape)
-                                                    .background(Color(0x99000000))
-                                                    .border(0.5.dp, Color(0x66FFFFFF), CircleShape)
-                                                    .padding(horizontal = 8.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.SpaceBetween
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Search,
-                                                        contentDescription = null,
-                                                        tint = Color.White.copy(alpha = 0.8f),
-                                                        modifier = Modifier.size(11.dp)
-                                                    )
-                                                    Text(
-                                                        text = "Search",
-                                                        fontSize = 8.5.sp,
-                                                        color = Color.White.copy(alpha = 0.8f)
-                                                    )
-                                                    Icon(
-                                                        imageVector = Icons.Default.Mic,
-                                                        contentDescription = null,
-                                                        tint = Color.White.copy(alpha = 0.8f),
-                                                        modifier = Modifier.size(11.dp)
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    // Elegant fallback card with brand favicon & domain badge
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(
-                                                Brush.verticalGradient(
-                                                    listOf(colors.surfaceElevated, colors.cardBg)
-                                                )
-                                            ),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.Center,
-                                            modifier = Modifier.padding(12.dp)
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(46.dp)
-                                                    .clip(CircleShape)
-                                                    .background(colors.surface)
-                                                    .border(1.dp, colors.border, CircleShape),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                FaviconImage(
-                                                    url = tab.url,
-                                                    faviconUrl = tab.faviconUrl,
-                                                    isTor = tab.isTor,
-                                                    size = 24.dp
-                                                )
-                                            }
-
-                                            Spacer(modifier = Modifier.height(10.dp))
-
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(CircleShape)
-                                                    .background(colors.surface)
-                                                    .border(0.5.dp, colors.border, CircleShape)
-                                                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                                            ) {
-                                                Text(
-                                                    text = host,
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Medium,
-                                                    color = colors.textPrimary,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                            }
-                                        }
+                        SwipeableTabCard(
+                            tab = tab,
+                            isActive = isActive,
+                            onTabSelected = onTabSelected,
+                            onCloseTab = { tabToClose ->
+                                val closed = TabManager.closeTab(tabToClose.id)
+                                if (closed != null) {
+                                    lastClosedTab = closed
+                                    undoSnackbarJob?.cancel()
+                                    undoSnackbarJob = scope.launch {
+                                        delay(4500)
+                                        lastClosedTab = null
                                     }
                                 }
-
-                                // 3. Status Badges (Active / Tor / Private)
-                                Row(
-                                    modifier = Modifier
-                                        .align(Alignment.BottomEnd)
-                                        .padding(8.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    if (tab.isPrivate) {
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(6.dp))
-                                                .background(Color(0xFFA855F7))
-                                                .padding(horizontal = 7.dp, vertical = 3.dp)
-                                        ) {
-                                            Text(
-                                                text = "PRIVATE",
-                                                fontSize = 8.5.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                fontFamily = FontFamily.Monospace,
-                                                color = Color.White
-                                            )
-                                        }
-                                    }
-
-                                    if (tab.isTor) {
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(6.dp))
-                                                .background(Color(0xFF8B5CF6))
-                                                .padding(horizontal = 6.dp, vertical = 3.dp)
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(3.dp)
-                                            ) {
-                                                Image(
-                                                    painter = painterResource(id = R.drawable.ic_tor),
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(10.dp)
-                                                )
-                                                Text(
-                                                    text = "TOR",
-                                                    fontSize = 8.5.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontFamily = FontFamily.Monospace,
-                                                    color = Color.White
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    if (isActive) {
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(6.dp))
-                                                .background(colors.statusAccent)
-                                                .padding(horizontal = 7.dp, vertical = 3.dp)
-                                        ) {
-                                            Text(
-                                                text = "ACTIVE",
-                                                fontSize = 8.5.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                fontFamily = FontFamily.Monospace,
-                                                color = Color.White
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                            },
+                            modifier = cardTourModifier
+                        )
                     }
                 }
             }
@@ -1387,6 +1079,492 @@ fun ActiveTabsScreen(
 
         // 🚀 Driver.js-Grade Interactive Spotlight Tour Overlay for Tabs Screen
         DriverTourOverlay(tourState = tabsTourState)
+    }
+}
+
+/**
+ * Sovereign Swipeable Tab Card:
+ * - Left-to-right swipe-to-delete with animated reveal, haptic feedback, and undo capability.
+ * - Refined squircle geometry (20.dp), clean typography, crisp favicons, and live thumbnails.
+ * - Tactile tap response and accessible touch targets.
+ */
+@Composable
+private fun SwipeableTabCard(
+    tab: TabSession,
+    isActive: Boolean,
+    onTabSelected: (TabSession) -> Unit,
+    onCloseTab: (TabSession) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = AzokleTheme.colors
+    val haptic = LocalHapticFeedback.current
+    val shape = RoundedCornerShape(20.dp)
+    val isHome = tab.url.isBlank() || tab.url == "about:home" || tab.url == "about:blank"
+    val host = remember(tab.url) {
+        try {
+            Uri.parse(tab.url).host?.removePrefix("www.")?.ifBlank { tab.url } ?: tab.url
+        } catch (e: Exception) {
+            tab.url
+        }
+    }
+
+    val offsetX = remember { Animatable(0f) }
+    var cardWidthPx by remember { mutableStateOf(1) }
+    val threshold = cardWidthPx * 0.38f
+    val swipeProgress = (offsetX.value / cardWidthPx.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
+    val isPastThreshold = offsetX.value >= threshold
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(236.dp)
+            .clip(shape)
+            .onSizeChanged { cardWidthPx = it.width }
+    ) {
+        // 1. Background Reveal Layer (Destructive Swipe Surface)
+        val revealBg by animateColorAsState(
+            targetValue = if (isPastThreshold) colors.statusDestructive
+            else colors.statusDestructive.copy(alpha = (0.22f + swipeProgress * 0.65f).coerceIn(0.2f, 0.9f)),
+            label = "revealBg"
+        )
+
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clip(shape)
+                .background(revealBg)
+                .padding(start = 18.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DeleteSweep,
+                    contentDescription = "Close tab",
+                    tint = Color.White,
+                    modifier = Modifier.size(
+                        (20.dp + (8.dp * swipeProgress)).coerceIn(20.dp, 28.dp)
+                    )
+                )
+                if (swipeProgress > 0.28f) {
+                    Text(
+                        text = if (isPastThreshold) "Release to close" else "Close",
+                        color = Color.White,
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+
+        // 2. Foreground Tab Card Surface (Draggable from Left to Right & Clickable)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+                .pointerInput(tab.id) {
+                    coroutineScope {
+                        while (isActive) {
+                            awaitPointerEventScope {
+                                val down = awaitFirstDown(requireUnconsumed = true)
+                                val downPointerId = down.id
+                                var totalX = 0f
+                                var isDrag = false
+                                var hapticFired = false
+
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull { it.id == downPointerId } ?: break
+                                    if (!change.pressed) {
+                                        if (!isDrag) {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            onTabSelected(tab)
+                                        } else {
+                                            val currentOffset = offsetX.value
+                                            if (currentOffset >= threshold) {
+                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                launch {
+                                                    offsetX.animateTo(cardWidthPx.toFloat(), tween(160))
+                                                    onCloseTab(tab)
+                                                }
+                                            } else {
+                                                launch {
+                                                    offsetX.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium))
+                                                }
+                                            }
+                                        }
+                                        break
+                                    }
+
+                                    val dragX = change.position.x - change.previousPosition.x
+                                    val dragY = change.position.y - change.previousPosition.y
+
+                                    if (!isDrag) {
+                                        totalX += dragX
+                                        if (Math.abs(totalX) > viewConfiguration.touchSlop) {
+                                            if (Math.abs(dragY) > Math.abs(dragX) * 1.4f && totalX <= 0f) {
+                                                break
+                                            }
+                                            isDrag = true
+                                        }
+                                    }
+
+                                    if (isDrag) {
+                                        val newX = (offsetX.value + dragX).coerceAtLeast(0f)
+                                        launch { offsetX.snapTo(newX) }
+                                        if (newX >= threshold && !hapticFired) {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            hapticFired = true
+                                        } else if (newX < threshold && hapticFired) {
+                                            hapticFired = false
+                                        }
+                                        change.consume()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                .shadow(
+                    elevation = if (isActive) 8.dp else 2.dp,
+                    shape = shape,
+                    ambientColor = if (isActive) colors.actionPrimaryBg.copy(alpha = 0.22f) else Color.Black.copy(alpha = 0.06f),
+                    spotColor = if (isActive) colors.actionPrimaryBg.copy(alpha = 0.32f) else Color.Black.copy(alpha = 0.10f)
+                )
+                .clip(shape)
+                .background(colors.cardBg)
+                .border(
+                    width = if (isActive) 2.dp else 1.dp,
+                    color = if (isActive) colors.actionPrimaryBg else colors.border.copy(alpha = 0.55f),
+                    shape = shape
+                )
+                .semantics {
+                    role = Role.Button
+                    contentDescription = "Tab: ${tab.title.ifBlank { if (isHome) "New Tab" else host }}${if (isActive) ", Active" else ""}"
+                }
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Header Bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp)
+                        .background(colors.surfaceElevated.copy(alpha = 0.85f))
+                        .padding(start = 10.dp, end = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(AzokleRadius.sm)
+                            .background(colors.surface)
+                            .border(0.5.dp, colors.border.copy(alpha = 0.5f), AzokleRadius.sm),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isHome) {
+                            Icon(
+                                imageVector = Icons.Default.Home,
+                                contentDescription = null,
+                                tint = colors.actionPrimaryBg,
+                                modifier = Modifier.size(13.dp)
+                            )
+                        } else if (tab.isTor) {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_tor),
+                                contentDescription = "Tor Tab",
+                                modifier = Modifier.size(13.dp)
+                            )
+                        } else if (tab.isPrivate) {
+                            Icon(
+                                imageVector = Icons.Default.VisibilityOff,
+                                contentDescription = null,
+                                tint = Color(0xFFA855F7),
+                                modifier = Modifier.size(13.dp)
+                            )
+                        } else {
+                            FaviconImage(
+                                url = tab.url,
+                                faviconUrl = tab.faviconUrl,
+                                isTor = tab.isTor,
+                                size = 14.dp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Text(
+                        text = if (isHome) "New Tab" else tab.title.ifBlank { host },
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    // Close Tab Button (Accessible Touch Delegate)
+                    Box(
+                        modifier = Modifier
+                            .size(26.dp)
+                            .clip(CircleShape)
+                            .background(colors.surface)
+                            .border(0.5.dp, colors.border.copy(alpha = 0.4f), CircleShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = false, radius = 14.dp, color = colors.statusDestructive),
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onCloseTab(tab)
+                                }
+                            )
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = "Close tab: ${tab.title}"
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = null,
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                }
+
+                // Thumbnail / Content Preview
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .background(colors.surfaceElevated),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (tab.thumbnail != null) {
+                        Image(
+                            bitmap = tab.thumbnail.asImageBitmap(),
+                            contentDescription = tab.title,
+                            contentScale = ContentScale.Crop,
+                            alignment = Alignment.TopCenter,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(
+                                            Color.Transparent,
+                                            Color(0x08000000),
+                                            Color(0x40000000)
+                                        )
+                                    )
+                                )
+                        )
+                    } else if (isHome) {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            Image(
+                                painter = painterResource(id = tab.wallpaperResId ?: com.azokle.search.browser.wallpaper.WallpaperManager.getCurrentWallpaper()),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color(0x35000000))
+                            )
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = "azokle",
+                                    fontFamily = AudiowideFontFamily,
+                                    fontSize = 19.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Spacer(modifier = Modifier.height(7.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .width(110.dp)
+                                        .height(24.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0x88000000))
+                                        .border(0.5.dp, Color(0x55FFFFFF), CircleShape)
+                                        .padding(horizontal = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Search,
+                                            contentDescription = null,
+                                            tint = Color.White.copy(alpha = 0.8f),
+                                            modifier = Modifier.size(10.dp)
+                                        )
+                                        Text(
+                                            text = "Search",
+                                            fontSize = 8.5.sp,
+                                            color = Color.White.copy(alpha = 0.8f)
+                                        )
+                                        Icon(
+                                            imageVector = Icons.Default.Mic,
+                                            contentDescription = null,
+                                            tint = Color.White.copy(alpha = 0.8f),
+                                            modifier = Modifier.size(10.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(colors.surfaceElevated, colors.cardBg)
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                                modifier = Modifier.padding(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(CircleShape)
+                                        .background(colors.surface)
+                                        .border(1.dp, colors.border.copy(alpha = 0.5f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    FaviconImage(
+                                        url = tab.url,
+                                        faviconUrl = tab.faviconUrl,
+                                        isTor = tab.isTor,
+                                        size = 22.dp
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .background(colors.surface)
+                                        .border(0.5.dp, colors.border.copy(alpha = 0.4f), CircleShape)
+                                        .padding(horizontal = 10.dp, vertical = 3.dp)
+                                ) {
+                                    Text(
+                                        text = host,
+                                        fontSize = 10.5.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = colors.textPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Status Badges
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        if (tab.isPrivate) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0xFFA855F7))
+                                    .padding(horizontal = 6.dp, vertical = 2.5.dp)
+                            ) {
+                                Text(
+                                    text = "PRIVATE",
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color.White
+                                )
+                            }
+                        }
+
+                        if (tab.isTor) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0xFF8B5CF6))
+                                    .padding(horizontal = 5.dp, vertical = 2.5.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.ic_tor),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(9.dp)
+                                    )
+                                    Text(
+                                        text = "TOR",
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+
+                        if (isActive) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(colors.actionPrimaryBg)
+                                    .padding(horizontal = 6.dp, vertical = 2.5.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(4.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.White)
+                                    )
+                                    Text(
+                                        text = "ACTIVE",
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

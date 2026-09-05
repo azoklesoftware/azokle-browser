@@ -66,7 +66,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -102,6 +104,7 @@ fun BrowserUrlEditSheet(
 ) {
     val context = LocalContext.current
     val colors = AzokleTheme.colors
+    val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val preferences = remember { PreferencesManager(context) }
     val repository = remember { SearchRepository() }
@@ -310,15 +313,18 @@ fun BrowserUrlEditSheet(
                             }
                         }
 
-                        // Voice Search Mic Action (48dp touch delegate)
+                        // Voice Search Mic Action (matching Home Screen Omnibar)
                         Box(
                             modifier = Modifier
-                                .sizeIn(minWidth = 40.dp, minHeight = 44.dp)
+                                .size(40.dp)
                                 .clip(CircleShape)
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(bounded = false, radius = 20.dp, color = colors.statusAccent),
-                                    onClick = { showVoiceModal = true }
+                                    indication = ripple(bounded = false, radius = 18.dp, color = colors.textSecondary),
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        showVoiceModal = true
+                                    }
                                 )
                                 .semantics {
                                     role = Role.Button
@@ -326,20 +332,12 @@ fun BrowserUrlEditSheet(
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape)
-                                    .background(colors.surfaceElevated),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Mic,
-                                    contentDescription = null,
-                                    tint = colors.statusAccent,
-                                    modifier = Modifier.size(17.dp)
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.Mic,
+                                contentDescription = null,
+                                tint = colors.textSecondary,
+                                modifier = Modifier.size(22.dp)
+                            )
                         }
                     }
                 }

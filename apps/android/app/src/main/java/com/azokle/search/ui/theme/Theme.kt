@@ -11,6 +11,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.azokle.search.util.findActivity
 
 private val DarkColorScheme = darkColorScheme(
     primary = DarkAzokleColors.actionPrimaryBg,
@@ -62,13 +63,12 @@ fun AzokleSearchTheme(
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as? Activity)?.window
-            if (window != null) {
-                @Suppress("DEPRECATION")
-                window.statusBarColor = themeColors.background.toArgb()
-                @Suppress("DEPRECATION")
-                window.navigationBarColor = themeColors.background.toArgb()
-                val controller = WindowCompat.getInsetsController(window, view)
+            val activity = view.context.findActivity()
+            if (activity is com.azokle.search.MainActivity) {
+                activity.updateSystemBars(isDark)
+            } else if (activity != null) {
+                val window = activity.window
+                val controller = WindowCompat.getInsetsController(window, window.decorView)
                 controller.isAppearanceLightStatusBars = !isDark
                 controller.isAppearanceLightNavigationBars = !isDark
             }

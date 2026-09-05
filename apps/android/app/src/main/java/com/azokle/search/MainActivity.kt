@@ -6,6 +6,9 @@ import android.os.Bundle
 import android.speech.RecognizerIntent
 import android.widget.Toast
 import android.content.Context
+import android.content.res.Configuration
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -15,6 +18,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -22,6 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -111,9 +116,85 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    private var currentConfig by androidx.compose.runtime.mutableStateOf(android.content.res.Configuration())
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        currentConfig = Configuration(newConfig)
+        val prefs = PreferencesManager(this)
+        val savedTheme = prefs.getThemeMode().lowercase()
+        if (savedTheme == "system") {
+            val isDark = (newConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+            updateSystemBars(isDark)
+        }
+    }
+
+    fun updateSystemBars(isDark: Boolean) {
+        enableEdgeToEdge(
+            statusBarStyle = if (isDark) {
+                SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+            } else {
+                SystemBarStyle.light(
+                    android.graphics.Color.TRANSPARENT,
+                    android.graphics.Color.TRANSPARENT
+                )
+            },
+            navigationBarStyle = if (isDark) {
+                SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+            } else {
+                SystemBarStyle.light(
+                    android.graphics.Color.TRANSPARENT,
+                    android.graphics.Color.TRANSPARENT
+                )
+            }
+        )
+
+        // API 30+ explicit system bar appearance (for Motorola Hello UI / AOSP Android 11-15+)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            window.insetsController?.setSystemBarsAppearance(
+                if (!isDark) {
+                    android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
+                    android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+                } else {
+                    0
+                },
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+            )
+        }
+
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.isAppearanceLightStatusBars = !isDark
+        insetsController.isAppearanceLightNavigationBars = !isDark
+
+        // Legacy compatibility for OEM manufacturer skins (e.g. Motorola / API 26-29)
+        @Suppress("DEPRECATION")
+        if (!isDark) {
+            window.decorView.systemUiVisibility = window.decorView.systemUiVisibility or
+                android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or
+                android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+        } else {
+            window.decorView.systemUiVisibility = window.decorView.systemUiVisibility and
+                android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv() and
+                android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        currentConfig = Configuration(resources.configuration)
+        val prefs = PreferencesManager(this)
+        val savedTheme = prefs.getThemeMode().lowercase()
+        val isInitialDark = when (savedTheme) {
+            "dark" -> true
+            "light" -> false
+            else -> {
+                val currentNightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+                currentNightMode == Configuration.UI_MODE_NIGHT_YES
+            }
+        }
+        updateSystemBars(isInitialDark)
 
         // Cinema-grade exit transition: smooth alpha fade
         splashScreen.setOnExitAnimationListener { splashScreenViewProvider ->
@@ -135,7 +216,6 @@ class MainActivity : FragmentActivity() {
         }
 
         com.azokle.search.security.BiometricAuthManager.setCurrentActivity(this)
-        val prefs = PreferencesManager(this)
         AzokleApplication.applyThemeMode(prefs.getThemeMode())
 
         com.azokle.search.browser.media.MediaPlaybackManager.initialize(this)
@@ -149,12 +229,28 @@ class MainActivity : FragmentActivity() {
             val localizedContext = remember(uiState.selectedLanguage) {
                 LocaleHelper.applyLocale(currentContext, uiState.selectedLanguage)
             }
-            val localizedConfiguration = remember(uiState.selectedLanguage, localizedContext) {
-                localizedContext.resources.configuration
+            val localizedConfiguration = remember(uiState.selectedLanguage, currentConfig) {
+                val config = Configuration(currentConfig)
+                val locale = LocaleHelper.getLocale(uiState.selectedLanguage)
+                config.setLocale(locale)
+                config.setLayoutDirection(locale)
+                config
             }
             val layoutDirection = remember(uiState.selectedLanguage) {
                 val locale = LocaleHelper.getLocale(uiState.selectedLanguage)
                 if (LocaleHelper.isRtl(locale)) LayoutDirection.Rtl else LayoutDirection.Ltr
+            }
+
+            val isSystemDark = (currentConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+            val isDark = when (uiState.selectedThemeMode.lowercase()) {
+                "dark" -> true
+                "light" -> false
+                else -> isSystemDark
+            }
+
+            androidx.compose.runtime.DisposableEffect(isDark) {
+                updateSystemBars(isDark)
+                onDispose {}
             }
 
             androidx.compose.runtime.LaunchedEffect(uiState.selectedThemeMode) {
@@ -168,7 +264,7 @@ class MainActivity : FragmentActivity() {
                 LocalLayoutDirection provides layoutDirection,
                 androidx.activity.compose.LocalActivityResultRegistryOwner provides this@MainActivity
             ) {
-                AzokleSearchTheme(themeMode = uiState.selectedThemeMode) {
+                AzokleSearchTheme(themeMode = if (isDark) "dark" else "light") {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
@@ -198,6 +294,17 @@ class MainActivity : FragmentActivity() {
 
     override fun onResume() {
         super.onResume()
+        val prefs = PreferencesManager(this)
+        val savedTheme = prefs.getThemeMode().lowercase()
+        val isDark = when (savedTheme) {
+            "dark" -> true
+            "light" -> false
+            else -> {
+                val currentNightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+                currentNightMode == Configuration.UI_MODE_NIGHT_YES
+            }
+        }
+        updateSystemBars(isDark)
         com.azokle.search.security.BiometricAuthManager.setCurrentActivity(this)
         com.azokle.search.widget.AzokleSearchWidgetProvider.updateAllWidgets(this)
     }

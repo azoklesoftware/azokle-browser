@@ -20,7 +20,7 @@ members = [
     "crates/azokle-core",
     "bindings/kotlin",
     "bindings/c"
-]
+, "server"]
 
 [workspace.package]
 version = "1.0.0"

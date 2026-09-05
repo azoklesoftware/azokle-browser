@@ -1,6 +1,9 @@
 package com.azokle.search.ui.components
 
 import android.widget.Toast
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
@@ -24,7 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -33,11 +37,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -55,6 +62,7 @@ import com.azokle.search.data.SearchEngineConfig
 import com.azokle.search.ui.theme.AzokleRadius
 import com.azokle.search.ui.theme.AzokleTheme
 import com.azokle.search.ui.theme.adaptiveContentWidth
+import com.azokle.search.util.DefaultBrowserManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,17 +79,17 @@ fun ChooseSearchEngineSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = colors.background,
+        containerColor = colors.cardBg,
         contentColor = colors.textPrimary,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         dragHandle = {
             Box(
                 modifier = Modifier
                     .statusBarsPadding()
-                    .padding(top = 10.dp, bottom = 4.dp)
+                    .padding(top = 10.dp, bottom = 6.dp)
                     .size(width = 36.dp, height = 4.dp)
                     .clip(CircleShape)
-                    .background(colors.border)
+                    .background(colors.borderSubtle)
             )
         }
     ) {
@@ -89,41 +97,52 @@ fun ChooseSearchEngineSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .adaptiveContentWidth(560.dp)
-                .padding(horizontal = 18.dp)
-                .padding(top = 2.dp, bottom = 32.dp)
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp)
                 .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 1. Header Bar (Clean, Calm, Minimal)
+            // ==========================================
+            // 1. HEADER & DISMISS BUTTON
+            // ==========================================
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp, bottom = 16.dp),
+                    .padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.semantics { heading() }) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics { heading() }
+                ) {
                     Text(
                         text = stringResource(R.string.choose_search_engine),
-                        fontSize = 22.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = stringResource(R.string.search_engine_subtitle),
+                        text = "Choose your default engine for search queries & address bar navigation.",
                         fontSize = 12.sp,
-                        color = colors.textMuted
+                        color = colors.textSecondary,
+                        lineHeight = 16.sp
                     )
                 }
 
-                // 48dp Close Target
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // 48dp Accessible Close Button
                 Box(
                     modifier = Modifier
                         .sizeIn(minWidth = 44.dp, minHeight = 44.dp)
                         .clip(CircleShape)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(bounded = false, radius = 18.dp, color = colors.textSecondary),
+                            indication = ripple(bounded = false, radius = 20.dp, color = colors.textSecondary),
                             onClick = onDismiss
                         )
                         .semantics {
@@ -137,7 +156,7 @@ fun ChooseSearchEngineSheet(
                             .size(32.dp)
                             .clip(CircleShape)
                             .background(colors.surfaceElevated)
-                            .border(1.dp, colors.border, CircleShape),
+                            .border(1.dp, colors.borderSubtle, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -150,30 +169,22 @@ fun ChooseSearchEngineSheet(
                 }
             }
 
-            // Section Label
-            Text(
-                text = "DEFAULT SEARCH PROVIDER",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-                color = colors.textMuted,
-                letterSpacing = 0.8.sp,
-                modifier = Modifier.padding(start = 6.dp, top = 4.dp, bottom = 6.dp)
-            )
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // 2. Search Engine Grouped Card
-            val shape = AzokleRadius.lg
+            // ==========================================
+            // 2. SEARCH ENGINES LIST CONTAINER
+            // ==========================================
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(shape)
-                    .background(colors.cardBg)
-                    .border(1.dp, colors.border, shape)
+                    .clip(AzokleRadius.lg)
+                    .background(colors.surfaceElevated)
+                    .border(1.dp, colors.borderSubtle, AzokleRadius.lg)
             ) {
                 SEARCH_ENGINE_PROVIDERS.forEachIndexed { index, engine ->
                     val isSelected = selectedEngineId.equals(engine.id, ignoreCase = true)
 
-                    SearchEngineGroupedRow(
+                    SearchEngineItemRow(
                         engine = engine,
                         isSelected = isSelected,
                         colors = colors,
@@ -181,34 +192,44 @@ fun ChooseSearchEngineSheet(
                             onSelectEngine(engine.id)
                             Toast.makeText(context, "${engine.name} set as default", Toast.LENGTH_SHORT).show()
                             onDismiss()
-                            if (!com.azokle.search.util.DefaultBrowserManager.isDefaultBrowser(context)) {
-                                com.azokle.search.util.DefaultBrowserManager.launchSetDefaultBrowser(context)
+                            if (!DefaultBrowserManager.isDefaultBrowser(context)) {
+                                DefaultBrowserManager.launchSetDefaultBrowser(context)
                             }
                         }
                     )
 
                     if (index < SEARCH_ENGINE_PROVIDERS.size - 1) {
                         HorizontalDivider(
-                            color = colors.border.copy(alpha = 0.5f),
+                            color = colors.borderSubtle,
                             thickness = 0.5.dp,
-                            modifier = Modifier.padding(start = 54.dp)
+                            modifier = Modifier.padding(start = 58.dp)
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // 3. Minimal Footer Notice
-            Column(
+            // ==========================================
+            // 3. PRIVACY GUARANTEE FOOTER
+            // ==========================================
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = colors.textMuted,
+                    modifier = Modifier.size(12.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Zero Profiling • Queries routed directly without intermediary tracking",
+                    text = "Direct Queries • No tracking, logging, or profiling",
                     fontSize = 11.sp,
                     color = colors.textMuted,
-                    lineHeight = 15.sp
+                    fontFamily = FontFamily.Monospace
                 )
             }
         }
@@ -216,25 +237,32 @@ fun ChooseSearchEngineSheet(
 }
 
 @Composable
-private fun SearchEngineGroupedRow(
+private fun SearchEngineItemRow(
     engine: SearchEngineConfig,
     isSelected: Boolean,
     colors: com.azokle.search.ui.theme.AzokleThemeColors,
     onClick: () -> Unit
 ) {
+    val rowBackground by animateColorAsState(
+        targetValue = if (isSelected) colors.actionPrimaryBg.copy(alpha = 0.05f) else Color.Transparent,
+        animationSpec = tween(durationMillis = 200),
+        label = "EngineRowBg"
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .sizeIn(minHeight = 56.dp)
+            .sizeIn(minHeight = 58.dp)
+            .background(rowBackground)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = ripple(bounded = true, color = colors.textPrimary.copy(alpha = 0.08f)),
                 onClick = onClick
             )
-            .padding(horizontal = 14.dp, vertical = 12.dp)
+            .padding(horizontal = 14.dp, vertical = 11.dp)
             .semantics {
                 role = Role.RadioButton
-                contentDescription = "${engine.name}, ${engine.subtitle}, ${if (isSelected) "selected" else "not selected"}"
+                contentDescription = "${engine.name}, ${engine.subtitle}, ${if (isSelected) "currently active default" else "select as default"}"
             },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -243,18 +271,22 @@ private fun SearchEngineGroupedRow(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f)
         ) {
-            // Engine Icon Badge
+            // Engine Icon Badge (34dp)
             Box(
                 modifier = Modifier
                     .size(34.dp)
-                    .clip(CircleShape)
-                    .background(colors.surfaceElevated)
-                    .border(0.8.dp, if (isSelected) colors.statusAccent.copy(alpha = 0.5f) else colors.border, CircleShape),
+                    .clip(AzokleRadius.sm)
+                    .background(colors.cardBg)
+                    .border(
+                        0.8.dp,
+                        if (isSelected) colors.actionPrimaryBg.copy(alpha = 0.4f) else colors.borderSubtle,
+                        AzokleRadius.sm
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 if (engine.iconRes != 0) {
-                    androidx.compose.foundation.Image(
-                        painter = androidx.compose.ui.res.painterResource(engine.iconRes),
+                    Image(
+                        painter = painterResource(engine.iconRes),
                         contentDescription = null,
                         modifier = Modifier.size(20.dp)
                     )
@@ -275,7 +307,7 @@ private fun SearchEngineGroupedRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = engine.name,
-                        fontSize = 14.sp,
+                        fontSize = 14.5.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         color = colors.textPrimary
                     )
@@ -284,19 +316,21 @@ private fun SearchEngineGroupedRow(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(colors.surfaceElevated)
+                                .background(colors.actionPrimaryBg.copy(alpha = 0.12f))
                                 .padding(horizontal = 5.dp, vertical = 1.5.dp)
                         ) {
                             Text(
                                 text = "DEFAULT",
-                                fontSize = 8.sp,
+                                fontSize = 8.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace,
-                                color = colors.textMuted
+                                color = colors.actionPrimaryText
                             )
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(1.dp))
 
                 Text(
                     text = "${engine.domain} • ${engine.subtitle}",
@@ -308,13 +342,29 @@ private fun SearchEngineGroupedRow(
             }
         }
 
-        if (isSelected) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = "Selected",
-                tint = colors.textPrimary,
-                modifier = Modifier.size(18.dp)
-            )
+        Spacer(modifier = Modifier.width(10.dp))
+
+        // Selection Radio / Check Indicator (22dp)
+        Box(
+            modifier = Modifier
+                .size(22.dp)
+                .clip(CircleShape)
+                .background(if (isSelected) colors.actionPrimaryBg else Color.Transparent)
+                .border(
+                    width = if (isSelected) 0.dp else 1.5.dp,
+                    color = if (isSelected) Color.Transparent else colors.borderSubtle,
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isSelected) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Selected",
+                    tint = colors.actionPrimaryText,
+                    modifier = Modifier.size(13.dp)
+                )
+            }
         }
     }
 }

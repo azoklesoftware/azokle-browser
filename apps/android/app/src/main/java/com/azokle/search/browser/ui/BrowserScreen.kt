@@ -144,6 +144,17 @@ fun BrowserScreen(
     var isDesktopMode by remember { mutableStateOf(false) }
     var isFullScreenMode by remember { mutableStateOf(false) }
 
+    // Page Transition & Anti-Flash State: completely masks stale WebView frames during navigation
+    var isPageTransitioning by remember { mutableStateOf(false) }
+    var targetLoadingUrl by remember { mutableStateOf("") }
+
+    androidx.compose.runtime.LaunchedEffect(isPageTransitioning, targetLoadingUrl) {
+        if (isPageTransitioning) {
+            kotlinx.coroutines.delay(4000)
+            isPageTransitioning = false
+        }
+    }
+
     var currentSecurityInfo: org.mozilla.geckoview.GeckoSession.ProgressDelegate.SecurityInformation? by remember { mutableStateOf(null) }
     var currentError: BrowserErrorType? by remember { mutableStateOf(null) }
 
@@ -203,12 +214,16 @@ fun BrowserScreen(
     var canGoBack by remember { mutableStateOf(false) }
     var canGoForward by remember { mutableStateOf(false) }
 
-    var isBottomBarVisible by remember { mutableStateOf(true) }
-    val scrollTracker = remember {
-        object {
-            var lastY = 0
-            var accumulator = 0
-        }
+    val density = androidx.compose.ui.platform.LocalDensity.current.density
+    val barVisibilityStateMachine = remember(density) {
+        BrowserBarVisibilityStateMachine(density)
+    }
+    val isBottomBarVisible = barVisibilityStateMachine.isVisible
+
+    // Synchronize animation completion with the state machine
+    LaunchedEffect(barVisibilityStateMachine.isVisible) {
+        kotlinx.coroutines.delay(200L)
+        barVisibilityStateMachine.onAnimationFinished(barVisibilityStateMachine.isVisible)
     }
     var showBurnConfirmationSheet by remember { mutableStateOf(false) }
     var isBurningData by remember { mutableStateOf(false) }
@@ -389,6 +404,7 @@ fun BrowserScreen(
     }
 
     LaunchedEffect(activeTabId) {
+        barVisibilityStateMachine.forceShow()
         val tab = TabManager.activeTab
         if (tab != null) {
             isDesktopMode = tab.isDesktopMode
@@ -402,6 +418,7 @@ fun BrowserScreen(
 
     LaunchedEffect(currentUrl) {
         if (currentUrl.isBlank() || currentUrl == "about:home" || currentUrl == "about:blank" || currentUrl.startsWith("about:")) {
+            barVisibilityStateMachine.forceShow()
             com.azokle.search.browser.adblock.AdBlockStats.resetForPage("", "", true)
         }
     }
@@ -475,15 +492,31 @@ fun BrowserScreen(
             } else {
                 currentUrl = ""
                 currentTitle = "New Tab"
+                isPageTransitioning = false
+                targetLoadingUrl = ""
+                try {
+                    geckoView?.visibility = android.view.View.INVISIBLE
+                    geckoView?.alpha = 0f
+                } catch (e: Exception) {}
+                activeTabId?.let { id -> TabManager.clearTabLoaded(id) }
                 TabManager.updateActiveTab("", "New Tab")
+                geckoSession?.stop()
             }
         } else if (canGoBack) {
             geckoSession?.goBack()
         } else if (currentUrl.isNotBlank() && currentUrl != "about:home" && currentUrl != "about:blank") {
             currentUrl = ""
             currentTitle = "New Tab"
+            isPageTransitioning = false
+            targetLoadingUrl = ""
+            try {
+                geckoView?.visibility = android.view.View.INVISIBLE
+                geckoView?.alpha = 0f
+            } catch (e: Exception) {}
+            activeTabId?.let { id -> TabManager.clearTabLoaded(id) }
             com.azokle.search.browser.adblock.AdBlockStats.resetForPage("", "", true)
             TabManager.updateActiveTab("", "New Tab")
+            geckoSession?.stop()
         } else {
             onClose()
         }
@@ -708,26 +741,14 @@ fun BrowserScreen(
                         val discoverViewModel: com.azokle.search.viewmodel.DiscoverViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
                         com.azokle.search.ui.screens.DiscoverScreen(
                             viewModel = discoverViewModel,
-                            onTopicClick = { topic ->
+                            onOpenUrl = { url, title ->
                                 showDiscoverScreen = false
-                                val searchEngineConfig = com.azokle.search.data.SEARCH_ENGINE_PROVIDERS.find { it.id == viewModel?.uiState?.value?.selectedSearchEngine }
-                                    ?: com.azokle.search.data.SEARCH_ENGINE_PROVIDERS[0]
-                                val targetUrl = com.azokle.search.util.UrlHelper.resolveSearchOrUrl(
-                                    input = topic,
-                                    searchEngineQueryUrl = searchEngineConfig.queryUrl
-                                )
-                                currentUrl = targetUrl
-                                currentTitle = topic
-                                currentError = null
-                                TabManager.updateActiveTab(targetUrl, topic)
-                                geckoSession?.loadUri(targetUrl)
-                            },
-                            onNewsClick = { url ->
-                                showDiscoverScreen = false
+                                targetLoadingUrl = url
+                                isPageTransitioning = true
                                 currentUrl = url
-                                currentTitle = "News"
+                                currentTitle = title
                                 currentError = null
-                                TabManager.updateActiveTab(url, "News")
+                                TabManager.updateActiveTab(url, title)
                                 geckoSession?.loadUri(url)
                             }
                         )
@@ -737,6 +758,8 @@ fun BrowserScreen(
                         BrowserHomeScreenContent(
                             activeTab = currentTab,
                             onNavigate = { targetUrl ->
+                                targetLoadingUrl = targetUrl
+                                isPageTransitioning = true
                                 currentUrl = targetUrl
                                 currentTitle = if (isCurrentTabTor) "Tor Browsing" else "Search"
                                 currentError = null
@@ -766,6 +789,7 @@ fun BrowserScreen(
                                 isDarkMode = colors.isDark,
                                 isPrivate = isCurrentTabPrivate,
                                 isTor = isCurrentTabTor,
+                                isFullScreenMode = isFullScreenMode,
                                 onUrlChanged = { newUrl ->
                                     currentUrl = newUrl
                                     currentError = null
@@ -778,6 +802,13 @@ fun BrowserScreen(
                                 onProgressChanged = { p ->
                                     progress = p / 100f
                                     isLoading = p < 100
+                                    if (p >= 25) {
+                                        isPageTransitioning = false
+                                        try {
+                                            geckoView?.visibility = android.view.View.VISIBLE
+                                            geckoView?.alpha = 1f
+                                        } catch (e: Exception) {}
+                                    }
                                 },
                                 onLoadingChanged = { loading ->
                                     isLoading = loading
@@ -787,33 +818,8 @@ fun BrowserScreen(
                                 },
                                 onCanGoBackChanged = { canGoBack = it },
                                 onCanGoForwardChanged = { canGoForward = it },
-                                onScrollChanged = { _, scrollY ->
-                                     val delta = scrollY - scrollTracker.lastY
-                                     scrollTracker.lastY = scrollY
-
-                                     if (scrollY <= 24) {
-                                         // At the top of the page -> always reveal Omnibar, Group Stripe & Bottom Bar
-                                         if (!isBottomBarVisible) {
-                                             isBottomBarVisible = true
-                                         }
-                                         scrollTracker.accumulator = 0
-                                     } else {
-                                         // Accumulate directional scroll delta
-                                         if ((delta > 0 && scrollTracker.accumulator < 0) || (delta < 0 && scrollTracker.accumulator > 0)) {
-                                             scrollTracker.accumulator = delta
-                                         } else {
-                                             scrollTracker.accumulator += delta
-                                         }
-
-                                         // Hysteresis threshold to prevent micro-jitter & stutter
-                                         if (scrollTracker.accumulator > 45 && isBottomBarVisible) {
-                                             isBottomBarVisible = false
-                                             scrollTracker.accumulator = 0
-                                         } else if (scrollTracker.accumulator < -35 && !isBottomBarVisible) {
-                                             isBottomBarVisible = true
-                                             scrollTracker.accumulator = 0
-                                         }
-                                     }
+                                onScrollChanged = { scrollX, scrollY ->
+                                     barVisibilityStateMachine.onScroll(scrollX, scrollY)
                                  },
                                 onLinkLongPressed = { target ->
                                     activeTextSelection = null
@@ -836,6 +842,8 @@ fun BrowserScreen(
                                          TabManager.openTab(targetUrl, "New Tab", isPrivate = isCurrentTabPrivate, isTor = isCurrentTabTor)
                                      }
                                      TabManager.selectTab(newId)
+                                     targetLoadingUrl = targetUrl
+                                     isPageTransitioning = true
                                      currentUrl = targetUrl
                                      currentTitle = "New Tab"
                                      currentError = null
@@ -844,6 +852,9 @@ fun BrowserScreen(
                                  },
                                  onLoadErrorChanged = { error ->
                                      currentError = error
+                                     if (error != null) {
+                                         isPageTransitioning = false
+                                     }
                                  },
                                  onFullScreenChanged = { fs ->
                                      isFullScreenMode = fs
@@ -865,6 +876,19 @@ fun BrowserScreen(
                              )
                          }
 
+                         // Sovereign Anti-Flash Layer: masks stale WebViews with a clean theme-synchronized loading state
+                         androidx.compose.animation.AnimatedVisibility(
+                             visible = isPageTransitioning && currentError == null,
+                             enter = androidx.compose.animation.EnterTransition.None,
+                             exit = androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(180)),
+                             modifier = Modifier.fillMaxSize()
+                         ) {
+                             PageLoadingTransitionSurface(
+                                 targetUrl = targetLoadingUrl.ifBlank { currentUrl },
+                                 colors = colors
+                             )
+                         }
+
                          // Brave/Firefox-grade Luxury Error Screen Surface
                          currentError?.let { err ->
                              BrowserErrorScreen(
@@ -878,7 +902,15 @@ fun BrowserScreen(
                                      currentError = null
                                      currentUrl = ""
                                      currentTitle = "New Tab"
+                                     isPageTransitioning = false
+                                     targetLoadingUrl = ""
+                                     try {
+                                         geckoView?.visibility = android.view.View.INVISIBLE
+                                         geckoView?.alpha = 0f
+                                     } catch (e: Exception) {}
+                                     activeTabId?.let { id -> TabManager.clearTabLoaded(id) }
                                      TabManager.updateActiveTab("", "New Tab")
+                                     geckoSession?.stop()
                                  },
                                  onBypass = if (err.canBypass) {
                                      {
@@ -935,13 +967,13 @@ fun BrowserScreen(
                                    groupTabs = activeGroupTabs,
                                    activeTabId = activeTabId,
                                    onTabSelected = { selectedTab ->
-                                       isBottomBarVisible = true
+                                       barVisibilityStateMachine.forceShow()
                                        TabManager.selectTab(selectedTab.id)
                                        currentUrl = selectedTab.url
                                        currentTitle = selectedTab.title
                                    },
                                    onAddTabInGroup = {
-                                       isBottomBarVisible = true
+                                       barVisibilityStateMachine.forceShow()
                                        activeGroup?.let { g ->
                                            val newId = TabManager.openTabInGroup("", "New Tab", g.id)
                                            TabManager.selectTab(newId)
@@ -955,14 +987,14 @@ fun BrowserScreen(
                                         if (wasActive) {
                                             val next = TabManager.activeTab
                                             if (next != null) {
-                                                isBottomBarVisible = true
+                                                barVisibilityStateMachine.forceShow()
                                                 currentUrl = next.url
                                                 currentTitle = next.title
                                             }
                                         }
                                     },
                                    onOpenGroupOverview = {
-                                       isBottomBarVisible = true
+                                       barVisibilityStateMachine.forceShow()
                                        showGroupDetailSheet = true
                                    }
                                )
@@ -974,14 +1006,21 @@ fun BrowserScreen(
                               isDiscoverSelected = showDiscoverScreen,
                               isTabsSelected = showTabGridSheet,
                               onHomeClick = {
-                                  isBottomBarVisible = true
+                                  barVisibilityStateMachine.forceShow()
                                   showDiscoverScreen = false
                                   showTabGridSheet = false
+                                  isPageTransitioning = false
+                                  targetLoadingUrl = ""
                                   com.azokle.search.browser.adblock.AdBlockStats.resetForPage("", "", true)
+                                  try {
+                                      geckoView?.visibility = android.view.View.INVISIBLE
+                                      geckoView?.alpha = 0f
+                                  } catch (e: Exception) {}
                                   if (currentUrl.isNotBlank() && currentUrl != "about:home" && currentUrl != "about:blank") {
                                        currentUrl = ""
                                        currentTitle = "New Tab"
                                        currentError = null
+                                       activeTabId?.let { id -> TabManager.clearTabLoaded(id) }
                                        TabManager.updateActiveTab("", "New Tab")
                                        geckoSession?.stop()
                                    } else {
@@ -992,18 +1031,18 @@ fun BrowserScreen(
                                    }
                               },
                               onDiscoverClick = {
-                                  isBottomBarVisible = true
+                                  barVisibilityStateMachine.forceShow()
                                   showDiscoverScreen = true
                               },
                               onTabsClick = {
-                                  isBottomBarVisible = true
+                                  barVisibilityStateMachine.forceShow()
                                   showTabGridSheet = true
                               },
                               onBurnDataClick = {
                                   showBurnConfirmationSheet = true
                               },
                               onMenuClick = {
-                                  isBottomBarVisible = true
+                                  barVisibilityStateMachine.forceShow()
                                   showMenuSheet = true
                               },
                               tabsModifier = Modifier.tourTarget(homeTourSteps[5], homeTourState),
@@ -1061,6 +1100,10 @@ fun BrowserScreen(
                         input
                     } else {
                         UrlHelper.resolveSearchOrUrl(context, input)
+                    }
+                    if (currentUrl.isBlank() || currentUrl == "about:home" || currentUrl == "about:blank" || currentUrl != resolved) {
+                        targetLoadingUrl = resolved
+                        isPageTransitioning = true
                     }
                     currentUrl = resolved
                     currentError = null
@@ -1244,6 +1287,8 @@ fun BrowserScreen(
                 onNavigate = { targetUrl ->
                     showBookmarksScreen = false
                     showDiscoverScreen = false
+                    targetLoadingUrl = targetUrl
+                    isPageTransitioning = true
                     currentUrl = targetUrl
                     geckoSession?.loadUri(targetUrl)
                 },
@@ -1281,6 +1326,8 @@ fun BrowserScreen(
                         input = query,
                         searchEngineQueryUrl = searchEngineConfig.queryUrl
                     )
+                    targetLoadingUrl = targetUrl
+                    isPageTransitioning = true
                     currentUrl = targetUrl
                     TabManager.updateActiveTab(targetUrl, query)
                     geckoSession?.loadUri(targetUrl)
@@ -1289,6 +1336,8 @@ fun BrowserScreen(
                     showHistoryScreen = false
                     showDiscoverScreen = false
                     currentError = null
+                    targetLoadingUrl = url
+                    isPageTransitioning = true
                     currentUrl = url
                     TabManager.updateActiveTab(url, "")
                     geckoSession?.loadUri(url)
@@ -1657,6 +1706,8 @@ fun BrowserScreen(
                         input = recognizedQuery,
                         searchEngineQueryUrl = searchEngineConfig.queryUrl
                     )
+                    targetLoadingUrl = targetUrl
+                    isPageTransitioning = true
                     currentUrl = targetUrl
                     currentTitle = recognizedQuery
                     currentError = null
@@ -1692,25 +1743,24 @@ private fun BrowserHomeScreenContent(
     val colors = com.azokle.search.ui.theme.AzokleTheme.colors
 
     Box(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .background(colors.background),
         contentAlignment = Alignment.Center
     ) {
         // 1. High-Resolution Photographic Wallpaper Backdrop (Per-Tab Wallpaper)
         val globalWallpaper by com.azokle.search.browser.wallpaper.WallpaperManager.currentWallpaper.collectAsState()
         val targetWallpaper = activeTab?.wallpaperResId ?: globalWallpaper
 
-        androidx.compose.animation.Crossfade(
-            targetState = targetWallpaper,
-            animationSpec = androidx.compose.animation.core.tween(400),
-            label = "wallpaperCrossfade"
-        ) { wallpaperRes ->
-            Image(
-                painter = painterResource(id = wallpaperRes),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
+        coil.compose.AsyncImage(
+            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                .data(targetWallpaper)
+                .crossfade(true)
+                .build(),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
 
         // Top Status Bar Scrim
         Box(

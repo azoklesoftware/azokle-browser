@@ -27,6 +27,7 @@ class AzokleApplication : Application() {
 
         // Initialize Native Rust Azokle Core & Privacy Shield Engine
         com.azokle.search.core.AzokleCore.initialize(this)
+        com.azokle.search.browser.adblock.AdBlockStats.init(this)
 
         // Initialize History, Download & Tab systems
         com.azokle.search.browser.history.HistoryManager.init(this)
@@ -68,6 +69,13 @@ class AzokleApplication : Application() {
                 // Safe fallback
             }
         }.start()
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (isMainProcess()) {
+            com.azokle.search.browser.gecko.GeckoEngineManager.onTrimMemory(level)
+        }
     }
 
     private fun isMainProcess(): Boolean {

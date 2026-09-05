@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -23,24 +22,24 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FindInPage
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.ripple
@@ -51,6 +50,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -67,10 +68,11 @@ import com.azokle.search.ui.theme.adaptiveContentWidth
 
 /**
  * Premium Sovereign Browser Menu Sheet:
- *  - Ultra-clean, distraction-free iOS / Arc-style grouped design.
- *  - Context-Aware: Webpage tools (Desktop switch, Reader View, Find in Page, Save PDF) when browsing.
- *  - Core browser actions: Bookmarks, History, Downloads, New Tor Window, Settings, Burn Session.
- *  - Zero redundant paragraph bloat or billboard warning cards.
+ *  - Unified, seamless, modern icon grid without cluttered category divisions.
+ *  - Context-Aware Webpage Header with direct Shield access.
+ *  - Ergonomic Quick Action Row (Reload, Share, Bookmark, Find, Desktop Mode).
+ *  - Unified Browser Actions Grid (4 columns, balanced alignment, zero messy sub-headers).
+ *  - Tactile haptic feedback and responsive tablet/phone adaptation.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,6 +105,7 @@ fun BrowserMenuSheet(
     onDismiss: () -> Unit
 ) {
     val colors = AzokleTheme.colors
+    val haptic = LocalHapticFeedback.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
@@ -116,68 +119,272 @@ fun BrowserMenuSheet(
                 modifier = Modifier
                     .statusBarsPadding()
                     .padding(top = 10.dp, bottom = 6.dp)
-                    .size(width = 36.dp, height = 4.dp)
+                    .size(width = 38.dp, height = 4.dp)
                     .clip(CircleShape)
-                    .background(colors.border)
+                    .background(colors.border.copy(alpha = 0.8f))
             )
         }
     ) {
+        val isWebpage = isBrowserContext && url.isNotBlank() && url != "about:home" && url != "about:blank" && url != "about:tor"
+
+        val menuActions = remember(isWebpage, pwaEligibility, blockedTrackersCount, colors) {
+            listOfNotNull(
+                // 1. Navigation & Isolation
+                MenuActionItem(
+                    label = "New Tab",
+                    icon = Icons.Default.Add,
+                    onClick = {
+                        onDismiss()
+                        onOpenNewTab()
+                    }
+                ),
+                MenuActionItem(
+                    label = "Private",
+                    icon = Icons.Default.Security,
+                    tint = colors.statusAccent,
+                    iconBg = colors.statusAccent.copy(alpha = 0.12f),
+                    onClick = {
+                        onDismiss()
+                        onOpenNewPrivateTab()
+                    }
+                ),
+                MenuActionItem(
+                    label = "Tor Window",
+                    iconRes = R.drawable.ic_tor,
+                    tint = colors.statusTor,
+                    iconBg = colors.statusTor.copy(alpha = 0.14f),
+                    badgeText = "Tor",
+                    badgeColor = colors.statusTor,
+                    onClick = {
+                        onDismiss()
+                        onOpenTorWindow()
+                    }
+                ),
+                MenuActionItem(
+                    label = "Shield",
+                    icon = Icons.Default.Security,
+                    tint = colors.statusSuccess,
+                    iconBg = colors.statusSuccess.copy(alpha = 0.12f),
+                    badgeText = if (blockedTrackersCount > 0) "$blockedTrackersCount" else null,
+                    badgeColor = colors.statusSuccess,
+                    onClick = {
+                        onDismiss()
+                        onOpenShield()
+                    }
+                ),
+                // 2. Webpage Utilities (only on active websites)
+                if (isWebpage) {
+                    MenuActionItem(
+                        label = "Reader",
+                        icon = Icons.AutoMirrored.Filled.MenuBook,
+                        onClick = {
+                            onDismiss()
+                            onOpenReaderMode()
+                        }
+                    )
+                } else null,
+                if (isWebpage) {
+                    MenuActionItem(
+                        label = "Save PDF",
+                        icon = Icons.Default.Download,
+                        onClick = {
+                            onDismiss()
+                            onSaveAsPdf()
+                        }
+                    )
+                } else null,
+                if (isWebpage && pwaEligibility != null) {
+                    MenuActionItem(
+                        label = "Add Home",
+                        icon = Icons.Default.InstallMobile,
+                        onClick = {
+                            onDismiss()
+                            onInstallPwa()
+                        }
+                    )
+                } else null,
+                // 3. Library & Data
+                MenuActionItem(
+                    label = "Bookmarks",
+                    icon = Icons.Default.Star,
+                    onClick = {
+                        onDismiss()
+                        onOpenBookmarks()
+                    }
+                ),
+                MenuActionItem(
+                    label = "History",
+                    icon = Icons.Default.History,
+                    onClick = {
+                        onDismiss()
+                        onOpenHistory()
+                    }
+                ),
+                MenuActionItem(
+                    label = "Downloads",
+                    icon = Icons.Default.Download,
+                    onClick = {
+                        onDismiss()
+                        onOpenDownloads()
+                    }
+                ),
+                // 4. System & Security
+                MenuActionItem(
+                    label = "Settings",
+                    icon = Icons.Default.Settings,
+                    onClick = {
+                        onDismiss()
+                        onOpenSettings()
+                    }
+                ),
+                MenuActionItem(
+                    label = "About",
+                    icon = Icons.Default.Info,
+                    onClick = {
+                        onDismiss()
+                        onOpenAbout()
+                    }
+                ),
+                MenuActionItem(
+                    label = "Burn Session",
+                    icon = Icons.Default.LocalFireDepartment,
+                    isDestructive = true,
+                    onClick = {
+                        onDismiss()
+                        onBurnData()
+                    }
+                )
+            )
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .adaptiveContentWidth(540.dp)
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = 18.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Optional Page Header Capsule (when on a live webpage)
-            val isWebpage = isBrowserContext && url.isNotBlank() && url != "about:home" && url != "about:blank" && url != "about:tor"
+            // 1. Context Header Capsule
             if (isWebpage) {
-                Column(
+                val host = remember(url) {
+                    try {
+                        android.net.Uri.parse(url).host?.removePrefix("www.") ?: url
+                    } catch (e: Exception) {
+                        url
+                    }
+                }
+
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .clip(AzokleRadius.xl)
+                        .background(colors.cardBg)
+                        .border(1.dp, colors.border.copy(alpha = 0.45f), AzokleRadius.xl)
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        text = if (title.isNotBlank()) title else "Webpage",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colors.textPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = try {
-                            val host = android.net.Uri.parse(url).host?.removePrefix("www.")
-                            host ?: url
-                        } catch (e: Exception) {
-                            url
-                        },
-                        fontSize = 11.sp,
-                        color = colors.textMuted,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Column(
+                        modifier = Modifier.weight(1f).padding(end = 12.dp)
+                    ) {
+                        Text(
+                            text = if (title.isNotBlank()) title else "Webpage",
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = host,
+                            fontSize = 11.sp,
+                            color = colors.textMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    // Interactive Shield Status Capsule
+                    Box(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(
+                                if (blockedTrackersCount > 0) colors.statusSuccess.copy(alpha = 0.12f)
+                                else colors.surfaceElevated
+                            )
+                            .border(
+                                1.dp,
+                                if (blockedTrackersCount > 0) colors.statusSuccess.copy(alpha = 0.30f)
+                                else colors.border.copy(alpha = 0.5f),
+                                CircleShape
+                            )
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = false, radius = 24.dp, color = colors.statusSuccess),
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onDismiss()
+                                    onOpenShield()
+                                }
+                            )
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = "Azokle Shield, $blockedTrackersCount trackers blocked"
+                            }
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Security,
+                                contentDescription = null,
+                                tint = if (blockedTrackersCount > 0) colors.statusSuccess else colors.textMuted,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = if (blockedTrackersCount > 0) "$blockedTrackersCount blocked" else "Shield Active",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (blockedTrackersCount > 0) colors.statusSuccess else colors.textSecondary
+                            )
+                        }
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // 1. Top Quick Action Buttons Row (Share, Bookmark, Find in Page, Save PDF)
+            // 2. Primary Webpage Quick Actions (Reload, Share, Bookmark, Find, Desktop)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(AzokleRadius.xl)
                     .background(colors.cardBg)
-                    .border(1.dp, colors.border.copy(alpha = 0.6f), AzokleRadius.xl)
-                    .padding(vertical = 12.dp, horizontal = 12.dp),
+                    .border(1.dp, colors.border.copy(alpha = 0.45f), AzokleRadius.xl)
+                    .padding(vertical = 10.dp, horizontal = 4.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Reload
+                MenuActionPill(
+                    icon = Icons.Default.Refresh,
+                    label = "Reload",
+                    tint = colors.textPrimary,
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        onDismiss()
+                        onReload()
+                    }
+                )
+
                 // Share
-                QuickActionPill(
+                MenuActionPill(
                     icon = Icons.Default.Share,
                     label = "Share",
-                    tint = colors.textPrimary,
+                    tint = if (isWebpage) colors.textPrimary else null,
+                    enabled = isWebpage,
+                    modifier = Modifier.weight(1f),
                     onClick = {
                         onDismiss()
                         onShare()
@@ -185,10 +392,13 @@ fun BrowserMenuSheet(
                 )
 
                 // Bookmark
-                QuickActionPill(
+                MenuActionPill(
                     icon = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                     label = if (isBookmarked) "Saved" else "Bookmark",
                     tint = if (isBookmarked) colors.statusWarning else colors.textPrimary,
+                    isActive = isBookmarked,
+                    activeBorderColor = colors.statusWarning.copy(alpha = 0.5f),
+                    modifier = Modifier.weight(1f),
                     onClick = {
                         onToggleBookmark()
                         onDismiss()
@@ -196,205 +406,72 @@ fun BrowserMenuSheet(
                 )
 
                 // Find in Page
-                QuickActionPill(
+                MenuActionPill(
                     icon = Icons.Default.FindInPage,
                     label = "Find",
-                    tint = colors.textPrimary,
+                    tint = if (isWebpage) colors.textPrimary else null,
+                    enabled = isWebpage,
+                    modifier = Modifier.weight(1f),
                     onClick = {
                         onDismiss()
                         onOpenFindInPage()
                     }
                 )
 
-                // Save as PDF
-                QuickActionPill(
-                    icon = Icons.Default.Download,
-                    label = "Save PDF",
-                    tint = colors.textPrimary,
+                // Desktop Mode Toggle
+                MenuActionPill(
+                    icon = Icons.Default.Devices,
+                    label = "Desktop",
+                    tint = if (isDesktopMode) colors.actionPrimaryBg else colors.textPrimary,
+                    isActive = isDesktopMode && isWebpage,
+                    activeBorderColor = colors.actionPrimaryBg.copy(alpha = 0.5f),
+                    enabled = isWebpage,
+                    modifier = Modifier.weight(1f),
                     onClick = {
-                        onDismiss()
-                        onSaveAsPdf()
+                        onToggleDesktopMode()
                     }
                 )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 2. Webpage Controls Card (Desktop Site & Reader Mode & PWA)
-            if (isWebpage) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(AzokleRadius.lg)
-                        .background(colors.cardBg)
-                        .border(1.dp, colors.border.copy(alpha = 0.6f), AzokleRadius.lg)
-                ) {
-                    // Desktop Site Toggle Switch
+            // 3. Unified Browser Actions Grid (Seamless, clean, no cluttered category headers)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(AzokleRadius.xl)
+                    .background(colors.cardBg)
+                    .border(1.dp, colors.border.copy(alpha = 0.45f), AzokleRadius.xl)
+                    .padding(vertical = 12.dp, horizontal = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                menuActions.chunked(4).forEach { rowItems ->
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(bounded = true, color = colors.textPrimary.copy(alpha = 0.08f)),
-                                onClick = onToggleDesktopMode
-                            )
-                            .padding(horizontal = 16.dp, vertical = 10.dp)
-                            .semantics {
-                                role = Role.Switch
-                                contentDescription = "Desktop site, currently ${if (isDesktopMode) "enabled" else "disabled"}"
-                            },
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            MenuIconBadge(
-                                icon = Icons.Default.Devices,
-                                tint = colors.textPrimary
-                            )
-                            Spacer(modifier = Modifier.width(14.dp))
-                            Text(
-                                text = "Desktop Site",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = colors.textPrimary
+                        rowItems.forEach { item ->
+                            MenuActionPill(
+                                label = item.label,
+                                icon = item.icon,
+                                iconRes = item.iconRes,
+                                tint = item.tint,
+                                iconBg = item.iconBg,
+                                badgeText = item.badgeText,
+                                badgeColor = item.badgeColor,
+                                isDestructive = item.isDestructive,
+                                enabled = item.enabled,
+                                modifier = Modifier.weight(1f),
+                                onClick = item.onClick
                             )
                         }
-
-                        Switch(
-                            checked = isDesktopMode,
-                            onCheckedChange = { onToggleDesktopMode() },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = colors.statusAccent,
-                                uncheckedThumbColor = colors.textSecondary,
-                                uncheckedTrackColor = colors.surfaceElevated,
-                                uncheckedBorderColor = colors.border
-                            )
-                        )
-                    }
-
-                    HorizontalDivider(color = colors.border.copy(alpha = 0.5f), thickness = 0.5.dp)
-
-                    // Distraction-Free Reader Mode
-                    CleanMenuRow(
-                        icon = Icons.AutoMirrored.Filled.MenuBook,
-                        title = "Reader View",
-                        onClick = {
-                            onDismiss()
-                            onOpenReaderMode()
+                        // Fill remaining spaces in the row to maintain vertical column alignment
+                        repeat(4 - rowItems.size) {
+                            Spacer(modifier = Modifier.weight(1f))
                         }
-                    )
-
-                    // PWA Install (if available)
-                    if (pwaEligibility != null) {
-                        HorizontalDivider(color = colors.border.copy(alpha = 0.5f), thickness = 0.5.dp)
-                        CleanMenuRow(
-                            icon = Icons.Default.InstallMobile,
-                            title = "Add to Home Screen",
-                            onClick = {
-                                onDismiss()
-                                onInstallPwa()
-                            }
-                        )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // 3. Navigation & Library Card
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(AzokleRadius.lg)
-                    .background(colors.cardBg)
-                    .border(1.dp, colors.border.copy(alpha = 0.6f), AzokleRadius.lg)
-            ) {
-                // New Tor Window
-                CleanMenuRow(
-                    iconRes = R.drawable.ic_tor,
-                    title = "New Tor Window",
-                    titleColor = colors.statusTor,
-                    iconBg = colors.statusTor.copy(alpha = 0.14f),
-                    trailingTint = colors.statusTor,
-                    onClick = {
-                        onDismiss()
-                        onOpenTorWindow()
-                    }
-                )
-
-                HorizontalDivider(color = colors.border.copy(alpha = 0.5f), thickness = 0.5.dp)
-
-                // Bookmarks
-                CleanMenuRow(
-                    icon = Icons.Default.Star,
-                    title = "Bookmarks",
-                    onClick = {
-                        onDismiss()
-                        onOpenBookmarks()
-                    }
-                )
-
-                HorizontalDivider(color = colors.border.copy(alpha = 0.5f), thickness = 0.5.dp)
-
-                // History
-                CleanMenuRow(
-                    icon = Icons.Default.History,
-                    title = "History",
-                    onClick = {
-                        onDismiss()
-                        onOpenHistory()
-                    }
-                )
-
-                HorizontalDivider(color = colors.border.copy(alpha = 0.5f), thickness = 0.5.dp)
-
-                // Downloads
-                CleanMenuRow(
-                    icon = Icons.Default.Download,
-                    title = "Downloads",
-                    onClick = {
-                        onDismiss()
-                        onOpenDownloads()
-                    }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // 4. Settings & Burn Browsing Session Card
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(AzokleRadius.lg)
-                    .background(colors.cardBg)
-                    .border(1.dp, colors.border.copy(alpha = 0.6f), AzokleRadius.lg)
-            ) {
-                // Settings
-                CleanMenuRow(
-                    icon = Icons.Default.Settings,
-                    title = "Settings",
-                    onClick = {
-                        onDismiss()
-                        onOpenSettings()
-                    }
-                )
-
-                HorizontalDivider(color = colors.border.copy(alpha = 0.5f), thickness = 0.5.dp)
-
-                // Burn Browsing Session (Clean Destructive Item)
-                CleanMenuRow(
-                    icon = Icons.Default.LocalFireDepartment,
-                    title = "Burn Browsing Session",
-                    titleColor = colors.statusDestructive,
-                    iconTint = colors.statusDestructive,
-                    iconBg = colors.statusDestructive.copy(alpha = 0.12f),
-                    trailingTint = colors.statusDestructive,
-                    onClick = {
-                        onDismiss()
-                        onBurnData()
-                    }
-                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -403,27 +480,89 @@ fun BrowserMenuSheet(
 }
 
 /**
- * Sleek Top Quick Action Pill (Share, Bookmark, Find, PDF)
+ * Data representation of a browser menu action item
+ */
+private data class MenuActionItem(
+    val label: String,
+    val onClick: () -> Unit,
+    val icon: ImageVector? = null,
+    val iconRes: Int? = null,
+    val tint: Color? = null,
+    val iconBg: Color? = null,
+    val badgeText: String? = null,
+    val badgeColor: Color? = null,
+    val isDestructive: Boolean = false,
+    val enabled: Boolean = true
+)
+
+/**
+ * Compact Circular Menu Action Pill matching the ergonomic Quick Action style:
+ *  - 44dp circular icon container with subtle border & elevation
+ *  - Support for Vector icons, Drawable resource icons, badges, active states & destructive accents
+ *  - Single-line clear typography label underneath
+ *  - Haptic feedback and subtle ripple on touch
  */
 @Composable
-private fun QuickActionPill(
-    icon: ImageVector,
+private fun MenuActionPill(
     label: String,
-    tint: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    iconRes: Int? = null,
+    tint: Color? = null,
+    iconBg: Color? = null,
+    enabled: Boolean = true,
+    isActive: Boolean = false,
+    activeBorderColor: Color? = null,
+    badgeText: String? = null,
+    badgeColor: Color? = null,
+    isDestructive: Boolean = false
 ) {
     val colors = AzokleTheme.colors
+    val haptic = LocalHapticFeedback.current
+
+    val finalIconTint = when {
+        !enabled -> colors.textMuted.copy(alpha = 0.35f)
+        isDestructive -> colors.statusDestructive
+        isActive -> activeBorderColor ?: colors.actionPrimaryBg
+        tint != null -> tint
+        else -> colors.textPrimary
+    }
+
+    val finalPillBg = when {
+        !enabled -> colors.surfaceElevated.copy(alpha = 0.4f)
+        isDestructive -> colors.statusDestructive.copy(alpha = 0.12f)
+        isActive -> (activeBorderColor ?: colors.actionPrimaryBg).copy(alpha = 0.14f)
+        iconBg != null -> iconBg
+        else -> colors.surfaceElevated
+    }
+
+    val finalBorderColor = when {
+        !enabled -> colors.border.copy(alpha = 0.2f)
+        isDestructive -> colors.statusDestructive.copy(alpha = 0.35f)
+        isActive -> activeBorderColor ?: colors.actionPrimaryBg
+        iconBg != null -> (tint ?: colors.textPrimary).copy(alpha = 0.25f)
+        else -> colors.border.copy(alpha = 0.4f)
+    }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
+        modifier = modifier
             .clip(AzokleRadius.md)
             .clickable(
+                enabled = enabled,
                 interactionSource = remember { MutableInteractionSource() },
-                indication = ripple(bounded = false, radius = 24.dp, color = colors.textPrimary),
-                onClick = onClick
+                indication = ripple(
+                    bounded = false,
+                    radius = 24.dp,
+                    color = if (isDestructive) colors.statusDestructive else colors.textPrimary
+                ),
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onClick()
+                }
             )
-            .padding(horizontal = 10.dp, vertical = 4.dp)
+            .padding(horizontal = 2.dp, vertical = 4.dp)
             .semantics {
                 role = Role.Button
                 contentDescription = label
@@ -431,146 +570,64 @@ private fun QuickActionPill(
     ) {
         Box(
             modifier = Modifier
-                .size(42.dp)
+                .size(44.dp)
                 .clip(CircleShape)
-                .background(colors.surfaceElevated)
-                .border(0.5.dp, colors.border.copy(alpha = 0.4f), CircleShape),
+                .background(finalPillBg)
+                .border(
+                    width = if (isActive) 1.5.dp else 0.5.dp,
+                    color = finalBorderColor,
+                    shape = CircleShape
+                ),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-        Spacer(modifier = Modifier.height(5.dp))
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Medium,
-            color = colors.textSecondary
-        )
-    }
-}
-
-/**
- * Premium, Single-Line Menu Action Row with Leading Icon & Subtle Trailing Chevron
- */
-@Composable
-private fun CleanMenuRow(
-    title: String,
-    onClick: () -> Unit,
-    icon: ImageVector? = null,
-    iconRes: Int? = null,
-    iconText: String? = null,
-    titleColor: Color? = null,
-    iconTint: Color? = null,
-    iconBg: Color? = null,
-    trailingTint: Color? = null
-) {
-    val colors = AzokleTheme.colors
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = ripple(bounded = true, color = colors.textPrimary.copy(alpha = 0.08f)),
-                onClick = onClick
-            )
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-            .semantics {
-                role = Role.Button
-                contentDescription = title
-            },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f)
-        ) {
             if (iconRes != null) {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(AzokleRadius.sm)
-                        .background(iconBg ?: colors.surfaceElevated),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = iconRes),
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            } else if (iconText != null) {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(AzokleRadius.sm)
-                        .background(iconBg ?: colors.surfaceElevated),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = iconText, fontSize = 16.sp)
-                }
+                Image(
+                    painter = painterResource(id = iconRes),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
             } else if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = finalIconTint,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            if (!badgeText.isNullOrBlank()) {
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
-                        .clip(AzokleRadius.sm)
-                        .background(iconBg ?: colors.surfaceElevated),
-                    contentAlignment = Alignment.Center
+                        .align(Alignment.TopEnd)
+                        .padding(top = 1.dp, end = 1.dp)
+                        .clip(CircleShape)
+                        .background(badgeColor ?: colors.actionPrimaryBg)
+                        .padding(horizontal = 4.dp, vertical = 1.dp)
                 ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = iconTint ?: colors.textPrimary,
-                        modifier = Modifier.size(18.dp)
+                    Text(
+                        text = badgeText,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
                 }
             }
-            Spacer(modifier = Modifier.width(14.dp))
-            Text(
-                text = title,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = titleColor ?: colors.textPrimary
-            )
         }
 
-        Icon(
-            imageVector = Icons.Default.ChevronRight,
-            contentDescription = null,
-            tint = trailingTint ?: colors.textMuted.copy(alpha = 0.5f),
-            modifier = Modifier.size(18.dp)
-        )
-    }
-}
+        Spacer(modifier = Modifier.height(5.dp))
 
-/**
- * Rounded icon badge container for leading menu row icons
- */
-@Composable
-private fun MenuIconBadge(
-    icon: ImageVector,
-    tint: Color
-) {
-    val colors = AzokleTheme.colors
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .clip(AzokleRadius.sm)
-            .background(colors.surfaceElevated),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = tint,
-            modifier = Modifier.size(18.dp)
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
+            color = when {
+                !enabled -> colors.textMuted.copy(alpha = 0.35f)
+                isDestructive -> colors.statusDestructive
+                isActive -> colors.textPrimary
+                else -> colors.textSecondary
+            },
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

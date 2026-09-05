@@ -223,18 +223,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun openNewsArticle(url: String) {
-        if (url.isBlank()) return
-        if (url.contains("news.google.com")) {
-            viewModelScope.launch {
-                val directUrl = com.azokle.search.data.news.GoogleNewsUrlDecoder.resolveDirectUrl(url)
-                openInAppBrowser(directUrl)
-            }
-        } else {
-            openInAppBrowser(url)
-        }
-    }
-
     fun closeInAppBrowser() {
         _uiState.update {
             it.copy(

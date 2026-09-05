@@ -25,12 +25,14 @@ import com.azokle.search.browser.permissions.SitePermissionsManager
 import com.azokle.search.browser.media.GeckoMediaSessionBridge
 import com.azokle.search.browser.media.MediaPlaybackManager
 import com.azokle.search.browser.tabs.TabManager
+import com.azokle.search.browser.ui.BrowserCrashRecoverySurface
 import com.azokle.search.browser.ui.BrowserErrorType
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoSession.ProgressDelegate.SecurityInformation
 import org.mozilla.geckoview.GeckoSessionSettings
 import org.mozilla.geckoview.GeckoView
+import org.mozilla.geckoview.SlowScriptResponse
 
 data class DownloadConfirmationPayload(
     val url: String,
@@ -48,6 +50,7 @@ fun GeckoBrowserView(
     isDarkMode: Boolean = false,
     isPrivate: Boolean = false,
     isTor: Boolean = false,
+    isFullScreenMode: Boolean = false,
     onUrlChanged: (String) -> Unit,
     onTitleChanged: (String) -> Unit,
     onProgressChanged: (Int) -> Unit,
@@ -76,6 +79,8 @@ fun GeckoBrowserView(
         }
     }
     var lastLoadedUrl by remember { androidx.compose.runtime.mutableStateOf("") }
+    var isCrashed by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var isOomKill by remember { androidx.compose.runtime.mutableStateOf(false) }
 
     var isFirstDesktopEffect by remember { androidx.compose.runtime.mutableStateOf(true) }
     LaunchedEffect(isDesktopMode) {
@@ -97,7 +102,11 @@ fun GeckoBrowserView(
         }
     }
 
+    var swipeRefreshRef by remember { androidx.compose.runtime.mutableStateOf<GeckoSwipeRefreshLayout?>(null) }
+
     LaunchedEffect(tabId, url) {
+        swipeRefreshRef?.currentUrl = url
+        swipeRefreshRef?.resetGestureState()
         if (url.isNotBlank() && !url.equals("about:blank", ignoreCase = true) && !url.equals("about:home", ignoreCase = true)) {
             val isAlreadyLoaded = (tabId != null && TabManager.isTabLoaded(tabId, url))
             if (!isAlreadyLoaded) {
@@ -113,24 +122,41 @@ fun GeckoBrowserView(
         }
     }
 
-    var swipeRefreshRef by remember { androidx.compose.runtime.mutableStateOf<androidx.swiperefreshlayout.widget.SwipeRefreshLayout?>(null) }
+    LaunchedEffect(isFullScreenMode) {
+        swipeRefreshRef?.isFullScreen = isFullScreenMode
+    }
 
-    AndroidView(
+    androidx.compose.foundation.layout.Box(modifier = modifier.fillMaxSize()) {
+        AndroidView(
         factory = { ctx ->
-            val swipeRefresh = androidx.swiperefreshlayout.widget.SwipeRefreshLayout(ctx).apply {
+            val nativeBgColor = if (isDarkMode) android.graphics.Color.parseColor("#121212") else android.graphics.Color.parseColor("#FFFFFF")
+            val swipeRefresh = GeckoSwipeRefreshLayout(ctx).apply {
+                currentUrl = url
+                isFullScreen = isFullScreenMode
+                setBackgroundColor(nativeBgColor)
                 setColorSchemeColors(
                     android.graphics.Color.parseColor("#38BDF8"),
                     android.graphics.Color.parseColor("#818CF8"),
                     android.graphics.Color.parseColor("#C084FC")
                 )
                 setProgressBackgroundColorSchemeColor(
-                    if (isDarkMode) android.graphics.Color.parseColor("#18181B")
+                    if (isDarkMode) android.graphics.Color.parseColor("#27272A")
                     else android.graphics.Color.parseColor("#FFFFFF")
                 )
                 setOnRefreshListener {
+                    if (!canTriggerRefresh()) {
+                        isRefreshing = false
+                        return@setOnRefreshListener
+                    }
                     onLoadErrorChanged(null)
                     if (session.isOpen) {
-                        session.reload(GeckoSession.LOAD_FLAGS_BYPASS_CACHE)
+                        session.reload(GeckoSession.LOAD_FLAGS_NONE)
+                        // Safety timeout to prevent spinner from hanging indefinitely on stalled connections
+                        postDelayed({
+                            if (isRefreshing) {
+                                isRefreshing = false
+                            }
+                        }, 10000L)
                     } else {
                         isRefreshing = false
                     }
@@ -138,7 +164,11 @@ fun GeckoBrowserView(
             }
             swipeRefreshRef = swipeRefresh
 
-            val geckoView = GeckoView(ctx).apply {
+            val geckoView = NestedGeckoView(ctx).apply {
+                setBackgroundColor(nativeBgColor)
+                // Sovereign Anti-Flash: start invisible so no stale frame buffer is ever painted
+                visibility = android.view.View.INVISIBLE
+                alpha = 0f
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
@@ -187,18 +217,6 @@ fun GeckoBrowserView(
                         // 1. Block dangerous internal and privileged schemes (allow javascript for internal scripts)
                         if (scheme in setOf("file", "content", "chrome", "resource")) {
                             return org.mozilla.geckoview.GeckoResult.fromValue(org.mozilla.geckoview.AllowOrDeny.DENY)
-                        }
-
-                        // 1.5 Intercept & bypass Google News tracking redirect hops directly to publisher destination
-                        if (uriStr.contains("news.google.com/rss/articles/") || uriStr.contains("news.google.com/articles/")) {
-                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                                val directUrl = com.azokle.search.data.news.GoogleNewsUrlDecoder.resolveDirectUrl(uriStr)
-                                if (directUrl != uriStr && !directUrl.contains("news.google.com")) {
-                                    android.os.Handler(android.os.Looper.getMainLooper()).post {
-                                        session.loadUri(directUrl)
-                                    }
-                                }
-                            }
                         }
 
                         // 2. Standard web browsing, data/blob, and javascript schemes
@@ -287,6 +305,9 @@ fun GeckoBrowserView(
                                 }
                             }
                         }
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            swipeRefresh.isRefreshing = false
+                        }
                         onLoadErrorChanged(errorType)
                         return null
                     }
@@ -313,6 +334,17 @@ fun GeckoBrowserView(
                 // 3. Progress & Security Delegate
                 session.progressDelegate = object : GeckoSession.ProgressDelegate {
                     override fun onPageStart(session: GeckoSession, url: String) {
+                        swipeRefresh.isPageLoading = true
+                        swipeRefresh.currentUrl = url
+                        swipeRefresh.currentScrollY = 0
+                        swipeRefresh.isContentAtTop = true
+                        swipeRefresh.resetGestureState()
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            isCrashed = false
+                            isOomKill = false
+                            this@apply.visibility = android.view.View.INVISIBLE
+                            this@apply.alpha = 0f
+                        }
                         onLoadingChanged(true)
                         onProgressChanged(10)
                         onLoadErrorChanged(null)
@@ -329,11 +361,16 @@ fun GeckoBrowserView(
                     }
 
                     override fun onPageStop(session: GeckoSession, success: Boolean) {
-                        onLoadingChanged(false)
-                        onProgressChanged(100)
+                        swipeRefresh.isPageLoading = false
                         android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            if (this@apply.visibility != android.view.View.VISIBLE) {
+                                this@apply.visibility = android.view.View.VISIBLE
+                                this@apply.alpha = 1f
+                            }
                             swipeRefresh.isRefreshing = false
                         }
+                        onLoadingChanged(false)
+                        onProgressChanged(100)
 
                         if (success && !isPrivate && !isTor) {
                             val activeUrl = url.takeIf { it.isNotBlank() && (it.startsWith("http://", ignoreCase = true) || it.startsWith("https://", ignoreCase = true)) }
@@ -422,6 +459,19 @@ fun GeckoBrowserView(
                     }
 
                     override fun onProgressChange(session: GeckoSession, progress: Int) {
+                        if (progress >= 25) {
+                            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                if (this@apply.visibility != android.view.View.VISIBLE) {
+                                    this@apply.visibility = android.view.View.VISIBLE
+                                    this@apply.animate().alpha(1f).setDuration(120).start()
+                                }
+                            }
+                        }
+                        if (progress >= 100) {
+                            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                swipeRefresh.isRefreshing = false
+                            }
+                        }
                         onProgressChanged(progress)
                     }
 
@@ -450,6 +500,7 @@ fun GeckoBrowserView(
                     }
 
                     override fun onFullScreen(session: GeckoSession, fullScreen: Boolean) {
+                        swipeRefresh.isFullScreen = fullScreen
                         MediaPlaybackManager.updateFullscreenState(
                             tabId = session.hashCode().toString(),
                             isFullscreen = fullScreen,
@@ -538,38 +589,129 @@ fun GeckoBrowserView(
                         }
                     }
 
+                    private var crashCount = 0
+                    private var lastCrashTime = 0L
+
                     override fun onCrash(session: GeckoSession) {
-                        android.util.Log.w("GeckoBrowserView", "Gecko content process crashed, auto-recovering...")
+                        android.util.Log.w("GeckoBrowserView", "Gecko content process crashed.")
+                        val now = System.currentTimeMillis()
+                        if (now - lastCrashTime < 10000L) {
+                            crashCount++
+                        } else {
+                            crashCount = 1
+                        }
+                        lastCrashTime = now
+
                         android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            try {
-                                if (session.isOpen) {
-                                    session.reload(GeckoSession.LOAD_FLAGS_NONE)
+                            swipeRefresh.isRefreshing = false
+                            if (crashCount > 1) {
+                                isCrashed = true
+                                isOomKill = false
+                            } else {
+                                try {
+                                    if (session.isOpen) {
+                                        session.reload(GeckoSession.LOAD_FLAGS_NONE)
+                                    } else {
+                                        isCrashed = true
+                                        isOomKill = false
+                                    }
+                                } catch (e: Exception) {
+                                    isCrashed = true
+                                    isOomKill = false
                                 }
-                            } catch (e: Exception) {
-                                // Ignore
                             }
                         }
                     }
 
                     override fun onKill(session: GeckoSession) {
-                        android.util.Log.w("GeckoBrowserView", "Gecko content process killed by OS, auto-recovering...")
+                        android.util.Log.w("GeckoBrowserView", "Gecko content process killed by OS due to memory reclamation.")
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            swipeRefresh.isRefreshing = false
+                            isCrashed = true
+                            isOomKill = true
+                        }
+                    }
+
+                    override fun onSlowScript(
+                        session: GeckoSession,
+                        scriptFileName: String
+                    ): GeckoResult<SlowScriptResponse>? {
+                        android.util.Log.w("GeckoBrowserView", "Slow/hanging script detected: $scriptFileName, interrupting execution to prevent ANR")
+                        return GeckoResult.fromValue(SlowScriptResponse.STOP)
+                    }
+
+                    override fun onCloseRequest(session: GeckoSession) {
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            if (tabId != null) {
+                                TabManager.closeTab(tabId)
+                            }
+                        }
+                    }
+
+                    override fun onWebAppManifest(session: GeckoSession, manifest: org.json.JSONObject) {
                         android.os.Handler(android.os.Looper.getMainLooper()).post {
                             try {
-                                if (session.isOpen) {
-                                    session.reload(GeckoSession.LOAD_FLAGS_NONE)
+                                val activeTabId = tabId ?: "active"
+                                val name = manifest.optString("name", "").ifBlank { manifest.optString("short_name", "") }
+                                val startUrl = manifest.optString("start_url", "").takeIf { it.isNotBlank() }
+                                val themeColorStr = manifest.optString("theme_color", "").takeIf { it.isNotBlank() }
+                                val themeColor = themeColorStr?.let {
+                                    try { android.graphics.Color.parseColor(it) } catch (e: Exception) { null }
                                 }
+                                com.azokle.search.browser.pwa.PwaManager.onManifestDiscovered(
+                                    tabId = activeTabId,
+                                    manifestUrl = startUrl,
+                                    manifestJson = manifest.toString(),
+                                    documentUrl = url,
+                                    pageTitle = name,
+                                    fallbackFaviconUrl = null,
+                                    fallbackThemeColor = themeColor
+                                )
                             } catch (e: Exception) {
-                                // Ignore
+                                // Safe fallback
                             }
                         }
                     }
                 }
 
-                // 5. Scroll Delegate (Hides bottom bar when scrolling down and enables Pull-to-Refresh only at page top)
+                // 5. Scroll Delegate (Hides bottom bar when scrolling down and enables Pull-to-Refresh strictly at top)
                 session.scrollDelegate = object : GeckoSession.ScrollDelegate {
                     override fun onScrollChanged(session: GeckoSession, scrollX: Int, scrollY: Int) {
                         onScrollChanged(scrollX, scrollY)
-                        swipeRefresh.isEnabled = scrollY <= 0
+                        swipeRefresh.currentScrollY = scrollY
+                        swipeRefresh.isContentAtTop = scrollY <= 15
+                    }
+                }
+
+                // 5.1 History Delegate (Brave/Firefox-grade visit tracking, redirect filtering, and back/forward stack sync)
+                session.historyDelegate = object : GeckoSession.HistoryDelegate {
+                    override fun onVisited(
+                        session: GeckoSession,
+                        url: String,
+                        lastVisitedURL: String?,
+                        flags: Int
+                    ): org.mozilla.geckoview.GeckoResult<Boolean>? {
+                        val isRedirect = (flags and org.mozilla.geckoview.GeckoSession.HistoryDelegate.VISIT_REDIRECT_PERMANENT) != 0 ||
+                                (flags and org.mozilla.geckoview.GeckoSession.HistoryDelegate.VISIT_REDIRECT_TEMPORARY) != 0
+                        if (!isRedirect && url.isNotBlank() && !url.startsWith("about:", ignoreCase = true)) {
+                            com.azokle.search.browser.history.HistoryManager.recordVisit(
+                                url = url,
+                                title = "",
+                                isPrivate = isPrivate || isTor
+                            )
+                        }
+                        return org.mozilla.geckoview.GeckoResult.fromValue(true)
+                    }
+
+                    override fun onHistoryStateChange(
+                        session: GeckoSession,
+                        historyList: org.mozilla.geckoview.GeckoSession.HistoryDelegate.HistoryList
+                    ) {
+                        onCanGoBackChanged(historyList.currentIndex > 0)
+                        onCanGoForwardChanged(historyList.currentIndex < historyList.size - 1)
+                        if (tabId != null && historyList is org.mozilla.geckoview.GeckoSession.SessionState) {
+                            com.azokle.search.browser.tabs.TabManager.updateTabSessionState(tabId, historyList)
+                        }
                     }
                 }
 
@@ -759,38 +901,7 @@ fun GeckoBrowserView(
                     session.setFocused(true)
                 } catch (e: Exception) {}
 
-                var touchDownX = 0f
-                var touchDownY = 0f
-                setOnTouchListener { v, event ->
-                    when (event.actionMasked) {
-                        android.view.MotionEvent.ACTION_DOWN -> {
-                            touchDownX = event.x
-                            touchDownY = event.y
-                            // Disallow SwipeRefreshLayout from stealing touch while user is holding for long-press
-                            swipeRefresh.requestDisallowInterceptTouchEvent(true)
-                            if (!v.isFocused) {
-                                v.requestFocus()
-                            }
-                            if (session.isOpen) {
-                                try {
-                                    session.setFocused(true)
-                                } catch (e: Exception) {}
-                            }
-                        }
-                        android.view.MotionEvent.ACTION_MOVE -> {
-                            val dy = event.y - touchDownY
-                            val dx = Math.abs(event.x - touchDownX)
-                            // Only allow SwipeRefreshLayout to intercept if pulling down from the top with clear vertical swipe
-                            if (dy > 35 && dy > dx * 1.5f && swipeRefresh.isEnabled) {
-                                swipeRefresh.requestDisallowInterceptTouchEvent(false)
-                            }
-                        }
-                        android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
-                            swipeRefresh.requestDisallowInterceptTouchEvent(false)
-                        }
-                    }
-                    false
-                }
+                swipeRefresh.targetNestedGeckoView = this
 
                 onSessionReady(session, this)
             }
@@ -798,11 +909,18 @@ fun GeckoBrowserView(
             swipeRefresh.addView(geckoView)
             swipeRefresh
         },
+        update = { swipeRefresh ->
+            swipeRefresh.currentUrl = url
+            swipeRefresh.isFullScreen = isFullScreenMode
+        },
         onRelease = { swipeRefresh ->
             try {
+                swipeRefresh.targetNestedGeckoView = null
                 for (i in 0 until swipeRefresh.childCount) {
                     val child = swipeRefresh.getChildAt(i)
                     if (child is org.mozilla.geckoview.GeckoView) {
+                        child.visibility = android.view.View.INVISIBLE
+                        child.alpha = 0f
                         child.releaseSession()
                     }
                 }
@@ -810,6 +928,34 @@ fun GeckoBrowserView(
                 // Ignore transient release errors safely
             }
         },
-        modifier = modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize()
     )
+
+    if (isCrashed) {
+        BrowserCrashRecoverySurface(
+            isDarkMode = isDarkMode,
+            isOomKill = isOomKill,
+            onRestoreTab = {
+                isCrashed = false
+                isOomKill = false
+                try {
+                    if (session.isOpen) {
+                        session.reload(GeckoSession.LOAD_FLAGS_NONE)
+                    } else {
+                        session.open(runtime)
+                        session.loadUri(url)
+                    }
+                } catch (e: Exception) {
+                    // Safe reload fallback
+                }
+            },
+            onCloseTab = {
+                if (tabId != null) {
+                    TabManager.closeTab(tabId)
+                }
+            }
+        )
+    }
+    }
 }
+
