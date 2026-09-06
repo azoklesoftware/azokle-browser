@@ -57,6 +57,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -66,10 +74,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.SubcomposeAsyncImage
-import coil.request.ImageRequest
 import com.azokle.search.browser.history.HistoryItem
 import com.azokle.search.browser.history.HistoryManager
+import com.azokle.search.browser.ui.components.FaviconImage
 import com.azokle.search.ui.theme.AzokleRadius
 import com.azokle.search.ui.theme.AzokleTheme
 import com.azokle.search.ui.theme.adaptiveContentWidth
@@ -83,6 +90,18 @@ enum class HistoryFilter {
     ALL,
     PAGES,
     SEARCHES
+}
+
+enum class GroupPosition {
+    SINGLE,
+    FIRST,
+    MIDDLE,
+    LAST
+}
+
+sealed class HistoryUiModel {
+    data class Header(val title: String) : HistoryUiModel()
+    data class Entry(val item: HistoryItem, val position: GroupPosition) : HistoryUiModel()
 }
 
 @Composable
@@ -103,6 +122,13 @@ fun HistoryScreen(
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf(setOf<String>()) }
 
+    BackHandler(enabled = isSelectionMode) {
+        isSelectionMode = false
+        selectedIds = emptySet()
+    }
+
+    val timeFormatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
+
     // Filter & Search
     val filteredHistory = remember(historyList, searchQuery, selectedFilter) {
         historyList.filter { item ->
@@ -119,8 +145,8 @@ fun HistoryScreen(
         }
     }
 
-    // Grouping by Date
-    val groupedHistory = remember(filteredHistory) {
+    // Grouping by Date & Virtualized UI Models
+    val uiItems = remember(filteredHistory) {
         val todayStart = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
@@ -141,7 +167,22 @@ fun HistoryScreen(
             }
             groups.getOrPut(groupKey) { mutableListOf() }.add(item)
         }
-        groups
+
+        val result = ArrayList<HistoryUiModel>(filteredHistory.size + groups.size)
+        for ((dateGroup, items) in groups) {
+            result.add(HistoryUiModel.Header(dateGroup))
+            val size = items.size
+            items.forEachIndexed { index, item ->
+                val position = when {
+                    size == 1 -> GroupPosition.SINGLE
+                    index == 0 -> GroupPosition.FIRST
+                    index == size - 1 -> GroupPosition.LAST
+                    else -> GroupPosition.MIDDLE
+                }
+                result.add(HistoryUiModel.Entry(item, position))
+            }
+        }
+        result
     }
 
     Box(
@@ -491,67 +532,85 @@ fun HistoryScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                        .padding(horizontal = 16.dp)
                 ) {
-                    groupedHistory.forEach { (dateGroup, items) ->
-                        item {
-                            Column(modifier = Modifier.fillMaxWidth()) {
+                    items(
+                        items = uiItems,
+                        key = { model ->
+                            when (model) {
+                                is HistoryUiModel.Header -> "hdr_${model.title}"
+                                is HistoryUiModel.Entry -> model.item.id
+                            }
+                        },
+                        contentType = { model ->
+                            when (model) {
+                                is HistoryUiModel.Header -> 0
+                                is HistoryUiModel.Entry -> 1
+                            }
+                        }
+                    ) { model ->
+                        when (model) {
+                            is HistoryUiModel.Header -> {
                                 Text(
-                                    text = dateGroup.uppercase(),
+                                    text = model.title.uppercase(),
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold,
                                     color = colors.textMuted,
                                     letterSpacing = 0.8.sp,
-                                    modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+                                    modifier = Modifier.padding(start = 4.dp, top = 16.dp, bottom = 6.dp)
                                 )
-
-                                // Grouped Card Container
-                                val groupShape = AzokleRadius.lg
+                            }
+                            is HistoryUiModel.Entry -> {
+                                val item = model.item
+                                val isSelected = selectedIds.contains(item.id)
+                                val shape = when (model.position) {
+                                    GroupPosition.SINGLE -> AzokleRadius.lg
+                                    GroupPosition.FIRST -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                                    GroupPosition.MIDDLE -> RoundedCornerShape(0.dp)
+                                    GroupPosition.LAST -> RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+                                }
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clip(groupShape)
+                                        .clip(shape)
                                         .background(colors.cardBg)
-                                        .border(1.dp, colors.border, groupShape)
+                                        .historyCardBorder(model.position, colors.border)
                                 ) {
-                                    items.forEachIndexed { index, item ->
-                                        val isSelected = selectedIds.contains(item.id)
-                                        HistoryGroupedRow(
-                                            item = item,
-                                            isSelectionMode = isSelectionMode,
-                                            isSelected = isSelected,
-                                            colors = colors,
-                                            onClick = {
-                                                if (isSelectionMode) {
-                                                    selectedIds = if (isSelected) selectedIds - item.id else selectedIds + item.id
+                                    HistoryGroupedRow(
+                                        item = item,
+                                        isSelectionMode = isSelectionMode,
+                                        isSelected = isSelected,
+                                        timeFormatter = timeFormatter,
+                                        colors = colors,
+                                        onClick = {
+                                            if (isSelectionMode) {
+                                                selectedIds = if (isSelected) selectedIds - item.id else selectedIds + item.id
+                                            } else {
+                                                if (item.isSearch && item.searchQuery != null) {
+                                                    onHistoryQueryClick(item.searchQuery)
+                                                } else if (onOpenUrl != null) {
+                                                    onOpenUrl(item.url)
                                                 } else {
-                                                    if (item.isSearch && item.searchQuery != null) {
-                                                        onHistoryQueryClick(item.searchQuery)
-                                                    } else if (onOpenUrl != null) {
-                                                        onOpenUrl(item.url)
-                                                    } else {
-                                                        onHistoryQueryClick(item.url)
-                                                    }
+                                                    onHistoryQueryClick(item.url)
                                                 }
-                                            },
-                                            onLongClick = {
-                                                isSelectionMode = true
-                                                selectedIds = selectedIds + item.id
-                                            },
-                                            onDelete = {
-                                                HistoryManager.deleteEntry(item.id)
                                             }
-                                        )
-
-                                        if (index < items.size - 1) {
-                                            HorizontalDivider(
-                                                color = colors.border.copy(alpha = 0.5f),
-                                                thickness = 0.5.dp,
-                                                modifier = Modifier.padding(start = 56.dp)
-                                            )
+                                        },
+                                        onLongClick = {
+                                            isSelectionMode = true
+                                            selectedIds = selectedIds + item.id
+                                        },
+                                        onDelete = {
+                                            HistoryManager.deleteEntry(item.id)
                                         }
+                                    )
+
+                                    if (model.position == GroupPosition.FIRST || model.position == GroupPosition.MIDDLE) {
+                                        HorizontalDivider(
+                                            color = colors.border.copy(alpha = 0.5f),
+                                            thickness = 0.5.dp,
+                                            modifier = Modifier.padding(start = 56.dp)
+                                        )
                                     }
                                 }
                             }
@@ -601,27 +660,28 @@ fun HistoryScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun HistoryGroupedRow(
     item: HistoryItem,
     isSelectionMode: Boolean,
     isSelected: Boolean,
+    timeFormatter: SimpleDateFormat,
     colors: com.azokle.search.ui.theme.AzokleThemeColors,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val timeFormatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .sizeIn(minHeight = 54.dp)
             .background(if (isSelected) colors.actionPrimaryBg.copy(alpha = 0.08f) else Color.Transparent)
-            .clickable(
+            .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = ripple(color = colors.textPrimary.copy(alpha = 0.06f)),
-                onClick = onClick
+                onClick = onClick,
+                onLongClick = onLongClick
             )
             .padding(horizontal = 14.dp, vertical = 10.dp)
             .semantics {
@@ -668,34 +728,10 @@ private fun HistoryGroupedRow(
                     modifier = Modifier.size(16.dp)
                 )
             } else {
-                SubcomposeAsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(item.faviconUrl)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = item.cleanHost,
-                    modifier = Modifier
-                        .size(18.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Fit,
-                    loading = {
-                        Text(
-                            text = item.cleanHost.take(1).uppercase().ifBlank { "W" },
-                            color = colors.textPrimary,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    },
-                    error = {
-                        Text(
-                            text = item.cleanHost.take(1).uppercase().ifBlank { "W" },
-                            color = colors.textPrimary,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
+                FaviconImage(
+                    url = item.url,
+                    faviconUrl = item.faviconUrl,
+                    size = 18.dp
                 )
             }
         }
@@ -768,5 +804,63 @@ private fun HistoryGroupedRow(
                 )
             }
         }
+    }
+}
+
+private fun Modifier.historyCardBorder(position: GroupPosition, borderColor: Color): Modifier = when (position) {
+    GroupPosition.SINGLE -> this.border(1.dp, borderColor, AzokleRadius.lg)
+    GroupPosition.FIRST -> this.drawBehind {
+        val strokeWidth = 1.dp.toPx()
+        val halfStroke = strokeWidth / 2f
+        val cornerRadius = 16.dp.toPx()
+        val path = Path().apply {
+            moveTo(halfStroke, size.height)
+            lineTo(halfStroke, cornerRadius + halfStroke)
+            arcTo(
+                rect = Rect(halfStroke, halfStroke, halfStroke + cornerRadius * 2, halfStroke + cornerRadius * 2),
+                startAngleDegrees = 180f,
+                sweepAngleDegrees = 90f,
+                forceMoveTo = false
+            )
+            lineTo(size.width - halfStroke - cornerRadius, halfStroke)
+            arcTo(
+                rect = Rect(size.width - halfStroke - cornerRadius * 2, halfStroke, size.width - halfStroke, halfStroke + cornerRadius * 2),
+                startAngleDegrees = 270f,
+                sweepAngleDegrees = 90f,
+                forceMoveTo = false
+            )
+            lineTo(size.width - halfStroke, size.height)
+        }
+        drawPath(path, color = borderColor, style = Stroke(width = strokeWidth))
+    }
+    GroupPosition.MIDDLE -> this.drawBehind {
+        val strokeWidth = 1.dp.toPx()
+        val halfStroke = strokeWidth / 2f
+        drawLine(borderColor, Offset(halfStroke, 0f), Offset(halfStroke, size.height), strokeWidth)
+        drawLine(borderColor, Offset(size.width - halfStroke, 0f), Offset(size.width - halfStroke, size.height), strokeWidth)
+    }
+    GroupPosition.LAST -> this.drawBehind {
+        val strokeWidth = 1.dp.toPx()
+        val halfStroke = strokeWidth / 2f
+        val cornerRadius = 16.dp.toPx()
+        val path = Path().apply {
+            moveTo(halfStroke, 0f)
+            lineTo(halfStroke, size.height - halfStroke - cornerRadius)
+            arcTo(
+                rect = Rect(halfStroke, size.height - halfStroke - cornerRadius * 2, halfStroke + cornerRadius * 2, size.height - halfStroke),
+                startAngleDegrees = 180f,
+                sweepAngleDegrees = -90f,
+                forceMoveTo = false
+            )
+            lineTo(size.width - halfStroke - cornerRadius, size.height - halfStroke)
+            arcTo(
+                rect = Rect(size.width - halfStroke - cornerRadius * 2, size.height - halfStroke - cornerRadius * 2, size.width - halfStroke, size.height - halfStroke),
+                startAngleDegrees = 90f,
+                sweepAngleDegrees = -90f,
+                forceMoveTo = false
+            )
+            lineTo(size.width - halfStroke, 0f)
+        }
+        drawPath(path, color = borderColor, style = Stroke(width = strokeWidth))
     }
 }

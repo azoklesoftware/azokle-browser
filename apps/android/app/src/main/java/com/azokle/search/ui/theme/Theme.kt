@@ -62,16 +62,17 @@ fun AzokleSearchTheme(
 
     val view = LocalView.current
     if (!view.isInEditMode) {
-        SideEffect {
+        androidx.compose.runtime.DisposableEffect(isDark) {
             val activity = view.context.findActivity()
             if (activity is com.azokle.search.MainActivity) {
                 activity.updateSystemBars(isDark)
             } else if (activity != null) {
                 val window = activity.window
-                val controller = WindowCompat.getInsetsController(window, window.decorView)
+                val controller = WindowCompat.getInsetsController(window, view)
                 controller.isAppearanceLightStatusBars = !isDark
                 controller.isAppearanceLightNavigationBars = !isDark
             }
+            onDispose {}
         }
     }
 

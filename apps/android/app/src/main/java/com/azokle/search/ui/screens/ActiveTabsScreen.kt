@@ -73,7 +73,10 @@ import com.azokle.search.R
 import com.azokle.search.browser.ui.components.FaviconImage
 import com.azokle.search.ui.theme.AudiowideFontFamily
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -174,7 +177,7 @@ fun ActiveTabsScreen(
             TourStep(
                 id = "tabs_new_hub",
                 title = "Open New Tabs (+)",
-                description = "Tap this plus button anytime to open a new tab, a private tab, a Tor window, or create a tab group.",
+                description = "Tap this plus button to quickly open a tab in your current mode, or tap the three dots for more options.",
                 shape = TourShape.CIRCLE,
                 paddingDp = 6f
             )
@@ -220,7 +223,7 @@ fun ActiveTabsScreen(
     var undoSnackbarJob by remember { mutableStateOf<Job?>(null) }
     var expandedGroup by remember { mutableStateOf<TabGroup?>(null) }
     var showCloseAllDialog by remember { mutableStateOf(false) }
-    var showNewTabMenu by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
     var showCreateGroupDialog by remember { mutableStateOf(false) }
 
     val standardCount = remember(tabs) { tabs.count { !it.isPrivate && !it.isTor } }
@@ -277,9 +280,9 @@ fun ActiveTabsScreen(
         displayTabs.filter { !groupedTabIds.contains(it.id) && (it.groupId == null || !allActiveGroupIds.contains(it.groupId)) }
     }
 
-    BackHandler(enabled = showNewTabMenu || tabsTourState.isVisible || expandedGroup != null || onClose != null) {
-        if (showNewTabMenu) {
-            showNewTabMenu = false
+    BackHandler(enabled = showOverflowMenu || tabsTourState.isVisible || expandedGroup != null || onClose != null) {
+        if (showOverflowMenu) {
+            showOverflowMenu = false
         } else if (tabsTourState.isVisible) {
             tabsTourState.skip()
         } else if (expandedGroup != null) {
@@ -803,15 +806,18 @@ fun ActiveTabsScreen(
             )
         }
 
-        // 5. Bottom Area Centered Floating Action Button (+)
+        // 5. Bottom Action Area (Centered FAB (+) and Right-Anchored Overflow 3-dots Menu)
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(bottom = 18.dp)
+                .padding(start = 24.dp, end = 24.dp, bottom = 18.dp)
         ) {
+            // Centered + Action Button (Opens tab directly in the active category)
             Box(
                 modifier = Modifier
+                    .align(Alignment.Center)
                     .tourTarget(tabsTourSteps[3], tabsTourState)
                     .size(56.dp)
                     .shadow(
@@ -826,11 +832,29 @@ fun ActiveTabsScreen(
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = ripple(bounded = true, color = colors.actionPrimaryText.copy(alpha = 0.35f)),
-                        onClick = { showNewTabMenu = true }
+                        onClick = {
+                            when (selectedCategory) {
+                                TabCategory.STANDARD -> onNewTabClick()
+                                TabCategory.PRIVATE -> {
+                                    val newId = TabManager.openTab("", "Private Tab", isPrivate = true)
+                                    val newTab = TabManager.tabs.value.find { it.id == newId }
+                                    if (newTab != null) onTabSelected(newTab)
+                                }
+                                TabCategory.TOR -> {
+                                    val newId = TabManager.openTorTab(context, "about:tor", "Tor Window")
+                                    val newTab = TabManager.tabs.value.find { it.id == newId }
+                                    if (newTab != null) onTabSelected(newTab)
+                                }
+                            }
+                        }
                     )
                     .semantics {
                         role = Role.Button
-                        contentDescription = "New Tab Options"
+                        contentDescription = when (selectedCategory) {
+                            TabCategory.STANDARD -> "New Tab"
+                            TabCategory.PRIVATE -> "New Private Tab"
+                            TabCategory.TOR -> "New Tor Window"
+                        }
                     },
                 contentAlignment = Alignment.Center
             ) {
@@ -841,65 +865,153 @@ fun ActiveTabsScreen(
                     modifier = Modifier.size(28.dp)
                 )
             }
-        }
 
-        // 6. Instant In-Composition New Tab Options Sheet (Zero WindowManager IPC, Zero Surface Sync Lag)
-        AnimatedVisibility(
-            visible = showNewTabMenu,
-            enter = fadeIn(tween(140)),
-            exit = fadeOut(tween(140))
-        ) {
+            // Right-Anchored 3-Dots Button with Overflow Menu
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.55f))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { showNewTabMenu = false }
+                modifier = Modifier.align(Alignment.CenterEnd)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .shadow(
+                            elevation = 8.dp,
+                            shape = CircleShape,
+                            ambientColor = Color.Black.copy(alpha = 0.35f),
+                            spotColor = Color.Black.copy(alpha = 0.25f)
+                        )
+                        .clip(CircleShape)
+                        .background(colors.cardBg)
+                        .border(1.dp, colors.border, CircleShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple(bounded = true, color = colors.textPrimary.copy(alpha = 0.25f)),
+                            onClick = { showOverflowMenu = true }
+                        )
+                        .semantics {
+                            role = Role.Button
+                            contentDescription = "More Tab Options"
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = null,
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(24.dp)
                     )
-            )
-        }
-
-        AnimatedVisibility(
-            visible = showNewTabMenu,
-            enter = slideInVertically(
-                initialOffsetY = { it },
-                animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioNoBouncy)
-            ),
-            exit = slideOutVertically(
-                targetOffsetY = { it },
-                animationSpec = tween(180)
-            ),
-            modifier = Modifier.align(Alignment.BottomCenter)
-        ) {
-            NewTabOptionsPanel(
-                colors = colors,
-                onDismiss = { showNewTabMenu = false },
-                onNewStandardTab = {
-                    showNewTabMenu = false
-                    selectedCategory = TabCategory.STANDARD
-                    onNewTabClick()
-                },
-                onNewPrivateTab = {
-                    showNewTabMenu = false
-                    selectedCategory = TabCategory.PRIVATE
-                    val newId = TabManager.openTab("", "Private Tab", isPrivate = true)
-                    val newTab = TabManager.tabs.value.find { it.id == newId }
-                    if (newTab != null) onTabSelected(newTab)
-                },
-                onNewTorWindow = {
-                    showNewTabMenu = false
-                    selectedCategory = TabCategory.TOR
-                    val newId = TabManager.openTorTab(context, "about:tor", "Tor Window")
-                    val newTab = TabManager.tabs.value.find { it.id == newId }
-                    if (newTab != null) onTabSelected(newTab)
-                },
-                onNewTabGroup = {
-                    showNewTabMenu = false
-                    showCreateGroupDialog = true
                 }
-            )
+
+                DropdownMenu(
+                    expanded = showOverflowMenu,
+                    onDismissRequest = { showOverflowMenu = false },
+                    modifier = Modifier
+                        .background(colors.modalBg)
+                        .border(1.dp, colors.border, RoundedCornerShape(16.dp)),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    // 1. New Tab
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "New Tab",
+                                color = colors.textPrimary,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 14.sp
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                tint = colors.actionPrimaryBg,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        onClick = {
+                            showOverflowMenu = false
+                            selectedCategory = TabCategory.STANDARD
+                            onNewTabClick()
+                        }
+                    )
+
+                    // 2. New Group Tab
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "New Group Tab",
+                                color = colors.textPrimary,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 14.sp
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.CreateNewFolder,
+                                contentDescription = null,
+                                tint = Color(0xFF10B981),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        onClick = {
+                            showOverflowMenu = false
+                            showCreateGroupDialog = true
+                        }
+                    )
+
+                    // 3. New Private Tab
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "New Private Tab",
+                                color = colors.textPrimary,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 14.sp
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.VisibilityOff,
+                                contentDescription = null,
+                                tint = Color(0xFFA855F7),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        onClick = {
+                            showOverflowMenu = false
+                            selectedCategory = TabCategory.PRIVATE
+                            val newId = TabManager.openTab("", "Private Tab", isPrivate = true)
+                            val newTab = TabManager.tabs.value.find { it.id == newId }
+                            if (newTab != null) onTabSelected(newTab)
+                        }
+                    )
+
+                    // 4. New Tor Window
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "New Tor Window",
+                                color = colors.textPrimary,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 14.sp
+                            )
+                        },
+                        leadingIcon = {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_tor),
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        onClick = {
+                            showOverflowMenu = false
+                            selectedCategory = TabCategory.TOR
+                            val newId = TabManager.openTorTab(context, "about:tor", "Tor Window")
+                            val newTab = TabManager.tabs.value.find { it.id == newId }
+                            if (newTab != null) onTabSelected(newTab)
+                        }
+                    )
+                }
+            }
         }
 
         // 7. Create Tab Group Modal Dialog
@@ -1555,219 +1667,4 @@ private fun CreateTabGroupDialog(
             }
         }
     )
-}
-
-@Composable
-private fun NewTabOptionsPanel(
-    colors: com.azokle.search.ui.theme.AzokleThemeColors,
-    onDismiss: () -> Unit,
-    onNewStandardTab: () -> Unit,
-    onNewPrivateTab: () -> Unit,
-    onNewTorWindow: () -> Unit,
-    onNewTabGroup: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-            .background(colors.modalBg)
-            .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 12.dp)
-            .padding(bottom = 16.dp)
-    ) {
-        // Drag Indicator Handle
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .padding(bottom = 12.dp)
-                .width(36.dp)
-                .height(4.dp)
-                .clip(CircleShape)
-                .background(colors.border)
-        )
-
-        // Header Row
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "New Tab",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.textPrimary
-                )
-                Text(
-                    text = "Choose browsing mode or workspace",
-                    fontSize = 12.sp,
-                    color = colors.textMuted
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(colors.cardBg)
-                    .border(1.dp, colors.border, CircleShape)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(bounded = true, color = colors.textPrimary),
-                        onClick = onDismiss
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Close",
-                    tint = colors.textSecondary,
-                    modifier = Modifier.size(15.dp)
-                )
-            }
-        }
-
-        // Options List
-        Column(
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            // 1. New Standard Tab
-            NewTabOptionItem(
-                title = "New Tab",
-                subtitle = "Fast sovereign search & browsing",
-                iconColor = colors.actionPrimaryBg,
-                iconBgColor = colors.actionPrimaryBg.copy(alpha = 0.15f),
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = null,
-                        tint = colors.actionPrimaryBg,
-                        modifier = Modifier.size(20.dp)
-                    )
-                },
-                colors = colors,
-                onClick = onNewStandardTab
-            )
-
-            // 2. New Private Tab
-            NewTabOptionItem(
-                title = "New Private Tab",
-                subtitle = "Zero history, cookies, or telemetry",
-                iconColor = Color(0xFFA855F7),
-                iconBgColor = Color(0xFFA855F7).copy(alpha = 0.15f),
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.VisibilityOff,
-                        contentDescription = null,
-                        tint = Color(0xFFA855F7),
-                        modifier = Modifier.size(20.dp)
-                    )
-                },
-                colors = colors,
-                onClick = onNewPrivateTab
-            )
-
-            // 3. New Tor Window
-            NewTabOptionItem(
-                title = "New Tor Window",
-                subtitle = "3-hop onion encrypted anonymity",
-                iconColor = Color(0xFF8B5CF6),
-                iconBgColor = Color(0xFF8B5CF6).copy(alpha = 0.15f),
-                icon = {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_tor),
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                },
-                colors = colors,
-                onClick = onNewTorWindow
-            )
-
-            // 4. New Tab Group
-            NewTabOptionItem(
-                title = "New Tab Group",
-                subtitle = "Organize tabs in a workspace folder",
-                iconColor = Color(0xFF10B981),
-                iconBgColor = Color(0xFF10B981).copy(alpha = 0.15f),
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.CreateNewFolder,
-                        contentDescription = null,
-                        tint = Color(0xFF10B981),
-                        modifier = Modifier.size(20.dp)
-                    )
-                },
-                colors = colors,
-                onClick = onNewTabGroup
-            )
-        }
-    }
-}
-
-@Composable
-private fun NewTabOptionItem(
-    title: String,
-    subtitle: String,
-    iconColor: Color,
-    iconBgColor: Color,
-    icon: @Composable () -> Unit,
-    colors: com.azokle.search.ui.theme.AzokleThemeColors,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(colors.cardBg)
-            .border(1.dp, colors.border, RoundedCornerShape(16.dp))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = ripple(bounded = true, color = iconColor.copy(alpha = 0.2f)),
-                onClick = onClick
-            )
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(iconBgColor)
-                .border(0.8.dp, iconColor.copy(alpha = 0.3f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            icon()
-        }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontSize = 14.5.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = colors.textPrimary
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                fontSize = 11.5.sp,
-                color = colors.textMuted,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        Icon(
-            imageVector = Icons.Default.ChevronRight,
-            contentDescription = null,
-            tint = colors.textMuted.copy(alpha = 0.5f),
-            modifier = Modifier.size(18.dp)
-        )
-    }
 }

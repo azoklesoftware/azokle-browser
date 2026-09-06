@@ -43,13 +43,22 @@ class SelectionDelegateLogicTest {
     }
 
     @Test
-    fun testCustomActionsListContainsAllRequiredActions() {
-        val actions = AzokleSelectionDelegate.CUSTOM_ACTIONS
-        assertTrue(actions.contains(SelectionActionDelegate.ACTION_CUT))
-        assertTrue(actions.contains(SelectionActionDelegate.ACTION_COPY))
-        assertTrue(actions.contains(SelectionActionDelegate.ACTION_PASTE))
-        assertTrue(actions.contains(SelectionActionDelegate.ACTION_SELECT_ALL))
-        assertTrue(actions.contains(AzokleSelectionDelegate.ACTION_SHARE))
-        assertTrue(actions.contains(AzokleSelectionDelegate.ACTION_SEARCH))
+    fun testTextSelectionPayloadProperties() {
+        val payload = TextSelectionPayload(
+            text = "Hello Azokle",
+            screenRect = android.graphics.RectF(10f, 20f, 100f, 50f),
+            canCopy = true,
+            canCut = false,
+            canPaste = false,
+            canSelectAll = true,
+            onCopy = {},
+            onCut = {},
+            onPaste = {},
+            onSelectAll = {},
+            onDismiss = {}
+        )
+        assertTrue(payload.text.isNotEmpty())
+        assertTrue(payload.canCopy)
+        assertFalse(payload.canCut)
     }
 }

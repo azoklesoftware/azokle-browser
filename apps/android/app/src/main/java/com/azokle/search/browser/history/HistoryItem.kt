@@ -9,24 +9,32 @@ data class HistoryItem(
     val isSearch: Boolean = false,
     val searchQuery: String? = null
 ) {
-    val cleanHost: String
-        get() {
-            return try {
-                val uri = android.net.Uri.parse(url)
-                val host = uri.host ?: url
-                host.removePrefix("www.")
-            } catch (e: Exception) {
-                url
+    val cleanHost: String = run {
+        try {
+            val jHost = java.net.URI(url).host
+            if (!jHost.isNullOrBlank()) {
+                return@run jHost.removePrefix("www.")
             }
-        }
+        } catch (_: Exception) {}
 
-    val displayTitle: String
-        get() {
-            if (isSearch && !searchQuery.isNullOrBlank()) return searchQuery
-            if (title.isNotBlank()) return title
-            return cleanHost
-        }
+        try {
+            val aHost = android.net.Uri.parse(url).host
+            if (!aHost.isNullOrBlank()) {
+                return@run aHost.removePrefix("www.")
+            }
+        } catch (_: Exception) {}
 
-    val faviconUrl: String
-        get() = "https://icons.duckduckgo.com/ip3/$cleanHost.ico"
+        val stripped = url.substringAfter("://", url).substringBefore('/').substringBefore(':')
+        stripped.removePrefix("www.").ifBlank { url }
+    }
+
+    val displayTitle: String = if (isSearch && !searchQuery.isNullOrBlank()) {
+        searchQuery
+    } else if (title.isNotBlank()) {
+        title
+    } else {
+        cleanHost
+    }
+
+    val faviconUrl: String = "https://icons.duckduckgo.com/ip3/$cleanHost.ico"
 }

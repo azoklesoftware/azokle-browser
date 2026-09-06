@@ -524,7 +524,9 @@ fun BrowserScreen(
         }
     }
 
-    DisposableEffect(isFullScreenMode) {
+    val colors = com.azokle.search.ui.theme.AzokleTheme.colors
+
+    DisposableEffect(isFullScreenMode, colors.isDark) {
         val activity = context as? android.app.Activity
         val window = activity?.window
         if (window != null) {
@@ -534,6 +536,8 @@ fun BrowserScreen(
                 insetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             } else {
                 insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+                insetsController.isAppearanceLightStatusBars = !colors.isDark
+                insetsController.isAppearanceLightNavigationBars = !colors.isDark
             }
         }
         onDispose {
@@ -542,11 +546,11 @@ fun BrowserScreen(
             if (window != null) {
                 val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
                 insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+                insetsController.isAppearanceLightStatusBars = !colors.isDark
+                insetsController.isAppearanceLightNavigationBars = !colors.isDark
             }
         }
     }
-
-    val colors = com.azokle.search.ui.theme.AzokleTheme.colors
 
     Box(
         modifier = modifier

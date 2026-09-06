@@ -123,31 +123,29 @@ class MainActivity : FragmentActivity() {
         currentConfig = Configuration(newConfig)
         val prefs = PreferencesManager(this)
         val savedTheme = prefs.getThemeMode().lowercase()
-        if (savedTheme == "system") {
-            val isDark = (newConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-            updateSystemBars(isDark)
+        val isDark = when (savedTheme) {
+            "dark" -> true
+            "light" -> false
+            else -> (newConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         }
+        updateSystemBars(isDark)
     }
 
     fun updateSystemBars(isDark: Boolean) {
         enableEdgeToEdge(
-            statusBarStyle = if (isDark) {
-                SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
-            } else {
-                SystemBarStyle.light(
-                    android.graphics.Color.TRANSPARENT,
-                    android.graphics.Color.TRANSPARENT
-                )
-            },
-            navigationBarStyle = if (isDark) {
-                SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
-            } else {
-                SystemBarStyle.light(
-                    android.graphics.Color.TRANSPARENT,
-                    android.graphics.Color.TRANSPARENT
-                )
-            }
+            statusBarStyle = SystemBarStyle.auto(
+                android.graphics.Color.TRANSPARENT,
+                android.graphics.Color.TRANSPARENT
+            ) { isDark },
+            navigationBarStyle = SystemBarStyle.auto(
+                android.graphics.Color.TRANSPARENT,
+                android.graphics.Color.TRANSPARENT
+            ) { isDark }
         )
+
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.isAppearanceLightStatusBars = !isDark
+        insetsController.isAppearanceLightNavigationBars = !isDark
 
         // API 30+ explicit system bar appearance (for Motorola Hello UI / AOSP Android 11-15+)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
@@ -161,22 +159,18 @@ class MainActivity : FragmentActivity() {
                 android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
                 android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
             )
-        }
-
-        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
-        insetsController.isAppearanceLightStatusBars = !isDark
-        insetsController.isAppearanceLightNavigationBars = !isDark
-
-        // Legacy compatibility for OEM manufacturer skins (e.g. Motorola / API 26-29)
-        @Suppress("DEPRECATION")
-        if (!isDark) {
-            window.decorView.systemUiVisibility = window.decorView.systemUiVisibility or
-                android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or
-                android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         } else {
-            window.decorView.systemUiVisibility = window.decorView.systemUiVisibility and
-                android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv() and
-                android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+            // Legacy compatibility strictly for OEM manufacturer skins on API 26-29
+            @Suppress("DEPRECATION")
+            if (!isDark) {
+                window.decorView.systemUiVisibility = window.decorView.systemUiVisibility or
+                    android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or
+                    android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+            } else {
+                window.decorView.systemUiVisibility = window.decorView.systemUiVisibility and
+                    android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv() and
+                    android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+            }
         }
     }
 
@@ -207,11 +201,13 @@ class MainActivity : FragmentActivity() {
                 alphaAnimator.addListener(object : android.animation.AnimatorListenerAdapter() {
                     override fun onAnimationEnd(animation: android.animation.Animator) {
                         splashScreenViewProvider.remove()
+                        updateSystemBars(isInitialDark)
                     }
                 })
                 alphaAnimator.start()
             } catch (e: Throwable) {
                 splashScreenViewProvider.remove()
+                updateSystemBars(isInitialDark)
             }
         }
 

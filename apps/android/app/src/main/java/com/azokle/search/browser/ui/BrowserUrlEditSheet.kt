@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,7 +36,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowOutward
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Language
@@ -45,7 +43,6 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.NorthWest
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -394,66 +391,9 @@ fun BrowserUrlEditSheet(
                 }
             }
 
-            // 2. Micro-Glassmorphism Action Pills
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Paste & Go
-                item {
-                    QuickActionChip(
-                        icon = Icons.Default.ContentPaste,
-                        label = "Paste & Go",
-                        colors = colors,
-                        onClick = {
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                            val clip = clipboard?.primaryClip?.getItemAt(0)?.text?.toString()
-                            if (!clip.isNullOrBlank()) {
-                                val target = resolveTarget(clip)
-                                preferences.saveRecentSearch(clip.trim())
-                                onNavigate(target)
-                            }
-                        }
-                    )
-                }
+            Spacer(modifier = Modifier.height(6.dp))
 
-                // Copy URL
-                item {
-                    QuickActionChip(
-                        icon = Icons.Default.ContentCopy,
-                        label = "Copy URL",
-                        colors = colors,
-                        onClick = {
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                            val clipData = android.content.ClipData.newPlainText("URL", textValue.text)
-                            clipboard?.setPrimaryClip(clipData)
-                            com.azokle.search.ui.components.ToastManager.showCopy("URL copied to clipboard")
-                        }
-                    )
-                }
-
-                // Share URL
-                item {
-                    QuickActionChip(
-                        icon = Icons.Default.Share,
-                        label = "Share",
-                        colors = colors,
-                        onClick = {
-                            com.azokle.search.util.ShareHelper.launchSystemShare(
-                                context = context,
-                                text = textValue.text,
-                                chooserTitle = "Share URL"
-                            )
-                        }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // 3. Dynamic Discovery Feed (Suggestions / Recent / Shortcuts)
+            // 2. Dynamic Discovery Feed (Suggestions / Recent / Shortcuts)
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -620,45 +560,6 @@ fun BrowserUrlEditSheet(
     }
 }
 
-@Composable
-private fun QuickActionChip(
-    icon: ImageVector,
-    label: String,
-    colors: com.azokle.search.ui.theme.AzokleThemeColors,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .clip(AzokleRadius.md)
-            .background(colors.cardBg)
-            .border(1.dp, colors.border, AzokleRadius.md)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = ripple(bounded = true, color = colors.textPrimary.copy(alpha = 0.15f)),
-                onClick = onClick
-            )
-            .padding(horizontal = 14.dp, vertical = 9.dp)
-            .semantics {
-                role = Role.Button
-                contentDescription = label
-            },
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = colors.textSecondary,
-            modifier = Modifier.size(15.dp)
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = label,
-            color = colors.textPrimary,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium
-        )
-    }
-}
 
 @Composable
 private fun PrimaryDirectActionCard(
