@@ -15,6 +15,7 @@ import org.mozilla.geckoview.GeckoSession.PromptDelegate.*
  */
 class GeckoPromptDelegateImpl(
     private val context: Context,
+    private val hasRecentUserInteraction: (() -> Boolean)? = null,
     private val onPopupRequested: ((String) -> Unit)? = null
 ) : GeckoSession.PromptDelegate {
 
@@ -444,6 +445,13 @@ class GeckoPromptDelegateImpl(
         prompt: PopupPrompt
     ): GeckoResult<PromptResponse>? {
         val targetUri = prompt.targetUri ?: ""
+        // Check for user interaction before requesting popups to eliminate popup flooding attacks
+        val isUserInitiated = hasRecentUserInteraction?.invoke() ?: true
+        if (!isUserInitiated) {
+            android.util.Log.w("GeckoPromptDelegateImpl", "Blocked automated drive-by popup prompt: $targetUri")
+            return GeckoResult.fromValue(prompt.dismiss())
+        }
+
         if (targetUri.isNotBlank()) {
             val scheme = com.azokle.search.util.UrlHelper.extractScheme(targetUri)
             val dangerousSchemes = setOf("file", "content", "chrome", "resource", "javascript", "data")

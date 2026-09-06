@@ -189,6 +189,14 @@ fun PwaContainerScreen(
     val runtime = remember { GeckoEngineManager.getRuntime(context) }
     val session = remember { GeckoEngineManager.createSession(context, isPrivate = false) }
 
+    DisposableEffect(session) {
+        onDispose {
+            try {
+                session.close()
+            } catch (e: Exception) {}
+        }
+    }
+
     var currentUrl by remember { mutableStateOf(startUrl) }
     var currentTitle by remember { mutableStateOf(pwaName) }
     var progress by remember { mutableFloatStateOf(0f) }
@@ -347,6 +355,28 @@ fun PwaContainerScreen(
                             override fun onCanGoBack(session: GeckoSession, canGoBackVal: Boolean) {
                                 canGoBack = canGoBackVal
                             }
+
+                            override fun onLoadRequest(
+                                session: GeckoSession,
+                                request: GeckoSession.NavigationDelegate.LoadRequest
+                            ): GeckoResult<org.mozilla.geckoview.AllowOrDeny>? {
+                                val uriStr = request.uri
+                                val scheme = try { Uri.parse(uriStr).scheme?.lowercase() ?: "" } catch (e: Exception) { "" }
+                                if (scheme in setOf("file", "content", "chrome", "resource")) {
+                                    return GeckoResult.fromValue(org.mozilla.geckoview.AllowOrDeny.DENY)
+                                }
+                                if (scheme == "http" || scheme == "https" || scheme == "about" || scheme == "blob" || scheme == "data" || scheme == "javascript") {
+                                    return GeckoResult.fromValue(org.mozilla.geckoview.AllowOrDeny.ALLOW)
+                                }
+                                if (com.azokle.search.browser.handlers.ExternalSchemeHandler.isExternalScheme(uriStr)) {
+                                    if (!request.hasUserGesture && request.target != GeckoSession.NavigationDelegate.TARGET_WINDOW_NONE) {
+                                        return GeckoResult.fromValue(org.mozilla.geckoview.AllowOrDeny.DENY)
+                                    }
+                                    com.azokle.search.browser.handlers.ExternalSchemeHandler.handleExternalUri(ctx, uriStr, session)
+                                    return GeckoResult.fromValue(org.mozilla.geckoview.AllowOrDeny.DENY)
+                                }
+                                return GeckoResult.fromValue(org.mozilla.geckoview.AllowOrDeny.DENY)
+                            }
                         }
 
                         session.progressDelegate = object : GeckoSession.ProgressDelegate {
@@ -429,12 +459,28 @@ fun PwaContainerScreen(
                             }
                         }
 
+                        session.promptDelegate = com.azokle.search.browser.gecko.GeckoPromptDelegateImpl(
+                            context = ctx,
+                            onPopupRequested = { targetUri ->
+                                val scheme = com.azokle.search.util.UrlHelper.extractScheme(targetUri)
+                                val dangerousSchemes = setOf("file", "content", "chrome", "resource", "javascript", "data")
+                                if (scheme == null || scheme !in dangerousSchemes) {
+                                    onOpenInBrowser(targetUri)
+                                }
+                            }
+                        )
+
                         setSession(session)
                         if (!session.isOpen) {
                             session.open(runtime)
                         }
                         session.loadUri(startUrl)
                     }
+                },
+                onRelease = { view ->
+                    try {
+                        view.releaseSession()
+                    } catch (e: Exception) {}
                 },
                 modifier = Modifier
                     .fillMaxWidth()

@@ -74,20 +74,6 @@ object DiscoverCatalog {
             actionText = "Play"
         ),
         DiscoverItem(
-            id = "gamesnacks",
-            title = "GameSnacks",
-            subtitle = "Google's lightweight, bite-sized games optimized for mobile",
-            url = "https://gamesnacks.com",
-            domain = "gamesnacks.com",
-            category = DiscoverCategory.GAMES,
-            badge = "QUICK",
-            iconEmoji = "🍬",
-            primaryColorHex = 0xFF10B981,
-            secondaryColorHex = 0xFF06B6D4,
-            isFeatured = false,
-            actionText = "Play"
-        ),
-        DiscoverItem(
             id = "y8",
             title = "Y8 Games",
             subtitle = "Retro classics, 2-player battles & web action hits",
@@ -144,34 +130,6 @@ object DiscoverCatalog {
             secondaryColorHex = 0xFFFF5722,
             isFeatured = true,
             actionText = "Stream Now"
-        ),
-        DiscoverItem(
-            id = "jiocinema",
-            title = "JioCinema",
-            subtitle = "Free movies, regional cinema, daily soaps & live sports",
-            url = "https://www.jiocinema.com",
-            domain = "jiocinema.com",
-            category = DiscoverCategory.STREAMING,
-            badge = "TRENDING",
-            iconEmoji = "📺",
-            primaryColorHex = 0xFFD80032,
-            secondaryColorHex = 0xFFE60067,
-            isFeatured = false,
-            actionText = "Watch"
-        ),
-        DiscoverItem(
-            id = "youtube_trending",
-            title = "YouTube Trending",
-            subtitle = "Viral videos, new music releases, trailers & creator shorts",
-            url = "https://m.youtube.com/feed/trending",
-            domain = "youtube.com",
-            category = DiscoverCategory.STREAMING,
-            badge = "VIRAL",
-            iconEmoji = "▶️",
-            primaryColorHex = 0xFFFF0000,
-            secondaryColorHex = 0xFFCC0000,
-            isFeatured = false,
-            actionText = "Explore"
         ),
         DiscoverItem(
             id = "hotstar",

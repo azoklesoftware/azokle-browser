@@ -59,7 +59,7 @@ object GeckoEngineManager {
                 .consoleOutput(true)
                 .aboutConfigEnabled(false)
                 .remoteDebuggingEnabled(isDebug)
-                .fissionEnabled(true)
+                .fissionEnabled(false)
                 .lowMemoryDetection(true)
                 .enterpriseRootsEnabled(true)
                 .globalPrivacyControlEnabled(true)
@@ -67,7 +67,7 @@ object GeckoEngineManager {
                 .doubleTapZoomingEnabled(true)
                 .webManifest(true)
                 .extensionsProcessEnabled(true)
-                .glMsaaLevel(2)
+                .glMsaaLevel(0)
                 .isolatedProcessEnabled(true)
                 .appZygoteProcessEnabled(true)
                 .contentBlocking(
@@ -118,11 +118,35 @@ object GeckoEngineManager {
                 // GeckoView routes it here. Return type MUST be GeckoResult<JSONObject>.
                 // Returning GeckoResult<Any> with a JSONObject inside causes "Invalid event data for callback"
                 extension.setMessageDelegate(object : WebExtension.MessageDelegate {
+                    override fun onConnect(port: WebExtension.Port) {
+                        extensionPort = port
+                        port.setDelegate(object : WebExtension.PortDelegate {
+                            override fun onPortMessage(message: Any, port: WebExtension.Port) {}
+                            override fun onDisconnect(port: WebExtension.Port) {
+                                if (extensionPort == port) {
+                                    extensionPort = null
+                                }
+                            }
+                        })
+                        notifyTorStateChanged(
+                            com.azokle.search.security.TorCircuitManager.isTorActive,
+                            com.azokle.search.security.TorCircuitManager.socksPort
+                        )
+                    }
+
                     override fun onMessage(
                         nativeApp: String,
                         message: Any,
                         sender: WebExtension.MessageSender
                     ): GeckoResult<Any>? {
+                        // VULN-03: Validate that native messaging originates strictly from the extension background script
+                        if (sender.environmentType != WebExtension.MessageSender.ENV_TYPE_EXTENSION) {
+                            android.util.Log.w("GeckoEngineManager", "Blocked native message from unauthorized environment: ${sender.environmentType}")
+                            return GeckoResult.fromValue<Any>(JSONObject().apply {
+                                put("error", "unauthorized_sender")
+                            }.toString())
+                        }
+
                         return try {
                             val json = when (message) {
                                 is JSONObject -> message
@@ -255,7 +279,7 @@ object GeckoEngineManager {
 
         val sessionSettings = GeckoSessionSettings.Builder()
             .usePrivateMode(isPrivate || isTor)
-            .useTrackingProtection(false)
+            .useTrackingProtection(true)
             .userAgentMode(GeckoSessionSettings.USER_AGENT_MODE_MOBILE)
             .viewportMode(GeckoSessionSettings.VIEWPORT_MODE_MOBILE)
             .suspendMediaWhenInactive(!allowBackgroundAudio)
@@ -283,7 +307,10 @@ object GeckoEngineManager {
         }
     }
 
+    @Volatile
     private var shieldExtension: WebExtension? = null
+    @Volatile
+    private var extensionPort: WebExtension.Port? = null
 
     fun notifyTorStateChanged(enabled: Boolean, socksPort: Int) {
         try {
@@ -292,9 +319,9 @@ object GeckoEngineManager {
                 put("isTorEnabled", enabled)
                 put("socksPort", socksPort)
             }
-            // State is also queried immediately on any tab event and request
+            extensionPort?.postMessage(payload)
         } catch (e: Exception) {
-            // Safe fallback
+            android.util.Log.e("GeckoEngineManager", "Failed to push Tor status: ${e.message}")
         }
     }
 

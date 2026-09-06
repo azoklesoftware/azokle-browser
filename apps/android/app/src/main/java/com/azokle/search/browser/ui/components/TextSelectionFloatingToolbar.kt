@@ -70,6 +70,7 @@ import kotlin.math.min
 fun TextSelectionFloatingToolbar(
     payload: TextSelectionPayload?,
     onSearchRequested: (String) -> Unit,
+    onShareRequested: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     AnimatedVisibility(
@@ -164,11 +165,15 @@ fun TextSelectionFloatingToolbar(
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             if (payload.text.isNotBlank()) {
-                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, payload.text)
+                                if (onShareRequested != null) {
+                                    onShareRequested(payload.text)
+                                } else {
+                                    com.azokle.search.util.ShareHelper.launchSystemShare(
+                                        context = context,
+                                        text = payload.text,
+                                        chooserTitle = "Share text"
+                                    )
                                 }
-                                context.startActivity(Intent.createChooser(shareIntent, "Share text"))
                             }
                             payload.onDismiss()
                         }

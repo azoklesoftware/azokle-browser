@@ -218,8 +218,11 @@ private fun MiniTabTile(
                 .border(1.dp, colors.border.copy(alpha = 0.5f), RoundedCornerShape(8.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Image(
-                painter = painterResource(id = wallpaperRes),
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(wallpaperRes)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()

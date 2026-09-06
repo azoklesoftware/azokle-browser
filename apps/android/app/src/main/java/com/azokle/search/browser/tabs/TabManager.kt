@@ -283,13 +283,13 @@ object TabManager {
                 saveTabSessionState(oldId)
             }
             _activeTabId.value = id
-            wakeTab(id)
 
             // Throttling & Priority: activate foreground session with PRIORITY_HIGH and throttle background
             for ((tabId, session) in sessionMap) {
                 try {
                     val isForeground = tabId == id
                     session.setActive(isForeground)
+                    session.setFocused(isForeground)
                     session.setPriorityHint(
                         if (isForeground) org.mozilla.geckoview.GeckoSession.PRIORITY_HIGH
                         else org.mozilla.geckoview.GeckoSession.PRIORITY_DEFAULT
@@ -299,13 +299,41 @@ object TabManager {
                 }
             }
 
-            // RAM Reclamation: reclaim inactive tab sessions to keep memory lean
-            reclaimInactiveTabMemory()
+            // RAM Reclamation: only prune background GeckoSessions if exceeding max warm capacity (12)
+            val maxWarmSessions = 12
+            val currentTabs = _tabs.value
+            val sortedTabs = currentTabs.sortedByDescending { if (it.id == id) Long.MAX_VALUE else it.lastAccessedAt }
+            val tabsToKeep = sortedTabs.take(maxWarmSessions).map { it.id }.toSet() + id
+            val sessionsToDiscard = sessionMap.keys.filter { it !in tabsToKeep }
+
+            for (tabId in sessionsToDiscard) {
+                saveTabSessionState(tabId)
+                clearTabLoaded(tabId)
+                sessionMap.remove(tabId)?.let { session ->
+                    try {
+                        session.close()
+                    } catch (e: Exception) {
+                        // Safe ignore
+                    }
+                }
+            }
+
+            // Single atomic state update: wake target tab + sleep reclaimed tabs in 1 emission
+            val now = System.currentTimeMillis()
+            _tabs.update { list ->
+                list.map { tab ->
+                    when {
+                        tab.id == id -> tab.copy(isSleeping = false, lastAccessedAt = now)
+                        tab.id in sessionsToDiscard -> tab.copy(isSleeping = true)
+                        else -> tab
+                    }
+                }
+            }
             persistTabs()
         }
     }
 
-    fun reclaimInactiveTabMemory(maxActiveSessions: Int = 3) {
+    fun reclaimInactiveTabMemory(maxActiveSessions: Int = 2) {
         val currentId = _activeTabId.value ?: return
         if (sessionMap.size <= maxActiveSessions) return
 
@@ -313,6 +341,8 @@ object TabManager {
         val tabsToKeep = sortedTabs.take(maxActiveSessions).map { it.id }.toSet() + currentId
 
         val sessionsToDiscard = sessionMap.keys.filter { it !in tabsToKeep }
+        if (sessionsToDiscard.isEmpty()) return
+
         for (tabId in sessionsToDiscard) {
             saveTabSessionState(tabId)
             clearTabLoaded(tabId)
@@ -332,10 +362,11 @@ object TabManager {
     }
 
     fun wakeTab(id: String) {
+        val now = System.currentTimeMillis()
         _tabs.update { list ->
             list.map { tab ->
                 if (tab.id == id) {
-                    tab.copy(isSleeping = false, lastAccessedAt = System.currentTimeMillis())
+                    tab.copy(isSleeping = false, lastAccessedAt = now)
                 } else {
                     tab
                 }
@@ -359,19 +390,26 @@ object TabManager {
 
     fun updateActiveTab(url: String, title: String) {
         val currentId = _activeTabId.value ?: return
+        var hasChanged = false
         _tabs.update { list ->
             list.map { tab ->
                 if (tab.id == currentId) {
-                    tab.copy(
-                        url = if (url.isNotBlank() || title == "New Tab") url else tab.url,
-                        title = if (title.isNotBlank()) title else tab.title
-                    )
+                    val newUrl = if (url.isNotBlank() || title == "New Tab") url else tab.url
+                    val newTitle = if (title.isNotBlank()) title else tab.title
+                    if (newUrl != tab.url || newTitle != tab.title) {
+                        hasChanged = true
+                        tab.copy(url = newUrl, title = newTitle)
+                    } else {
+                        tab
+                    }
                 } else {
                     tab
                 }
             }
         }
-        persistTabs()
+        if (hasChanged) {
+            persistTabs()
+        }
     }
 
     fun toggleDesktopMode(tabId: String? = null): Boolean {
@@ -406,19 +444,18 @@ object TabManager {
 
     fun updateActiveTabThumbnail(thumbnail: Bitmap) {
         val currentId = _activeTabId.value ?: return
-        _tabs.update { list ->
-            list.map { tab ->
-                if (tab.id == currentId) {
-                    tab.copy(thumbnail = thumbnail)
-                } else {
-                    tab
-                }
-            }
-        }
+        updateTabThumbnail(currentId, thumbnail)
+    }
+
+    fun updateTabThumbnail(tabId: String, thumbnail: Bitmap) {
+        TabThumbnailCache.put(tabId, thumbnail)
     }
 
     fun closeTab(id: String): TabSession? = synchronized(this) {
         val tabToClose = _tabs.value.find { it.id == id } ?: return null
+
+        // Remove cached thumbnail bitmap
+        TabThumbnailCache.remove(id)
 
         // Add to thread-safe recently closed (if not private or tor)
         if (!tabToClose.isPrivate && !tabToClose.isTor) {
@@ -752,9 +789,13 @@ object TabManager {
         )
     }
 
+    private var persistJob: kotlinx.coroutines.Job? = null
+
     private fun persistTabs() {
         val context = appContext ?: return
-        scope.launch(Dispatchers.IO) {
+        persistJob?.cancel()
+        persistJob = scope.launch(Dispatchers.IO) {
+            kotlinx.coroutines.delay(500L)
             try {
                 val standardTabs = _tabs.value.filter { !it.isPrivate && !it.isTor }
                 val array = JSONArray()

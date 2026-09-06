@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import com.azokle.search.browser.tabs.TabThumbnailCache
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -449,9 +450,10 @@ private fun GroupTabGridItem(
                     .background(colors.surfaceElevated),
                 contentAlignment = Alignment.Center
             ) {
-                if (tab.thumbnail != null) {
+                val cachedThumbnail = TabThumbnailCache.get(tab.id)
+                if (cachedThumbnail != null) {
                     Image(
-                        bitmap = tab.thumbnail.asImageBitmap(),
+                        bitmap = cachedThumbnail.asImageBitmap(),
                         contentDescription = tab.title,
                         contentScale = ContentScale.Crop,
                         alignment = Alignment.TopCenter,
@@ -469,8 +471,11 @@ private fun GroupTabGridItem(
                     )
                 } else if (isHome) {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        Image(
-                            painter = painterResource(id = tab.wallpaperResId ?: com.azokle.search.browser.wallpaper.WallpaperManager.getCurrentWallpaper()),
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(tab.wallpaperResId ?: com.azokle.search.browser.wallpaper.WallpaperManager.getCurrentWallpaper())
+                                .crossfade(true)
+                                .build(),
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()

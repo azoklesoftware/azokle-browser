@@ -162,6 +162,11 @@ object UrlHelper {
         val trimmed = input.trim()
         if (trimmed.isEmpty()) return ""
 
+        // Pass external application schemes (tel, mailto, sms, geo, market, intent) directly
+        if (com.azokle.search.browser.handlers.ExternalSchemeHandler.isExternalScheme(trimmed)) {
+            return trimmed
+        }
+
         // Block dangerous protocol injections
         val scheme = extractScheme(trimmed)
         if (scheme != null && scheme !in ALLOWED_SCHEMES) {

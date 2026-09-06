@@ -171,6 +171,8 @@ fun BrowserScreen(
     var showHistoryScreen by remember { mutableStateOf(false) }
     var showPwaInstallSheet by remember { mutableStateOf(false) }
     var showDiscoverScreen by remember { mutableStateOf(false) }
+    var showShareSheet by remember { mutableStateOf(false) }
+    var activeSharePayload by remember { mutableStateOf<SharePayload?>(null) }
     val pwaState by com.azokle.search.browser.pwa.PwaManager.activeTabPwaState.collectAsState()
 
     var geckoSession: GeckoSession? by remember { mutableStateOf(null) }
@@ -802,16 +804,15 @@ fun BrowserScreen(
                                 onProgressChanged = { p ->
                                     progress = p / 100f
                                     isLoading = p < 100
-                                    if (p >= 25) {
+                                    if (p >= 10) {
                                         isPageTransitioning = false
-                                        try {
-                                            geckoView?.visibility = android.view.View.VISIBLE
-                                            geckoView?.alpha = 1f
-                                        } catch (e: Exception) {}
                                     }
                                 },
                                 onLoadingChanged = { loading ->
                                     isLoading = loading
+                                    if (loading) {
+                                        isPageTransitioning = false
+                                    }
                                 },
                                 onSecurityChanged = { secInfo ->
                                     currentSecurityInfo = secInfo
@@ -1096,10 +1097,15 @@ fun BrowserScreen(
                 initialText = currentUrl,
                 onNavigate = { input ->
                     showUrlEditSheet = false
-                    val resolved = if (input.startsWith("http://") || input.startsWith("https://") || input.startsWith("about:")) {
-                        input
+                    val trimmed = input.trim()
+                    if (com.azokle.search.browser.handlers.ExternalSchemeHandler.isExternalScheme(trimmed)) {
+                        com.azokle.search.browser.handlers.ExternalSchemeHandler.handleExternalUri(context, trimmed, geckoSession)
+                        return@BrowserUrlEditSheet
+                    }
+                    val resolved = if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("about:")) {
+                        trimmed
                     } else {
-                        UrlHelper.resolveSearchOrUrl(context, input)
+                        UrlHelper.resolveSearchOrUrl(context, trimmed)
                     }
                     if (currentUrl.isBlank() || currentUrl == "about:home" || currentUrl == "about:blank" || currentUrl != resolved) {
                         targetLoadingUrl = resolved
@@ -1146,15 +1152,14 @@ fun BrowserScreen(
                     )
                 },
                 onShare = {
-                    try {
-                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, currentUrl)
-                            putExtra(Intent.EXTRA_SUBJECT, currentTitle)
-                        }
-                        context.startActivity(Intent.createChooser(shareIntent, "Share Webpage"))
-                    } catch (e: Exception) {
-                        // Safe ignore
+                    showMenuSheet = false
+                    val activeUrl = currentUrl.takeIf { it.isNotBlank() } ?: currentActiveTab?.url ?: ""
+                    if (activeUrl.isNotBlank()) {
+                        activeSharePayload = SharePayload(
+                            url = activeUrl,
+                            title = currentTitle
+                        )
+                        showShareSheet = true
                     }
                 },
                 onToggleDesktopMode = {
@@ -1346,8 +1351,37 @@ fun BrowserScreen(
             )
         }
 
-        // Unified Active Tabs Screen Switcher (100% Reliable Gecko Tab Switching)
-        if (showTabGridSheet) {
+        // Lifecycle-Aware Background Compositor Throttling: Pause Gecko rendering thread & detach SurfaceView while tab switcher is open
+        LaunchedEffect(showTabGridSheet) {
+            val activeSession = TabManager.getActiveSession()
+            if (showTabGridSheet) {
+                try {
+                    activeSession?.setActive(false)
+                    activeSession?.setFocused(false)
+                    activeSession?.setPriorityHint(org.mozilla.geckoview.GeckoSession.PRIORITY_DEFAULT)
+                    geckoView?.visibility = android.view.View.INVISIBLE
+                } catch (e: Exception) {}
+            } else {
+                try {
+                    activeSession?.setActive(true)
+                    activeSession?.setFocused(true)
+                    activeSession?.setPriorityHint(org.mozilla.geckoview.GeckoSession.PRIORITY_HIGH)
+                    if (currentUrl.isNotBlank() && currentUrl != "about:home" && currentUrl != "about:blank" && currentUrl != "about:tor") {
+                        geckoView?.visibility = android.view.View.VISIBLE
+                        geckoView?.alpha = 1f
+                    }
+                } catch (e: Exception) {}
+            }
+        }
+
+        // Unified Active Tabs Screen Switcher (Butter-smooth 120/144Hz Transition)
+        androidx.compose.animation.AnimatedVisibility(
+            visible = showTabGridSheet,
+            enter = androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(180)) +
+                    androidx.compose.animation.scaleIn(initialScale = 0.95f, animationSpec = androidx.compose.animation.core.tween(180)),
+            exit = androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(150)) +
+                    androidx.compose.animation.scaleOut(targetScale = 0.95f, animationSpec = androidx.compose.animation.core.tween(150))
+        ) {
             ActiveTabsScreen(
                 onTabSelected = { selectedTab ->
                     showTabGridSheet = false
@@ -1546,8 +1580,44 @@ fun BrowserScreen(
                 currentError = null
                 geckoSession?.loadUri(searchUrl)
                 com.azokle.search.ui.components.ToastManager.show("Searching web 🔍")
+            },
+            onShareRequested = { selectedText ->
+                activeSharePayload = SharePayload(
+                    url = currentUrl,
+                    title = currentTitle,
+                    selectedText = selectedText
+                )
+                showShareSheet = true
             }
         )
+
+        // Sovereign In-App Share Sheet
+        if (showShareSheet && activeSharePayload != null) {
+            BrowserShareSheet(
+                payload = activeSharePayload!!,
+                onDismiss = {
+                    showShareSheet = false
+                    activeSharePayload = null
+                },
+                onPrintToPdf = {
+                    val session = geckoSession
+                    if (session != null && session.isOpen) {
+                        com.azokle.search.browser.gecko.GeckoEngineManager.printPageToPdf(
+                            context = context,
+                            session = session,
+                            title = currentTitle,
+                            url = currentUrl
+                        ) { pdfFile ->
+                            if (pdfFile != null) {
+                                com.azokle.search.ui.components.ToastManager.showSuccess("Page saved to Downloads 📄")
+                            } else {
+                                com.azokle.search.ui.components.ToastManager.show("Failed to export PDF")
+                            }
+                        }
+                    }
+                }
+            )
+        }
 
         // Tab Group Detail Modal Sheet (Overview, reorder, rename, palette picker)
         if (showGroupDetailSheet && activeGroup != null) {
@@ -1679,7 +1749,9 @@ fun BrowserScreen(
                                 filename = activePayload.filename,
                                 mimeType = activePayload.mimeType,
                                 contentLength = activePayload.contentLength,
-                                headers = activePayload.headers
+                                headers = activePayload.headers,
+                                isPrivate = activePayload.isPrivate,
+                                isTor = activePayload.isTor
                             )
                             android.widget.Toast.makeText(context, "📥 Downloading ${activePayload.filename}...", android.widget.Toast.LENGTH_SHORT).show()
                         }
@@ -1835,17 +1907,27 @@ private fun BrowserHomeScreenContent(
 
             androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(28.dp))
 
-            // Quick Speed Dial Shortcuts (YouTube, Google, Wikipedia, GitHub, Reddit, X, Amazon, Azokle)
+            // Quick Speed Dial Shortcuts (Wikipedia, YouTube, Amazon, Trip, Reddit, Flipkart, Kick, Azokle)
             val shortcuts = remember {
                 listOf(
-                    BrowserShortcut("YouTube", "https://www.youtube.com"),
-                    BrowserShortcut("Google", "https://www.google.com"),
-                    BrowserShortcut("Wikipedia", "https://www.wikipedia.org"),
-                    BrowserShortcut("GitHub", "https://github.com"),
-                    BrowserShortcut("Reddit", "https://www.reddit.com"),
-                    BrowserShortcut("X", "https://x.com"),
-                    BrowserShortcut("Amazon", "https://www.amazon.com"),
-                    BrowserShortcut("Azokle", "https://search.azokle.com")
+                    BrowserShortcut("Wikipedia", "https://www.wikipedia.org", "https://www.wikipedia.org/favicon.ico"),
+                    BrowserShortcut("YouTube", "https://www.youtube.com", "https://www.youtube.com/favicon.ico"),
+                    BrowserShortcut(
+                        label = "Amazon",
+                        url = "https://amzn.to/4qTBnWI",
+                        faviconUrl = "https://www.amazon.com/favicon.ico",
+                        isSponsored = true
+                    ),
+                    BrowserShortcut(
+                        label = "Trip",
+                        url = "https://www.trip.com/?Allianceid=10452016&SID=330440797&trip_sub1=&trip_sub3=D19702202",
+                        faviconUrl = "https://www.trip.com/favicon.ico",
+                        isSponsored = true
+                    ),
+                    BrowserShortcut("Reddit", "https://www.reddit.com", "https://www.reddit.com/favicon.ico"),
+                    BrowserShortcut("Flipkart", "https://www.flipkart.com", "https://static-assets-web.flixcart.com/batman-returns/batman-returns/p/images/logo_lite-cbb357.png"),
+                    BrowserShortcut("Kick", "https://kick.com", "https://kick.com/favicon.ico"),
+                    BrowserShortcut("Azokle", "https://azokle.com", "https://azokle.com/favicon.ico")
                 )
             }
 
@@ -1901,7 +1983,7 @@ private fun ShortcutTile(
             .padding(vertical = 4.dp, horizontal = 2.dp)
             .semantics {
                 role = Role.Button
-                contentDescription = "${item.label} shortcut"
+                contentDescription = if (item.isSponsored) "${item.label} (Sponsored) shortcut" else "${item.label} shortcut"
             }
     ) {
         // Frosted Glassmorphic Squircle Tile
@@ -1935,17 +2017,31 @@ private fun ShortcutTile(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            if (item.url.contains("azokle.com")) {
-                Image(
-                    painter = painterResource(id = R.drawable.splash_logo),
-                    contentDescription = null,
-                    modifier = Modifier.size(28.dp)
-                )
-            } else {
-                FaviconImage(
-                    url = item.url,
-                    size = 28.dp
-                )
+            FaviconImage(
+                url = item.faviconUrl ?: item.url,
+                faviconUrl = item.faviconUrl,
+                size = 30.dp
+            )
+
+            if (item.isSponsored) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 3.dp, end = 3.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(Color.Black.copy(alpha = 0.65f))
+                        .border(0.5.dp, Color.White.copy(alpha = 0.30f), RoundedCornerShape(3.dp))
+                        .padding(horizontal = 2.5.dp, vertical = 0.5.dp)
+                ) {
+                    Text(
+                        text = "Ad",
+                        fontSize = 6.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White.copy(alpha = 0.85f),
+                        letterSpacing = 0.1.sp,
+                        lineHeight = 7.sp
+                    )
+                }
             }
         }
 
@@ -1972,5 +2068,7 @@ private fun ShortcutTile(
 
 private data class BrowserShortcut(
     val label: String,
-    val url: String
+    val url: String,
+    val faviconUrl: String? = null,
+    val isSponsored: Boolean = false
 )

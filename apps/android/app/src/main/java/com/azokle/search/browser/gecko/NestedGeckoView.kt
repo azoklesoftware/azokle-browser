@@ -63,127 +63,50 @@ class NestedGeckoView @JvmOverloads constructor(
      * consumed by interactive web content or blocked by CSS `overscroll-behavior-y: none / contain`.
      */
     fun canOverscrollTop(): Boolean {
-        val notHandledByContent = inputResult != INPUT_HANDLED_CONTENT
-        val cannotScrollUp = (scrollDirections and PanZoomController.SCROLLABLE_FLAG_TOP) == 0
-        val allowsVerticalOverscroll = (overscrollDirections and PanZoomController.OVERSCROLL_FLAG_VERTICAL) != 0
+        return !isTouchHandledByWebsite()
+    }
 
-        // If unknown (initial touch down before APZ responds), check if content cannot scroll up
-        if (inputResult == INPUT_HANDLING_UNKNOWN) {
-            return cannotScrollUp
-        }
+    @Volatile
+    private var lastUserTouchTimestamp: Long = 0L
 
-        return notHandledByContent && cannotScrollUp && allowsVerticalOverscroll
+    /**
+     * True if the user interacted with the viewport via touch within the last 5 seconds.
+     * Used to prevent automated/drive-by popup flooding and malicious redirects.
+     */
+    fun hasRecentUserInteraction(): Boolean {
+        return (android.os.SystemClock.uptimeMillis() - lastUserTouchTimestamp) < 5000L
     }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(ev: MotionEvent): Boolean {
-        val event = MotionEvent.obtain(ev)
         val action = ev.actionMasked
-        val eventY = event.y.toInt()
+
+        if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_UP) {
+            lastUserTouchTimestamp = android.os.SystemClock.uptimeMillis()
+        }
 
         when (action) {
             MotionEvent.ACTION_DOWN -> {
-                // A new gesture started. Ask GeckoView APZ if it can handle this.
-                parent?.requestDisallowInterceptTouchEvent(true)
-                updateInputResult(event)
-
                 nestedOffsetY = 0
-                lastY = eventY
-                initialDownY = event.y
-
-                event.recycle()
-                return true
+                lastY = ev.y.toInt()
+                initialDownY = ev.y
             }
-
             MotionEvent.ACTION_MOVE -> {
-                val allowScroll = !shouldPinOnScreen() && (inputResult == INPUT_HANDLED)
-
-                var deltaY = lastY - eventY
-
-                if (allowScroll && dispatchNestedPreScroll(0, deltaY, scrollConsumed, scrollOffset)) {
-                    deltaY -= scrollConsumed[1]
-                    event.offsetLocation(0f, (-scrollOffset[1]).toFloat())
-                    nestedOffsetY += scrollOffset[1]
-                }
-
-                lastY = eventY - scrollOffset[1]
-
-                if (allowScroll && dispatchNestedScroll(0, scrollOffset[1], 0, deltaY, scrollOffset)) {
-                    lastY -= scrollOffset[1]
-                    event.offsetLocation(0f, scrollOffset[1].toFloat())
-                    nestedOffsetY += scrollOffset[1]
-                }
-
-                val hasDragGestureStarted = event.y != initialDownY
-                if (gestureCanReachParent && hasDragGestureStarted) {
-                    updateInputResult(event)
-                    event.recycle()
-                    return true
+                val deltaY = ev.y - initialDownY
+                // If scrolling upward into content (deltaY < -10), lock out parent SwipeRefreshLayout.
+                // If dragging downward (deltaY > 10), allow parent SwipeRefreshLayout to intercept if at top.
+                if (deltaY < -10) {
+                    parent?.requestDisallowInterceptTouchEvent(true)
+                } else if (deltaY > 10) {
+                    parent?.requestDisallowInterceptTouchEvent(false)
                 }
             }
-
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                inputResult = INPUT_HANDLING_UNKNOWN
-                scrollDirections = PanZoomController.SCROLLABLE_FLAG_NONE
-                overscrollDirections = PanZoomController.OVERSCROLL_FLAG_NONE
-                stopNestedScroll()
-
                 parent?.requestDisallowInterceptTouchEvent(false)
-                gestureCanReachParent = true
             }
         }
 
-        val eventHandled = super.onTouchEvent(event)
-        event.recycle()
-        return eventHandled
-    }
-
-    private fun updateInputResult(event: MotionEvent) {
-        val eventAction = event.actionMasked
-        val eventY = event.y
-
-        onTouchEventForDetailResult(event).accept { detail ->
-            if (!gestureCanReachParent) {
-                return@accept
-            }
-
-            detail?.let {
-                inputResult = it.handledResult()
-                scrollDirections = it.scrollableDirections()
-                overscrollDirections = it.overscrollDirections()
-            }
-
-            when (eventAction) {
-                MotionEvent.ACTION_DOWN -> {
-                    gestureCanReachParent = canOverscrollTop()
-
-                    if (gestureCanReachParent && inputResult == INPUT_UNHANDLED) {
-                        parent?.requestDisallowInterceptTouchEvent(false)
-                    }
-                }
-
-                MotionEvent.ACTION_MOVE -> {
-                    if (initialDownY < eventY) {
-                        // Dragging downward: allow parent SwipeRefreshLayout to intercept
-                        // ONLY if the event was NOT consumed by the website (game/canvas/touch listener)
-                        if (!isTouchHandledByWebsite() && canOverscrollTop()) {
-                            parent?.requestDisallowInterceptTouchEvent(false)
-                        } else {
-                            parent?.requestDisallowInterceptTouchEvent(true)
-                            gestureCanReachParent = false
-                        }
-                    } else if (initialDownY > eventY) {
-                        // Scrolling downward into content: disallow parent intercept completely
-                        parent?.requestDisallowInterceptTouchEvent(true)
-                        gestureCanReachParent = false
-                    } else {
-                        parent?.requestDisallowInterceptTouchEvent(false)
-                    }
-                }
-            }
-
-            startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL)
-        }
+        return super.onTouchEvent(ev)
     }
 
     // NestedScrollingChild Delegation

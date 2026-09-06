@@ -441,11 +441,11 @@ fun BrowserUrlEditSheet(
                         label = "Share",
                         colors = colors,
                         onClick = {
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, textValue.text)
-                            }
-                            context.startActivity(Intent.createChooser(shareIntent, "Share URL"))
+                            com.azokle.search.util.ShareHelper.launchSystemShare(
+                                context = context,
+                                text = textValue.text,
+                                chooserTitle = "Share URL"
+                            )
                         }
                     )
                 }

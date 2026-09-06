@@ -27,7 +27,9 @@ data class DownloadItem(
     val downloadedBytes: Long = 0L,
     val status: DownloadStatus = DownloadStatus.DOWNLOADING,
     val timestamp: Long = System.currentTimeMillis(),
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val isPrivate: Boolean = false,
+    val isTor: Boolean = false
 ) {
     val progress: Float
         get() = if (totalBytes > 0) (downloadedBytes.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f) else 0f

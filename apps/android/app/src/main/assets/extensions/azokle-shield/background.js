@@ -272,6 +272,41 @@
     syncNativeAppStatus();
     setInterval(syncNativeAppStatus, 1500);
 
+    // Real-time Push Messaging Port connection with native app
+    var nativePort = null;
+    function connectNativePort() {
+        if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.connectNative) {
+            try {
+                nativePort = browser.runtime.connectNative('nativeApp');
+                nativePort.onMessage.addListener(function(msg) {
+                    if (!msg) return;
+                    if (typeof msg === 'string') {
+                        try { msg = JSON.parse(msg); } catch(e) { return; }
+                    }
+                    if (msg.type === 'PUSH_TOR_STATUS') {
+                        if (typeof msg.isTorEnabled === 'boolean') {
+                            isTorRoutingActive = msg.isTorEnabled;
+                        }
+                        if (typeof msg.socksPort === 'number' && msg.socksPort > 0) {
+                            activeSocksPort = msg.socksPort;
+                        }
+                    } else if (msg.type === 'PUSH_THEME') {
+                        if (typeof msg.theme === 'string') {
+                            currentAppTheme = msg.theme;
+                        }
+                    }
+                });
+                nativePort.onDisconnect.addListener(function() {
+                    nativePort = null;
+                    setTimeout(connectNativePort, 3000);
+                });
+            } catch(e) {
+                nativePort = null;
+            }
+        }
+    }
+    connectNativePort();
+
     // Fast-path sync on navigation events
     if (typeof browser !== 'undefined' && browser.webNavigation && browser.webNavigation.onBeforeNavigate) {
         browser.webNavigation.onBeforeNavigate.addListener(function() {
@@ -291,8 +326,8 @@
             var isOnion = url.indexOf('.onion') !== -1;
             var isTorCandidate = isOnion || (isTorRoutingActive && requestInfo.incognito === true);
 
-            if (isTorCandidate) {
-                // If Tor routing is required, ensure active port and proxy via SOCKS5
+            if (isTorCandidate || isOnion) {
+                // Fail-Closed Security: .onion and Tor requests NEVER fall back to direct cleartext.
                 var port = activeSocksPort || 9050;
                 return {
                     type: 'socks',

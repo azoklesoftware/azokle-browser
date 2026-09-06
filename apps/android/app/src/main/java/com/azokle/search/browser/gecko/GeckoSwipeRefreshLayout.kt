@@ -86,12 +86,7 @@ class GeckoSwipeRefreshLayout @JvmOverloads constructor(
         // Returns false if child CANNOT scroll up (meaning at top and eligible -> allow pull-to-refresh)
         setOnChildScrollUpCallback { _, _ ->
             if (isFullScreen) return@setOnChildScrollUpCallback true
-            val target = targetNestedGeckoView
-            if (target != null) {
-                !target.canOverscrollTop()
-            } else {
-                !isAtTop()
-            }
+            !canOverscrollTop()
         }
     }
 
@@ -101,16 +96,15 @@ class GeckoSwipeRefreshLayout @JvmOverloads constructor(
 
     /**
      * Dynamically determines whether the document can currently overscroll at the top.
-     * Delegates to [NestedGeckoView.canOverscrollTop] when available.
+     * Delegates to [NestedGeckoView.canOverscrollTop] when available, and verifies content is at top edge.
      */
     fun canOverscrollTop(): Boolean {
         if (isFullScreen) return false
         val target = targetNestedGeckoView
-        return if (target != null) {
-            target.canOverscrollTop()
-        } else {
-            isAtTop()
+        if (target != null && !target.canOverscrollTop()) {
+            return false
         }
+        return isAtTop()
     }
 
     private fun updateEnabledState() {
@@ -118,10 +112,8 @@ class GeckoSwipeRefreshLayout @JvmOverloads constructor(
     }
 
     override fun requestDisallowInterceptTouchEvent(b: Boolean) {
-        // If the webpage allows overscroll at the top and is not in fullscreen,
+        // If the webpage is at the top, not in fullscreen, and user is pulling downward,
         // ignore the disallow request so parent can intercept downward pull-to-refresh.
-        // If the touch is handled by web content (game, canvas, etc.), canOverscrollTop() is false,
-        // so the disallow request is honored, giving 100% control to the game/canvas!
         if (b && canOverscrollTop() && !isFullScreen) {
             return
         }
@@ -213,11 +205,7 @@ class GeckoSwipeRefreshLayout @JvmOverloads constructor(
      * Debounced refresh trigger to prevent duplicate consecutive reloads
      */
     fun canTriggerRefresh(): Boolean {
-        if (isFullScreen) {
-            return false
-        }
-        val target = targetNestedGeckoView
-        if (target != null && !target.canOverscrollTop()) {
+        if (isFullScreen || !canOverscrollTop()) {
             return false
         }
         val now = System.currentTimeMillis()

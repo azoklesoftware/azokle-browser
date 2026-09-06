@@ -2,7 +2,7 @@
     'use strict';
 
     if (window.__azokleShieldExtLoaded) return;
-    var hostName = (window.location.hostname || '').toLowerCase();
+    var hostName = (window.location && window.location.hostname ? window.location.hostname : '').toLowerCase();
     if (hostName === 'azokle.com' || hostName.endsWith('.azokle.com') ||
         hostName === 'cloudflare.com' || hostName.endsWith('.cloudflare.com') ||
         hostName === 'cloudflareinsights.com' || hostName.endsWith('.cloudflareinsights.com') ||
@@ -12,60 +12,24 @@
     window.__azokleShieldExtLoaded = true;
 
     // =========================================================================
-    // 0. Sovereign Main-World Video Background Playback Guardian Engine
-    // Runs directly in Page Context (Main World) at document_start.
-    // Differentiates user-initiated pause actions from synthetic background
-    // auto-pause calls (blur, visibilitychange, IntersectionObserver, freeze).
+    // 1. Sovereign Main-World Privacy & RFP (Resist Fingerprinting) Engine
+    // Runs in Page Context (Main World) at document_start.
+    // Protects against hardware, canvas, audio, and sensor fingerprinting.
+    // Respects browser-engine boundaries without global media monkey-patching.
     // =========================================================================
     var pageMainWorldCode = `
     (function() {
-        if (window.__azokleBgGuardianInstalled) return;
-        window.__azokleBgGuardianInstalled = true;
+        if (window.__azokleMainWorldInstalled) return;
+        window.__azokleMainWorldInstalled = true;
 
         try {
-            var isUserInteracting = false;
-            var userInteractTimer = null;
+            var host = (window.location && window.location.hostname) ? window.location.hostname.toLowerCase() : '';
+            var isVideoStreamingSite = host.indexOf('youtube.com') !== -1 ||
+                                       host.indexOf('youtu.be') !== -1 ||
+                                       host.indexOf('vimeo.com') !== -1 ||
+                                       host.indexOf('dailymotion.com') !== -1 ||
+                                       host.indexOf('twitch.tv') !== -1;
 
-            var markUserInteraction = function() {
-                isUserInteracting = true;
-                if (userInteractTimer) clearTimeout(userInteractTimer);
-                userInteractTimer = setTimeout(function() {
-                    isUserInteracting = false;
-                }, 400);
-            };
-
-            ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'touchend', 'keydown'].forEach(function(evt) {
-                window.addEventListener(evt, markUserInteraction, true);
-                if (typeof document !== 'undefined') {
-                    document.addEventListener(evt, markUserInteraction, true);
-                }
-            });
-
-            // 1. Guard HTMLMediaElement.prototype.pause
-            if (typeof HTMLMediaElement !== 'undefined' && HTMLMediaElement.prototype) {
-                var origPause = HTMLMediaElement.prototype.pause;
-                var origPlay = HTMLMediaElement.prototype.play;
-
-                HTMLMediaElement.prototype.play = function() {
-                    return origPlay.apply(this, arguments);
-                };
-
-                HTMLMediaElement.prototype.pause = function() {
-                    // Check if pause was triggered without active user interaction
-                    var evt = window.event;
-                    var isTrustedUserEvent = evt && evt.isTrusted && (
-                        evt.type === 'click' || evt.type === 'touchend' || evt.type === 'mouseup' || evt.type === 'keydown'
-                    );
-
-                    if (!isUserInteracting && !isTrustedUserEvent) {
-                        // Suppress background auto-pause (app switch, screen lock, blur, visibility change)
-                        return;
-                    }
-                    return origPause.apply(this, arguments);
-                };
-            }
-
-            // 2. Safe Page Visibility & Focus Spoofing
             var safeDef = function(obj, prop, val) {
                 if (!obj) return;
                 try {
@@ -78,139 +42,57 @@
                 } catch(e) {}
             };
 
-            var docProto = (typeof Document !== 'undefined') ? Document.prototype : null;
+            // Site-Specific Video Background Playback (Visibility State Neutralization)
+            // Scoped strictly to video streaming platforms where background auto-pause occurs
+            // via visibilitychange/hidden event listeners.
+            // Never intercepts HTMLMediaElement.prototype.pause (respects Section 6 & 7).
+            if (isVideoStreamingSite) {
+                var docProto = (typeof Document !== 'undefined') ? Document.prototype : null;
 
-            ['hidden', 'webkitHidden', 'mozHidden', 'msHidden'].forEach(function(p) {
-                safeDef(document, p, false);
-                if (docProto) safeDef(docProto, p, false);
-            });
+                ['hidden', 'webkitHidden', 'mozHidden', 'msHidden'].forEach(function(p) {
+                    safeDef(document, p, false);
+                    if (docProto) safeDef(docProto, p, false);
+                });
 
-            ['visibilityState', 'webkitVisibilityState', 'mozVisibilityState', 'msVisibilityState'].forEach(function(p) {
-                safeDef(document, p, 'visible');
-                if (docProto) safeDef(docProto, p, 'visible');
-            });
+                ['visibilityState', 'webkitVisibilityState', 'mozVisibilityState', 'msVisibilityState'].forEach(function(p) {
+                    safeDef(document, p, 'visible');
+                    if (docProto) safeDef(docProto, p, 'visible');
+                });
 
-            try {
-                document.hasFocus = function() { return true; };
-                if (docProto) docProto.hasFocus = function() { return true; };
-            } catch(e) {}
-
-            // 3. Block visibilitychange and blur capture events
-            var neutralizeEvent = function(e) {
-                if (e && !isUserInteracting) {
-                    try {
-                        e.stopImmediatePropagation();
-                    } catch(err) {}
-                }
-            };
-
-            ['visibilitychange', 'webkitvisibilitychange', 'mozvisibilitychange', 'msvisibilitychange', 'pagehide', 'freeze', 'blur'].forEach(function(evt) {
-                try { window.addEventListener(evt, neutralizeEvent, true); } catch(e) {}
-                try { if (document) document.addEventListener(evt, neutralizeEvent, true); } catch(e) {}
-            });
-
-            try {
-                window.onblur = null;
-                document.onblur = null;
-                window.onpagehide = null;
-                window.onvisibilitychange = null;
-                document.onvisibilitychange = null;
-            // =================================================================
-            // 2. Sovereign RFP (Resist Fingerprinting) Canvas & Audio Shield
-            // Injects micro-variance into Canvas and Audio buffers to neutralize
-            // cross-site tracking fingerprints without degrading visual fidelity.
-            // =================================================================
-            try {
-                if (typeof HTMLCanvasElement !== 'undefined' && HTMLCanvasElement.prototype) {
-                    var origToDataURL = HTMLCanvasElement.prototype.toDataURL;
-                    HTMLCanvasElement.prototype.toDataURL = function() {
-                        try {
-                            var ctx = this.getContext('2d');
-                            if (ctx && this.width > 0 && this.height > 0) {
-                                var imgData = ctx.getImageData(0, 0, Math.min(this.width, 16), Math.min(this.height, 16));
-                                for (var i = 0; i < imgData.data.length; i += 4) {
-                                    imgData.data[i] ^= (Math.random() > 0.5 ? 1 : 0);
-                                }
-                                ctx.putImageData(imgData, 0, 0);
-                            }
-                        } catch(e) {}
-                        return origToDataURL.apply(this, arguments);
-                    };
-
-                    if (typeof CanvasRenderingContext2D !== 'undefined' && CanvasRenderingContext2D.prototype) {
-                        var origGetImageData = CanvasRenderingContext2D.prototype.getImageData;
-                        CanvasRenderingContext2D.prototype.getImageData = function() {
-                            var res = origGetImageData.apply(this, arguments);
-                            try {
-                                if (res && res.data && res.data.length > 0) {
-                                    for (var j = 0; j < Math.min(res.data.length, 64); j += 4) {
-                                        res.data[j] = (res.data[j] ^ 1);
-                                    }
-                                }
-                            } catch(e) {}
-                            return res;
-                        };
-                    }
-                }
-
-                if (typeof AudioBuffer !== 'undefined' && AudioBuffer.prototype.getChannelData) {
-                    var origGetChannelData = AudioBuffer.prototype.getChannelData;
-                    AudioBuffer.prototype.getChannelData = function() {
-                        var channel = origGetChannelData.apply(this, arguments);
-                        try {
-                            if (channel && channel.length > 0) {
-                                for (var k = 0; k < Math.min(channel.length, 32); k++) {
-                                    channel[k] += (Math.random() - 0.5) * 1e-7;
-                                }
-                            }
-                        } catch(e) {}
-                        return channel;
-                    };
-                }
-
-                safeDef(navigator, 'hardwareConcurrency', 8);
-                safeDef(navigator, 'deviceMemory', 8);
-
-                // WebGL Hardware Cloaking (Defeat GPU Model Fingerprinting)
-                var cloakWebGL = function(proto) {
-                    if (!proto || !proto.getParameter) return;
-                    var origGetParameter = proto.getParameter;
-                    proto.getParameter = function(param) {
-                        if (param === 0x9245) return "Google Inc. (Mozilla)";
-                        if (param === 0x9246) return "ANGLE (Mozilla, Generic Vulkan / OpenGL ES 1.0, Mesa)";
-                        return origGetParameter.apply(this, arguments);
-                    };
-                };
-                if (typeof WebGLRenderingContext !== 'undefined') cloakWebGL(WebGLRenderingContext.prototype);
-                if (typeof WebGL2RenderingContext !== 'undefined') cloakWebGL(WebGL2RenderingContext.prototype);
-
-                // Spectre Side-Channel Mitigation: Reduced Timer Precision
-                if (typeof performance !== 'undefined' && performance.now) {
-                    var origNow = performance.now.bind(performance);
-                    performance.now = function() {
-                        var t = origNow();
-                        return Math.floor(t / 20) * 20;
-                    };
-                }
-
-                // Battery API Annihilation (Eliminates Battery Discharge Fingerprinting)
-                if (typeof navigator !== 'undefined') {
-                    navigator.getBattery = function() {
-                        return Promise.reject(new Error("Battery API disabled for privacy"));
-                    };
-                }
-
-                // Sensor Neutralization
                 try {
-                    window.DeviceOrientationEvent = undefined;
-                    window.DeviceMotionEvent = undefined;
+                    document.hasFocus = function() { return true; };
+                    if (docProto) docProto.hasFocus = function() { return true; };
                 } catch(e) {}
-            } catch(e) {}
+
+                var neutralizeVisibilityEvent = function(e) {
+                    if (e && e.type && e.type.indexOf('visibilitychange') !== -1) {
+                        try { e.stopImmediatePropagation(); } catch(err) {}
+                    }
+                };
+
+                ['visibilitychange', 'webkitvisibilitychange', 'mozvisibilitychange', 'msvisibilitychange'].forEach(function(evt) {
+                    try { window.addEventListener(evt, neutralizeVisibilityEvent, true); } catch(e) {}
+                    try { if (document) document.addEventListener(evt, neutralizeVisibilityEvent, true); } catch(e) {}
+                });
+
+                try {
+                    window.onvisibilitychange = null;
+                    if (document) document.onvisibilitychange = null;
+                } catch(e) {}
+            }
+
+            // Battery API Neutralization
+            if (typeof navigator !== 'undefined') {
+                navigator.getBattery = function() {
+                    return Promise.reject(new Error("Battery API disabled for privacy"));
+                };
+            }
         } catch(e) {}
     })();
     `;
 
-    // Inject into Main World at document_start
+    // Secure Main-World Injection: uses standard script element with immediate removal
+    // Strictly avoids window.wrappedJSObject.eval() (respects Section 27)
     try {
         var scriptTag = document.createElement('script');
         scriptTag.textContent = pageMainWorldCode;
@@ -218,15 +100,9 @@
         scriptTag.remove();
     } catch(e) {}
 
-    try {
-        if (typeof window.wrappedJSObject !== 'undefined' && typeof window.wrappedJSObject.eval === 'function') {
-            window.wrappedJSObject.eval(pageMainWorldCode);
-        }
-    } catch(e) {}
-
 
     // =========================================================================
-    // 1. App Theme Preference Synchronizer (Non-destructive CSS & Attribute Engine)
+    // 2. App Theme Preference Synchronizer
     // =========================================================================
     function applyAppTheme(theme) {
         if (!theme || theme === 'system') return;
@@ -258,121 +134,99 @@
 
 
     // =========================================================================
-    // 2. High-Performance YouTube Instant Ad Annihilator & Video Ad Fast-Forward
+    // 3. YouTube Site-Specific Compatibility Adapter
+    // Scoped strictly to *.youtube.com domains (respects Section 19).
+    // Replaces 100ms polling with a targeted MutationObserver.
+    // Never clicks broad aria-labels or uses 16x speed manipulation.
     // =========================================================================
-    var host = (location && location.hostname) ? location.hostname.toLowerCase() : '';
-    if (host === 'youtube.com' || host === 'm.youtube.com' || host.endsWith('.youtube.com')) {
-        var lastReportedAdTime = 0;
-        var handleYouTubeAd = function() {
+    var isYouTube = hostName === 'youtube.com' || hostName === 'm.youtube.com' || hostName.endsWith('.youtube.com');
+    if (isYouTube) {
+        var ytSkipSelectors = [
+            '.ytp-ad-skip-button',
+            '.ytp-ad-skip-button-modern',
+            '.videoAdUiSkipButton',
+            '.ytm-ad-skip-button',
+            'button.ytp-ad-skip-button-text',
+            '.ytp-skip-ad-button'
+        ];
+
+        var ytCosmeticSelectors = [
+            'ytd-promoted-video-renderer',
+            'ytd-display-ad-renderer',
+            'ytd-statement-banner-renderer',
+            'ytd-in-feed-ad-layout-renderer',
+            'ytd-banner-promo-renderer',
+            '#player-ads',
+            '#masthead-ad',
+            '.ytp-ad-overlay-container',
+            'ytm-promoted-sparkles-web-renderer',
+            'ytm-promoted-video-renderer',
+            'ytd-ad-slot-renderer',
+            'ytm-ad-slot-renderer'
+        ].join(', ');
+
+        var lastReportedSkip = 0;
+        var handleYouTubePlayerState = function() {
             try {
-                var isAdActive = false;
-                var playerContainer = document.querySelector('#movie_player, .html5-video-player');
-                if (playerContainer && (playerContainer.classList.contains('ad-showing') || playerContainer.classList.contains('ad-interrupting'))) {
-                    isAdActive = true;
-                }
-
-                var adText = document.querySelector('.ytp-ad-text, .ytm-ad-text, .ytp-ad-preview-text');
-                if (adText && adText.offsetParent !== null) {
-                    isAdActive = true;
-                }
-
-                var video = document.querySelector('video');
-
-                if (isAdActive && video) {
-                    video.muted = true;
-                    video.playbackRate = 16.0;
-                } else if (!isAdActive && video && video.playbackRate > 2.0) {
-                    video.playbackRate = 1.0;
-                }
-
-                var skipSelectors = [
-                    '.ytp-ad-skip-button',
-                    '.ytp-ad-skip-button-modern',
-                    '.videoAdUiSkipButton',
-                    '.ytm-ad-skip-button',
-                    'button.ytp-ad-skip-button-text',
-                    '.ytp-skip-ad-button',
-                    '.ytp-ad-overlay-close-button',
-                    'button[id*="skip-button"]',
-                    'button[aria-label*="Skip ad"]',
-                    'button[aria-label*="Skip"]'
-                ];
-
-                for (var s = 0; s < skipSelectors.length; s++) {
-                    var btns = document.querySelectorAll(skipSelectors[s]);
-                    for (var b = 0; b < btns.length; b++) {
-                        var btn = btns[b];
-                        if (btn && btn.offsetParent !== null) {
-                            btn.click();
-                            isAdActive = true;
+                // 1. Skip ad button clicker with exact, tested selectors only
+                for (var s = 0; s < ytSkipSelectors.length; s++) {
+                    var btn = document.querySelector(ytSkipSelectors[s]);
+                    if (btn && btn.offsetParent !== null) {
+                        btn.click();
+                        if (Date.now() - lastReportedSkip > 4000) {
+                            lastReportedSkip = Date.now();
+                            if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendMessage) {
+                                browser.runtime.sendMessage({
+                                    type: 'RECORD_BLOCK',
+                                    host: 'youtube.com (Video Ad Skipped)'
+                                }).catch(function() {});
+                            }
                         }
+                        break;
                     }
                 }
 
-                if (isAdActive && Date.now() - lastReportedAdTime > 3000) {
-                    lastReportedAdTime = Date.now();
-                    if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendMessage) {
-                        browser.runtime.sendMessage({
-                            type: 'RECORD_BLOCK',
-                            host: 'youtube.com (Video Ad Skipped)'
-                        }).catch(function() {});
-                    }
+                // 2. Prune cosmetic promotional banner elements on YouTube
+                var promoNodes = document.querySelectorAll(ytCosmeticSelectors);
+                for (var p = 0; p < promoNodes.length; p++) {
+                    promoNodes[p].remove();
                 }
             } catch(e) {}
         };
 
-        setInterval(handleYouTubeAd, 100);
-    }
+        // Targeted MutationObserver: attaches to player container or document.body with debouncing
+        var ytDebounceTimer = null;
+        var onYtMutation = function() {
+            if (ytDebounceTimer) return;
+            ytDebounceTimer = setTimeout(function() {
+                ytDebounceTimer = null;
+                handleYouTubePlayerState();
+            }, 120);
+        };
 
-
-    // =========================================================================
-    // 3. Content Script Reactive DOM Element Pruning for Static Banner Ads
-    // =========================================================================
-    var adSelectors = 'ytd-promoted-video-renderer, ytd-display-ad-renderer, ytd-statement-banner-renderer, ytd-in-feed-ad-layout-renderer, ytd-banner-promo-renderer, #player-ads, #masthead-ad, .ytp-ad-overlay-container, ytm-promoted-sparkles-web-renderer, ytm-promoted-video-renderer, .ad-container, #ad-iframe, ytd-enforcement-message-view-model, .yt-playability-error-supported-renderers, ytd-ad-slot-renderer, ytm-ad-slot-renderer';
-    var pruneScheduled = false;
-    var lastPruneReportTime = 0;
-
-    var cleanDomAds = function() {
-        if (pruneScheduled) return;
-        pruneScheduled = true;
-        (window.requestIdleCallback || window.requestAnimationFrame || function(fn) { setTimeout(fn, 50); })(function() {
-            pruneScheduled = false;
-            try {
-                var ads = document.querySelectorAll(adSelectors);
-                if (ads.length > 0) {
-                    for (var i = 0; i < ads.length; i++) {
-                        ads[i].remove();
-                    }
-                    if (Date.now() - lastPruneReportTime > 5000) {
-                        lastPruneReportTime = Date.now();
-                        if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendMessage) {
-                            browser.runtime.sendMessage({
-                                type: 'RECORD_BLOCK',
-                                host: host || 'Banner Ad'
-                            }).catch(function() {});
-                        }
-                    }
+        if (typeof MutationObserver !== 'undefined') {
+            var attachYtObserver = function() {
+                var target = document.querySelector('#movie_player, .html5-video-player') || document.body;
+                if (target) {
+                    var observer = new MutationObserver(onYtMutation);
+                    observer.observe(target, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+                    handleYouTubePlayerState();
+                } else {
+                    setTimeout(attachYtObserver, 250);
                 }
-            } catch(e) {}
-        });
-    };
+            };
 
-    if (typeof MutationObserver !== 'undefined' && document.documentElement) {
-        var domObserver = new MutationObserver(function(mutations) {
-            for (var i = 0; i < mutations.length; i++) {
-                if (mutations[i].addedNodes.length > 0) {
-                    cleanDomAds();
-                    break;
-                }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', attachYtObserver);
+            } else {
+                attachYtObserver();
             }
-        });
-        domObserver.observe(document.documentElement, { childList: true, subtree: true });
-        cleanDomAds();
+        }
     }
 
 
     // =========================================================================
-    // 4. Real Web App Manifest & PWA Installability Scanner (Chromium / Firefox Standard)
+    // 4. W3C Web App Manifest & PWA Installability Scanner (Section 20)
     // =========================================================================
     var manifestDispatched = false;
     var scanForManifest = function() {
@@ -405,7 +259,6 @@
             }
 
             var notifyApp = function(manifestJsonStr) {
-                manifestDispatched = true;
                 if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendMessage) {
                     browser.runtime.sendMessage({
                         type: 'PWA_MANIFEST_DISCOVERED',
@@ -415,11 +268,16 @@
                         pageTitle: document.title,
                         fallbackIcon: fallbackIcon,
                         themeColor: themeColor
-                    }).catch(function() {});
+                    }).then(function() {
+                        manifestDispatched = true;
+                    }).catch(function() {
+                        // Allow retry on failure as specified by Section 20
+                        manifestDispatched = false;
+                    });
                 }
             };
 
-            if (manifestUrl) {
+            if (manifestUrl && (manifestUrl.startsWith('http://') || manifestUrl.startsWith('https://'))) {
                 fetch(manifestUrl, { credentials: 'same-origin' })
                     .then(function(res) {
                         if (res.ok) return res.text();

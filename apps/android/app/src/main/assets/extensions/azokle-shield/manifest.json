@@ -41,7 +41,6 @@
     "proxy",
     "storage",
     "nativeMessaging",
-    "nativeMessagingFromContent",
     "geckoViewAddons"
   ]
 }

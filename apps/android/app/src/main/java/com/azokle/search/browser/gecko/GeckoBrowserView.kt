@@ -39,7 +39,9 @@ data class DownloadConfirmationPayload(
     val filename: String,
     val mimeType: String,
     val contentLength: Long,
-    val headers: Map<String, String>? = null
+    val headers: Map<String, String>? = null,
+    val isPrivate: Boolean = false,
+    val isTor: Boolean = false
 )
 
 @Composable
@@ -86,6 +88,11 @@ fun GeckoBrowserView(
     LaunchedEffect(isDesktopMode) {
         if (isFirstDesktopEffect) {
             isFirstDesktopEffect = false
+            if (isDesktopMode) {
+                session.settings.userAgentMode = GeckoSessionSettings.USER_AGENT_MODE_DESKTOP
+                session.settings.viewportMode = GeckoSessionSettings.VIEWPORT_MODE_DESKTOP
+                session.settings.userAgentOverride = GeckoEngineManager.MODERN_DESKTOP_UA
+            }
             return@LaunchedEffect
         }
         if (isDesktopMode) {
@@ -133,6 +140,8 @@ fun GeckoBrowserView(
             val swipeRefresh = GeckoSwipeRefreshLayout(ctx).apply {
                 currentUrl = url
                 isFullScreen = isFullScreenMode
+                currentScrollY = 0
+                isContentAtTop = true
                 setBackgroundColor(nativeBgColor)
                 setColorSchemeColors(
                     android.graphics.Color.parseColor("#38BDF8"),
@@ -166,9 +175,8 @@ fun GeckoBrowserView(
 
             val geckoView = NestedGeckoView(ctx).apply {
                 setBackgroundColor(nativeBgColor)
-                // Sovereign Anti-Flash: start invisible so no stale frame buffer is ever painted
-                visibility = android.view.View.INVISIBLE
-                alpha = 0f
+                visibility = android.view.View.VISIBLE
+                alpha = 1f
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
@@ -225,36 +233,11 @@ fun GeckoBrowserView(
                         }
 
                         // 3. Whitelisted external application schemes (tel, mailto, sms, geo, market, intent)
-                        val safeExternalSchemes = setOf("tel", "mailto", "sms", "smsto", "mms", "mmsto", "geo", "market", "intent")
-                        if (scheme in safeExternalSchemes) {
-                            try {
-                                if (scheme == "intent") {
-                                    val intent = android.content.Intent.parseUri(uriStr, android.content.Intent.URI_INTENT_SCHEME).apply {
-                                        addCategory(android.content.Intent.CATEGORY_BROWSABLE)
-                                        component = null
-                                        selector = null
-                                        flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                                    }
-                                    val fallbackUrl = intent.getStringExtra("browser_fallback_url")
-                                    try {
-                                        context.startActivity(intent)
-                                    } catch (e: android.content.ActivityNotFoundException) {
-                                        if (!fallbackUrl.isNullOrBlank() && (fallbackUrl.startsWith("http://", ignoreCase = true) || fallbackUrl.startsWith("https://", ignoreCase = true))) {
-                                            android.os.Handler(android.os.Looper.getMainLooper()).post {
-                                                session.loadUri(fallbackUrl)
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(uriStr)).apply {
-                                        addCategory(android.content.Intent.CATEGORY_BROWSABLE)
-                                        flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                                    }
-                                    context.startActivity(intent)
-                                }
-                            } catch (e: Exception) {
-                                // Ignore unhandled intent schemes safely
+                        if (com.azokle.search.browser.handlers.ExternalSchemeHandler.isExternalScheme(uriStr)) {
+                            if (!request.hasUserGesture && request.target != org.mozilla.geckoview.GeckoSession.NavigationDelegate.TARGET_WINDOW_NONE) {
+                                return org.mozilla.geckoview.GeckoResult.fromValue(org.mozilla.geckoview.AllowOrDeny.DENY)
                             }
+                            com.azokle.search.browser.handlers.ExternalSchemeHandler.handleExternalUri(context, uriStr, session)
                             return org.mozilla.geckoview.GeckoResult.fromValue(org.mozilla.geckoview.AllowOrDeny.DENY)
                         }
 
@@ -342,8 +325,8 @@ fun GeckoBrowserView(
                         android.os.Handler(android.os.Looper.getMainLooper()).post {
                             isCrashed = false
                             isOomKill = false
-                            this@apply.visibility = android.view.View.INVISIBLE
-                            this@apply.alpha = 0f
+                            this@apply.visibility = android.view.View.VISIBLE
+                            this@apply.alpha = 1f
                         }
                         onLoadingChanged(true)
                         onProgressChanged(10)
@@ -390,12 +373,12 @@ fun GeckoBrowserView(
                                     val activity = view.context as? android.app.Activity
                                     if (activity != null && (activity.isFinishing || activity.isDestroyed)) return@postDelayed
                                     if (view.width > 0 && view.height > 0) {
-                                        val targetW = 320
-                                        val targetH = (320f * view.height / view.width).toInt().coerceIn(180, 480)
+                                        val targetW = 180
+                                        val targetH = (180f * view.height / view.width).toInt().coerceIn(120, 260)
                                         val bitmap = android.graphics.Bitmap.createBitmap(
                                             targetW,
                                             targetH,
-                                            android.graphics.Bitmap.Config.ARGB_8888
+                                            android.graphics.Bitmap.Config.RGB_565
                                         )
 
                                         var surfaceView: android.view.SurfaceView? = null
@@ -420,7 +403,11 @@ fun GeckoBrowserView(
                                             try {
                                                 val texBmp = textureView?.getBitmap(targetW, targetH)
                                                 if (texBmp != null) {
-                                                    TabManager.updateActiveTabThumbnail(texBmp)
+                                                    if (tabId != null) {
+                                                        TabManager.updateTabThumbnail(tabId, texBmp)
+                                                    } else {
+                                                        TabManager.updateActiveTabThumbnail(texBmp)
+                                                    }
                                                     copyDispatched = true
                                                 }
                                             } catch (e: Exception) {}
@@ -432,7 +419,11 @@ fun GeckoBrowserView(
                                                     bitmap,
                                                     { copyResult ->
                                                         if (copyResult == android.view.PixelCopy.SUCCESS) {
-                                                            TabManager.updateActiveTabThumbnail(bitmap)
+                                                            if (tabId != null) {
+                                                                TabManager.updateTabThumbnail(tabId, bitmap)
+                                                            } else {
+                                                                TabManager.updateActiveTabThumbnail(bitmap)
+                                                            }
                                                         } else {
                                                             bitmap.recycle()
                                                         }
@@ -445,10 +436,7 @@ fun GeckoBrowserView(
                                             }
                                         }
                                         if (!copyDispatched) {
-                                            val canvas = android.graphics.Canvas(bitmap)
-                                            canvas.scale(targetW.toFloat() / view.width, targetH.toFloat() / view.height)
-                                            view.draw(canvas)
-                                            TabManager.updateActiveTabThumbnail(bitmap)
+                                            bitmap.recycle()
                                         }
                                     }
                                 } catch (e: Exception) {
@@ -570,7 +558,9 @@ fun GeckoBrowserView(
                             filename = filename,
                             mimeType = mimeType,
                             contentLength = contentLength,
-                            headers = response.headers
+                            headers = response.headers,
+                            isPrivate = isPrivate,
+                            isTor = isTor
                         )
 
                         if (onDownloadConfirmationRequested != null) {
@@ -583,7 +573,10 @@ fun GeckoBrowserView(
                                 url = downloadUrl,
                                 filename = filename,
                                 mimeType = mimeType,
-                                contentLength = contentLength
+                                contentLength = contentLength,
+                                headers = response.headers,
+                                isPrivate = isPrivate,
+                                isTor = isTor
                             )
                             android.widget.Toast.makeText(context, "📥 Downloading $filename...", android.widget.Toast.LENGTH_SHORT).show()
                         }
@@ -716,22 +709,20 @@ fun GeckoBrowserView(
                 }
 
                 // 6. Prompt Delegate (JavaScript alerts, confirms, prompts, HTTP Auth, Popups)
-                session.promptDelegate = GeckoPromptDelegateImpl(context) { targetUri ->
-                    val scheme = com.azokle.search.util.UrlHelper.extractScheme(targetUri)
-                    val dangerousSchemes = setOf("file", "content", "chrome", "resource", "javascript", "data")
-                    if (scheme == null || scheme !in dangerousSchemes) {
-                        onNewWindowRequested(targetUri)
+                session.promptDelegate = GeckoPromptDelegateImpl(
+                    context = context,
+                    hasRecentUserInteraction = { this@apply.hasRecentUserInteraction() },
+                    onPopupRequested = { targetUri ->
+                        val scheme = com.azokle.search.util.UrlHelper.extractScheme(targetUri)
+                        val dangerousSchemes = setOf("file", "content", "chrome", "resource", "javascript", "data")
+                        if (scheme == null || scheme !in dangerousSchemes) {
+                            onNewWindowRequested(targetUri)
+                        }
                     }
-                }
+                )
 
-                // 6.1 Selection Action Delegate (Native Floating ActionMode: Copy, Cut, Paste, Select All, Share, Web Search)
-                var currentContext = context
-                while (currentContext is android.content.ContextWrapper && currentContext !is android.app.Activity) {
-                    currentContext = currentContext.baseContext
-                }
-                if (currentContext is android.app.Activity) {
-                    session.selectionActionDelegate = AzokleSelectionDelegate(currentContext, onTextSelectionChanged)
-                }
+                // 6.1 Selection Action Delegate (Floating Context Menu: Copy, Cut, Paste, Select All, Share, Web Search)
+                session.selectionActionDelegate = AzokleSelectionDelegate(onTextSelectionChanged)
 
                 // 7. Permission Delegate (Two-Tier Brave-Grade Origin Security & Hardware Access Engine)
                 session.permissionDelegate = object : GeckoSession.PermissionDelegate {
@@ -894,6 +885,7 @@ fun GeckoBrowserView(
                     session.open(runtime)
                 }
 
+                session.selectionActionDelegate = AzokleSelectionDelegate(onTextSelectionChanged)
 
                 isFocusable = true
                 isFocusableInTouchMode = true
@@ -912,6 +904,7 @@ fun GeckoBrowserView(
         update = { swipeRefresh ->
             swipeRefresh.currentUrl = url
             swipeRefresh.isFullScreen = isFullScreenMode
+            (session.selectionActionDelegate as? AzokleSelectionDelegate)?.onSelectionAction = onTextSelectionChanged
         },
         onRelease = { swipeRefresh ->
             try {
@@ -923,6 +916,11 @@ fun GeckoBrowserView(
                         child.alpha = 0f
                         child.releaseSession()
                     }
+                }
+                if (tabId == null) {
+                    try {
+                        session.close()
+                    } catch (e: Exception) {}
                 }
             } catch (e: Exception) {
                 // Ignore transient release errors safely

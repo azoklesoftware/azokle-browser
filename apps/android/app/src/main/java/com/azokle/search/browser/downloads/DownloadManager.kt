@@ -89,7 +89,9 @@ object DownloadManager {
         filename: String? = null,
         mimeType: String? = null,
         contentLength: Long = 0L,
-        headers: Map<String, String>? = null
+        headers: Map<String, String>? = null,
+        isPrivate: Boolean = false,
+        isTor: Boolean = false
     ): String {
         init(context)
         val rawName = filename?.takeIf { it.isNotBlank() } ?: extractFilename(url, mimeType = mimeType)
@@ -128,7 +130,9 @@ object DownloadManager {
             totalBytes = contentLength,
             downloadedBytes = 0L,
             status = DownloadStatus.DOWNLOADING,
-            timestamp = System.currentTimeMillis()
+            timestamp = System.currentTimeMillis(),
+            isPrivate = isPrivate,
+            isTor = isTor
         )
 
         _downloads.update { listOf(item) + it }
@@ -146,7 +150,7 @@ object DownloadManager {
             var downloaded = targetFile.length()
 
             try {
-                val isTorActive = com.azokle.search.security.TorCircuitManager.isTorActive || item.url.contains(".onion", ignoreCase = true)
+                val isTorActive = item.isTor || com.azokle.search.security.TorCircuitManager.isTorActive || item.url.contains(".onion", ignoreCase = true)
                 if (isTorActive) {
                     val socksProxy = java.net.Proxy(
                         java.net.Proxy.Type.SOCKS,
@@ -444,7 +448,7 @@ object DownloadManager {
         scope.launch {
             try {
                 val array = JSONArray()
-                _downloads.value.take(200).forEach { item ->
+                _downloads.value.take(200).filter { !it.isPrivate && !it.isTor }.forEach { item ->
                     val obj = JSONObject().apply {
                         put("id", item.id)
                         put("url", item.url)

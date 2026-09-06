@@ -1,6 +1,5 @@
 package com.azokle.search.browser.tabs
 
-import android.graphics.Bitmap
 import org.json.JSONObject
 import java.util.UUID
 
@@ -9,7 +8,6 @@ data class TabSession(
     val url: String = "",
     val title: String = "New Tab",
     val faviconUrl: String? = null,
-    val thumbnail: Bitmap? = null,
     val isPrivate: Boolean = false,
     val isTor: Boolean = false,
     val isSleeping: Boolean = false,
