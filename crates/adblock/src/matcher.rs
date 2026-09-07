@@ -139,6 +139,14 @@ impl RuleMatcher {
                     let clean_src_host = src_host.trim_end_matches('.').to_lowercase();
                     if clean_src_host == host && host.contains("youtube.com") {
                         let path = parsed.path();
+                        if path.contains("/api/stats/ads") || path.contains("/ptracking") || path.contains("/pagead") {
+                            return FilterDecision {
+                                should_block: true,
+                                category: BlockCategory::Ad,
+                                matched_rule: Some("||youtube.com/api/stats/ads".to_string()),
+                                is_exception: false,
+                            };
+                        }
                         if path.contains("/player") || path.contains("/api/stats") || path.contains("/videoplayback") {
                             return FilterDecision {
                                 should_block: false,

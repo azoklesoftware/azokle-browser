@@ -20,11 +20,12 @@ ytd-promoted-video-renderer, ytd-display-ad-renderer,
 ytd-statement-banner-renderer, ytd-in-feed-ad-layout-renderer,
 ytd-banner-promo-renderer, #player-ads, #masthead-ad,
 .ytp-ad-overlay-container, ytm-promoted-sparkles-web-renderer,
-ytm-promoted-video-renderer, .ad-container, #ad-iframe,
+ytm-promoted-video-renderer, #ad-iframe,
 .ytp-ad-image-overlay, .ytp-ad-text-overlay, ytm-companion-ad-renderer,
 ytd-action-companion-ad-renderer, ytd-ad-slot-renderer,
 ytm-ad-slot-renderer, ytd-carousel-ad-renderer, #ad_creative_3,
 .sparkles-light-cta, ytm-promoted-sparkles-text-search-web-renderer,
+ytd-rich-item-renderer[is-promoted],
 ytd-enforcement-message-view-model {
     display: none !important;
     visibility: hidden !important;

@@ -120,9 +120,9 @@ fun DiscoverScreen(
                         Spacer(modifier = Modifier.height(20.dp))
                     }
 
-                    // B. Quick Access 4-Column Springboard Dock (Top 8 Portals)
-                    item(key = "quick_access_dock") {
-                        LuxurySectionEyebrow(title = "QUICK ACCESS", count = uiState.topPickItems.size)
+                    // B. SPONSORED Springboard Dock
+                    item(key = "sponsored_dock") {
+                        LuxurySectionEyebrow(title = "SPONSORED", count = uiState.topPickItems.size)
                         Spacer(modifier = Modifier.height(10.dp))
                         QuickAccessDock(
                             items = uiState.topPickItems,
@@ -387,7 +387,8 @@ private fun SpotlightCard(
                         contentAlignment = Alignment.Center
                     ) {
                         FaviconImage(
-                            url = item.url,
+                            url = item.domain.ifBlank { item.url },
+                            faviconUrl = item.faviconUrl,
                             size = 20.dp
                         )
                     }
@@ -506,7 +507,8 @@ private fun QuickAccessDock(
                             contentAlignment = Alignment.Center
                         ) {
                             FaviconImage(
-                                url = item.url,
+                                url = item.domain.ifBlank { item.url },
+                                faviconUrl = item.faviconUrl ?: "https://www.google.com/s2/favicons?domain=${item.domain}&sz=128",
                                 size = 24.dp
                             )
                         }
@@ -522,6 +524,11 @@ private fun QuickAccessDock(
                             overflow = TextOverflow.Ellipsis,
                             textAlign = TextAlign.Center
                         )
+                    }
+                }
+                if (rowItems.size < 4) {
+                    repeat(4 - rowItems.size) {
+                        Spacer(modifier = Modifier.width(72.dp))
                     }
                 }
             }
@@ -600,7 +607,8 @@ private fun HorizontalPortalShelf(
                     contentAlignment = Alignment.Center
                 ) {
                     FaviconImage(
-                        url = item.url,
+                        url = item.domain.ifBlank { item.url },
+                        faviconUrl = item.faviconUrl,
                         size = 24.dp
                     )
                 }
@@ -677,7 +685,8 @@ private fun LuxuryPortalCard(
             contentAlignment = Alignment.Center
         ) {
             FaviconImage(
-                url = item.url,
+                url = item.domain.ifBlank { item.url },
+                faviconUrl = item.faviconUrl,
                 size = 24.dp
             )
         }

@@ -174,12 +174,12 @@
                 return { cancel: false };
             }
 
-            // 1.1 Protect first-party YouTube player requests from false positive path blocks
-            if ((docHost.includes('youtube.com') || host.includes('youtube.com')) && (
-                urlLower.includes('/youtubei/v1/player') || urlLower.includes('/api/stats/') ||
-                urlLower.includes('/gen_204') || urlLower.includes('/client_204') ||
-                urlLower.includes('/ptracking')
-            )) {
+            // 1.1 Protect necessary first-party YouTube player & media requests from false positive path blocks.
+            // NEVER cancel YouTube player, beacon, or ad endpoints with network cancellation,
+            // as YouTube's player detects network errors and enforces a 15-30 second fake-buffering
+            // black screen stall while waiting for the cancelled requests to time out.
+            var isYtReq = (docHost.includes('youtube.com') || host.includes('youtube.com'));
+            if (isYtReq) {
                 return { cancel: false };
             }
 

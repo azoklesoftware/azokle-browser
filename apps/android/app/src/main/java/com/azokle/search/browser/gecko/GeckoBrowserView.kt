@@ -136,7 +136,13 @@ fun GeckoBrowserView(
     androidx.compose.foundation.layout.Box(modifier = modifier.fillMaxSize()) {
         AndroidView(
         factory = { ctx ->
-            val nativeBgColor = if (isDarkMode) android.graphics.Color.parseColor("#121212") else android.graphics.Color.parseColor("#FFFFFF")
+            val nativeBgColor = if (isFullScreenMode) {
+                android.graphics.Color.BLACK
+            } else if (isDarkMode) {
+                android.graphics.Color.parseColor("#121212")
+            } else {
+                android.graphics.Color.parseColor("#FFFFFF")
+            }
             val swipeRefresh = GeckoSwipeRefreshLayout(ctx).apply {
                 currentUrl = url
                 isFullScreen = isFullScreenMode
@@ -187,7 +193,7 @@ fun GeckoBrowserView(
                 try {
                     session.settings.suspendMediaWhenInactive = false
                 } catch (e: Exception) {}
-                val tabSessionId = session.hashCode().toString()
+                val tabSessionId = tabId ?: session.hashCode().toString()
                 session.mediaSessionDelegate = GeckoMediaSessionBridge(
                     tabId = tabSessionId,
                     isPrivate = isPrivate,
@@ -488,13 +494,15 @@ fun GeckoBrowserView(
                     }
 
                     override fun onFullScreen(session: GeckoSession, fullScreen: Boolean) {
-                        swipeRefresh.isFullScreen = fullScreen
-                        MediaPlaybackManager.updateFullscreenState(
-                            tabId = session.hashCode().toString(),
-                            isFullscreen = fullScreen,
-                            videoAspectRatio = null
-                        )
-                        onFullScreenChanged(fullScreen)
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            swipeRefresh.isFullScreen = fullScreen
+                            MediaPlaybackManager.updateFullscreenState(
+                                tabId = tabId ?: session.hashCode().toString(),
+                                isFullscreen = fullScreen,
+                                videoAspectRatio = null
+                            )
+                            onFullScreenChanged(fullScreen)
+                        }
                     }
 
                     override fun onContextMenu(
@@ -516,18 +524,48 @@ fun GeckoBrowserView(
                             try {
                                 java.net.URI(effectiveBaseUri).resolve(rawLink).toString()
                             } catch (e: Exception) {
-                                rawLink
+                                try {
+                                    android.net.Uri.parse(effectiveBaseUri).buildUpon().encodedPath(rawLink).build().toString()
+                                } catch (e2: Exception) {
+                                    rawLink
+                                }
                             }
                         } else {
                             rawLink
                         }
 
-                        if (!resolvedLink.isNullOrBlank() || !srcUri.isNullOrBlank()) {
+                        // Sanitize resolved link: strictly disallow dangerous schemes from being treated as navigable links
+                        val safeLink = if (!resolvedLink.isNullOrBlank()) {
+                            val scheme = try { android.net.Uri.parse(resolvedLink).scheme?.lowercase() ?: "" } catch (e: Exception) { "" }
+                            val dangerousSchemes = setOf("javascript", "file", "content", "chrome", "resource", "data")
+                            if (scheme in dangerousSchemes) {
+                                ""
+                            } else {
+                                resolvedLink
+                            }
+                        } else {
+                            ""
+                        }
+
+                        // Map ContextElement.type to ContextMediaType
+                        val mediaType = when (element.type) {
+                            GeckoSession.ContentDelegate.ContextElement.TYPE_IMAGE -> com.azokle.search.browser.ui.ContextMediaType.IMAGE
+                            GeckoSession.ContentDelegate.ContextElement.TYPE_VIDEO -> com.azokle.search.browser.ui.ContextMediaType.VIDEO
+                            GeckoSession.ContentDelegate.ContextElement.TYPE_AUDIO -> com.azokle.search.browser.ui.ContextMediaType.AUDIO
+                            else -> {
+                                if (!srcUri.isNullOrBlank()) com.azokle.search.browser.ui.ContextMediaType.IMAGE
+                                else com.azokle.search.browser.ui.ContextMediaType.NONE
+                            }
+                        }
+
+                        if (safeLink.isNotBlank() || !srcUri.isNullOrBlank()) {
                             val target = com.azokle.search.browser.ui.LinkContextTarget(
-                                url = resolvedLink ?: "",
+                                url = safeLink,
                                 title = title,
-                                isImage = !srcUri.isNullOrBlank(),
-                                imageSrc = srcUri
+                                isImage = mediaType == com.azokle.search.browser.ui.ContextMediaType.IMAGE,
+                                imageSrc = srcUri,
+                                mediaType = mediaType,
+                                mediaSrc = srcUri
                             )
                             android.os.Handler(android.os.Looper.getMainLooper()).post {
                                 try {
@@ -902,6 +940,15 @@ fun GeckoBrowserView(
             swipeRefresh
         },
         update = { swipeRefresh ->
+            val currentBgColor = if (isFullScreenMode) {
+                android.graphics.Color.BLACK
+            } else if (isDarkMode) {
+                android.graphics.Color.parseColor("#121212")
+            } else {
+                android.graphics.Color.parseColor("#FFFFFF")
+            }
+            swipeRefresh.setBackgroundColor(currentBgColor)
+            swipeRefresh.targetNestedGeckoView?.setBackgroundColor(currentBgColor)
             swipeRefresh.currentUrl = url
             swipeRefresh.isFullScreen = isFullScreenMode
             (session.selectionActionDelegate as? AzokleSelectionDelegate)?.onSelectionAction = onTextSelectionChanged

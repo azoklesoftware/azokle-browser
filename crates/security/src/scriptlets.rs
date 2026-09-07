@@ -10,15 +10,15 @@ impl ScriptletEngine {
                 (function() {
                     'use strict';
                     window._yt_ad_defuser = true;
-                    // Neutralize ytInitialPlayerResponse adPlacements
+                    // Neutralize ytInitialPlayerResponse adPlacements, playerAds, adSlots
                     const origParse = JSON.parse;
                     JSON.parse = function(text, reviver) {
                         const res = origParse.apply(this, arguments);
-                        if (res && res.adPlacements) {
-                            delete res.adPlacements;
-                        }
-                        if (res && res.playerAds) {
-                            delete res.playerAds;
+                        if (res && typeof res === 'object') {
+                            if (res.adPlacements) delete res.adPlacements;
+                            if (res.playerAds) delete res.playerAds;
+                            if (res.adSlots) delete res.adSlots;
+                            if (res.auxiliaryUi && res.auxiliaryUi.messageRenderers) delete res.auxiliaryUi;
                         }
                         return res;
                     };

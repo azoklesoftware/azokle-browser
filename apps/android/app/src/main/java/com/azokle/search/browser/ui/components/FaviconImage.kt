@@ -61,14 +61,19 @@ fun FaviconImage(
     val context = LocalContext.current
     val host = remember(url) {
         try {
-            Uri.parse(url).host?.removePrefix("www.")?.takeIf { it.isNotBlank() } ?: url
-        } catch (e: Exception) {
-            url
+            val parsedHost = Uri.parse(url).host?.removePrefix("www.")?.takeIf { it.isNotBlank() }
+            if (parsedHost != null) {
+                parsedHost
+            } else {
+                url.removePrefix("https://").removePrefix("http://").removePrefix("www.").substringBefore('/').substringBefore(':')
+            }
+        } catch (_: Exception) {
+            url.removePrefix("https://").removePrefix("http://").removePrefix("www.").substringBefore('/').substringBefore(':')
         }
     }
 
     val initialLetter = remember(host) {
-        val clean = host.removePrefix("https://").removePrefix("http://").trim()
+        val clean = host.removePrefix("https://").removePrefix("http://").removePrefix("www.").trim()
         clean.firstOrNull { it.isLetterOrDigit() }?.uppercaseChar()?.toString() ?: "🌐"
     }
 
@@ -91,12 +96,21 @@ fun FaviconImage(
         if (!faviconUrl.isNullExOrBlank()) {
             faviconUrl
         } else if (host.contains(".")) {
-            "https://www.google.com/s2/favicons?domain=$host&sz=64"
+            "https://www.google.com/s2/favicons?domain=$host&sz=128"
         } else {
             null
         }
     }
 
+    val fallbackFaviconUrl = remember(host) {
+        if (host.contains(".")) {
+            "https://www.google.com/s2/favicons?domain=$host&sz=128"
+        } else {
+            null
+        }
+    }
+
+    var activeFaviconUrl by remember(primaryFaviconUrl) { mutableStateOf(primaryFaviconUrl) }
     var isLoadFailed by remember(primaryFaviconUrl) { mutableStateOf(primaryFaviconUrl == null) }
 
     Box(
@@ -105,15 +119,19 @@ fun FaviconImage(
             .clip(CircleShape),
         contentAlignment = Alignment.Center
     ) {
-        if (!isLoadFailed && primaryFaviconUrl != null) {
+        if (!isLoadFailed && activeFaviconUrl != null) {
             AsyncImage(
                 model = ImageRequest.Builder(context)
-                    .data(primaryFaviconUrl)
+                    .data(activeFaviconUrl)
                     .crossfade(true)
                     .build(),
                 contentDescription = null,
                 onError = {
-                    isLoadFailed = true
+                    if (activeFaviconUrl != fallbackFaviconUrl && fallbackFaviconUrl != null) {
+                        activeFaviconUrl = fallbackFaviconUrl
+                    } else {
+                        isLoadFailed = true
+                    }
                 },
                 modifier = Modifier
                     .fillMaxSize()

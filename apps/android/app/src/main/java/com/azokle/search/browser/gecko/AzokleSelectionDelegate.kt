@@ -18,6 +18,11 @@ data class TextSelectionPayload(
     val canCut: Boolean = false,
     val canPaste: Boolean = false,
     val canSelectAll: Boolean = true,
+    val isPassword: Boolean = false,
+    val isEditable: Boolean = false,
+    val isCollapsed: Boolean = false,
+    val canSearch: Boolean = !isPassword && text.isNotBlank(),
+    val canShare: Boolean = !isPassword && text.isNotBlank(),
     val onCopy: () -> Unit = {},
     val onCut: () -> Unit = {},
     val onPaste: () -> Unit = {},
@@ -49,22 +54,39 @@ class AzokleSelectionDelegate(
         session: GeckoSession,
         selection: SelectionActionDelegate.Selection
     ) {
-        val selectedText = selection.text?.trim() ?: ""
+        val flags = selection.flags
+        val isPassword = (flags and SelectionActionDelegate.FLAG_IS_PASSWORD) != 0
+        val isEditable = (flags and SelectionActionDelegate.FLAG_IS_EDITABLE) != 0
+        val isCollapsed = (flags and SelectionActionDelegate.FLAG_IS_COLLAPSED) != 0
+
+        val rawText = selection.text ?: ""
+        val trimmedText = rawText.trim()
         val rect = selection.screenRect ?: android.graphics.RectF(0f, 0f, 0f, 0f)
-        val canCut = selection.isActionAvailable(SelectionActionDelegate.ACTION_CUT)
-        val canCopy = selection.isActionAvailable(SelectionActionDelegate.ACTION_COPY) || selectedText.isNotEmpty()
-        val canPaste = selection.isActionAvailable(SelectionActionDelegate.ACTION_PASTE)
+
+        // Strict Password Security Policy:
+        // Passwords must never be copied, cut, searched, or shared to prevent credential harvesting
+        val canCut = !isPassword && isEditable && !isCollapsed && selection.isActionAvailable(SelectionActionDelegate.ACTION_CUT)
+        val canCopy = !isPassword && !isCollapsed && (selection.isActionAvailable(SelectionActionDelegate.ACTION_COPY) || trimmedText.isNotEmpty())
+        val canPaste = isEditable && selection.isActionAvailable(SelectionActionDelegate.ACTION_PASTE)
         val canSelectAll = selection.isActionAvailable(SelectionActionDelegate.ACTION_SELECT_ALL)
 
-        Log.i("AZOKLE_SELECTION", "onShowActionRequest: text='$selectedText', rect=$rect, canCopy=$canCopy, canPaste=$canPaste")
+        val canSearch = !isPassword && trimmedText.isNotEmpty()
+        val canShare = !isPassword && trimmedText.isNotEmpty()
+
+        Log.i("AZOKLE_SELECTION", "onShowActionRequest: isPassword=$isPassword, isEditable=$isEditable, isCollapsed=$isCollapsed, canCopy=$canCopy, canPaste=$canPaste")
 
         val payload = TextSelectionPayload(
-            text = selectedText,
+            text = rawText,
             screenRect = rect,
             canCopy = canCopy,
             canCut = canCut,
             canPaste = canPaste,
             canSelectAll = canSelectAll,
+            isPassword = isPassword,
+            isEditable = isEditable,
+            isCollapsed = isCollapsed,
+            canSearch = canSearch,
+            canShare = canShare,
             onCopy = {
                 try {
                     selection.copy()
@@ -104,7 +126,6 @@ class AzokleSelectionDelegate(
 
         // Dispatch selection payload to Compose UI layer on main thread
         mainHandler.post {
-            Log.i("AZOKLE_SELECTION", "Dispatching payload to Compose: text='${payload.text}', onSelectionAction != null: ${onSelectionAction != null}")
             onSelectionAction?.invoke(payload)
         }
     }

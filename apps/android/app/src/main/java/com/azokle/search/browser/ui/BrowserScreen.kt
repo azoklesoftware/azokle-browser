@@ -107,6 +107,7 @@ import com.azokle.search.ui.tour.rememberTourState
 import com.azokle.search.ui.tour.tourTarget
 import com.azokle.search.ui.tour.DriverTourOverlay
 import com.azokle.search.util.UrlHelper
+import com.azokle.search.util.findActivity
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -406,6 +407,12 @@ fun BrowserScreen(
     }
 
     LaunchedEffect(activeTabId) {
+        if (isFullScreenMode) {
+            isFullScreenMode = false
+            try {
+                geckoSession?.exitFullScreen()
+            } catch (e: Exception) {}
+        }
         barVisibilityStateMachine.forceShow()
         val tab = TabManager.activeTab
         if (tab != null) {
@@ -430,7 +437,9 @@ fun BrowserScreen(
             homeTourState.skip()
         } else if (isFullScreenMode) {
             isFullScreenMode = false
-            geckoSession?.exitFullScreen()
+            try {
+                geckoSession?.exitFullScreen()
+            } catch (e: Exception) {}
         } else if (isBurningData) {
             // Ignore back during burning
         } else if (showBurnConfirmationSheet) {
@@ -526,42 +535,106 @@ fun BrowserScreen(
 
     val colors = com.azokle.search.ui.theme.AzokleTheme.colors
 
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    var lastOrientation by remember { mutableIntStateOf(configuration.orientation) }
+    val mediaState by com.azokle.search.browser.media.MediaPlaybackManager.mediaState.collectAsState()
+
+    // When playing video, rotating phone to landscape automatically expands video to fullscreen landscape;
+    // rotating back to portrait restores normal browser portrait form.
+    val isMediaPlaying = mediaState.status == com.azokle.search.browser.media.PlaybackStatus.PLAYING ||
+            mediaState.status == com.azokle.search.browser.media.PlaybackStatus.BUFFERING
+    val isHomeOrEmpty = currentUrl.isBlank() || currentUrl == "about:home" || currentUrl == "about:blank" || currentUrl == "about:tor"
+
+    androidx.compose.runtime.LaunchedEffect(configuration.orientation, isMediaPlaying) {
+        val currentOrientation = configuration.orientation
+        if (lastOrientation != currentOrientation) {
+            if (currentOrientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
+                if (isMediaPlaying && !isHomeOrEmpty && !isFullScreenMode) {
+                    isFullScreenMode = true
+                }
+            } else if (currentOrientation == android.content.res.Configuration.ORIENTATION_PORTRAIT) {
+                if (isFullScreenMode) {
+                    isFullScreenMode = false
+                    try {
+                        geckoSession?.exitFullScreen()
+                    } catch (e: Exception) {}
+                }
+            }
+            lastOrientation = currentOrientation
+        }
+    }
+
     DisposableEffect(isFullScreenMode, colors.isDark) {
-        val activity = context as? android.app.Activity
+        val activity = context.findActivity()
         val window = activity?.window
-        if (window != null) {
+        if (activity != null && window != null) {
             val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
             if (isFullScreenMode) {
+                window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+                // 1. Save previous orientation & cutout mode
+                val savedOrientation = activity.requestedOrientation
+                val savedCutoutMode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    window.attributes.layoutInDisplayCutoutMode
+                } else {
+                    0
+                }
+
+                // 2. Hide system bars & configure immersive swipe behavior
                 insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
                 insetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
+                // 3. Extend into display cutout / notch in landscape
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                    window.attributes.layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    window.attributes.layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+
+                // 4. Video Player Fullscreen: Automatically switch to Landscape mode (sensor landscape for both left and right rotations)
+                activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+
+                onDispose {
+                    try {
+                        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    } catch (e: Exception) {}
+
+                    // Restore cutout mode
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                        window.attributes.layoutInDisplayCutoutMode = savedCutoutMode
+                    }
+                    // Restore orientation faithfully to user sensor
+                    activity.requestedOrientation = if (savedOrientation != android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED &&
+                        savedOrientation != android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+                        savedOrientation
+                    } else {
+                        android.content.pm.ActivityInfo.SCREEN_ORIENTATION_USER
+                    }
+                    // Restore system bars
+                    insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+                    insetsController.isAppearanceLightStatusBars = !colors.isDark
+                    insetsController.isAppearanceLightNavigationBars = !colors.isDark
+                }
             } else {
                 insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
                 insetsController.isAppearanceLightStatusBars = !colors.isDark
                 insetsController.isAppearanceLightNavigationBars = !colors.isDark
+                onDispose {}
             }
-        }
-        onDispose {
-            val activity = context as? android.app.Activity
-            val window = activity?.window
-            if (window != null) {
-                val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
-                insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-                insetsController.isAppearanceLightStatusBars = !colors.isDark
-                insetsController.isAppearanceLightNavigationBars = !colors.isDark
-            }
+        } else {
+            onDispose {}
         }
     }
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(if (isInPipMode) Color.Black else colors.background)
+            .background(if (isFullScreenMode || isInPipMode) Color.Black else colors.background)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
         ) {
-            val isHomeOrEmpty = currentUrl.isBlank() || currentUrl == "about:home" || currentUrl == "about:blank" || currentUrl == "about:tor"
             val shouldShowOmnibar = isBottomBarVisible || isHomeOrEmpty || isFindInPageVisible
 
             // 0. Permanent Status Bar Protection Scrim (protects system clock, battery, camera cutout & icons)
@@ -716,7 +789,7 @@ fun BrowserScreen(
                     .weight(1f)
             ) {
                 androidx.compose.runtime.DisposableEffect(isCurrentTabPrivate) {
-                    val activity = context as? android.app.Activity
+                    val activity = context.findActivity()
                     if (isCurrentTabPrivate) {
                         activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
                     } else {
@@ -861,9 +934,15 @@ fun BrowserScreen(
                                          isPageTransitioning = false
                                      }
                                  },
-                                 onFullScreenChanged = { fs ->
-                                     isFullScreenMode = fs
-                                 },
+                                  onFullScreenChanged = { fs ->
+                                      isFullScreenMode = fs
+                                      if (fs) {
+                                          activeLinkContextTarget = null
+                                          activeTextSelection?.onDismiss?.invoke()
+                                          activeTextSelection = null
+                                          isFindInPageVisible = false
+                                      }
+                                  },
                                  onPermissionPromptRequested = { req ->
                                      activePermissionRequest = req
                                  },
@@ -1519,6 +1598,8 @@ fun BrowserScreen(
         activeLinkContextTarget?.let { target ->
             LinkContextMenuSheet(
                 target = target,
+                isPrivate = isCurrentTabPrivate,
+                isTor = isCurrentTabTor,
                 onOpenInNewTabGroup = { url, title ->
                     // Inherits privacy & Tor isolation from active parent tab
                     val parentId = activeTabId ?: ""
@@ -1534,7 +1615,6 @@ fun BrowserScreen(
                     currentUrl = url
                     currentTitle = title
                     currentError = null
-                    geckoSession?.loadUri(url)
                     com.azokle.search.ui.components.ToastManager.show("Opened in tab group 📑")
                 },
                 onOpenInNewTab = { url, title ->
@@ -1547,7 +1627,6 @@ fun BrowserScreen(
                     currentUrl = url
                     currentTitle = title
                     currentError = null
-                    geckoSession?.loadUri(url)
                     com.azokle.search.ui.components.ToastManager.show("Opened in new tab ↗️")
                 },
                 onOpenInPrivateTab = { url, title ->
@@ -1557,7 +1636,6 @@ fun BrowserScreen(
                     currentUrl = url
                     currentTitle = title
                     currentError = null
-                    geckoSession?.loadUri(url)
                     com.azokle.search.ui.components.ToastManager.show("Opened in private tab 🕵️")
                 },
                 onDismiss = { activeLinkContextTarget = null }
@@ -1914,23 +1992,23 @@ private fun BrowserHomeScreenContent(
             // Quick Speed Dial Shortcuts (Wikipedia, YouTube, Amazon, Trip, Reddit, Flipkart, Kick, Azokle)
             val shortcuts = remember {
                 listOf(
-                    BrowserShortcut("Wikipedia", "https://www.wikipedia.org", "https://www.wikipedia.org/favicon.ico"),
-                    BrowserShortcut("YouTube", "https://www.youtube.com", "https://www.youtube.com/favicon.ico"),
+                    BrowserShortcut("Wikipedia", "https://www.wikipedia.org", "https://www.google.com/s2/favicons?domain=wikipedia.org&sz=128"),
+                    BrowserShortcut("YouTube", "https://www.youtube.com", "https://www.google.com/s2/favicons?domain=youtube.com&sz=128"),
                     BrowserShortcut(
                         label = "Amazon",
                         url = "https://amzn.to/4qTBnWI",
-                        faviconUrl = "https://www.amazon.com/favicon.ico",
+                        faviconUrl = "https://www.google.com/s2/favicons?domain=amazon.in&sz=128",
                         isSponsored = true
                     ),
                     BrowserShortcut(
                         label = "Trip",
                         url = "https://www.trip.com/?Allianceid=10452016&SID=330440797&trip_sub1=&trip_sub3=D19702202",
-                        faviconUrl = "https://www.trip.com/favicon.ico",
+                        faviconUrl = "https://www.google.com/s2/favicons?domain=trip.com&sz=128",
                         isSponsored = true
                     ),
-                    BrowserShortcut("Reddit", "https://www.reddit.com", "https://www.reddit.com/favicon.ico"),
-                    BrowserShortcut("Flipkart", "https://www.flipkart.com", "https://static-assets-web.flixcart.com/batman-returns/batman-returns/p/images/logo_lite-cbb357.png"),
-                    BrowserShortcut("Kick", "https://kick.com", "https://kick.com/favicon.ico"),
+                    BrowserShortcut("Reddit", "https://www.reddit.com", "https://www.google.com/s2/favicons?domain=reddit.com&sz=128"),
+                    BrowserShortcut("Flipkart", "https://www.flipkart.com", "https://www.google.com/s2/favicons?domain=flipkart.com&sz=128"),
+                    BrowserShortcut("Kick", "https://kick.com", "https://www.google.com/s2/favicons?domain=kick.com&sz=128"),
                     BrowserShortcut("Azokle", "https://azokle.com", "https://azokle.com/favicon.ico")
                 )
             }
@@ -2022,7 +2100,7 @@ private fun ShortcutTile(
             contentAlignment = Alignment.Center
         ) {
             FaviconImage(
-                url = item.faviconUrl ?: item.url,
+                url = item.url,
                 faviconUrl = item.faviconUrl,
                 size = 30.dp
             )

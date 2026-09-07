@@ -6,6 +6,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -30,7 +31,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -43,13 +43,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,68 +55,82 @@ import kotlinx.coroutines.delay
 import kotlin.math.sin
 import kotlin.random.Random
 
-private data class LuxuryEmber(
+/**
+ * Minimal, crisp ember spark particle (solid color, zero gradient).
+ */
+private class PureEmber(
     var xPercent: Float,
     var yPercent: Float,
-    val size: Float,
-    val speed: Float,
-    val color: Color,
-    val wobbleOffset: Float
+    val radiusDp: Float,
+    val ascentSpeed: Float,
+    val horizontalWander: Float,
+    val swayPhase: Float,
+    val solidColor: Color,
+    val baseAlpha: Float
 )
 
+/**
+ * Premium, Clean, Simple & Solid Fire Incineration Overlay.
+ *
+ * Designed with pure solid colors (zero gradients):
+ * - Immaculate deep pitch obsidian background
+ * - Minimalist solid glass disc with crisp amber hairline border
+ * - Concentric expanding solid shockwave rings
+ * - Pure rising ember sparks with clean alpha falloff
+ * - Refined solid status card with crisp typography
+ */
 @Composable
 fun FireIncinerationOverlay(
     onComplete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val contentAlpha = remember { Animatable(0f) }
-    val cardScale = remember { Animatable(0.88f) }
-    val flameRise = remember { Animatable(0f) }
 
-    // 80 Dynamic floating fiery embers & sparks
+    val smoothDecel = remember { CubicBezierEasing(0.16f, 1f, 0.3f, 1f) }
+
+    // Primary State Drivers
+    val veilAlpha = remember { Animatable(0f) }
+    val contentScale = remember { Animatable(0.92f) }
+    val ring1Scale = remember { Animatable(0.8f) }
+    val ring1Alpha = remember { Animatable(0f) }
+    val ring2Scale = remember { Animatable(0.6f) }
+    val ring2Alpha = remember { Animatable(0f) }
+
+    // Curated solid ember particles (pure colors: Amber, Golden Yellow, Warm Orange)
     val embers = remember {
-        List(80) {
-            LuxuryEmber(
-                xPercent = Random.nextFloat(),
-                yPercent = 0.5f + Random.nextFloat() * 0.5f,
-                size = Random.nextFloat() * 4.5f + 1.5f,
-                speed = Random.nextFloat() * 0.38f + 0.22f,
-                color = when (Random.nextInt(4)) {
-                    0 -> Color(0xFFFF3300) // Neon Crimson
-                    1 -> Color(0xFFFF6600) // Deep Orange
-                    2 -> Color(0xFFFFB800) // Golden Amber
-                    else -> Color(0xFFFFF0D0) // White-Gold Hot
-                },
-                wobbleOffset = Random.nextFloat() * 6.28f
+        val solidColors = listOf(
+            Color(0xFFFF9800), // Amber
+            Color(0xFFFFB300), // Golden Amber
+            Color(0xFFF97316), // Warm Orange
+            Color(0xFFFFA000)  // Gold
+        )
+        List(18) { index ->
+            PureEmber(
+                xPercent = 0.12f + Random.nextFloat() * 0.76f,
+                yPercent = 0.55f + Random.nextFloat() * 0.45f,
+                radiusDp = Random.nextFloat() * 1.8f + 1.2f,
+                ascentSpeed = Random.nextFloat() * 0.16f + 0.12f,
+                horizontalWander = Random.nextFloat() * 0.018f + 0.008f,
+                swayPhase = Random.nextFloat() * 6.28f,
+                solidColor = solidColors[index % solidColors.size],
+                baseAlpha = Random.nextFloat() * 0.3f + 0.7f
             )
         }
     }
 
-    val infiniteTransition = rememberInfiniteTransition(label = "flamePulse")
-    val glowPulse by infiniteTransition.animateFloat(
-        initialValue = 0.85f,
-        targetValue = 1.12f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "glowPulse"
-    )
-    val flamePath = remember { Path() }
-    val wavePhase by infiniteTransition.animateFloat(
+    val infiniteTransition = rememberInfiniteTransition(label = "solidEmbers")
+    val emberSwayPhase by infiniteTransition.animateFloat(
         initialValue = 0f,
-        targetValue = 6.28f,
+        targetValue = 6.28318f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = LinearEasing),
+            animation = tween(2600, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "wavePhase"
+        label = "emberSwayPhase"
     )
 
-    // Trigger Haptics and Smooth Sequence
     LaunchedEffect(Unit) {
-        // Rhythmic Haptic Pulse
+        // Tactile Haptic Pulse
         try {
             val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
@@ -129,129 +141,96 @@ fun FireIncinerationOverlay(
             }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val timings = longArrayOf(0, 30, 40, 50, 40, 80, 50, 100)
-                val amplitudes = intArrayOf(0, 100, 0, 160, 0, 220, 0, 255)
+                val timings = longArrayOf(0, 30, 40, 50)
+                val amplitudes = intArrayOf(0, 100, 0, 190)
                 vibrator?.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
             } else {
                 @Suppress("DEPRECATION")
-                vibrator?.vibrate(280)
+                vibrator?.vibrate(180)
             }
-        } catch (e: Exception) {
-            // Ignore
+        } catch (_: Exception) {
+            // Graceful fallback
         }
 
-        // 1. Smooth Fade in obsidian veil & rise flame crest
-        contentAlpha.animateTo(1f, tween(260, easing = FastOutSlowInEasing))
-        flameRise.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
-        cardScale.animateTo(1f, tween(400, easing = FastOutSlowInEasing))
+        // Phase 1: Smooth Reveal
+        veilAlpha.animateTo(1f, tween(280, easing = FastOutSlowInEasing))
+        contentScale.animateTo(1f, tween(340, easing = smoothDecel))
 
-        delay(450)
+        // Expanding Solid Shockwave Rings
+        ring1Alpha.snapTo(0.6f)
+        ring1Scale.animateTo(2.0f, tween(550, easing = FastOutSlowInEasing))
+        ring1Alpha.animateTo(0f, tween(300, easing = FastOutSlowInEasing))
 
-        // 2. Smooth dissipation to clean slate
-        contentAlpha.animateTo(0f, tween(300, easing = FastOutSlowInEasing))
-        delay(60)
+        ring2Alpha.snapTo(0.35f)
+        ring2Scale.animateTo(2.7f, tween(700, easing = FastOutSlowInEasing))
+        ring2Alpha.animateTo(0f, tween(350, easing = FastOutSlowInEasing))
+
+        // Phase 2: Steady Hold
+        delay(550)
+
+        // Phase 3: Smooth Exit to Clean Slate
+        veilAlpha.animateTo(0f, tween(300, easing = FastOutSlowInEasing))
+        delay(30)
         onComplete()
     }
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .alpha(contentAlpha.value)
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        Color(0xFF160907).copy(alpha = 0.96f),
-                        Color(0xFF09060A).copy(alpha = 0.98f),
-                        Color(0xFF030204)
-                    ),
-                    center = Offset.Unspecified,
-                    radius = 1200f
-                )
-            )
+            .alpha(veilAlpha.value)
+            .background(Color(0xFF000000))
     ) {
-        // 1. Procedural Flame Waves & Hot Floating Embers Canvas
+        // 1. Clean Canvas: Concentric Solid Rings & Crisp Solid Embers
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
-            val rise = flameRise.value
+            val globalAlpha = veilAlpha.value
+            val centerPoint = Offset(w / 2f, h * 0.44f)
 
-            // 1A. Deep Volcanic Bottom Ambient Gradient (Subtle crimson/orange only at the very bottom)
-            val ambientHeight = h * 0.38f * rise
-            drawRect(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        Color(0x22FF2200),
-                        Color(0x66FF5500),
-                        Color(0xBBFF7700)
-                    ),
-                    startY = h - ambientHeight,
-                    endY = h
-                ),
-                size = size
-            )
-
-            // 1B. Dynamic Wave Flame Crests (Reusing persistent Path to avoid frame allocations)
-            flamePath.reset()
-            flamePath.moveTo(0f, h)
-            val stepCount = 16
-            for (i in 0..stepCount) {
-                val x = (i.toFloat() / stepCount) * w
-                val sineVal = sin((i * 0.9f + wavePhase).toDouble()).toFloat() * (h * 0.035f * rise)
-                val y = (h - (ambientHeight * 0.65f)) + sineVal
-                if (i == 0) {
-                    flamePath.lineTo(x, y)
-                } else {
-                    val prevX = ((i - 1).toFloat() / stepCount) * w
-                    val prevSine = sin(((i - 1) * 0.9f + wavePhase).toDouble()).toFloat() * (h * 0.035f * rise)
-                    val prevY = (h - (ambientHeight * 0.65f)) + prevSine
-                    val midX = (prevX + x) / 2f
-                    val midY = (prevY + y) / 2f
-                    flamePath.quadraticTo(prevX, prevY, midX, midY)
-                }
+            // 1A. Expanding Solid Ring 1
+            if (ring1Alpha.value > 0.01f) {
+                val r1 = 42.dp.toPx() * ring1Scale.value
+                drawCircle(
+                    color = Color(0xFFFF9800).copy(alpha = ring1Alpha.value * 0.6f),
+                    radius = r1,
+                    center = centerPoint,
+                    style = Stroke(width = 1.2.dp.toPx())
+                )
             }
-            flamePath.lineTo(w, h)
-            flamePath.close()
 
-            drawPath(
-                path = flamePath,
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0x88FF2200),
-                        Color(0xAAFF5500),
-                        Color(0xDDFF8800)
-                    ),
-                    startY = h - ambientHeight,
-                    endY = h
-                ),
-                style = Fill
-            )
+            // 1B. Expanding Solid Ring 2
+            if (ring2Alpha.value > 0.01f) {
+                val r2 = 42.dp.toPx() * ring2Scale.value
+                drawCircle(
+                    color = Color(0xFFF97316).copy(alpha = ring2Alpha.value * 0.4f),
+                    radius = r2,
+                    center = centerPoint,
+                    style = Stroke(width = 1.0.dp.toPx())
+                )
+            }
 
-            // 1C. 80+ Floating Radiant Embers & Rising Sparks
+            // 1C. Clean Solid Embers
             embers.forEach { ember ->
-                ember.yPercent -= (ember.speed * 0.016f * (rise + 0.4f))
-                val wobbleX = sin((ember.yPercent * 14f + ember.wobbleOffset + wavePhase).toDouble()).toFloat() * 0.03f
-                val drawX = (ember.xPercent + wobbleX) * w
+                ember.yPercent -= (ember.ascentSpeed * 0.012f)
+                val sway = sin((ember.yPercent * 8f + ember.swayPhase + emberSwayPhase).toDouble()).toFloat()
+                val drawX = (ember.xPercent + sway * ember.horizontalWander) * w
                 val drawY = ember.yPercent * h
 
-                if (drawY in 0f..h) {
-                    // Soft radiant aura
+                if (drawY in -20f..h) {
+                    val progress = (1f - (drawY / h)).coerceIn(0f, 1f)
+                    val fadeAlpha = (ember.baseAlpha * (1f - (progress * 0.65f)) * globalAlpha).coerceIn(0f, 1f)
+                    val rPx = ember.radiusDp.dp.toPx()
+
                     drawCircle(
-                        color = ember.color.copy(alpha = 0.2f * contentAlpha.value),
-                        radius = ember.size * 2.5f,
-                        center = Offset(drawX, drawY)
-                    )
-                    // Core hot spark
-                    drawCircle(
-                        color = ember.color.copy(alpha = 0.95f * contentAlpha.value),
-                        radius = ember.size,
+                        color = ember.solidColor.copy(alpha = fadeAlpha),
+                        radius = rPx,
                         center = Offset(drawX, drawY)
                     )
                 }
             }
         }
 
-        // 2. Luxury Glassmorphic Incineration Status HUD
+        // 2. Pure, Minimalist Luxury Centerpiece
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -262,86 +241,62 @@ fun FireIncinerationOverlay(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
-                    .scale(cardScale.value)
+                    .scale(contentScale.value)
                     .padding(horizontal = 24.dp)
             ) {
-                // Glowing Flame Icon Orb
+                // Solid Minimalist Flame Disc
                 Box(
                     modifier = Modifier
                         .size(76.dp)
-                        .shadow(32.dp, CircleShape, spotColor = Color(0xFFFF5500))
                         .clip(CircleShape)
-                        .background(
-                            Brush.radialGradient(
-                                listOf(
-                                    Color(0xFFFFB800),
-                                    Color(0xFFFF4400),
-                                    Color(0xFF881100)
-                                )
-                            )
-                        )
-                        .border(
-                            2.dp,
-                            Brush.linearGradient(listOf(Color(0xFFFFDD88), Color(0xFFFF3300))),
-                            CircleShape
-                        ),
+                        .background(Color(0xFF141416))
+                        .border(1.5.dp, Color(0xFFFF9800), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.LocalFireDepartment,
-                        contentDescription = "Fire",
-                        tint = Color.White,
-                        modifier = Modifier
-                            .size(42.dp)
-                            .scale(glowPulse)
+                        contentDescription = "Session Incinerated",
+                        tint = Color(0xFFFF9800),
+                        modifier = Modifier.size(40.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-                // Luxury Glassmorphic Pill Card
+                // Solid Minimalist Status Pill
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(Color(0xFF131118).copy(alpha = 0.92f))
-                        .border(
-                            1.dp,
-                            Brush.horizontalGradient(
-                                listOf(
-                                    Color(0xFFFF5500).copy(alpha = 0.6f),
-                                    Color(0xFFFFB800).copy(alpha = 0.8f),
-                                    Color(0xFFFF3366).copy(alpha = 0.6f)
-                                )
-                            ),
-                            RoundedCornerShape(22.dp)
-                        )
-                        .padding(horizontal = 22.dp, vertical = 13.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFF141416))
+                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Purged",
-                                tint = Color(0xFF22C55E),
+                                imageVector = Icons.Default.LocalFireDepartment,
+                                contentDescription = null,
+                                tint = Color(0xFFFF9800),
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(7.dp))
                             Text(
-                                text = androidx.compose.ui.res.stringResource(com.azokle.search.R.string.incinerated_title),
-                                color = Color(0xFFFFFAF0),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.8.sp
+                                text = stringResource(com.azokle.search.R.string.incinerated_title),
+                                color = Color(0xFFFFFFFF),
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 1.sp
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(3.dp))
 
                         Text(
-                            text = androidx.compose.ui.res.stringResource(com.azokle.search.R.string.incinerated_sub),
-                            color = Color(0xFF94A3B8),
+                            text = stringResource(com.azokle.search.R.string.incinerated_sub),
+                            color = Color(0xFF9E9EA8),
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Normal,
+                            letterSpacing = 0.2.sp
                         )
                     }
                 }

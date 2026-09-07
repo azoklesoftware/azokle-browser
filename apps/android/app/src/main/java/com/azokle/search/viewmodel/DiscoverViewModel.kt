@@ -28,7 +28,7 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
 
     private val _uiState = MutableStateFlow(
         DiscoverUiState(
-            topPickItems = DiscoverCatalog.items.filter { DiscoverCatalog.topPickIds.contains(it.id) },
+            topPickItems = DiscoverCatalog.sponsoredIds.mapNotNull { id -> DiscoverCatalog.items.find { it.id == id } },
             featuredItems = DiscoverCatalog.items.filter { it.isFeatured },
             gameItems = DiscoverCatalog.items.filter { it.category == DiscoverCategory.GAMES },
             streamingItems = DiscoverCatalog.items.filter { it.category == DiscoverCategory.STREAMING },

@@ -177,6 +177,7 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_USER
         currentConfig = Configuration(resources.configuration)
         val prefs = PreferencesManager(this)
         val savedTheme = prefs.getThemeMode().lowercase()

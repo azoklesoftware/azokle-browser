@@ -23,11 +23,22 @@ data class DiscoverItem(
     val primaryColorHex: Long = 0xFF6366F1,
     val secondaryColorHex: Long = 0xFF3B82F6,
     val isFeatured: Boolean = false,
-    val actionText: String = "Open"
+    val actionText: String = "Open",
+    val faviconUrl: String? = null
 )
 
 object DiscoverCatalog {
-    val topPickIds = setOf("poki", "crazygames", "mxplayer", "minitv", "spotify", "chatgpt", "reddit", "amazon_deals")
+    val sponsoredIds = listOf(
+        "ajio",
+        "aubank",
+        "angelone",
+        "mxplayer",
+        "minitv",
+        "hotstar",
+        "bhimupi"
+    )
+
+    val topPickIds = sponsoredIds.toSet()
 
     val items: List<DiscoverItem> = listOf(
         // --- 1. Featured Instant Games (High Engagement) ---
@@ -102,7 +113,52 @@ object DiscoverCatalog {
             actionText = "Play"
         ),
 
-        // --- 2. Free Streaming & MiniTV ---
+        // --- 2. Sponsored & Premier Portals ---
+        DiscoverItem(
+            id = "ajio",
+            title = "Ajio",
+            subtitle = "Trending fashion, apparel & online shopping deals",
+            url = "https://inr.deals/TzvsEC",
+            domain = "ajio.com",
+            category = DiscoverCategory.SHOPPING,
+            badge = "SPONSORED",
+            iconEmoji = "🛍️",
+            primaryColorHex = 0xFF2C4152,
+            secondaryColorHex = 0xFF1C2B36,
+            isFeatured = false,
+            actionText = "Shop Now",
+            faviconUrl = "https://www.google.com/s2/favicons?domain=ajio.com&sz=128"
+        ),
+        DiscoverItem(
+            id = "aubank",
+            title = "AU Small Bank",
+            subtitle = "High-interest savings, zero balance & credit cards",
+            url = "https://inr.deals/WJ9CES",
+            domain = "aubank.in",
+            category = DiscoverCategory.SHOPPING,
+            badge = "SPONSORED",
+            iconEmoji = "🏦",
+            primaryColorHex = 0xFF691F74,
+            secondaryColorHex = 0xFF491452,
+            isFeatured = false,
+            actionText = "Open Account",
+            faviconUrl = "https://www.google.com/s2/favicons?domain=aubank.in&sz=128"
+        ),
+        DiscoverItem(
+            id = "angelone",
+            title = "Angel One",
+            subtitle = "Free Demat account, zero brokerage stock trading & IPOs",
+            url = "https://inr.deals/uhNR8I",
+            domain = "angelone.in",
+            category = DiscoverCategory.SHOPPING,
+            badge = "SPONSORED",
+            iconEmoji = "📈",
+            primaryColorHex = 0xFF003777,
+            secondaryColorHex = 0xFF0055B8,
+            isFeatured = false,
+            actionText = "Invest Now",
+            faviconUrl = "https://www.google.com/s2/favicons?domain=angelone.in&sz=128"
+        ),
         DiscoverItem(
             id = "mxplayer",
             title = "MX Player",
@@ -115,35 +171,53 @@ object DiscoverCatalog {
             primaryColorHex = 0xFF0072FF,
             secondaryColorHex = 0xFF00C6FF,
             isFeatured = true,
-            actionText = "Watch Free"
+            actionText = "Watch Free",
+            faviconUrl = "https://www.google.com/s2/favicons?domain=mxplayer.in&sz=128"
         ),
         DiscoverItem(
             id = "minitv",
-            title = "Amazon MiniTV",
+            title = "Amazon Mini",
             subtitle = "Free web series, romance, comedy & short films with no subscription",
             url = "https://www.amazon.in/minitv",
-            domain = "amazon.in/minitv",
+            domain = "amazon.in",
             category = DiscoverCategory.STREAMING,
             badge = "EXCLUSIVE",
             iconEmoji = "🎬",
             primaryColorHex = 0xFFFF9900,
             secondaryColorHex = 0xFFFF5722,
             isFeatured = true,
-            actionText = "Stream Now"
+            actionText = "Stream Now",
+            faviconUrl = "https://www.google.com/s2/favicons?domain=amazon.in&sz=128"
         ),
         DiscoverItem(
             id = "hotstar",
             title = "Disney+ Hotstar",
             subtitle = "Top entertainment, drama, blockbuster movies & live cricket",
-            url = "https://www.hotstar.com",
+            url = "https://inr.deals/pCe7xY",
             domain = "hotstar.com",
             category = DiscoverCategory.STREAMING,
-            badge = "SPORTS",
+            badge = "SPONSORED",
             iconEmoji = "⭐",
             primaryColorHex = 0xFF14805E,
             secondaryColorHex = 0xFF0C2044,
             isFeatured = false,
-            actionText = "Browse"
+            actionText = "Watch Now",
+            faviconUrl = "https://www.google.com/s2/favicons?domain=hotstar.com&sz=128"
+        ),
+        DiscoverItem(
+            id = "bhimupi",
+            title = "BHIM UPI",
+            subtitle = "Simple, secure & instant digital UPI payments & transfers",
+            url = "https://inr.deals/nNSk5C",
+            domain = "bhimupi.org.in",
+            category = DiscoverCategory.SHOPPING,
+            badge = "SPONSORED",
+            iconEmoji = "⚡",
+            primaryColorHex = 0xFF00529C,
+            secondaryColorHex = 0xFF0073D8,
+            isFeatured = false,
+            actionText = "Pay Now",
+            faviconUrl = "https://www.google.com/s2/favicons?domain=bhimupi.org.in&sz=128"
         ),
 
         // --- 3. Music & Audio ---
@@ -319,7 +393,8 @@ object DiscoverCatalog {
             primaryColorHex = 0xFF636466,
             secondaryColorHex = 0xFF000000,
             isFeatured = false,
-            actionText = "Read"
+            actionText = "Read",
+            faviconUrl = "https://www.google.com/s2/favicons?domain=wikipedia.org&sz=128"
         )
     )
 }
