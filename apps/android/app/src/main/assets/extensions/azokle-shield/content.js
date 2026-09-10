@@ -47,21 +47,16 @@
             // via visibilitychange/hidden event listeners.
             // Never intercepts HTMLMediaElement.prototype.pause (respects Section 6 & 7).
             if (isVideoStreamingSite) {
-                var docProto = (typeof Document !== 'undefined') ? Document.prototype : null;
-
                 ['hidden', 'webkitHidden', 'mozHidden', 'msHidden'].forEach(function(p) {
                     safeDef(document, p, false);
-                    if (docProto) safeDef(docProto, p, false);
                 });
 
                 ['visibilityState', 'webkitVisibilityState', 'mozVisibilityState', 'msVisibilityState'].forEach(function(p) {
                     safeDef(document, p, 'visible');
-                    if (docProto) safeDef(docProto, p, 'visible');
                 });
 
                 try {
                     document.hasFocus = function() { return true; };
-                    if (docProto) docProto.hasFocus = function() { return true; };
                 } catch(e) {}
 
                 var neutralizeVisibilityEvent = function(e) {
@@ -355,7 +350,7 @@
                         } else {
                             try { video.currentTime = 9999; } catch(e) {}
                         }
-                        video.playbackRate = 16.0;
+                        video.playbackRate = 8.0;
 
                         if (video.paused) {
                             video.play().catch(function() {});
