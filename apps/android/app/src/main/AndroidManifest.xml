@@ -136,7 +136,7 @@
         </activity>
 
         <activity
-            android:name=".browser.pwa.PwaActivity"
+            android:name=".pwa.PwaActivity"
             android:exported="false"
             android:launchMode="singleTask"
             android:documentLaunchMode="always"
@@ -145,7 +145,7 @@
             android:theme="@style/Theme.AzokleSearch" />
 
         <service
-            android:name=".browser.media.MediaPlaybackService"
+            android:name=".media.MediaPlaybackService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
 

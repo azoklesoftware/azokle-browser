@@ -26,7 +26,12 @@
     native <methods>;
 }
 
-# 4. Warnings suppression for optional / reflection-based dependencies
+# 4. GeckoView JNI & Engine Preservation
+-keep class org.mozilla.gecko.** { *; }
+-keep class org.mozilla.geckoview.** { *; }
+-keep class org.yaml.snakeyaml.** { *; }
+
+# 5. Warnings suppression for optional / reflection-based dependencies
 -dontwarn org.mozilla.gecko.**
 -dontwarn org.mozilla.geckoview.**
 -dontwarn info.guardianproject.**

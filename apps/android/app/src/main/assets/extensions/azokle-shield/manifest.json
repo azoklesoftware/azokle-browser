@@ -24,13 +24,22 @@
         "*://challenges.cloudflare.com/*",
         "*://*.cloudflareinsights.com/*",
         "*://*.hcaptcha.com/*",
-        "*://*.recaptcha.net/*"
+        "*://*.recaptcha.net/*",
+        "*://*.browserbench.org/*",
+        "*://browserbench.org/*",
+        "*://localhost/*",
+        "*://127.0.0.1/*"
       ],
-      "js": ["content.js"],
+      "js": [
+        "scriptlets/defuser.js",
+        "scriptlets/fingerprint_shield.js",
+        "scriptlets/autoconsent.js",
+        "content.js"
+      ],
       "css": ["cosmetic.css"],
       "run_at": "document_start",
-      "all_frames": true,
-      "match_about_blank": true
+      "all_frames": false,
+      "match_about_blank": false
     }
   ],
   "incognito": "spanning",

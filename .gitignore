@@ -29,3 +29,8 @@ apps/android/.cxx/
 # Logs & temp
 *.log
 scratch/
+
+# References & Local Demos
+playground-demo/
+.planning/
+assets/Azokle Search /

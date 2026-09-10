@@ -9,7 +9,7 @@ import android.os.Bundle
 import android.os.Process
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.fragment.app.FragmentActivity
-import com.azokle.search.data.PreferencesManager
+import com.azokle.search.common.util.PreferencesManager
 
 class AzokleApplication : Application() {
     override fun onCreate() {
@@ -27,28 +27,28 @@ class AzokleApplication : Application() {
 
         // Initialize Native Rust Azokle Core & Privacy Shield Engine
         com.azokle.search.core.AzokleCore.initialize(this)
-        com.azokle.search.browser.adblock.AdBlockStats.init(this)
+        com.azokle.search.adblock.AdBlockStats.init(this)
 
         // Initialize History, Download & Tab systems
-        com.azokle.search.browser.history.HistoryManager.init(this)
-        com.azokle.search.browser.downloads.DownloadManager.init(this)
-        com.azokle.search.browser.tabs.TabManager.init(this)
+        com.azokle.search.history.HistoryManager.init(this)
+        com.azokle.search.downloads.DownloadManager.init(this)
+        com.azokle.search.tabs.TabManager.init(this)
 
         // Automatically track active FragmentActivity for BiometricPrompt window binding
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
                 if (activity is FragmentActivity) {
-                    com.azokle.search.security.BiometricAuthManager.setCurrentActivity(activity)
+                    com.azokle.search.core.BiometricAuthManager.setCurrentActivity(activity)
                 }
             }
             override fun onActivityStarted(activity: Activity) {
                 if (activity is FragmentActivity) {
-                    com.azokle.search.security.BiometricAuthManager.setCurrentActivity(activity)
+                    com.azokle.search.core.BiometricAuthManager.setCurrentActivity(activity)
                 }
             }
             override fun onActivityResumed(activity: Activity) {
                 if (activity is FragmentActivity) {
-                    com.azokle.search.security.BiometricAuthManager.setCurrentActivity(activity)
+                    com.azokle.search.core.BiometricAuthManager.setCurrentActivity(activity)
                 }
             }
             override fun onActivityPaused(activity: Activity) {}
@@ -56,7 +56,7 @@ class AzokleApplication : Application() {
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
             override fun onActivityDestroyed(activity: Activity) {
                 if (activity is FragmentActivity) {
-                    com.azokle.search.security.BiometricAuthManager.onActivityDestroyed(activity)
+                    com.azokle.search.core.BiometricAuthManager.onActivityDestroyed(activity)
                 }
             }
         })
@@ -64,7 +64,7 @@ class AzokleApplication : Application() {
         // Pre-warm GeckoView Quantum Engine & WebExtensions on background thread in main process only
         Thread {
             try {
-                com.azokle.search.browser.gecko.GeckoEngineManager.getRuntime(this)
+                com.azokle.search.engine.GeckoEngineManager.getRuntime(this)
             } catch (e: Throwable) {
                 // Safe fallback
             }
@@ -74,7 +74,7 @@ class AzokleApplication : Application() {
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (isMainProcess()) {
-            com.azokle.search.browser.gecko.GeckoEngineManager.onTrimMemory(level)
+            com.azokle.search.engine.GeckoEngineManager.onTrimMemory(level)
         }
     }
 

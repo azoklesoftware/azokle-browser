@@ -43,7 +43,7 @@ class AzokleSearchWidgetProvider : AppWidgetProvider() {
 
         private fun isWidgetDark(context: Context): Boolean {
             return try {
-                val prefs = com.azokle.search.data.PreferencesManager(context)
+                val prefs = com.azokle.search.common.util.PreferencesManager(context)
                 val mode = prefs.getThemeMode().lowercase()
                 when (mode) {
                     "dark" -> true

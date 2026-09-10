@@ -31,10 +31,10 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
-import com.azokle.search.data.PreferencesManager
-import com.azokle.search.ui.theme.AzokleSearchTheme
-import com.azokle.search.util.LocaleHelper
-import com.azokle.search.viewmodel.HomeViewModel
+import com.azokle.search.common.util.PreferencesManager
+import com.azokle.search.common.theme.AzokleSearchTheme
+import com.azokle.search.common.util.LocaleHelper
+import com.azokle.search.search.HomeViewModel
 
 class MainActivity : FragmentActivity() {
     private val viewModel: HomeViewModel by viewModels()
@@ -212,10 +212,10 @@ class MainActivity : FragmentActivity() {
             }
         }
 
-        com.azokle.search.security.BiometricAuthManager.setCurrentActivity(this)
+        com.azokle.search.core.BiometricAuthManager.setCurrentActivity(this)
         AzokleApplication.applyThemeMode(prefs.getThemeMode())
 
-        com.azokle.search.browser.media.MediaPlaybackManager.initialize(this)
+        com.azokle.search.media.MediaPlaybackManager.initialize(this)
 
         handleIncomingIntent(intent)
 
@@ -252,7 +252,7 @@ class MainActivity : FragmentActivity() {
 
             androidx.compose.runtime.LaunchedEffect(uiState.selectedThemeMode) {
                 AzokleApplication.applyThemeMode(uiState.selectedThemeMode)
-                com.azokle.search.browser.gecko.GeckoEngineManager.updateThemeMode(uiState.selectedThemeMode)
+                com.azokle.search.engine.GeckoEngineManager.updateThemeMode(uiState.selectedThemeMode)
             }
 
             CompositionLocalProvider(
@@ -268,14 +268,14 @@ class MainActivity : FragmentActivity() {
                     ) {
                         androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
                             if (uiState.isOnboardingVisible) {
-                                com.azokle.search.ui.screens.OnboardingScreen(
+                                com.azokle.search.onboarding.OnboardingScreen(
                                     selectedSearchEngineId = uiState.selectedSearchEngine,
                                     onSelectSearchEngine = { viewModel.setSearchEngine(it) },
                                     onFinish = { viewModel.completeOnboarding() }
                                 )
                             } else {
-                                com.azokle.search.browser.ui.BrowserScreen(
-                                    initialUrl = com.azokle.search.browser.tabs.TabManager.activeTab?.url ?: "",
+                                com.azokle.search.engine.ui.BrowserScreen(
+                                    initialUrl = com.azokle.search.tabs.TabManager.activeTab?.url ?: "",
                                     onClose = {
                                         this@MainActivity.moveTaskToBack(true)
                                     },
@@ -302,24 +302,24 @@ class MainActivity : FragmentActivity() {
             }
         }
         updateSystemBars(isDark)
-        com.azokle.search.security.BiometricAuthManager.setCurrentActivity(this)
+        com.azokle.search.core.BiometricAuthManager.setCurrentActivity(this)
         com.azokle.search.widget.AzokleSearchWidgetProvider.updateAllWidgets(this)
     }
 
     override fun onStop() {
         super.onStop()
         if (isFinishing) {
-            com.azokle.search.browser.media.MediaPlaybackManager.stop()
+            com.azokle.search.media.MediaPlaybackManager.stop()
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        com.azokle.search.security.BiometricAuthManager.onActivityDestroyed(this)
+        com.azokle.search.core.BiometricAuthManager.onActivityDestroyed(this)
         if (isFinishing) {
-            com.azokle.search.browser.tabs.TabManager.closeEphemeralAndTorTabs()
-            com.azokle.search.security.TorCircuitManager.stopTorService(this)
-            com.azokle.search.browser.media.MediaPlaybackManager.release(this)
+            com.azokle.search.tabs.TabManager.closeEphemeralAndTorTabs()
+            com.azokle.search.tor.TorCircuitManager.stopTorService(this)
+            com.azokle.search.media.MediaPlaybackManager.release(this)
         }
     }
 
@@ -352,9 +352,9 @@ class MainActivity : FragmentActivity() {
         val dataString = intent.dataString ?: intent.data?.toString()
 
         if (action == Intent.ACTION_VIEW && !dataString.isNullOrBlank()) {
-            val sanitized = com.azokle.search.util.UrlHelper.stripTrackingParameters(dataString.trim())
-            if (com.azokle.search.util.UrlHelper.isAllowedScheme(sanitized)) {
-                val resolved = com.azokle.search.util.UrlHelper.resolveSearchOrUrl(this, sanitized)
+            val sanitized = com.azokle.search.common.util.UrlHelper.stripTrackingParameters(dataString.trim())
+            if (com.azokle.search.common.util.UrlHelper.isAllowedScheme(sanitized)) {
+                val resolved = com.azokle.search.common.util.UrlHelper.resolveSearchOrUrl(this, sanitized)
                 viewModel.openInAppBrowser(resolved)
             }
         } else if (action == Intent.ACTION_WEB_SEARCH) {

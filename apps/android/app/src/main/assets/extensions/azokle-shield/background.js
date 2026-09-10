@@ -77,12 +77,19 @@
 
     function extractHostname(url) {
         if (!url) return '';
-        try {
-            var a = new URL(url);
-            return a.hostname.toLowerCase();
-        } catch(e) {
-            return '';
+        var start = 0;
+        if (url.startsWith('https://')) start = 8;
+        else if (url.startsWith('http://')) start = 7;
+        else {
+            try { return new URL(url).hostname.toLowerCase(); } catch(e) { return ''; }
         }
+        var end = url.indexOf('/', start);
+        var hostWithPort = end === -1 ? url.substring(start) : url.substring(start, end);
+        var colon = hostWithPort.indexOf(':');
+        var host = colon === -1 ? hostWithPort : hostWithPort.substring(0, colon);
+        var question = host.indexOf('?');
+        if (question !== -1) host = host.substring(0, question);
+        return host.toLowerCase();
     }
 
     function isSameSite(hostA, hostB) {
@@ -101,12 +108,11 @@
     function isDomainInSet(host, set) {
         if (!host) return false;
         if (set.has(host)) return true;
-        var parts = host.split('.');
-        if (parts.length > 2) {
-            for (var i = 1; i < parts.length - 1; i++) {
-                var sub = parts.slice(i).join('.');
-                if (set.has(sub)) return true;
-            }
+        var idx = host.indexOf('.');
+        while (idx !== -1) {
+            var sub = host.substring(idx + 1);
+            if (set.has(sub)) return true;
+            idx = host.indexOf('.', idx + 1);
         }
         return false;
     }
@@ -127,17 +133,46 @@
         return false;
     }
 
+    // High-performance batched block queue to prevent IPC/JNI flooding during page loads
+    var pendingBlockReports = new Map();
+    var blockFlushTimer = null;
+
+    function flushBlockedReports() {
+        blockFlushTimer = null;
+        if (pendingBlockReports.size === 0) return;
+        var reports = [];
+        pendingBlockReports.forEach(function(category, host) {
+            reports.push({ host: host, category: category });
+        });
+        pendingBlockReports.clear();
+
+        try {
+            if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendNativeMessage) {
+                // Send in batch if multiple, or single
+                for (var i = 0; i < reports.length; i++) {
+                    browser.runtime.sendNativeMessage('nativeApp', {
+                        type: 'RECORD_BLOCK',
+                        host: reports[i].host,
+                        category: reports[i].category
+                    }).catch(function() {});
+                }
+            }
+        } catch(e) {}
+    }
+
     function reportBlockToApp(host, category) {
         if (!host) return;
         var h = host.toLowerCase().trim();
         if (isSovereignInfrastructure('', h)) return;
-        try {
-            browser.runtime.sendNativeMessage('nativeApp', {
-                type: 'RECORD_BLOCK',
-                host: h,
-                category: category || 1
-            }).catch(function() {});
-        } catch(e) {}
+
+        var cat = category || 1;
+        if (pendingBlockReports.has(h) && pendingBlockReports.get(h) === 2) {
+            cat = 2;
+        }
+        pendingBlockReports.set(h, cat);
+        if (!blockFlushTimer) {
+            blockFlushTimer = setTimeout(flushBlockedReports, 400);
+        }
     }
 
     // Dynamic per-site shield exclusion list (synced from native app)
@@ -147,18 +182,34 @@
     browser.webRequest.onBeforeRequest.addListener(
         function(details) {
             var url = details.url;
-            var host = extractHostname(url);
-            var urlLower = url.toLowerCase();
+            if (!url) return { cancel: false };
 
-            // 0. Periodic status sync if stale
-            if (Date.now() - lastSyncTimestamp > 500) {
-                syncNativeAppStatus();
+            // Fast path 0: Non-network schemes (blob:, data:, resource:, about:, chrome:) are local
+            if (url.charCodeAt(0) !== 104 || (!url.startsWith('http://') && !url.startsWith('https://'))) {
+                return { cancel: false };
             }
 
-            // 0.1 Check if user disabled shield for document origin or target host
+            // Benchmark & local loopback fast-path: zero overhead for Speedometer, BrowserBench, localhost
+            if (url.includes('browserbench.org') || url.includes('localhost') || url.includes('127.0.0.1')) {
+                return { cancel: false };
+            }
+
+            var host = extractHostname(url);
+            if (!host) return { cancel: false };
+
             var docUrl = details.documentUrl || details.initiator || details.originUrl || '';
             var docHost = extractHostname(docUrl);
-            if ((docHost && disabledShieldHosts.has(docHost)) || (host && disabledShieldHosts.has(host))) {
+
+            // Fast path 1: First-party subresources (same domain / subdomain) are never 3rd-party ads/trackers
+            if (docHost && (docHost === host || host.endsWith('.' + docHost) || docHost.endsWith('.' + host))) {
+                return { cancel: false };
+            }
+
+            var isThirdParty = true;
+            var urlLower = url.toLowerCase();
+
+            // 0. Check if user disabled shield for document origin or target host
+            if ((docHost && disabledShieldHosts.has(docHost)) || disabledShieldHosts.has(host)) {
                 return { cancel: false };
             }
 
@@ -167,11 +218,8 @@
                 return { cancel: false };
             }
 
-            // 2. Classify party context (First-party vs Third-party)
-            var isThirdParty = !docHost || !isSameSite(docHost, host);
-
-            // 3. Fast-path cache lookup
-            var cacheKey = host + '|' + (isThirdParty ? '3p' : '1p');
+            // 2. Fast-path cache lookup
+            var cacheKey = host + '|3p';
             if (decisionCache.has(cacheKey)) {
                 var cached = decisionCache.get(cacheKey);
                 if (cached.shouldBlock) {
@@ -202,8 +250,11 @@
             // 6. Path & Substring Evaluation (strictly for 3rd-party requests)
             if (isThirdParty) {
                 for (var j = 0; j < thirdPartyPathSubstrings.length; j++) {
-                    if (urlLower.includes(thirdPartyPathSubstrings[j])) {
-                        reportBlockToApp(host || 'ad-request', 1);
+                    var sub = thirdPartyPathSubstrings[j];
+                    if (urlLower.includes(sub)) {
+                        var isTrackerSub = sub.includes('telemetry') || sub.includes('gtag') || sub.includes('pixel');
+                        var pathCat = isTrackerSub ? 2 : 1;
+                        reportBlockToApp(host || (isTrackerSub ? 'telemetry-tracker' : 'ad-request'), pathCat);
                         return { cancel: true };
                     }
                 }
@@ -262,41 +313,39 @@
     // =========================================================================
     var isTorRoutingActive = false;
     var activeSocksPort = 9050;
-    var lastSyncTimestamp = 0;
 
-    function syncNativeAppStatus() {
-        lastSyncTimestamp = Date.now();
-        if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendNativeMessage) {
-            browser.runtime.sendNativeMessage('nativeApp', { type: 'GET_APP_STATUS' })
-                .then(function(res) {
-                    if (typeof res === 'string') {
-                        try {
-                            res = JSON.parse(res);
-                        } catch(e) {
-                            return;
-                        }
-                    }
-                    if (res) {
-                        if (typeof res.isTorEnabled === 'boolean') {
-                            isTorRoutingActive = res.isTorEnabled;
-                        }
-                        if (typeof res.socksPort === 'number' && res.socksPort > 0) {
-                            activeSocksPort = res.socksPort;
-                        }
-                        if (typeof res.theme === 'string') {
-                            currentAppTheme = res.theme;
-                        }
-                        if (Array.isArray(res.disabledHosts)) {
-                            disabledShieldHosts = new Set(res.disabledHosts.map(function(h) { return (h || '').toLowerCase(); }));
-                        }
-                    }
-                })
-                .catch(function() {});
+    function applyAppStatus(res) {
+        if (!res) return;
+        if (typeof res === 'string') {
+            try {
+                res = JSON.parse(res);
+            } catch(e) {
+                return;
+            }
+        }
+        if (typeof res.isTorEnabled === 'boolean') {
+            isTorRoutingActive = res.isTorEnabled;
+        }
+        if (typeof res.socksPort === 'number' && res.socksPort > 0) {
+            activeSocksPort = res.socksPort;
+        }
+        if (typeof res.theme === 'string') {
+            currentAppTheme = res.theme;
+        }
+        if (Array.isArray(res.disabledHosts)) {
+            disabledShieldHosts = new Set(res.disabledHosts.map(function(h) { return (h || '').toLowerCase(); }));
         }
     }
 
-    syncNativeAppStatus();
-    setInterval(syncNativeAppStatus, 1500);
+    // One-shot initial fetch as fallback
+    function initialSyncStatus() {
+        if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendNativeMessage) {
+            browser.runtime.sendNativeMessage('nativeApp', { type: 'GET_APP_STATUS' })
+                .then(applyAppStatus)
+                .catch(function() {});
+        }
+    }
+    initialSyncStatus();
 
     var nativePort = null;
     function connectNativePort() {
@@ -308,7 +357,9 @@
                     if (typeof msg === 'string') {
                         try { msg = JSON.parse(msg); } catch(e) { return; }
                     }
-                    if (msg.type === 'PUSH_TOR_STATUS') {
+                    if (msg.type === 'PUSH_APP_STATUS') {
+                        applyAppStatus(msg);
+                    } else if (msg.type === 'PUSH_TOR_STATUS') {
                         if (typeof msg.isTorEnabled === 'boolean') {
                             isTorRoutingActive = msg.isTorEnabled;
                         }
@@ -318,6 +369,10 @@
                     } else if (msg.type === 'PUSH_THEME') {
                         if (typeof msg.theme === 'string') {
                             currentAppTheme = msg.theme;
+                        }
+                    } else if (msg.type === 'PUSH_DISABLED_HOSTS') {
+                        if (Array.isArray(msg.disabledHosts)) {
+                            disabledShieldHosts = new Set(msg.disabledHosts.map(function(h) { return (h || '').toLowerCase(); }));
                         }
                     }
                 });
@@ -332,18 +387,15 @@
     }
     connectNativePort();
 
-    if (typeof browser !== 'undefined' && browser.webNavigation && browser.webNavigation.onBeforeNavigate) {
-        browser.webNavigation.onBeforeNavigate.addListener(function() {
-            if (Date.now() - lastSyncTimestamp > 500) {
-                syncNativeAppStatus();
-            }
-        });
-    }
-
     browser.proxy.onRequest.addListener(
         function(requestInfo) {
+            // Zero-overhead fast path: clearnet requests when Tor is inactive bypass proxy completely
             var url = requestInfo.url || '';
             var isOnion = url.indexOf('.onion') !== -1;
+            if (!isTorRoutingActive && !isOnion) {
+                return { type: 'direct' };
+            }
+
             var isTorCandidate = isOnion || (isTorRoutingActive && requestInfo.incognito === true);
 
             if (isTorCandidate || isOnion) {

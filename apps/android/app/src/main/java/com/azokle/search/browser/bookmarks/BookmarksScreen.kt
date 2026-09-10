@@ -77,12 +77,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.azokle.search.data.vault.BookmarkItem
-import com.azokle.search.data.vault.EncryptedVaultManager
-import com.azokle.search.data.vault.QuickLinkItem
-import com.azokle.search.ui.theme.AzokleRadius
-import com.azokle.search.ui.theme.AzokleTheme
-import com.azokle.search.ui.theme.adaptiveContentWidth
+import com.azokle.search.vault.BookmarkItem
+import com.azokle.search.vault.EncryptedVaultManager
+import com.azokle.search.vault.QuickLinkItem
+import com.azokle.search.common.theme.AzokleRadius
+import com.azokle.search.common.theme.AzokleTheme
+import com.azokle.search.common.theme.adaptiveContentWidth
 
 /**
  * Dedicated Sovereign Bookmarks & Quick Links Screen:
@@ -412,7 +412,7 @@ private fun QuickLinkCard(
     item: QuickLinkItem,
     onClick: () -> Unit,
     onRemove: () -> Unit,
-    colors: com.azokle.search.ui.theme.AzokleThemeColors
+    colors: com.azokle.search.common.theme.AzokleThemeColors
 ) {
     val context = LocalContext.current
     val host = try {
@@ -479,7 +479,7 @@ private fun BookmarkCard(
     onTogglePin: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    colors: com.azokle.search.ui.theme.AzokleThemeColors
+    colors: com.azokle.search.common.theme.AzokleThemeColors
 ) {
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
@@ -608,7 +608,7 @@ private fun BookmarkCard(
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                         val clipData = android.content.ClipData.newPlainText("URL", bookmark.url)
                         clipboard?.setPrimaryClip(clipData)
-                        com.azokle.search.ui.components.ToastManager.showCopy("Link copied to clipboard")
+                        com.azokle.search.common.components.ToastManager.showCopy("Link copied to clipboard")
                     }
                 )
                 DropdownMenuItem(
@@ -625,7 +625,7 @@ private fun BookmarkCard(
                     onClick = {
                         showMenu = false
                         onDelete()
-                        com.azokle.search.ui.components.ToastManager.show("Bookmark removed")
+                        com.azokle.search.common.components.ToastManager.show("Bookmark removed")
                     }
                 )
             }
@@ -636,7 +636,7 @@ private fun BookmarkCard(
 @Composable
 private fun EmptyBookmarksView(
     searchQuery: String,
-    colors: com.azokle.search.ui.theme.AzokleThemeColors
+    colors: com.azokle.search.common.theme.AzokleThemeColors
 ) {
     Column(
         modifier = Modifier
@@ -686,7 +686,7 @@ private fun EmptyBookmarksView(
 private fun AddBookmarkDialog(
     onConfirm: (String, String) -> Unit,
     onDismiss: () -> Unit,
-    colors: com.azokle.search.ui.theme.AzokleThemeColors
+    colors: com.azokle.search.common.theme.AzokleThemeColors
 ) {
     var title by remember { mutableStateOf("") }
     var url by remember { mutableStateOf("https://") }
@@ -734,7 +734,7 @@ private fun AddBookmarkDialog(
 private fun AddQuickLinkDialog(
     onConfirm: (String, String) -> Unit,
     onDismiss: () -> Unit,
-    colors: com.azokle.search.ui.theme.AzokleThemeColors
+    colors: com.azokle.search.common.theme.AzokleThemeColors
 ) {
     var title by remember { mutableStateOf("") }
     var url by remember { mutableStateOf("https://") }
@@ -783,7 +783,7 @@ private fun EditBookmarkDialog(
     item: BookmarkItem,
     onConfirm: (String, String) -> Unit,
     onDismiss: () -> Unit,
-    colors: com.azokle.search.ui.theme.AzokleThemeColors
+    colors: com.azokle.search.common.theme.AzokleThemeColors
 ) {
     var title by remember { mutableStateOf(item.title) }
     var url by remember { mutableStateOf(item.url) }

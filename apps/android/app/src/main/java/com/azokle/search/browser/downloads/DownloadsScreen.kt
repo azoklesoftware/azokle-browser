@@ -1,4 +1,4 @@
-package com.azokle.search.browser.downloads
+package com.azokle.search.downloads
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -71,9 +71,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.azokle.search.ui.theme.AzokleRadius
-import com.azokle.search.ui.theme.AzokleTheme
-import com.azokle.search.ui.theme.adaptiveContentWidth
+import com.azokle.search.common.theme.AzokleRadius
+import com.azokle.search.common.theme.AzokleTheme
+import com.azokle.search.common.theme.adaptiveContentWidth
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -485,7 +485,7 @@ fun DownloadsScreen(
 @Composable
 private fun DownloadGroupedRow(
     item: DownloadItem,
-    colors: com.azokle.search.ui.theme.AzokleThemeColors,
+    colors: com.azokle.search.common.theme.AzokleThemeColors,
     onOpen: () -> Unit,
     onShare: () -> Unit,
     onPause: () -> Unit,
