@@ -56,17 +56,22 @@ mod tests {
             ||doubleclick.net^$third-party
             ||googleadservices.com^
             @@||exception.googleadservices.com^
+            @@||googlevideo.com^
             /pagead/
         "#;
         engine.load_rules_from_text(rules, BlockCategory::Ad);
 
-        // 1. Should block ad domain (including trailing dot FQDN)
-        let res1 = engine.check_url("https://ad.doubleclick.net/ad.js", None, true);
+        // 1. Should block ad domain (including trailing dot FQDN) when third-party
+        let res1 = engine.check_url("https://ad.doubleclick.net/ad.js", Some("https://example.com"), true);
         assert!(res1.should_block);
         assert_eq!(res1.category, BlockCategory::Ad);
 
-        let res1_dot = engine.check_url("https://ad.doubleclick.net./ad.js", None, true);
+        let res1_dot = engine.check_url("https://ad.doubleclick.net./ad.js", Some("https://example.com"), true);
         assert!(res1_dot.should_block);
+
+        // 1b. Third-party rule should NOT block first-party requests
+        let res1_first_party = engine.check_url("https://ad.doubleclick.net/ad.js", Some("https://doubleclick.net"), false);
+        assert!(!res1_first_party.should_block);
 
         // 2. Should block googleadservices
         let res2 = engine.check_url("https://googleadservices.com/pagead/123", None, true);
@@ -82,8 +87,8 @@ mod tests {
         assert!(!res4.should_block);
         assert!(res4.is_exception);
 
-        // 5. YouTube video streaming CDN exemption
-        let res5 = engine.check_url("https://rr1---sn-4g5ednle.googlevideo.com/videoplayback?id=123", Some("https://youtube.com"), false);
+        // 5. Declarative video streaming CDN rule exemption
+        let res5 = engine.check_url("https://rr1---sn-4g5ednle.googlevideo.com/videoplayback?id=123", Some("https://youtube.com"), true);
         assert!(!res5.should_block);
         assert!(res5.is_exception);
     }

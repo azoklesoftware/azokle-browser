@@ -15,17 +15,22 @@ pub struct NetworkRule {
     pub is_exception: bool,
     pub category: BlockCategory,
     pub third_party_only: bool,
+    pub first_party_only: bool,
     pub raw: String,
 }
 
 impl NetworkRule {
     pub fn parse(line: &str, default_category: BlockCategory) -> Option<Self> {
         let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('!') || trimmed.starts_with('#') || trimmed.starts_with("[Adblock") {
+        if trimmed.is_empty()
+            || trimmed.starts_with('!')
+            || trimmed.starts_with('#')
+            || trimmed.starts_with("[Adblock")
+        {
             return None;
         }
 
-        // Cosmetic filter lines are handled by the shield crate
+        // Cosmetic filter lines are handled by the security/cosmetic crate
         if trimmed.contains("##") || trimmed.contains("#@#") || trimmed.contains("#?#") {
             return None;
         }
@@ -43,19 +48,32 @@ impl NetworkRule {
         };
 
         let mut third_party = false;
+        let mut first_party = false;
+        let category = default_category;
+
         if let Some(opts) = options_part {
             for opt in opts.split(',') {
-                let opt = opt.trim();
+                let opt = opt.trim().to_lowercase();
                 if opt == "third-party" || opt == "3p" {
                     third_party = true;
+                } else if opt == "~third-party" || opt == "~3p" || opt == "first-party" || opt == "1p" {
+                    first_party = true;
+                } else if opt == "badfilter" {
+                    return None;
                 }
             }
         }
 
         let pattern = if let Some(domain_pat) = rule_part.strip_prefix("||") {
-            let domain_clean = domain_pat.trim_end_matches('^').trim_end_matches('/').trim_end_matches('|');
+            let domain_clean = domain_pat
+                .trim_end_matches('^')
+                .trim_end_matches('/')
+                .trim_end_matches('|');
             if domain_clean.contains('/') || domain_clean.contains('*') {
-                let mut regex_str = format!("^(?:https?://)?(?:[a-zA-Z0-9_-]+\\.)?{}", regex::escape(domain_clean));
+                let mut regex_str = format!(
+                    "^(?:https?://)?(?:[a-zA-Z0-9_.-]+\\.)?{}",
+                    regex::escape(domain_clean)
+                );
                 regex_str = regex_str.replace("\\*", ".*");
                 regex_str = regex_str.replace("\\^", "(?:[^a-zA-Z0-9_.-]|$)");
                 if let Ok(re) = Regex::new(&regex_str) {
@@ -68,14 +86,34 @@ impl NetworkRule {
             }
         } else if rule_part.starts_with('/') && rule_part.ends_with('/') && rule_part.len() > 2 {
             let regex_str = &rule_part[1..rule_part.len() - 1];
-            if let Ok(re) = Regex::new(regex_str) {
-                RulePattern::RegexPattern(re)
+            if regex_str.len() <= 512 {
+                if let Ok(re) = Regex::new(regex_str) {
+                    RulePattern::RegexPattern(re)
+                } else {
+                    RulePattern::Substring(rule_part.to_lowercase())
+                }
             } else {
                 RulePattern::Substring(rule_part.to_lowercase())
             }
         } else if rule_part.starts_with('|') && rule_part.ends_with('|') {
             let exact = rule_part.trim_matches('|');
             RulePattern::DomainExact(exact.to_lowercase())
+        } else if let Some(prefix) = rule_part.strip_prefix('|') {
+            let clean = prefix.trim_end_matches('^').trim_end_matches('|');
+            let regex_str = format!("^{}", regex::escape(clean).replace("\\*", ".*").replace("\\^", "(?:[^a-zA-Z0-9_.-]|$)"));
+            if let Ok(re) = Regex::new(&regex_str) {
+                RulePattern::RegexPattern(re)
+            } else {
+                RulePattern::Substring(clean.to_lowercase())
+            }
+        } else if let Some(suffix) = rule_part.strip_suffix('|') {
+            let clean = suffix.trim_start_matches('^');
+            let regex_str = format!("{}$", regex::escape(clean).replace("\\*", ".*").replace("\\^", "(?:[^a-zA-Z0-9_.-]|$)"));
+            if let Ok(re) = Regex::new(&regex_str) {
+                RulePattern::RegexPattern(re)
+            } else {
+                RulePattern::Substring(clean.to_lowercase())
+            }
         } else {
             RulePattern::Substring(rule_part.to_lowercase())
         };
@@ -83,8 +121,9 @@ impl NetworkRule {
         Some(NetworkRule {
             pattern,
             is_exception,
-            category: default_category,
+            category,
             third_party_only: third_party,
+            first_party_only: first_party,
             raw: trimmed.to_string(),
         })
     }

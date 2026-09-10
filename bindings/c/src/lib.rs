@@ -135,7 +135,7 @@ pub extern "C" fn azokle_core_get_scriptlets(domain: *const c_char) -> *mut c_ch
     }
     let result = catch_unwind(AssertUnwindSafe(|| {
         let domain_str = unsafe { CStr::from_ptr(domain).to_str().unwrap_or("") };
-        let scriptlet = get_core().shield.get_scriptlets(domain_str).unwrap_or("");
+        let scriptlet = get_core().shield.get_scriptlets(domain_str).unwrap_or_default();
         CString::new(scriptlet).map(|c| c.into_raw()).unwrap_or(std::ptr::null_mut())
     }));
     result.unwrap_or(std::ptr::null_mut())

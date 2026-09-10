@@ -48,6 +48,5 @@ impl SovereignWhitelist {
             || clean.ends_with(".cloudflareinsights.com")
             || clean.ends_with(".hcaptcha.com")
             || clean.ends_with(".recaptcha.net")
-            || clean.contains("googlevideo.com")
     }
 }

@@ -1,37 +1,46 @@
-pub struct ScriptletEngine;
+use parking_lot::RwLock;
+use std::collections::HashMap;
 
-impl ScriptletEngine {
-    pub fn get_defuser_scriptlet(domain: &str) -> Option<&'static str> {
-        let clean = domain.to_lowercase();
-        if clean.contains("youtube.com") {
-            // YouTube ad-skip defuser
-            Some(
-                r#"
-                (function() {
-                    'use strict';
-                    window._yt_ad_defuser = true;
-                    // Neutralize ytInitialPlayerResponse adPlacements, playerAds, adSlots
-                    const origParse = JSON.parse;
-                    JSON.parse = function(text, reviver) {
-                        const res = origParse.apply(this, arguments);
-                        if (res && typeof res === 'object') {
-                            if (res.adPlacements) res.adPlacements = [];
-                            if (res.playerAds) res.playerAds = [];
-                            if (res.adSlots) res.adSlots = [];
-                            if (res.playerResponse && typeof res.playerResponse === 'object') {
-                                if (res.playerResponse.adPlacements) res.playerResponse.adPlacements = [];
-                                if (res.playerResponse.playerAds) res.playerResponse.playerAds = [];
-                                if (res.playerResponse.adSlots) res.playerResponse.adSlots = [];
-                            }
-                            if (res.auxiliaryUi && res.auxiliaryUi.messageRenderers) delete res.auxiliaryUi;
-                        }
-                        return res;
-                    };
-                })();
-                "#,
-            )
-        } else {
-            None
-        }
+pub struct ScriptletEngine {
+    domain_scriptlets: RwLock<HashMap<String, String>>,
+}
+
+impl Default for ScriptletEngine {
+    fn default() -> Self {
+        Self::new()
     }
 }
+
+impl ScriptletEngine {
+    pub fn new() -> Self {
+        Self {
+            domain_scriptlets: RwLock::new(HashMap::new()),
+        }
+    }
+
+    pub fn register_scriptlet(&self, domain: &str, script_content: &str) {
+        let clean = domain.trim().to_lowercase();
+        if !clean.is_empty() && !script_content.is_empty() {
+            self.domain_scriptlets.write().insert(clean, script_content.to_string());
+        }
+    }
+
+    pub fn get_scriptlet_for_domain(&self, domain: &str) -> Option<String> {
+        let clean = domain.trim_end_matches('.').to_lowercase();
+        let map = self.domain_scriptlets.read();
+        if let Some(s) = map.get(&clean) {
+            return Some(s.clone());
+        }
+        let parts: Vec<&str> = clean.split('.').collect();
+        if parts.len() > 2 {
+            for i in 1..parts.len() - 1 {
+                let sub = parts[i..].join(".");
+                if let Some(s) = map.get(&sub) {
+                    return Some(s.clone());
+                }
+            }
+        }
+        None
+    }
+}
+

@@ -1,8 +1,8 @@
 {
   "manifest_version": 2,
   "name": "Azokle Shield Core",
-  "version": "5.3",
-  "description": "Native Sovereign Ad Blocker, Anti-Fingerprinting, Tor SOCKS5 Proxy & YouTube V3 Annihilator",
+  "version": "6.0",
+  "description": "Native Sovereign Ad Blocker, Tracker Annihilator, Anti-Fingerprinting, Dynamic Cosmetic Engine & Tor SOCKS5 Proxy",
   "browser_specific_settings": {
     "gecko": {
       "id": "shield@azokle.com",

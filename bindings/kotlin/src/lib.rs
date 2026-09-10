@@ -1,5 +1,5 @@
 use azokle_core::{
-    AzokleCoreEngine, BlockCategory, ShieldStatsSummary,
+    AzokleCoreEngine, BlockCategory,
 };
 use jni::objects::{JClass, JString};
 use jni::sys::{jboolean, jint, jlong, jstring, JNI_FALSE, JNI_TRUE};
@@ -206,9 +206,9 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_getScriptlets(
 
     let scriptlet = get_core()
         .shield
-        .get_scriptlets(&domain_str)
-        .unwrap_or("");
-    safe_jstring(&mut env, scriptlet)
+        .get_scriptlets(&domain_str);
+    let scriptlet_str = scriptlet.as_deref().unwrap_or("");
+    safe_jstring(&mut env, scriptlet_str)
 }
 
 #[no_mangle]

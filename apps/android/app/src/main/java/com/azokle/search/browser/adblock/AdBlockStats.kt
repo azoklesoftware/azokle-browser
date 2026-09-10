@@ -81,15 +81,7 @@ object AdBlockStats {
             return
         }
 
-        val isTracker = categoryId == 2 || AzokleCore.isTrackerHost(cleanHost) ||
-                cleanHost.contains("analytics") || cleanHost.contains("telemetry") ||
-                cleanHost.contains("tracker") || cleanHost.contains("pixel") ||
-                cleanHost.contains("beacon") || cleanHost.contains("stats") ||
-                cleanHost.contains("facebook") || cleanHost.contains("hotjar") ||
-                cleanHost.contains("segment") || cleanHost.contains("mixpanel") ||
-                cleanHost.contains("amplitude") || cleanHost.contains("sentry") ||
-                cleanHost.contains("clarity") || cleanHost.contains("quantserve")
-
+        val isTracker = categoryId == 2 || AzokleCore.isTrackerHost(cleanHost)
         val isAd = !isTracker
         val cat = if (isTracker) 2 else (categoryId ?: 1)
         AzokleCore.recordBlockedHost(cleanHost, cat)

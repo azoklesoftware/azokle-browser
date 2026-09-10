@@ -15,22 +15,17 @@ impl Default for CosmeticEngine {
 impl CosmeticEngine {
     pub fn new() -> Self {
         let mut global_selectors = HashSet::new();
-        // Built-in standard ad containers & banner classes
+        // Built-in safe standard ad provider tags & verified classes
         let default_globals = [
             ".adsbygoogle",
             "amp-ad",
             "amp-embed",
-            "div[id^='google_ads_iframe']",
-            "div[id^='ad-div-']",
-            "div[class*='ad-banner']",
-            "div[class*='ad-container']",
-            "div[class*='ad-placement']",
-            "div[class*='sponsored-post']",
-            "div[data-ad-unit]",
-            "div[data-google-query-id]",
             "ins.adsbygoogle",
+            "div[id^='google_ads_iframe']",
             ".taboola-ad",
             ".outbrain-ad",
+            "div[data-ad-unit]",
+            "div[data-google-query-id]",
         ];
 
         for s in default_globals {
@@ -47,6 +42,11 @@ impl CosmeticEngine {
     pub fn parse_rule_line(&mut self, line: &str) -> bool {
         let trimmed = line.trim();
         if trimmed.is_empty() || trimmed.starts_with('!') || trimmed.starts_with('[') {
+            return false;
+        }
+
+        // Security check: reject rules attempting CSS breakout or comment injection
+        if trimmed.contains('{') || trimmed.contains('}') || trimmed.contains("/*") || trimmed.contains("*/") {
             return false;
         }
 
@@ -91,10 +91,13 @@ impl CosmeticEngine {
             return true;
         }
 
-        // Raw CSS selector line (e.g. from cosmetic_css.txt)
+        // Raw CSS selector line
         if !trimmed.contains("##") && !trimmed.contains("||") && !trimmed.starts_with('/') {
-            self.global_selectors.insert(trimmed.to_string());
-            return true;
+            // Only accept specific, non-destructive selector classes
+            if trimmed.starts_with('.') || trimmed.starts_with('#') || trimmed.starts_with('[') {
+                self.global_selectors.insert(trimmed.to_string());
+                return true;
+            }
         }
 
         false

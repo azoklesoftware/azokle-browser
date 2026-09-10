@@ -1,27 +1,24 @@
-// Azokle Shield Unified uBlock Core Engine (EasyList + EasyPrivacy + YouTube V3 Annihilator)
-// High-Speed O(1) Network Interceptor & Real-Time Threat Annihilator for Mozilla GeckoView Quantum.
+// Azokle Shield Unified Engine (Platform-Independent Rule-Driven Interceptor)
+// High-Speed O(1) Network Filtering, Tracker Annihilation & Tor SOCKS5 Onion Routing
 
 (function() {
     'use strict';
 
-    // Comprehensive uBlock Origin EasyList, EasyPrivacy, Peter Lowe's & Fanboy Ad/Tracker Hosts
-    var blockedHosts = new Set([
-        // Google Ads & Tracking Network
+    // Core Sovereign & Bot-Challenge Whitelist (Infrastructure endpoints only)
+    var sovereignHosts = new Set([
+        'azokle.com', 'search.azokle.com', 'api.azokle.com',
+        'cloudflare.com', 'cloudflareinsights.com', 'challenges.cloudflare.com',
+        'challenge.cloudflare.com', 'static.cloudflareinsights.com', 'static.cloudflare.com',
+        'hcaptcha.com', 'recaptcha.net'
+    ]);
+
+    // High-Confidence Known Ad & Tracker Networks (3rd-party only)
+    var knownAdHosts = new Set([
         'doubleclick.net', 'googleads.g.doubleclick.net', 'pagead2.googlesyndication.com',
         'adservice.google.com', 'googleadservices.com', 'www.googleadservices.com',
-        'partner.googleadservices.com', 'admob.com', 'ads.google.com', 'app-measurement.com',
+        'partner.googleadservices.com', 'admob.com', 'ads.google.com',
         '2mdn.net', 'tpc.googlesyndication.com', 'static.doubleclick.net', 'securepubads.g.doubleclick.net',
         'afs.googlesyndication.com', 'pagead2.googleadservices.com', 'video-stats.l.google.com',
-        'google-analytics.com', 'ssl.google-analytics.com', 'analytics.google.com',
-        'googletagmanager.com', 'googletagservices.com', 'tagmanager.google.com',
-
-        // Meta / Facebook Telemetry, Pixel & Graph Trackers
-        'pixel.facebook.com', 'an.facebook.com', 'connect.facebook.net', 'analytics.facebook.com',
-        'graph.instagram.com', 'tr.snapchat.com', 'analytics.tiktok.com', 'ads.tiktok.com',
-        'ads-twitter.com', 'static.ads-twitter.com', 'analytics.twitter.com', 't.co',
-        'ads.linkedin.com', 'snap.licdn.com', 'ads.pinterest.com', 'ct.pinterest.com', 'log.pinterest.com',
-
-        // Major Ad Exchanges, Header Bidders & DSPs
         'adnxs.com', 'ib.adnxs.com', 'appnexus.com', 'criteo.com', 'criteo.net', 'static.criteo.net',
         'outbrain.com', 'widgets.outbrain.com', 'taboola.com', 'cdn.taboola.com', 'trc.taboola.com',
         'amazon-adsystem.com', 'aax.amazon-adsystem.com', 'adservice.amazon.com', 'advertising.amazon.com',
@@ -35,11 +32,18 @@
         'fyber.com', 'mintegral.com', 'pangle.io', 'supersonicads.com', 'leadbolt.com', 'adblade.com',
         'trafficjunky.com', 'exoclick.com', 'monetag.com', 'adcash.com', 'ezoic.net', 'ezoic.com',
         'zergnet.com', 'contentexchange.me', 'adkernel.com', 'adform.net', 'serving-sys.com',
-        'bs.serving-sys.com', 'zemanta.com', 'lijit.com', 'applifier.com', 'zergnet.com',
+        'bs.serving-sys.com', 'zemanta.com', 'lijit.com', 'applifier.com',
         'adthrive.com', 'mediavine.com', 'monumetric.com', 'buysellads.com', 'carbonads.net',
-        'chitika.net', 'infolinks.com', 'skimmr.com', 'adroll.com', 'dianomi.com', 'trafficroots.com',
+        'chitika.net', 'infolinks.com', 'skimmr.com', 'adroll.com', 'dianomi.com', 'trafficroots.com'
+    ]);
 
-        // Tracking Beacons, Product Analytics, Session Replayers & Telemetry
+    var knownTrackerHosts = new Set([
+        'google-analytics.com', 'ssl.google-analytics.com', 'analytics.google.com',
+        'googletagmanager.com', 'googletagservices.com', 'tagmanager.google.com',
+        'pixel.facebook.com', 'an.facebook.com', 'connect.facebook.net', 'analytics.facebook.com',
+        'graph.instagram.com', 'tr.snapchat.com', 'analytics.tiktok.com', 'ads.tiktok.com',
+        'ads-twitter.com', 'static.ads-twitter.com', 'analytics.twitter.com', 't.co',
+        'ads.linkedin.com', 'snap.licdn.com', 'ads.pinterest.com', 'ct.pinterest.com', 'log.pinterest.com',
         'scorecardresearch.com', 'b.scorecardresearch.com', 'sb.scorecardresearch.com',
         'pixel.quantserve.com', 'quantcast.com', 'rules.quantcount.com', 'moatads.com',
         'geo.moatads.com', 'iasds.com', 'doubleverify.com', 'clarity.ms', 'c.bing.com',
@@ -55,27 +59,24 @@
         'telemetry.mozilla.org', 'newrelic.com', 'js-agent.newrelic.com', 'bam.nr-data.net',
         'datadoghq.com', 'browser-intake-datadoghq.com', 'datadoghq-browser-agent.com',
         'bugsnag.com', 'browser.bugsnag.com', 'onesignal.com', 'pushwoosh.com',
-
-        // Data Brokers, CNAME Trackers & Identity Graphs
         'liveramp.com', 'rlcdn.com', 'bluekai.com', 'demdex.net', 'omtrdc.net', 'everesttech.net',
         'exelator.com', 'lotame.com', 'crwdcntrl.net', 'tapad.com', 'neustar.biz', 'intentiq.com',
         'id5-sync.com', 'uidapi.com',
-
-        // Crypto-Miners & Invasive Scripts
-        'coinhive.com', 'coin-hive.com', 'crypto-loot.com', 'minr.pw', 'webminepool.com',
-        'jsecoin.com', 'authedmine.com'
+        'coinhive.com', 'coin-hive.com', 'crypto-loot.com', 'minr.pw', 'webminepool.com'
     ]);
 
-    // High-Precision Path & Query Filters (Excludes video CDNs & first-party stream protocols)
-    var blockedPathSubstrings = [
-        '/pagead/', '/adservice/', '/ads/', '/telemetry/', '/collect?', '/gtag/js',
-        '/pixel.gif', '/beacon/', '/api/stats/ads',
-        'googleads', 'googlesyndication', 'doubleclick', 'amazon-adsystem',
-        'adnxs.com', 'criteo.com', 'taboola.com', 'outbrain.com',
-        '/smartads/', '/adserver/', '/delivery/ajs.php', '/banner/', '/popunder'
+    // High-Precision Third-Party Path Filters (applied only to third-party requests)
+    var thirdPartyPathSubstrings = [
+        '/pagead/', '/adservice/', '/telemetry/', '/gtag/js',
+        '/pixel.gif', '/smartads/', '/delivery/ajs.php', '/banner/', '/popunder'
     ];
 
+    // Fast-path decision cache to minimize overhead
+    var decisionCache = new Map();
+    var MAX_CACHE_ENTRIES = 2000;
+
     function extractHostname(url) {
+        if (!url) return '';
         try {
             var a = new URL(url);
             return a.hostname.toLowerCase();
@@ -84,80 +85,72 @@
         }
     }
 
-    function isDomainOrSuffixBlocked(host) {
-        if (!host) return false;
-        if (blockedHosts.has(host)) return true;
-        var parts = host.split('.');
-        for (var i = 1; i < parts.length - 1; i++) {
-            var sub = parts.slice(i).join('.');
-            if (blockedHosts.has(sub)) return true;
+    function isSameSite(hostA, hostB) {
+        if (!hostA || !hostB) return false;
+        if (hostA === hostB) return true;
+        var pA = hostA.split('.');
+        var pB = hostB.split('.');
+        if (pA.length >= 2 && pB.length >= 2) {
+            var rootA = pA.slice(-2).join('.');
+            var rootB = pB.slice(-2).join('.');
+            if (rootA === rootB) return true;
         }
         return false;
     }
 
-    var whitelistedHosts = new Set([
-        'azokle.com', 'search.azokle.com', 'api.azokle.com',
-        'cloudflare.com', 'cloudflareinsights.com', 'challenges.cloudflare.com',
-        'challenge.cloudflare.com', 'static.cloudflareinsights.com', 'static.cloudflare.com',
-        'hcaptcha.com', 'recaptcha.net'
-    ]);
-
-    // Real-Time Immediate Native Block Reporting Bridge
-    // Uses sendNativeMessage which is fully supported for built-in geckoViewAddons extensions
-    function reportBlockToApp(host) {
-        if (!host) return;
-        var h = host.toLowerCase().trim();
-        if (whitelistedHosts.has(h) || h.endsWith('.azokle.com') || h.endsWith('.cloudflare.com') || h.endsWith('.cloudflareinsights.com')) {
-            return;
+    function isDomainInSet(host, set) {
+        if (!host) return false;
+        if (set.has(host)) return true;
+        var parts = host.split('.');
+        if (parts.length > 2) {
+            for (var i = 1; i < parts.length - 1; i++) {
+                var sub = parts.slice(i).join('.');
+                if (set.has(sub)) return true;
+            }
         }
-        try {
-            browser.runtime.sendNativeMessage('nativeApp', {
-                type: 'RECORD_BLOCK',
-                host: h
-            }).catch(function() {});
-        } catch(e) {}
+        return false;
     }
 
-    function isWhitelistedDomain(url, host) {
+    function isSovereignInfrastructure(url, host) {
         if (!host) return false;
         var h = host.toLowerCase().trim();
-
-        // 0. NEVER block googlevideo.com (YouTube Media Video/Audio Streaming CDN)
-        if (h.includes('googlevideo.com') || h.endsWith('.googlevideo.com')) {
-            return true;
-        }
-
-        // 1. Exact or suffix domain matching
-        if (whitelistedHosts.has(h)) return true;
+        if (sovereignHosts.has(h)) return true;
         if (h.endsWith('.azokle.com') || h.endsWith('.cloudflare.com') ||
             h.endsWith('.cloudflareinsights.com') || h.endsWith('.hcaptcha.com') ||
             h.endsWith('.recaptcha.net') || h.includes('turnstile')) {
             return true;
         }
-
-        // 2. Cloudflare challenge platform endpoints on any domain
         var u = (url || '').toLowerCase();
-        if (u.includes('/cdn-cgi/') ||
-            u.includes('challenges.cloudflare.com') ||
-            u.includes('challenge.cloudflare.com') ||
-            u.includes('/challenge-platform/')) {
+        if (u.includes('/cdn-cgi/') || u.includes('challenges.cloudflare.com') || u.includes('/challenge-platform/')) {
             return true;
         }
-
         return false;
+    }
+
+    function reportBlockToApp(host, category) {
+        if (!host) return;
+        var h = host.toLowerCase().trim();
+        if (isSovereignInfrastructure('', h)) return;
+        try {
+            browser.runtime.sendNativeMessage('nativeApp', {
+                type: 'RECORD_BLOCK',
+                host: h,
+                category: category || 1
+            }).catch(function() {});
+        } catch(e) {}
     }
 
     // Dynamic per-site shield exclusion list (synced from native app)
     var disabledShieldHosts = new Set();
 
-    // WebRequest Blocking Listener (High-Performance Zero-Overhead Interceptor)
+    // WebRequest Blocking Listener (Platform-independent rule-driven classification)
     browser.webRequest.onBeforeRequest.addListener(
         function(details) {
             var url = details.url;
             var host = extractHostname(url);
             var urlLower = url.toLowerCase();
 
-            // 0. Fast-path sync on request if stale
+            // 0. Periodic status sync if stale
             if (Date.now() - lastSyncTimestamp > 500) {
                 syncNativeAppStatus();
             }
@@ -169,34 +162,57 @@
                 return { cancel: false };
             }
 
-            // 1. Security & Sovereign Whitelist: NEVER block ANY request for azokle.com, *.azokle.com, Cloudflare, or googlevideo.com
-            if (isWhitelistedDomain(urlLower, host)) {
+            // 1. Sovereign Infrastructure Protection (Never block internal browser or bot verification)
+            if (isSovereignInfrastructure(urlLower, host)) {
                 return { cancel: false };
             }
 
-            // 1.1 Protect necessary first-party YouTube player & media requests from false positive path blocks.
-            // NEVER cancel YouTube player, beacon, or ad endpoints with network cancellation,
-            // as YouTube's player detects network errors and enforces a 15-30 second fake-buffering
-            // black screen stall while waiting for the cancelled requests to time out.
-            var isYtReq = (docHost.includes('youtube.com') || host.includes('youtube.com'));
-            if (isYtReq) {
+            // 2. Classify party context (First-party vs Third-party)
+            var isThirdParty = !docHost || !isSameSite(docHost, host);
+
+            // 3. Fast-path cache lookup
+            var cacheKey = host + '|' + (isThirdParty ? '3p' : '1p');
+            if (decisionCache.has(cacheKey)) {
+                var cached = decisionCache.get(cacheKey);
+                if (cached.shouldBlock) {
+                    reportBlockToApp(host, cached.category);
+                    return { cancel: true };
+                }
                 return { cancel: false };
             }
 
-            // 2. Direct Domain or Suffix Match
-            if (isDomainOrSuffixBlocked(host)) {
-                reportBlockToApp(host);
+            // 4. Tracker Evaluation (Trackers are blocked on 3rd party, and known telemetry endpoints)
+            if (isThirdParty && isDomainInSet(host, knownTrackerHosts)) {
+                if (decisionCache.size < MAX_CACHE_ENTRIES) {
+                    decisionCache.set(cacheKey, { shouldBlock: true, category: 2 });
+                }
+                reportBlockToApp(host, 2);
                 return { cancel: true };
             }
 
-            // 3. Path & Substring Match
-            for (var j = 0; j < blockedPathSubstrings.length; j++) {
-                if (urlLower.includes(blockedPathSubstrings[j])) {
-                    reportBlockToApp(host || 'ad-tracker');
-                    return { cancel: true };
+            // 5. Ad Evaluation (Ad networks are blocked on 3rd party)
+            if (isThirdParty && isDomainInSet(host, knownAdHosts)) {
+                if (decisionCache.size < MAX_CACHE_ENTRIES) {
+                    decisionCache.set(cacheKey, { shouldBlock: true, category: 1 });
+                }
+                reportBlockToApp(host, 1);
+                return { cancel: true };
+            }
+
+            // 6. Path & Substring Evaluation (strictly for 3rd-party requests)
+            if (isThirdParty) {
+                for (var j = 0; j < thirdPartyPathSubstrings.length; j++) {
+                    if (urlLower.includes(thirdPartyPathSubstrings[j])) {
+                        reportBlockToApp(host || 'ad-request', 1);
+                        return { cancel: true };
+                    }
                 }
             }
 
+            // Allow request and cache decision
+            if (decisionCache.size < MAX_CACHE_ENTRIES) {
+                decisionCache.set(cacheKey, { shouldBlock: false, category: 0 });
+            }
             return { cancel: false };
         },
         { urls: ['<all_urls>'] },
@@ -211,12 +227,27 @@
         browser.runtime.onMessage.addListener(function(message, sender, sendResponse) {
             if (!message) return;
             if (message.type === 'RECORD_BLOCK' && message.host) {
-                reportBlockToApp(message.host);
+                reportBlockToApp(message.host, message.category || 1);
                 if (sendResponse) sendResponse({ ok: true });
             } else if (message.type === 'GET_THEME') {
                 if (sendResponse) sendResponse({ theme: currentAppTheme });
+            } else if (message.type === 'GET_COSMETIC_CSS') {
+                // Fetch tailored cosmetic CSS for the requested domain from native CosmeticEngine
+                var domain = message.domain || (sender && sender.tab && sender.tab.url ? extractHostname(sender.tab.url) : '');
+                if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendNativeMessage) {
+                    browser.runtime.sendNativeMessage('nativeApp', {
+                        type: 'GET_COSMETIC_CSS',
+                        domain: domain
+                    }).then(function(res) {
+                        if (sendResponse) sendResponse(res);
+                    }).catch(function() {
+                        if (sendResponse) sendResponse({ css: '' });
+                    });
+                    return true; // Async response
+                } else {
+                    if (sendResponse) sendResponse({ css: '' });
+                }
             } else if (message.type === 'PWA_MANIFEST_DISCOVERED') {
-                // Security check: strictly allow manifest discovery only from the top-level main frame
                 if (sender && sender.frameId === 0 && typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendNativeMessage) {
                     browser.runtime.sendNativeMessage('nativeApp', message).then(function(res) {
                         if (sendResponse) sendResponse(res);
@@ -228,8 +259,6 @@
 
     // =========================================================================
     // Tor SOCKS5 Onion Routing Controller & Native App Synchronization
-    // Uses sendNativeMessage (GeckoView built-in extension, geckoViewAddons perm)
-    // Synchronous, non-blocking proxy.onRequest for instant zero-latency page loading
     // =========================================================================
     var isTorRoutingActive = false;
     var activeSocksPort = 9050;
@@ -262,17 +291,13 @@
                         }
                     }
                 })
-                .catch(function(err) {
-                    // Safe retry
-                });
+                .catch(function() {});
         }
     }
 
-    // Immediate start sync and rapid interval
     syncNativeAppStatus();
     setInterval(syncNativeAppStatus, 1500);
 
-    // Real-time Push Messaging Port connection with native app
     var nativePort = null;
     function connectNativePort() {
         if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.connectNative) {
@@ -307,7 +332,6 @@
     }
     connectNativePort();
 
-    // Fast-path sync on navigation events
     if (typeof browser !== 'undefined' && browser.webNavigation && browser.webNavigation.onBeforeNavigate) {
         browser.webNavigation.onBeforeNavigate.addListener(function() {
             if (Date.now() - lastSyncTimestamp > 500) {
@@ -316,10 +340,6 @@
         });
     }
 
-    // browser.proxy.onRequest: Synchronous instant proxy routing.
-    // Zero latency, zero hanging, zero white screen.
-    // proxyDNS=true guarantees DNS resolution happens on Tor exit relay.
-    // Fail-Closed Security: .onion and Tor requests NEVER fall back to direct cleartext.
     browser.proxy.onRequest.addListener(
         function(requestInfo) {
             var url = requestInfo.url || '';
@@ -327,7 +347,6 @@
             var isTorCandidate = isOnion || (isTorRoutingActive && requestInfo.incognito === true);
 
             if (isTorCandidate || isOnion) {
-                // Fail-Closed Security: .onion and Tor requests NEVER fall back to direct cleartext.
                 var port = activeSocksPort || 9050;
                 return {
                     type: 'socks',
@@ -342,5 +361,6 @@
         { urls: ['<all_urls>'] }
     );
 
-    console.log('[Azokle Shield] v3.5 — uBlock Core + Real-Time Tor SOCKS5 Zero-Leak Proxy active.');
+    console.log('[Azokle Shield] Rule-driven interceptor and privacy engine active.');
 })();
+

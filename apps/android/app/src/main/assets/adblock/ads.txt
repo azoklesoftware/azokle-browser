@@ -198,3 +198,24 @@ zemanta.com
 zenaps.com
 zeus.ad
 zopim.com
+
+# Platform-Independent Modern Video Ad Rules
+||youtube.com/api/stats/ads^$third-party
+||youtube.com/pagead/*
+||youtube.com/ptracking^
+||twitch.tv/api/ad/*
+||kick.com/api/v1/ads/*
+||ads.tiktok.com^
+||ads-twitter.com^
+||static.ads-twitter.com^
+
+# Declarative Media Streaming Exceptions (Preserves video streams on all platforms)
+@@||googlevideo.com/videoplayback^
+@@||*.googlevideo.com/videoplayback^
+@@||usher.ttvnw.net/api/channel/hls/*
+@@||*.hls.ttvnw.net/*
+@@||stream.kick.com/*
+@@||*.fbcdn.net/v/*
+@@||*.cdninstagram.com/v/*
+@@||vimeo.com/video/*
+@@||*.vimeocdn.com/*

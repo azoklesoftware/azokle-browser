@@ -1,20 +1,35 @@
 use crate::category::BlockCategory;
 use crate::rules::{NetworkRule, RulePattern};
 use aho_corasick::{AhoCorasick, AhoCorasickBuilder};
-use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use url::Url;
 
 pub use azokle_common::FilterDecision;
 
+#[derive(Debug, Clone)]
+struct RuleMeta {
+    category: BlockCategory,
+    third_party_only: bool,
+    first_party_only: bool,
+    raw: String,
+}
+
+#[derive(Debug, Clone)]
+struct ExceptionMeta {
+    third_party_only: bool,
+    first_party_only: bool,
+    raw: String,
+}
+
 pub struct RuleMatcher {
-    domain_exact_block: HashMap<String, (BlockCategory, String)>,
-    domain_suffix_block: HashMap<String, (BlockCategory, String)>,
-    domain_suffix_exceptions: HashSet<String>,
-    substring_rules: Vec<(String, BlockCategory, String)>,
-    substring_exceptions: Vec<(String, String)>,
-    regex_rules: Vec<(regex::Regex, BlockCategory, String)>,
-    regex_exceptions: Vec<(regex::Regex, String)>,
+    domain_exact_block: HashMap<String, RuleMeta>,
+    domain_suffix_block: HashMap<String, RuleMeta>,
+    domain_exact_exceptions: HashMap<String, ExceptionMeta>,
+    domain_suffix_exceptions: HashMap<String, ExceptionMeta>,
+    substring_rules: Vec<(String, RuleMeta)>,
+    substring_exceptions: Vec<(String, ExceptionMeta)>,
+    regex_rules: Vec<(regex::Regex, RuleMeta)>,
+    regex_exceptions: Vec<(regex::Regex, ExceptionMeta)>,
     ac_matcher: Option<AhoCorasick>,
     ac_rule_indices: Vec<usize>,
 }
@@ -30,7 +45,8 @@ impl RuleMatcher {
         Self {
             domain_exact_block: HashMap::new(),
             domain_suffix_block: HashMap::new(),
-            domain_suffix_exceptions: HashSet::new(),
+            domain_exact_exceptions: HashMap::new(),
+            domain_suffix_exceptions: HashMap::new(),
             substring_rules: Vec::new(),
             substring_exceptions: Vec::new(),
             regex_rules: Vec::new(),
@@ -42,30 +58,44 @@ impl RuleMatcher {
 
     pub fn add_rule(&mut self, rule: NetworkRule) {
         if rule.is_exception {
+            let meta = ExceptionMeta {
+                third_party_only: rule.third_party_only,
+                first_party_only: rule.first_party_only,
+                raw: rule.raw,
+            };
             match rule.pattern {
-                RulePattern::DomainExact(d) | RulePattern::DomainSuffix(d) => {
-                    self.domain_suffix_exceptions.insert(d);
+                RulePattern::DomainExact(d) => {
+                    self.domain_exact_exceptions.insert(d, meta);
+                }
+                RulePattern::DomainSuffix(d) => {
+                    self.domain_suffix_exceptions.insert(d, meta);
                 }
                 RulePattern::Substring(s) => {
-                    self.substring_exceptions.push((s, rule.raw));
+                    self.substring_exceptions.push((s, meta));
                 }
                 RulePattern::RegexPattern(r) => {
-                    self.regex_exceptions.push((r, rule.raw));
+                    self.regex_exceptions.push((r, meta));
                 }
             }
         } else {
+            let meta = RuleMeta {
+                category: rule.category,
+                third_party_only: rule.third_party_only,
+                first_party_only: rule.first_party_only,
+                raw: rule.raw,
+            };
             match rule.pattern {
                 RulePattern::DomainExact(d) => {
-                    self.domain_exact_block.insert(d, (rule.category, rule.raw));
+                    self.domain_exact_block.insert(d, meta);
                 }
                 RulePattern::DomainSuffix(d) => {
-                    self.domain_suffix_block.insert(d, (rule.category, rule.raw));
+                    self.domain_suffix_block.insert(d, meta);
                 }
                 RulePattern::Substring(s) => {
-                    self.substring_rules.push((s, rule.category, rule.raw));
+                    self.substring_rules.push((s, meta));
                 }
                 RulePattern::RegexPattern(r) => {
-                    self.regex_rules.push((r, rule.category, rule.raw));
+                    self.regex_rules.push((r, meta));
                 }
             }
         }
@@ -78,7 +108,7 @@ impl RuleMatcher {
             return;
         }
 
-        let patterns: Vec<&str> = self.substring_rules.iter().map(|(pat, _, _)| pat.as_str()).collect();
+        let patterns: Vec<&str> = self.substring_rules.iter().map(|(pat, _)| pat.as_str()).collect();
         let ac = AhoCorasickBuilder::new()
             .ascii_case_insensitive(true)
             .build(&patterns);
@@ -89,7 +119,17 @@ impl RuleMatcher {
         }
     }
 
-    pub fn check_url(&self, request_url: &str, source_origin: Option<&str>, _is_third_party: bool) -> FilterDecision {
+    fn check_party_filter(third_party_only: bool, first_party_only: bool, is_third_party: bool) -> bool {
+        if third_party_only && !is_third_party {
+            return false;
+        }
+        if first_party_only && is_third_party {
+            return false;
+        }
+        true
+    }
+
+    pub fn check_url(&self, request_url: &str, source_origin: Option<&str>, is_third_party: bool) -> FilterDecision {
         let parsed = match Url::parse(request_url) {
             Ok(u) => u,
             Err(_) => {
@@ -114,7 +154,23 @@ impl RuleMatcher {
             }
         };
 
-        // Sovereign Whitelist: Never block sovereign Azokle domains, Cloudflare, or essential endpoints
+        // Determine effective party context (first-party vs third-party)
+        let effective_third_party = if let Some(src) = source_origin {
+            if let Ok(src_url) = Url::parse(src) {
+                if let Some(src_host) = src_url.host_str() {
+                    let clean_src = src_host.trim_end_matches('.').to_lowercase();
+                    !Self::is_same_site(&clean_src, &host)
+                } else {
+                    is_third_party
+                }
+            } else {
+                is_third_party
+            }
+        } else {
+            is_third_party
+        };
+
+        // Sovereign Infrastructure Whitelist: Only Azokle sovereign domains & bot challenge infrastructure
         if host == "azokle.com"
             || host.ends_with(".azokle.com")
             || host == "cloudflare.com"
@@ -122,162 +178,178 @@ impl RuleMatcher {
             || host.ends_with(".cloudflareinsights.com")
             || host.ends_with(".hcaptcha.com")
             || host.ends_with(".recaptcha.net")
-            || host.contains("googlevideo.com")
         {
             return FilterDecision {
                 should_block: false,
                 category: BlockCategory::None,
-                matched_rule: None,
+                matched_rule: Some("@@||sovereign-whitelist".to_string()),
                 is_exception: true,
             };
         }
 
-        // Check if origin matches target host (first-party exemption if applicable)
-        if let Some(src) = source_origin {
-            if let Ok(src_url) = Url::parse(src) {
-                if let Some(src_host) = src_url.host_str() {
-                    let clean_src_host = src_host.trim_end_matches('.').to_lowercase();
-                    if clean_src_host == host && host.contains("youtube.com") {
-                        let path = parsed.path();
-                        if path.contains("/api/stats/ads") || path.contains("/ptracking") || path.contains("/pagead") {
-                            return FilterDecision {
-                                should_block: true,
-                                category: BlockCategory::Ad,
-                                matched_rule: Some("||youtube.com/api/stats/ads".to_string()),
-                                is_exception: false,
-                            };
-                        }
-                        if path.contains("/player") || path.contains("/api/stats") || path.contains("/videoplayback") {
-                            return FilterDecision {
-                                should_block: false,
-                                category: BlockCategory::None,
-                                matched_rule: None,
-                                is_exception: true,
-                            };
-                        }
+        // =====================================================================
+        // 1. Check Exceptions (Whitelist / Exclusions) - Checked first
+        // =====================================================================
+
+        // 1a. Exact domain exceptions
+        if let Some(exc) = self.domain_exact_exceptions.get(&host) {
+            if Self::check_party_filter(exc.third_party_only, exc.first_party_only, effective_third_party) {
+                return FilterDecision {
+                    should_block: false,
+                    category: BlockCategory::None,
+                    matched_rule: Some(exc.raw.clone()),
+                    is_exception: true,
+                };
+            }
+        }
+
+        // 1b. Suffix domain exceptions
+        if let Some(exc) = self.domain_suffix_exceptions.get(&host) {
+            if Self::check_party_filter(exc.third_party_only, exc.first_party_only, effective_third_party) {
+                return FilterDecision {
+                    should_block: false,
+                    category: BlockCategory::None,
+                    matched_rule: Some(exc.raw.clone()),
+                    is_exception: true,
+                };
+            }
+        }
+
+        let parts: Vec<&str> = host.split('.').collect();
+        if parts.len() > 2 {
+            for i in 1..parts.len() - 1 {
+                let sub = parts[i..].join(".");
+                if let Some(exc) = self.domain_suffix_exceptions.get(&sub) {
+                    if Self::check_party_filter(exc.third_party_only, exc.first_party_only, effective_third_party) {
+                        return FilterDecision {
+                            should_block: false,
+                            category: BlockCategory::None,
+                            matched_rule: Some(exc.raw.clone()),
+                            is_exception: true,
+                        };
                     }
                 }
             }
         }
 
-        // 1. Check Exceptions (Whitelist / Exclusions)
-        if self.domain_suffix_exceptions.contains(&host) {
-            return FilterDecision {
-                should_block: false,
-                category: BlockCategory::None,
-                matched_rule: Some(format!("@@||{}", host)),
-                is_exception: true,
-            };
-        }
-
-        // Domain suffix matching for exceptions
-        let parts: Vec<&str> = host.split('.').collect();
-        if parts.len() > 2 {
-            for i in 1..parts.len() - 1 {
-                let sub = parts[i..].join(".");
-                if self.domain_suffix_exceptions.contains(&sub) {
+        // 1c. Substring exceptions
+        let lower_url = request_url.to_lowercase();
+        for (exc_sub, meta) in &self.substring_exceptions {
+            if lower_url.contains(exc_sub) {
+                if Self::check_party_filter(meta.third_party_only, meta.first_party_only, effective_third_party) {
                     return FilterDecision {
                         should_block: false,
                         category: BlockCategory::None,
-                        matched_rule: Some(format!("@@||{}", sub)),
+                        matched_rule: Some(meta.raw.clone()),
                         is_exception: true,
                     };
                 }
             }
         }
 
-        for (exc_sub, raw) in &self.substring_exceptions {
-            if request_url.contains(exc_sub) {
-                return FilterDecision {
-                    should_block: false,
-                    category: BlockCategory::None,
-                    matched_rule: Some(raw.clone()),
-                    is_exception: true,
-                };
-            }
-        }
-
-        for (re, raw) in &self.regex_exceptions {
+        // 1d. Regex exceptions
+        for (re, meta) in &self.regex_exceptions {
             if re.is_match(request_url) {
+                if Self::check_party_filter(meta.third_party_only, meta.first_party_only, effective_third_party) {
+                    return FilterDecision {
+                        should_block: false,
+                        category: BlockCategory::None,
+                        matched_rule: Some(meta.raw.clone()),
+                        is_exception: true,
+                    };
+                }
+            }
+        }
+
+        // =====================================================================
+        // 2. Check Exact Domain Block
+        // =====================================================================
+        if let Some(rule) = self.domain_exact_block.get(&host) {
+            if Self::check_party_filter(rule.third_party_only, rule.first_party_only, effective_third_party) {
                 return FilterDecision {
-                    should_block: false,
-                    category: BlockCategory::None,
-                    matched_rule: Some(raw.clone()),
-                    is_exception: true,
+                    should_block: true,
+                    category: rule.category,
+                    matched_rule: Some(rule.raw.clone()),
+                    is_exception: false,
                 };
             }
         }
 
-        // 2. Check Exact Domain Block
-        if let Some((cat, raw)) = self.domain_exact_block.get(&host) {
-            return FilterDecision {
-                should_block: true,
-                category: *cat,
-                matched_rule: Some(raw.clone()),
-                is_exception: false,
-            };
-        }
-
+        // =====================================================================
         // 3. Check Domain Suffix Block
-        if let Some((cat, raw)) = self.domain_suffix_block.get(&host) {
-            return FilterDecision {
-                should_block: true,
-                category: *cat,
-                matched_rule: Some(raw.clone()),
-                is_exception: false,
-            };
+        // =====================================================================
+        if let Some(rule) = self.domain_suffix_block.get(&host) {
+            if Self::check_party_filter(rule.third_party_only, rule.first_party_only, effective_third_party) {
+                return FilterDecision {
+                    should_block: true,
+                    category: rule.category,
+                    matched_rule: Some(rule.raw.clone()),
+                    is_exception: false,
+                };
+            }
         }
 
         if parts.len() > 2 {
             for i in 1..parts.len() - 1 {
                 let sub = parts[i..].join(".");
-                if let Some((cat, raw)) = self.domain_suffix_block.get(&sub) {
-                    return FilterDecision {
-                        should_block: true,
-                        category: *cat,
-                        matched_rule: Some(raw.clone()),
-                        is_exception: false,
-                    };
+                if let Some(rule) = self.domain_suffix_block.get(&sub) {
+                    if Self::check_party_filter(rule.third_party_only, rule.first_party_only, effective_third_party) {
+                        return FilterDecision {
+                            should_block: true,
+                            category: rule.category,
+                            matched_rule: Some(rule.raw.clone()),
+                            is_exception: false,
+                        };
+                    }
                 }
             }
         }
 
+        // =====================================================================
         // 4. Check Substring Rules with Aho-Corasick
-        let lower_url = request_url.to_lowercase();
+        // =====================================================================
         if let Some(ac) = &self.ac_matcher {
-            if let Some(mat) = ac.find(&lower_url) {
+            for mat in ac.find_iter(&lower_url) {
                 let rule_idx = mat.pattern().as_usize();
-                if let Some((_, cat, raw)) = self.substring_rules.get(rule_idx) {
-                    return FilterDecision {
-                        should_block: true,
-                        category: *cat,
-                        matched_rule: Some(raw.clone()),
-                        is_exception: false,
-                    };
+                if let Some((_, rule)) = self.substring_rules.get(rule_idx) {
+                    if Self::check_party_filter(rule.third_party_only, rule.first_party_only, effective_third_party) {
+                        return FilterDecision {
+                            should_block: true,
+                            category: rule.category,
+                            matched_rule: Some(rule.raw.clone()),
+                            is_exception: false,
+                        };
+                    }
                 }
             }
         } else {
-            for (sub, cat, raw) in &self.substring_rules {
+            for (sub, rule) in &self.substring_rules {
                 if lower_url.contains(sub) {
-                    return FilterDecision {
-                        should_block: true,
-                        category: *cat,
-                        matched_rule: Some(raw.clone()),
-                        is_exception: false,
-                    };
+                    if Self::check_party_filter(rule.third_party_only, rule.first_party_only, effective_third_party) {
+                        return FilterDecision {
+                            should_block: true,
+                            category: rule.category,
+                            matched_rule: Some(rule.raw.clone()),
+                            is_exception: false,
+                        };
+                    }
                 }
             }
         }
 
+        // =====================================================================
         // 5. Check Regex Rules
-        for (re, cat, raw) in &self.regex_rules {
+        // =====================================================================
+        for (re, rule) in &self.regex_rules {
             if re.is_match(request_url) {
-                return FilterDecision {
-                    should_block: true,
-                    category: *cat,
-                    matched_rule: Some(raw.clone()),
-                    is_exception: false,
-                };
+                if Self::check_party_filter(rule.third_party_only, rule.first_party_only, effective_third_party) {
+                    return FilterDecision {
+                        should_block: true,
+                        category: rule.category,
+                        matched_rule: Some(rule.raw.clone()),
+                        is_exception: false,
+                    };
+                }
             }
         }
 
@@ -288,4 +360,21 @@ impl RuleMatcher {
             is_exception: false,
         }
     }
+
+    fn is_same_site(host_a: &str, host_b: &str) -> bool {
+        if host_a == host_b {
+            return true;
+        }
+        let parts_a: Vec<&str> = host_a.split('.').collect();
+        let parts_b: Vec<&str> = host_b.split('.').collect();
+        if parts_a.len() >= 2 && parts_b.len() >= 2 {
+            let domain_a = parts_a[parts_a.len().saturating_sub(2)..].join(".");
+            let domain_b = parts_b[parts_b.len().saturating_sub(2)..].join(".");
+            if domain_a == domain_b {
+                return true;
+            }
+        }
+        false
+    }
 }
+
