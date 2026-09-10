@@ -362,17 +362,20 @@ fun PwaContainerScreen(
                             ): GeckoResult<org.mozilla.geckoview.AllowOrDeny>? {
                                 val uriStr = request.uri
                                 val scheme = try { Uri.parse(uriStr).scheme?.lowercase() ?: "" } catch (e: Exception) { "" }
-                                if (scheme in setOf("file", "content", "chrome", "resource")) {
+                                if (com.azokle.search.browser.navigation.NavigationSecurity.isForbiddenWebScheme(scheme)) {
                                     return GeckoResult.fromValue(org.mozilla.geckoview.AllowOrDeny.DENY)
                                 }
                                 if (scheme == "http" || scheme == "https" || scheme == "about" || scheme == "blob" || scheme == "data" || scheme == "javascript") {
                                     return GeckoResult.fromValue(org.mozilla.geckoview.AllowOrDeny.ALLOW)
                                 }
-                                if (com.azokle.search.browser.handlers.ExternalSchemeHandler.isExternalScheme(uriStr)) {
-                                    if (!request.hasUserGesture && request.target != GeckoSession.NavigationDelegate.TARGET_WINDOW_NONE) {
-                                        return GeckoResult.fromValue(org.mozilla.geckoview.AllowOrDeny.DENY)
-                                    }
-                                    com.azokle.search.browser.handlers.ExternalSchemeHandler.handleExternalUri(ctx, uriStr, session)
+                                if (com.azokle.search.browser.navigation.ExternalNavigationHandler.isExternalNavigation(uriStr)) {
+                                    com.azokle.search.browser.navigation.ExternalNavigationHandler.handleNavigation(
+                                        context = ctx,
+                                        uriStr = uriStr,
+                                        session = session,
+                                        hasUserGesture = request.hasUserGesture,
+                                        targetWindow = request.target
+                                    )
                                     return GeckoResult.fromValue(org.mozilla.geckoview.AllowOrDeny.DENY)
                                 }
                                 return GeckoResult.fromValue(org.mozilla.geckoview.AllowOrDeny.DENY)

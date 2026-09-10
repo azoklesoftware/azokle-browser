@@ -37,6 +37,26 @@ class ExternalSchemeHandlerTest {
     }
 
     @Test
+    fun testIsExternalSchemeForUpiAndWebcal() {
+        assertTrue(ExternalSchemeHandler.isExternalScheme("upi://pay?pa=merchant@upi"))
+        assertTrue(ExternalSchemeHandler.isExternalScheme("paytmmp://pay?pa=merchant@paytm"))
+        assertTrue(ExternalSchemeHandler.isExternalScheme("webcal://example.com/calendar.ics"))
+    }
+
+    @Test
+    fun testIsExternalSchemeForAlternativeDialers() {
+        assertTrue(ExternalSchemeHandler.isExternalScheme("telprompt:+1234567890"))
+        assertTrue(ExternalSchemeHandler.isExternalScheme("callto:+1234567890"))
+    }
+
+    @Test
+    fun testIsExternalSchemeForCustomAppSchemes() {
+        assertTrue(ExternalSchemeHandler.isExternalScheme("whatsapp://send?text=Hi"))
+        assertTrue(ExternalSchemeHandler.isExternalScheme("tg://resolve?domain=test"))
+        assertTrue(ExternalSchemeHandler.isExternalScheme("slack://open"))
+    }
+
+    @Test
     fun testNonExternalSchemesReturnFalse() {
         assertFalse(ExternalSchemeHandler.isExternalScheme("https://azokle.com"))
         assertFalse(ExternalSchemeHandler.isExternalScheme("http://example.com"))
@@ -46,6 +66,7 @@ class ExternalSchemeHandlerTest {
         assertFalse(ExternalSchemeHandler.isExternalScheme("file:///etc/passwd"))
         assertFalse(ExternalSchemeHandler.isExternalScheme("content://media/external"))
         assertFalse(ExternalSchemeHandler.isExternalScheme("chrome://settings"))
+        assertFalse(ExternalSchemeHandler.isExternalScheme("resource://android/assets"))
         assertFalse(ExternalSchemeHandler.isExternalScheme("just some search text"))
     }
 }

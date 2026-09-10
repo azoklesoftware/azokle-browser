@@ -1182,7 +1182,13 @@ fun BrowserScreen(
                     showUrlEditSheet = false
                     val trimmed = input.trim()
                     if (com.azokle.search.browser.handlers.ExternalSchemeHandler.isExternalScheme(trimmed)) {
-                        com.azokle.search.browser.handlers.ExternalSchemeHandler.handleExternalUri(context, trimmed, geckoSession)
+                        com.azokle.search.browser.handlers.ExternalSchemeHandler.handleExternalUri(
+                            context = context,
+                            uriStr = trimmed,
+                            session = geckoSession,
+                            isPrivate = isCurrentTabPrivate,
+                            isTor = isCurrentTabTor
+                        )
                         return@BrowserUrlEditSheet
                     }
                     val resolved = if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("about:")) {

@@ -229,7 +229,7 @@ fun GeckoBrowserView(
                         val scheme = try { android.net.Uri.parse(uriStr).scheme?.lowercase() ?: "" } catch (e: Exception) { "" }
 
                         // 1. Block dangerous internal and privileged schemes (allow javascript for internal scripts)
-                        if (scheme in setOf("file", "content", "chrome", "resource")) {
+                        if (com.azokle.search.browser.navigation.NavigationSecurity.isForbiddenWebScheme(scheme)) {
                             return org.mozilla.geckoview.GeckoResult.fromValue(org.mozilla.geckoview.AllowOrDeny.DENY)
                         }
 
@@ -238,12 +238,17 @@ fun GeckoBrowserView(
                             return org.mozilla.geckoview.GeckoResult.fromValue(org.mozilla.geckoview.AllowOrDeny.ALLOW)
                         }
 
-                        // 3. Whitelisted external application schemes (tel, mailto, sms, geo, market, intent)
-                        if (com.azokle.search.browser.handlers.ExternalSchemeHandler.isExternalScheme(uriStr)) {
-                            if (!request.hasUserGesture && request.target != org.mozilla.geckoview.GeckoSession.NavigationDelegate.TARGET_WINDOW_NONE) {
-                                return org.mozilla.geckoview.GeckoResult.fromValue(org.mozilla.geckoview.AllowOrDeny.DENY)
-                            }
-                            com.azokle.search.browser.handlers.ExternalSchemeHandler.handleExternalUri(context, uriStr, session)
+                        // 3. External application navigation (tel, mailto, sms, geo, market, upi, intent, custom schemes)
+                        if (com.azokle.search.browser.navigation.ExternalNavigationHandler.isExternalNavigation(uriStr)) {
+                            com.azokle.search.browser.navigation.ExternalNavigationHandler.handleNavigation(
+                                context = context,
+                                uriStr = uriStr,
+                                session = session,
+                                hasUserGesture = request.hasUserGesture,
+                                targetWindow = request.target,
+                                isPrivate = isPrivate,
+                                isTor = isTor
+                            )
                             return org.mozilla.geckoview.GeckoResult.fromValue(org.mozilla.geckoview.AllowOrDeny.DENY)
                         }
 

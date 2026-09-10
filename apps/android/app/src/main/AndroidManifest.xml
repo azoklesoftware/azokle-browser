@@ -27,6 +27,14 @@
             <data android:scheme="tel" />
         </intent>
         <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="telprompt" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="callto" />
+        </intent>
+        <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="tel" />
         </intent>
@@ -61,6 +69,16 @@
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="market" />
+        </intent>
+        <!-- UPI / Payment Links (Google Pay, PhonePe, Paytm, BHIM, Banking Apps) -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="upi" />
+        </intent>
+        <!-- Calendar Subscriptions -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="webcal" />
         </intent>
         <!-- Web & App Links -->
         <intent>
