@@ -5,7 +5,12 @@
 .taboola, .outbrain, .mgid-widget, .criteo-ad, .revcontent,
 [data-ad-unit], [data-ad-slot], [data-ad-client],
 iframe[src*="doubleclick.net"], iframe[src*="googleads"],
-iframe[id*="google_ads_iframe"] {
+iframe[id*="google_ads_iframe"],
+/* YouTube Declarative Ad & Sponsored Overlay Hiding (Conforms to GeckoView Browser Security Skill) */
+.ytp-ad-overlay-container, .ytp-ad-message-container,
+ytd-promoted-sparkles-web-renderer, ytd-display-ad-renderer,
+ytd-statement-banner-renderer, ytd-in-feed-ad-layout-renderer,
+ytm-promoted-sparkles-web-renderer, ytm-companion-ad-renderer {
     display: none !important;
     visibility: hidden !important;
     height: 0 !important;

@@ -46,6 +46,7 @@ object MediaPlaybackManager {
 
     private var currentBridge: GeckoMediaSessionBridge? = null
     private var activeTabId: String? = null
+    private var isUserExplicitlyPaused = false
 
     private val _mediaState = MutableStateFlow(MediaSessionState())
     val mediaState: StateFlow<MediaSessionState> = _mediaState.asStateFlow()
@@ -146,6 +147,7 @@ object MediaPlaybackManager {
     ) {
         activeTabId = tabId
         currentBridge = bridge
+        isUserExplicitlyPaused = false
         _mediaState.update {
             it.copy(
                 tabId = tabId,
@@ -166,6 +168,7 @@ object MediaPlaybackManager {
 
     fun onSessionDeactivated(tabId: String) {
         if (activeTabId == tabId) {
+            isUserExplicitlyPaused = false
             _mediaState.update {
                 it.copy(status = PlaybackStatus.STOPPED)
             }
@@ -178,6 +181,24 @@ object MediaPlaybackManager {
             currentDurationMs = 0L
             updatePlaybackStateCompat(PlaybackStatus.STOPPED, 0L, 0.0)
         }
+    }
+
+    fun onSessionPaused(tabId: String, isBackgroundPlaybackHost: Boolean, activeSession: org.mozilla.geckoview.MediaSession? = null) {
+        if (activeTabId != tabId) return
+        val ctx = appContext
+        val allowBackground = ctx?.let {
+            com.azokle.search.common.util.PreferencesManager(it).isBackgroundAudioEnabled()
+        } ?: true
+
+        // If pause was caused by background/lock-screen transition on a background playback host (YouTube)
+        // and the user did NOT explicitly click pause, suppress the pause and keep session playing (Brave pattern).
+        if (isBackgroundPlaybackHost && allowBackground && !isUserExplicitlyPaused) {
+            android.util.Log.d(TAG, "Transient background pause suppressed for host in tab $tabId")
+            activeSession?.play()
+            return
+        }
+
+        updatePlaybackStatus(tabId, PlaybackStatus.PAUSED)
     }
 
     fun updatePlaybackStatus(tabId: String, status: PlaybackStatus) {
@@ -319,11 +340,13 @@ object MediaPlaybackManager {
     }
 
     fun play() {
+        isUserExplicitlyPaused = false
         requestAudioFocus()
         currentBridge?.play()
     }
 
     fun pause() {
+        isUserExplicitlyPaused = true
         currentBridge?.pause()
     }
 

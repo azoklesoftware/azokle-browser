@@ -205,7 +205,8 @@ fun GeckoBrowserView(
                 session.mediaSessionDelegate = GeckoMediaSessionBridge(
                     tabId = tabSessionId,
                     isPrivate = isPrivate,
-                    isTor = isTor
+                    isTor = isTor,
+                    currentUrlProvider = { lastLoadedUrl }
                 )
 
                 // 1. Navigation Delegate & Error Interceptor

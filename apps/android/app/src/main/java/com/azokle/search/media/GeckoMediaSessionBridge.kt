@@ -13,11 +13,22 @@ import org.mozilla.geckoview.MediaSession
 class GeckoMediaSessionBridge(
     private val tabId: String,
     private val isPrivate: Boolean,
-    private val isTor: Boolean
+    private val isTor: Boolean,
+    private val currentUrlProvider: (() -> String?)? = null
 ) : MediaSession.Delegate {
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private var activeMediaSession: MediaSession? = null
+
+    private fun isBackgroundPlaybackHost(url: String?): Boolean {
+        if (url.isNullOrBlank()) return false
+        val uri = try { android.net.Uri.parse(url) } catch (e: Exception) { null }
+        val host = uri?.host?.lowercase() ?: return false
+        return host == "youtube.com" ||
+               host.endsWith(".youtube.com") ||
+               host == "spotify.com" ||
+               host.endsWith(".spotify.com")
+    }
 
     override fun onActivated(session: GeckoSession, mediaSession: MediaSession) {
         activeMediaSession = mediaSession
@@ -123,8 +134,10 @@ class GeckoMediaSessionBridge(
     }
 
     override fun onPause(session: GeckoSession, mediaSession: MediaSession) {
+        val currentUrl = currentUrlProvider?.invoke()
+        val isBgHost = isBackgroundPlaybackHost(currentUrl)
         mainHandler.post {
-            MediaPlaybackManager.updatePlaybackStatus(tabId, PlaybackStatus.PAUSED)
+            MediaPlaybackManager.onSessionPaused(tabId, isBgHost, activeMediaSession)
         }
     }
 

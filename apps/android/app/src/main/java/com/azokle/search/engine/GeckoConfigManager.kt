@@ -86,6 +86,8 @@ object GeckoConfigManager {
             appendLine("  media.av1.enabled: true")
             appendLine("  media.hls.enabled: true")
             appendLine("  media.hardware-video-decoding.enabled: true")
+            appendLine("  media.suspend-bkgnd-video.enabled: false")
+            appendLine("  media.block-autoplay-until-in-foreground: false")
             appendLine("  media.geckoview.autoplay.request: true")
             appendLine("  media.autoplay.default: 0")
             appendLine("  media.autoplay.blocking_policy: 0")

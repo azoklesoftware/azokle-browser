@@ -86,9 +86,37 @@
         } catch(e) {}
     }
 
-    // 3. YouTube Ad & Anti-Adblock Defuser (Conforms to GeckoView Browser Security Principles)
+    // 3. YouTube Ad, Anti-Adblock & Background Playback Compatibility
+    // Strictly scoped to youtube.com in accordance with GeckoView Browser Security Principles (Section 7 & 19).
     try {
-        if (location.hostname.includes('youtube.com')) {
+        var isYouTube = location.hostname === 'youtube.com' || location.hostname.endsWith('.youtube.com');
+        if (isYouTube) {
+            // Intercept visibilitychange events in capture phase so YouTube's client scripts do not receive background/lock signals
+            var suppressVisibilityChange = function(e) {
+                if (e) {
+                    e.stopImmediatePropagation();
+                }
+            };
+            document.addEventListener('visibilitychange', suppressVisibilityChange, true);
+            window.addEventListener('visibilitychange', suppressVisibilityChange, true);
+            document.addEventListener('webkitvisibilitychange', suppressVisibilityChange, true);
+
+            // Scope document.hidden and document.visibilityState normalization strictly to this YouTube frame
+            try {
+                Object.defineProperty(document, 'hidden', {
+                    get: function() { return false; },
+                    configurable: true
+                });
+                Object.defineProperty(document, 'visibilityState', {
+                    get: function() { return 'visible'; },
+                    configurable: true
+                });
+                Object.defineProperty(document, 'webkitVisibilityState', {
+                    get: function() { return 'visible'; },
+                    configurable: true
+                });
+            } catch (propErr) {}
+
             var handleYouTubePlayerState = function() {
                 // Dismiss enforcement dialog without destroying polymer DOM trees
                 var dismissBtn = document.querySelector('ytd-enforcement-message-view-model button, yt-playability-error-supported-renderers button');
