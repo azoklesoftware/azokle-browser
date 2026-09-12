@@ -183,7 +183,8 @@ object GeckoEngineManager {
                                     val url = json.optString("url", "")
                                     val origin = json.optString("origin", "").takeIf { it.isNotBlank() }
                                     val is3p = json.optBoolean("isThirdParty", true)
-                                    val reqType = json.optString("type", "").takeIf { it.isNotBlank() }
+                                    val reqType = json.optString("requestType", "").takeIf { it.isNotBlank() }
+                                        ?: json.optString("reqType", "").takeIf { it.isNotBlank() }
                                     val decision = com.azokle.search.core.AzokleCore.shouldBlock(url, origin, reqType, is3p)
                                     JSONObject().apply {
                                         put("shouldBlock", decision.shouldBlock)

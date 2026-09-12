@@ -12,72 +12,62 @@
         'hcaptcha.com', 'recaptcha.net'
     ]);
 
-    // High-Confidence Known Ad & Tracker Networks (3rd-party only)
-    var knownAdHosts = new Set([
-        'doubleclick.net', 'googleads.g.doubleclick.net', 'pagead2.googlesyndication.com',
-        'adservice.google.com', 'googleadservices.com', 'www.googleadservices.com',
-        'partner.googleadservices.com', 'admob.com', 'ads.google.com',
-        '2mdn.net', 'tpc.googlesyndication.com', 'static.doubleclick.net', 'securepubads.g.doubleclick.net',
-        'afs.googlesyndication.com', 'pagead2.googleadservices.com', 'video-stats.l.google.com',
-        'adnxs.com', 'ib.adnxs.com', 'appnexus.com', 'criteo.com', 'criteo.net', 'static.criteo.net',
-        'outbrain.com', 'widgets.outbrain.com', 'taboola.com', 'cdn.taboola.com', 'trc.taboola.com',
-        'amazon-adsystem.com', 'aax.amazon-adsystem.com', 'adservice.amazon.com', 'advertising.amazon.com',
-        'popads.net', 'popcash.net', 'propellerads.com', 'adsterra.com', 'mgid.com', 'jsc.mgid.com',
-        'revcontent.com', 'inmobi.com', 'unityads.unity3d.com', 'applovin.com', 'vungle.com',
-        'ironsrc.com', 'adcolony.com', 'chartboost.com', 'rubiconproject.com', 'pubmatic.com',
-        'openx.net', 'smartadserver.com', 'adtechus.com', 'casalemedia.com', 'bidswitch.net',
-        'contextweb.com', 'sovrn.com', 'conversantmedia.com', 'exponential.com', 'sharethrough.com',
-        'triplelift.com', 'yieldmo.com', 'undertone.com', 'media.net', 'gumgum.com', 'teads.tv',
-        'spotxchange.com', 'spotx.tv', 'tremorhub.com', 'unruly.co', 'stickyads.tv', 'smaato.net',
-        'fyber.com', 'mintegral.com', 'pangle.io', 'supersonicads.com', 'leadbolt.com', 'adblade.com',
-        'trafficjunky.com', 'exoclick.com', 'monetag.com', 'adcash.com', 'ezoic.net', 'ezoic.com',
-        'zergnet.com', 'contentexchange.me', 'adkernel.com', 'adform.net', 'serving-sys.com',
-        'bs.serving-sys.com', 'zemanta.com', 'lijit.com', 'applifier.com',
-        'adthrive.com', 'mediavine.com', 'monumetric.com', 'buysellads.com', 'carbonads.net',
-        'chitika.net', 'infolinks.com', 'skimmr.com', 'adroll.com', 'dianomi.com', 'trafficroots.com',
-        'adtrue.com', 'adversal.com', 'bidvertiser.com', 'clickadu.com', 'hilltopads.com',
-        'juicyads.com', 'popmyads.com', 'richpush.com', 'smartads.ge'
-    ]);
+    // High-Performance Dual LRU Decision Cache for Instant Native Lookups
+    var MAX_HOST_CACHE = 1000;
+    var MAX_URL_CACHE = 2000;
+    var hostCache = new Map();
+    var urlCache = new Map();
+    var inflightRequests = new Map();
 
-    var knownTrackerHosts = new Set([
-        'google-analytics.com', 'ssl.google-analytics.com', 'analytics.google.com',
-        'googletagmanager.com', 'googletagservices.com', 'tagmanager.google.com',
-        'pixel.facebook.com', 'an.facebook.com', 'connect.facebook.net', 'analytics.facebook.com',
-        'graph.instagram.com', 'tr.snapchat.com', 'analytics.tiktok.com', 'ads.tiktok.com',
-        'ads-twitter.com', 'static.ads-twitter.com', 'analytics.twitter.com', 't.co',
-        'ads.linkedin.com', 'snap.licdn.com', 'ads.pinterest.com', 'ct.pinterest.com', 'log.pinterest.com',
-        'scorecardresearch.com', 'b.scorecardresearch.com', 'sb.scorecardresearch.com',
-        'pixel.quantserve.com', 'quantcast.com', 'rules.quantcount.com', 'moatads.com',
-        'geo.moatads.com', 'iasds.com', 'doubleverify.com', 'clarity.ms', 'c.bing.com',
-        'bat.bing.com', 'mc.yandex.ru', 'static.hotjar.com', 'script.hotjar.com', 'hotjar.com',
-        'mouseflow.com', 'crazyegg.com', 'fullstory.com', 'rs.fullstory.com', 'edge.fullstory.com',
-        'segment.io', 'segment.com', 'cdn.segment.com', 'api.segment.io',
-        'mixpanel.com', 'api.mixpanel.com', 'cdn.mxpnl.com',
-        'amplitude.com', 'api.amplitude.com', 'cdn.amplitude.com',
-        'heapanalytics.com', 'branch.io', 'cdn.branch.io', 'appsflyer.com', 'app.adjust.com',
-        'adjust.com', 'kochava.com', 'singular.net', 'r.logrocket.io', 'logrocket.com',
-        'chartbeat.com', 'chartbeat.net', 'static.chartbeat.com', 'ping.chartbeat.net',
-        'parsely.com', 'optimizely.com', 'statcounter.com', 'browser.sentry-cdn.com',
-        'telemetry.mozilla.org', 'newrelic.com', 'js-agent.newrelic.com', 'bam.nr-data.net',
-        'datadoghq.com', 'browser-intake-datadoghq.com', 'datadoghq-browser-agent.com',
-        'bugsnag.com', 'browser.bugsnag.com', 'onesignal.com', 'pushwoosh.com',
-        'liveramp.com', 'rlcdn.com', 'bluekai.com', 'demdex.net', 'omtrdc.net', 'everesttech.net',
-        'exelator.com', 'lotame.com', 'crwdcntrl.net', 'tapad.com', 'neustar.biz', 'intentiq.com',
-        'id5-sync.com', 'uidapi.com',
-        'coinhive.com', 'coin-hive.com', 'crypto-loot.com', 'minr.pw', 'webminepool.com',
-        'criteo.com', 'criteo.net', 'gemini.yahoo.com', 'flurry.com', 'braze.com',
-        'inspectlet.com', 'luckyorange.com', 'smartlook.com', 'sessioncam.com'
-    ]);
+    function getCachedHostDecision(host) {
+        if (!host || !hostCache.has(host)) return undefined;
+        var val = hostCache.get(host);
+        hostCache.delete(host);
+        hostCache.set(host, val);
+        return val;
+    }
 
-    // High-Precision Third-Party Path Filters (applied only to third-party requests)
-    var thirdPartyPathSubstrings = [
-        '/pagead/', '/adservice/', '/telemetry/', '/gtag/js',
-        '/pixel.gif', '/smartads/', '/delivery/ajs.php', '/banner/', '/popunder'
-    ];
+    function setCachedHostDecision(host, val) {
+        if (!host) return;
+        if (hostCache.size >= MAX_HOST_CACHE) {
+            var firstKey = hostCache.keys().next().value;
+            hostCache.delete(firstKey);
+        }
+        hostCache.set(host, val);
+    }
 
-    // Fast-path decision cache to minimize overhead
-    var decisionCache = new Map();
-    var MAX_CACHE_ENTRIES = 2000;
+    function getCachedUrlDecision(key) {
+        if (!key || !urlCache.has(key)) return undefined;
+        var val = urlCache.get(key);
+        urlCache.delete(key);
+        urlCache.set(key, val);
+        return val;
+    }
+
+    function setCachedUrlDecision(key, val) {
+        if (!key) return;
+        if (urlCache.size >= MAX_URL_CACHE) {
+            var firstKey = urlCache.keys().next().value;
+            urlCache.delete(firstKey);
+        }
+        urlCache.set(key, val);
+    }
+
+    function cleanUrlForCacheKey(u) {
+        if (!u) return '';
+        var q = u.indexOf('?');
+        var hash = u.indexOf('#');
+        var cut = u.length;
+        if (q !== -1) cut = q;
+        if (hash !== -1 && hash < cut) cut = hash;
+        return u.substring(0, cut);
+    }
+
+    function clearAllCaches() {
+        hostCache.clear();
+        urlCache.clear();
+        inflightRequests.clear();
+    }
 
     function extractHostname(url) {
         if (!url) return '';
@@ -382,68 +372,112 @@
                 return { cancel: false };
             }
 
-            // 4. Fast-path cache lookup
-            var cacheKey = host + '|3p';
-            if (decisionCache.has(cacheKey)) {
-                var cached = decisionCache.get(cacheKey);
-                if (cached.shouldBlock) {
-                    var cachedSurrogate = getSurrogateRedirect(urlLower, host);
-                    if (cachedSurrogate) {
-                        reportBlockToApp(host, cached.category);
-                        return cachedSurrogate;
+            // 4. Fast-path Host Cache lookup (instant O(1) synchronous decision for domain-wide rules)
+            var cachedHost = getCachedHostDecision(host);
+            if (cachedHost !== undefined) {
+                if (cachedHost.shouldBlock) {
+                    var hostSurrogate = getSurrogateRedirect(urlLower, host);
+                    if (hostSurrogate) {
+                        reportBlockToApp(host, cachedHost.category);
+                        return hostSurrogate;
                     }
-                    reportBlockToApp(host, cached.category);
+                    if (cachedHost.redirectUrl) {
+                        reportBlockToApp(host, cachedHost.category);
+                        return { redirectUrl: cachedHost.redirectUrl };
+                    }
+                    reportBlockToApp(host, cachedHost.category);
                     return { cancel: true };
                 }
                 return { cancel: false };
             }
 
-            // 5. Tracker Evaluation (Trackers are blocked on 3rd party, and known telemetry endpoints)
-            if (isThirdParty && isDomainInSet(host, knownTrackerHosts)) {
-                var trackerSurrogate = getSurrogateRedirect(urlLower, host);
-                if (trackerSurrogate) {
-                    reportBlockToApp(host, 2);
-                    return trackerSurrogate;
-                }
-                if (decisionCache.size < MAX_CACHE_ENTRIES) {
-                    decisionCache.set(cacheKey, { shouldBlock: true, category: 2 });
-                }
-                reportBlockToApp(host, 2);
-                return { cancel: true };
-            }
-
-            // 6. Ad Evaluation (Ad networks are blocked on 3rd party)
-            if (isThirdParty && isDomainInSet(host, knownAdHosts)) {
-                if (decisionCache.size < MAX_CACHE_ENTRIES) {
-                    decisionCache.set(cacheKey, { shouldBlock: true, category: 1 });
-                }
-                reportBlockToApp(host, 1);
-                return { cancel: true };
-            }
-
-            // 7. Path & Substring Evaluation (strictly for 3rd-party requests)
-            if (isThirdParty) {
-                for (var j = 0; j < thirdPartyPathSubstrings.length; j++) {
-                    var sub = thirdPartyPathSubstrings[j];
-                    if (urlLower.includes(sub)) {
-                        var isTrackerSub = sub.includes('telemetry') || sub.includes('gtag') || sub.includes('pixel');
-                        var pathCat = isTrackerSub ? 2 : 1;
-                        var pathSurrogate = getSurrogateRedirect(urlLower, host);
-                        if (pathSurrogate) {
-                            reportBlockToApp(host || 'telemetry-tracker', pathCat);
-                            return pathSurrogate;
-                        }
-                        reportBlockToApp(host || (isTrackerSub ? 'telemetry-tracker' : 'ad-request'), pathCat);
-                        return { cancel: true };
+            // 5. Fast-path URL Cache lookup (instant O(1) synchronous decision for path/scriptlet rules)
+            var urlCacheKey = cleanUrlForCacheKey(url) + '|' + (details.type || 'other') + '|' + (isThirdParty ? '3p' : '1p');
+            var cachedUrl = getCachedUrlDecision(urlCacheKey);
+            if (cachedUrl !== undefined) {
+                if (cachedUrl.shouldBlock) {
+                    var urlSurrogate = getSurrogateRedirect(urlLower, host);
+                    if (urlSurrogate) {
+                        reportBlockToApp(host, cachedUrl.category);
+                        return urlSurrogate;
                     }
+                    if (cachedUrl.redirectUrl) {
+                        reportBlockToApp(host, cachedUrl.category);
+                        return { redirectUrl: cachedUrl.redirectUrl };
+                    }
+                    reportBlockToApp(host, cachedUrl.category);
+                    return { cancel: true };
                 }
+                return { cancel: false };
             }
 
-            // Allow request and cache decision
-            if (decisionCache.size < MAX_CACHE_ENTRIES) {
-                decisionCache.set(cacheKey, { shouldBlock: false, category: 0 });
+            // 6. In-flight request deduplication (prevents IPC flooding for concurrent subresource requests)
+            if (inflightRequests.has(urlCacheKey)) {
+                return inflightRequests.get(urlCacheKey);
             }
-            return { cancel: false };
+
+            // 7. Asynchronous Native Engine Evaluation (Brave adblock-rust via GeckoEngineManager)
+            var lookupPromise = new Promise(function(resolve) {
+                if (typeof browser === 'undefined' || !browser.runtime || !browser.runtime.sendNativeMessage) {
+                    resolve({ cancel: false });
+                    return;
+                }
+
+                browser.runtime.sendNativeMessage('nativeApp', {
+                    type: 'CHECK_URL',
+                    url: url,
+                    origin: docUrl,
+                    requestType: details.type || 'other',
+                    isThirdParty: isThirdParty
+                }).then(function(res) {
+                    if (typeof res === 'string') {
+                        try { res = JSON.parse(res); } catch(e) { res = {}; }
+                    }
+                    var shouldBlock = !!(res && res.shouldBlock);
+                    var category = (res && typeof res.category === 'number') ? res.category : 1;
+                    var matchedRule = (res && res.matchedRule) || '';
+                    var redirectUrl = (res && res.redirectUrl) || null;
+
+                    var isDomainLevel = matchedRule.startsWith('||') && !matchedRule.includes('/') && !matchedRule.includes('*');
+                    var decisionRecord = {
+                        shouldBlock: shouldBlock,
+                        category: category,
+                        redirectUrl: redirectUrl
+                    };
+
+                    if (isDomainLevel && host) {
+                        setCachedHostDecision(host, decisionRecord);
+                    } else {
+                        setCachedUrlDecision(urlCacheKey, decisionRecord);
+                    }
+
+                    if (shouldBlock) {
+                        var surrogate = getSurrogateRedirect(urlLower, host);
+                        if (surrogate) {
+                            reportBlockToApp(host, category);
+                            resolve(surrogate);
+                            return;
+                        }
+                        if (redirectUrl) {
+                            reportBlockToApp(host, category);
+                            resolve({ redirectUrl: redirectUrl });
+                            return;
+                        }
+                        reportBlockToApp(host, category);
+                        resolve({ cancel: true });
+                        return;
+                    }
+
+                    resolve({ cancel: false });
+                }).catch(function() {
+                    resolve({ cancel: false });
+                }).finally(function() {
+                    inflightRequests.delete(urlCacheKey);
+                });
+            });
+
+            inflightRequests.set(urlCacheKey, lookupPromise);
+            return lookupPromise;
         },
         { urls: ['<all_urls>'] },
         ['blocking']
@@ -513,6 +547,7 @@
         }
         if (Array.isArray(res.disabledHosts)) {
             disabledShieldHosts = new Set(res.disabledHosts.map(function(h) { return (h || '').toLowerCase(); }));
+            clearAllCaches();
         }
         if (Array.isArray(res.adClickExemptions)) {
             activeAdClickExemptions.clear();
@@ -525,6 +560,7 @@
                     });
                 }
             });
+            clearAllCaches();
         }
     }
 
@@ -550,6 +586,7 @@
                     }
                     if (msg.type === 'PUSH_APP_STATUS') {
                         applyAppStatus(msg);
+                        clearAllCaches();
                     } else if (msg.type === 'PUSH_TOR_STATUS') {
                         if (typeof msg.isTorEnabled === 'boolean') {
                             isTorRoutingActive = msg.isTorEnabled;
@@ -564,6 +601,7 @@
                     } else if (msg.type === 'PUSH_DISABLED_HOSTS') {
                         if (Array.isArray(msg.disabledHosts)) {
                             disabledShieldHosts = new Set(msg.disabledHosts.map(function(h) { return (h || '').toLowerCase(); }));
+                            clearAllCaches();
                         }
                     } else if (msg.type === 'PUSH_AD_CLICK_EXEMPTIONS') {
                         if (Array.isArray(msg.exemptions)) {
@@ -577,6 +615,7 @@
                                     });
                                 }
                             });
+                            clearAllCaches();
                         }
                     }
                 });

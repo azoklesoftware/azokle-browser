@@ -130,4 +130,29 @@ impl UniversalBrowserEngine {
             self.core.disabled_hosts.write().insert(host.to_lowercase());
         }
     }
+
+    /// Converts standard AdBlock Plus syntax into native Apple WebKit WKContentRuleList JSON for iOS.
+    pub fn convert_rules_to_content_blocking(&self, rules: String) -> String {
+        self.core.adblock.convert_to_content_blocking(&rules).unwrap_or_else(|_| "[]".to_string())
+    }
+
+    /// Retrieves declarative cosmetic CSS selectors for a specific domain.
+    pub fn get_cosmetic_css(&self, domain: String) -> String {
+        self.core.adblock.get_cosmetic_css(&domain)
+    }
+
+    /// Retrieves surrogate defuser scriptlet JavaScript for a specific domain.
+    pub fn get_scriptlets(&self, domain: String) -> String {
+        self.core.adblock.get_scriptlets(&domain)
+    }
+
+    /// Loads filter rules into the native adblock engine.
+    pub fn load_filter_rules(&self, rules: String) -> u32 {
+        self.core.adblock.load_rules_from_text(&rules, BlockCategory::Ad) as u32
+    }
+
+    /// Loads surrogate resources and scriptlets JSON into the native engine.
+    pub fn load_resources_json(&self, resources_json: String) -> u32 {
+        self.core.adblock.load_resources_json(&resources_json).unwrap_or(0) as u32
+    }
 }
