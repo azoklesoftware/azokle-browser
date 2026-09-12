@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum BlockCategory {
+    #[default]
     None = 0,
     Ad = 1,
     Tracker = 2,
@@ -28,12 +29,44 @@ impl BlockCategory {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct FilterDecision {
     pub should_block: bool,
     pub category: BlockCategory,
     pub matched_rule: Option<String>,
     pub is_exception: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub redirect_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rewritten_url: Option<String>,
+}
+
+impl FilterDecision {
+    pub fn allow() -> Self {
+        Self::default()
+    }
+
+    pub fn block(category: BlockCategory, matched_rule: Option<String>) -> Self {
+        Self {
+            should_block: true,
+            category,
+            matched_rule,
+            is_exception: false,
+            redirect_url: None,
+            rewritten_url: None,
+        }
+    }
+
+    pub fn exception(matched_rule: Option<String>) -> Self {
+        Self {
+            should_block: false,
+            category: BlockCategory::None,
+            matched_rule,
+            is_exception: true,
+            redirect_url: None,
+            rewritten_url: None,
+        }
+    }
 }
 
 pub struct SovereignWhitelist;

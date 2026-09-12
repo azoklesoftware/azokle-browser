@@ -1,0 +1,26 @@
+[package]
+name = "azokle-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+azokle-common = { path = "../common" }
+azokle-adblock = { path = "../privacy/adblock" }
+azokle-tracker-block = { path = "../privacy/tracker-block" }
+azokle-crypto = { path = "../crypto" }
+azokle-security = { path = "../security" }
+azokle-tor = { path = "../tor" }
+azokle-permissions = { path = "../services/permissions" }
+azokle-history = { path = "../services/history" }
+azokle-bookmarks = { path = "../services/bookmarks" }
+azokle-downloads = { path = "../services/downloads" }
+azokle-storage = { path = "../storage" }
+azokle-networking = { path = "../networking" }
+azokle-tabs = { path = "../services/tabs" }
+azokle-protocol = { path = "../protocol" }
+serde.workspace = true
+serde_json.workspace = true
+log.workspace = true
+parking_lot.workspace = true

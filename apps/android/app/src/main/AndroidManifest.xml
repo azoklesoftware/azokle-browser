@@ -116,13 +116,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Standard Web Browser Intent Filter (HTTP & HTTPS) -->
+            <!-- Standard Web Browser Intent Filter (HTTP, HTTPS & AZOKLE) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="http" />
                 <data android:scheme="https" />
+                <data android:scheme="azokle" />
             </intent-filter>
 
             <!-- Web Search Intent Filter -->

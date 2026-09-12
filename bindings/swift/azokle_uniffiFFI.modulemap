@@ -1,0 +1,4 @@
+module azokle_uniffiFFI {
+    header "azokle_uniffiFFI.h"
+    export *
+}

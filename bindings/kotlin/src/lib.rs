@@ -1,8 +1,8 @@
 use azokle_core::{
     AzokleCoreEngine, BlockCategory,
 };
-use jni::objects::{JClass, JString};
-use jni::sys::{jboolean, jint, jlong, jstring, JNI_FALSE, JNI_TRUE};
+use jni::objects::{JByteArray, JClass, JString};
+use jni::sys::{jboolean, jbyteArray, jint, jlong, jstring, JNI_FALSE, JNI_TRUE};
 use jni::JNIEnv;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Once, OnceLock};
@@ -25,25 +25,52 @@ fn safe_jstring(env: &mut JNIEnv, s: &str) -> jstring {
     }
 }
 
+/// Panic-safe JNI execution wrapper returning a fallback value if a Rust panic occurs.
+///
+/// Prevents undefined behavior and instant VM aborts when bridging across the JNI C boundary.
+macro_rules! safe_jni {
+    ($fallback:expr, $body:expr) => {
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| $body)) {
+            Ok(v) => v,
+            Err(e) => {
+                log::error!("Azokle Rust core caught panic at JNI boundary: {:?}", e);
+                $fallback
+            }
+        }
+    };
+}
+
+/// Panic-safe JNI execution wrapper for void-returning native methods.
+macro_rules! safe_jni_void {
+    ($body:expr) => {
+        if let Err(e) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| $body)) {
+            log::error!("Azokle Rust core caught panic at JNI boundary: {:?}", e);
+        }
+    };
+}
+
 // -----------------------------------------------------------------------------
 // JNI Export Functions (Mapping to com.azokle.search.core.AzokleCore)
 // -----------------------------------------------------------------------------
 
+/// Initializes Android logging and prepares the shared singleton [`AzokleCoreEngine`].
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_initNative(
     _env: JNIEnv,
     _class: JClass,
 ) {
-    INIT_LOGGER.call_once(|| {
-        #[cfg(target_os = "android")]
-        android_logger::init_once(
-            android_logger::Config::default()
-                .with_tag("AzokleCoreRust")
-                .with_max_level(log::LevelFilter::Info),
-        );
+    safe_jni_void!({
+        INIT_LOGGER.call_once(|| {
+            #[cfg(target_os = "android")]
+            android_logger::init_once(
+                android_logger::Config::default()
+                    .with_tag("AzokleCoreRust")
+                    .with_max_level(log::LevelFilter::Info),
+            );
+        });
+        let _ = get_core();
+        log::info!("AzokleCore Cross-Platform Rust Engine initialized successfully.");
     });
-    let _ = get_core();
-    log::info!("AzokleCore Cross-Platform Rust Engine initialized successfully.");
 }
 
 #[no_mangle]
@@ -53,13 +80,15 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_loadFilterRules(
     content: JString,
     category_id: jint,
 ) -> jint {
-    let content_str = match env.get_string(&content) {
-        Ok(s) => String::from(s.to_str().unwrap_or("")),
-        Err(_) => return 0,
-    };
-    let cat = BlockCategory::from_u8(category_id as u8);
-    let count = get_core().adblock.load_rules_from_text(&content_str, cat);
-    count as jint
+    safe_jni!(0, {
+        let content_str = match env.get_string(&content) {
+            Ok(s) => String::from(s.to_str().unwrap_or("")),
+            Err(_) => return 0,
+        };
+        let cat = BlockCategory::from_u8(category_id as u8);
+        let count = get_core().adblock.load_rules_from_text(&content_str, cat);
+        count as jint
+    })
 }
 
 #[no_mangle]
@@ -68,12 +97,14 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_loadTrackerList(
     _class: JClass,
     content: JString,
 ) -> jint {
-    let content_str = match env.get_string(&content) {
-        Ok(s) => String::from(s.to_str().unwrap_or("")),
-        Err(_) => return 0,
-    };
-    let count = get_core().trackers.load_tracker_list(&content_str);
-    count as jint
+    safe_jni!(0, {
+        let content_str = match env.get_string(&content) {
+            Ok(s) => String::from(s.to_str().unwrap_or("")),
+            Err(_) => return 0,
+        };
+        let count = get_core().trackers.load_tracker_list(&content_str);
+        count as jint
+    })
 }
 
 #[no_mangle]
@@ -82,12 +113,120 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_loadCosmeticRules(
     _class: JClass,
     content: JString,
 ) -> jint {
-    let content_str = match env.get_string(&content) {
-        Ok(s) => String::from(s.to_str().unwrap_or("")),
-        Err(_) => return 0,
-    };
-    let count = get_core().shield.load_cosmetic_rules(&content_str);
-    count as jint
+    safe_jni!(0, {
+        let content_str = match env.get_string(&content) {
+            Ok(s) => String::from(s.to_str().unwrap_or("")),
+            Err(_) => return 0,
+        };
+        let count = get_core().shield.load_cosmetic_rules(&content_str);
+        count as jint
+    })
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_azokle_search_core_AzokleCore_loadResources(
+    mut env: JNIEnv,
+    _class: JClass,
+    content: JString,
+) -> jint {
+    safe_jni!(0, {
+        let content_str = match env.get_string(&content) {
+            Ok(s) => String::from(s.to_str().unwrap_or("")),
+            Err(_) => return 0,
+        };
+        match get_core().adblock.load_resources_json(&content_str) {
+            Ok(count) => count as jint,
+            Err(e) => {
+                log::error!("Failed to load adblock resources JSON: {}", e);
+                0
+            }
+        }
+    })
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_azokle_search_core_AzokleCore_loadDebounceRules(
+    mut env: JNIEnv,
+    _class: JClass,
+    content: JString,
+) -> jint {
+    safe_jni!(0, {
+        let content_str = match env.get_string(&content) {
+            Ok(s) => String::from(s.to_str().unwrap_or("")),
+            Err(_) => return 0,
+        };
+        match get_core().trackers.load_debounce_rules(&content_str) {
+            Ok(count) => count as jint,
+            Err(e) => {
+                log::error!("Failed to load debounce rules: {}", e);
+                0
+            }
+        }
+    })
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_azokle_search_core_AzokleCore_unwrapBounceUrl(
+    mut env: JNIEnv,
+    _class: JClass,
+    url: JString,
+) -> jstring {
+    let fallback = safe_jstring(&mut env, "");
+    safe_jni!(fallback, {
+        let url_str = match env.get_string(&url) {
+            Ok(s) => String::from(s.to_str().unwrap_or("")),
+            Err(_) => return safe_jstring(&mut env, ""),
+        };
+        if let Some(unwrapped) = get_core().trackers.unwrap_bounce_url(&url_str) {
+            safe_jstring(&mut env, &unwrapped)
+        } else {
+            safe_jstring(&mut env, "")
+        }
+    })
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_azokle_search_core_AzokleCore_serializeEngine(
+    env: JNIEnv,
+    _class: JClass,
+) -> jbyteArray {
+    safe_jni!(std::ptr::null_mut(), {
+        let data = get_core().adblock.serialize_to_dat();
+        match env.byte_array_from_slice(&data) {
+            Ok(arr) => arr.into_raw(),
+            Err(e) => {
+                log::error!("Failed to serialize adblock engine: {:?}", e);
+                std::ptr::null_mut()
+            }
+        }
+    })
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_azokle_search_core_AzokleCore_loadSerializedEngine(
+    env: JNIEnv,
+    _class: JClass,
+    data: JByteArray,
+) -> jboolean {
+    safe_jni!(JNI_FALSE, {
+        if data.is_null() {
+            return JNI_FALSE;
+        }
+        let bytes = match env.convert_byte_array(&data) {
+            Ok(b) => b,
+            Err(e) => {
+                log::error!("Failed to convert byte array for engine deserialize: {:?}", e);
+                return JNI_FALSE;
+            }
+        };
+        match get_core().adblock.deserialize_from_dat(&bytes) {
+            Ok(_) => JNI_TRUE,
+            Err(e) => {
+                log::warn!("Failed to deserialize adblock engine: {}", e);
+                JNI_FALSE
+            }
+        }
+    })
 }
 
 #[no_mangle]
@@ -98,69 +237,247 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_checkUrl(
     source_origin: JString,
     is_third_party: jboolean,
 ) -> jstring {
-    let url_str = match env.get_string(&url) {
-        Ok(s) => String::from(s.to_str().unwrap_or("")),
-        Err(_) => return safe_jstring(&mut env, "{}"),
-    };
+    let fallback = safe_jstring(&mut env, "{}");
+    safe_jni!(fallback, {
+        let url_str = match env.get_string(&url) {
+            Ok(s) => String::from(s.to_str().unwrap_or("")),
+            Err(_) => return safe_jstring(&mut env, "{}"),
+        };
 
-    let source_str: Option<String> = if !source_origin.is_null() {
-        env.get_string(&source_origin).ok().map(|s| String::from(s.to_str().unwrap_or("")))
-    } else {
-        None
-    };
+        let source_str: Option<String> = if !source_origin.is_null() {
+            env.get_string(&source_origin).ok().map(|s| String::from(s.to_str().unwrap_or("")))
+        } else {
+            None
+        };
 
-    let core = get_core();
+        let core = get_core();
 
-    // Check if shield disabled for source origin
-    if let Some(ref src) = source_str {
-        if let Ok(src_url) = url::Url::parse(src) {
-            if let Some(src_host) = src_url.host_str() {
-                if core.disabled_hosts.read().contains(&src_host.to_lowercase()) {
-                    let res = serde_json::json!({
-                        "should_block": false,
-                        "category": 0,
-                        "matched_rule": null,
-                        "is_exception": true
-                    });
-                    return safe_jstring(&mut env, &res.to_string());
+        // Check if shield disabled for source origin
+        if let Some(ref src) = source_str {
+            if let Ok(src_url) = url::Url::parse(src) {
+                if let Some(src_host) = src_url.host_str() {
+                    if core.disabled_hosts.read().contains(&src_host.to_lowercase()) {
+                        let res = serde_json::json!({
+                            "should_block": false,
+                            "category": 0,
+                            "matched_rule": null,
+                            "is_exception": true
+                        });
+                        return safe_jstring(&mut env, &res.to_string());
+                    }
                 }
             }
         }
-    }
 
-    let decision = core.adblock.check_url(
-        &url_str,
-        source_str.as_deref(),
-        is_third_party == JNI_TRUE,
-    );
+        let decision = core.adblock.check_url(
+            &url_str,
+            source_str.as_deref(),
+            is_third_party == JNI_TRUE,
+        );
 
-    if decision.should_block {
-        core.stats_total.fetch_add(1, Ordering::Relaxed);
-        match decision.category {
-            BlockCategory::Ad => {
-                core.stats_ads.fetch_add(1, Ordering::Relaxed);
+        if decision.should_block {
+            core.stats_total.fetch_add(1, Ordering::Relaxed);
+            match decision.category {
+                BlockCategory::Ad => {
+                    core.stats_ads.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Tracker => {
+                    core.stats_trackers.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Telemetry => {
+                    core.stats_telemetry.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Fingerprinting => {
+                    core.stats_fingerprinting.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Annoyance => {
+                    core.stats_annoyances.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Cryptomining => {
+                    core.stats_cryptominers.fetch_add(1, Ordering::Relaxed);
+                }
+                _ => {}
             }
-            BlockCategory::Tracker => {
-                core.stats_trackers.fetch_add(1, Ordering::Relaxed);
-            }
-            BlockCategory::Telemetry => {
-                core.stats_telemetry.fetch_add(1, Ordering::Relaxed);
-            }
-            BlockCategory::Fingerprinting => {
-                core.stats_fingerprinting.fetch_add(1, Ordering::Relaxed);
-            }
-            BlockCategory::Annoyance => {
-                core.stats_annoyances.fetch_add(1, Ordering::Relaxed);
-            }
-            BlockCategory::Cryptomining => {
-                core.stats_cryptominers.fetch_add(1, Ordering::Relaxed);
-            }
-            _ => {}
         }
-    }
 
-    let json_str = serde_json::to_string(&decision).unwrap_or_else(|_| "{}".to_string());
-    safe_jstring(&mut env, &json_str)
+        let json_str = serde_json::to_string(&decision).unwrap_or_else(|_| "{}".to_string());
+        safe_jstring(&mut env, &json_str)
+    })
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_azokle_search_core_AzokleCore_checkNetworkRequest(
+    mut env: JNIEnv,
+    _class: JClass,
+    url: JString,
+    source_origin: JString,
+    request_type: JString,
+    is_third_party: jboolean,
+) -> jstring {
+    let fallback = safe_jstring(&mut env, "{}");
+    safe_jni!(fallback, {
+        let url_str = match env.get_string(&url) {
+            Ok(s) => String::from(s.to_str().unwrap_or("")),
+            Err(_) => return safe_jstring(&mut env, "{}"),
+        };
+
+        let source_str: Option<String> = if !source_origin.is_null() {
+            env.get_string(&source_origin).ok().map(|s| String::from(s.to_str().unwrap_or("")))
+        } else {
+            None
+        };
+
+        let req_type_str: Option<String> = if !request_type.is_null() {
+            env.get_string(&request_type).ok().map(|s| String::from(s.to_str().unwrap_or("")))
+        } else {
+            None
+        };
+
+        let core = get_core();
+
+        // Check if shield disabled for source origin
+        if let Some(ref src) = source_str {
+            if let Ok(src_url) = url::Url::parse(src) {
+                if let Some(src_host) = src_url.host_str() {
+                    if core.disabled_hosts.read().contains(&src_host.to_lowercase()) {
+                        let res = serde_json::json!({
+                            "should_block": false,
+                            "category": 0,
+                            "matched_rule": null,
+                            "is_exception": true
+                        });
+                        return safe_jstring(&mut env, &res.to_string());
+                    }
+                }
+            }
+        }
+
+        let decision = core.adblock.check_network_request(
+            &url_str,
+            source_str.as_deref(),
+            req_type_str.as_deref(),
+            is_third_party == JNI_TRUE,
+        );
+
+        if decision.should_block {
+            core.stats_total.fetch_add(1, Ordering::Relaxed);
+            match decision.category {
+                BlockCategory::Ad => {
+                    core.stats_ads.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Tracker => {
+                    core.stats_trackers.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Telemetry => {
+                    core.stats_telemetry.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Fingerprinting => {
+                    core.stats_fingerprinting.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Annoyance => {
+                    core.stats_annoyances.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Cryptomining => {
+                    core.stats_cryptominers.fetch_add(1, Ordering::Relaxed);
+                }
+                _ => {}
+            }
+        }
+
+        let json_str = serde_json::to_string(&decision).unwrap_or_else(|_| "{}".to_string());
+        safe_jstring(&mut env, &json_str)
+    })
+}
+
+/// High-speed zero-allocation network request filtering for GeckoView on Android.
+///
+/// Returns a packed 64-bit primitive integer avoiding JSON serialization overhead:
+/// - Bit 0: `should_block` (1 = block, 0 = allow)
+/// - Bits 1..7: `category_id` (0..127)
+/// - Bit 8: `is_exception`
+/// - Bit 9: `has_redirect_url`
+/// - Bit 10: `has_rewritten_url`
+#[no_mangle]
+pub extern "system" fn Java_com_azokle_search_core_AzokleCore_checkUrlFast(
+    mut env: JNIEnv,
+    _class: JClass,
+    url: JString,
+    source_origin: JString,
+    is_third_party: jboolean,
+) -> jlong {
+    safe_jni!(0 as jlong, {
+        let url_str = match env.get_string(&url) {
+            Ok(s) => String::from(s.to_str().unwrap_or("")),
+            Err(_) => return 0,
+        };
+
+        let source_str: Option<String> = if !source_origin.is_null() {
+            env.get_string(&source_origin).ok().map(|s| String::from(s.to_str().unwrap_or("")))
+        } else {
+            None
+        };
+
+        let core = get_core();
+
+        // Check if shield disabled for source origin
+        if let Some(ref src) = source_str {
+            if let Ok(src_url) = url::Url::parse(src) {
+                if let Some(src_host) = src_url.host_str() {
+                    if core.disabled_hosts.read().contains(&src_host.to_lowercase()) {
+                        return 0;
+                    }
+                }
+            }
+        }
+
+        let decision = core.adblock.check_url(
+            &url_str,
+            source_str.as_deref(),
+            is_third_party == JNI_TRUE,
+        );
+
+        if decision.should_block {
+            core.stats_total.fetch_add(1, Ordering::Relaxed);
+            match decision.category {
+                BlockCategory::Ad => {
+                    core.stats_ads.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Tracker => {
+                    core.stats_trackers.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Telemetry => {
+                    core.stats_telemetry.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Fingerprinting => {
+                    core.stats_fingerprinting.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Annoyance => {
+                    core.stats_annoyances.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Cryptomining => {
+                    core.stats_cryptominers.fetch_add(1, Ordering::Relaxed);
+                }
+                _ => {}
+            }
+        }
+
+        let mut packed: jlong = 0;
+        if decision.should_block {
+            packed |= 1;
+        }
+        let cat_id = decision.category as u8 as jlong;
+        packed |= (cat_id & 0x7F) << 1;
+        if decision.is_exception {
+            packed |= 1 << 8;
+        }
+        if decision.redirect_url.is_some() {
+            packed |= 1 << 9;
+        }
+        if decision.rewritten_url.is_some() {
+            packed |= 1 << 10;
+        }
+        packed
+    })
 }
 
 #[no_mangle]
@@ -189,8 +506,16 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_getCosmeticCss(
         Err(_) => return safe_jstring(&mut env, ""),
     };
 
-    let css = get_core().shield.get_cosmetic_css(&domain_str);
-    safe_jstring(&mut env, &css)
+    let brave_css = get_core().adblock.get_cosmetic_css(&domain_str);
+    let shield_css = get_core().shield.get_cosmetic_css(&domain_str);
+    let combined = if brave_css.is_empty() {
+        shield_css
+    } else if shield_css.is_empty() {
+        brave_css
+    } else {
+        format!("{shield_css}\n{brave_css}")
+    };
+    safe_jstring(&mut env, &combined)
 }
 
 #[no_mangle]
@@ -204,11 +529,16 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_getScriptlets(
         Err(_) => return safe_jstring(&mut env, ""),
     };
 
-    let scriptlet = get_core()
-        .shield
-        .get_scriptlets(&domain_str);
-    let scriptlet_str = scriptlet.as_deref().unwrap_or("");
-    safe_jstring(&mut env, scriptlet_str)
+    let brave_scriptlet = get_core().adblock.get_scriptlets(&domain_str);
+    let shield_scriptlet = get_core().shield.get_scriptlets(&domain_str).unwrap_or_default();
+    let combined = if brave_scriptlet.is_empty() {
+        shield_scriptlet
+    } else if shield_scriptlet.is_empty() {
+        brave_scriptlet
+    } else {
+        format!("{shield_scriptlet}\n{brave_scriptlet}")
+    };
+    safe_jstring(&mut env, &combined)
 }
 
 #[no_mangle]

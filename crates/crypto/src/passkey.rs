@@ -15,20 +15,39 @@ pub enum PasskeyError {
     SerializationError(String),
 }
 
+/// In-browser sovereign passkey credential compliant with WebAuthn / FIDO2 standards.
+///
+/// Encapsulates an elliptic-curve NIST P-256 (secp256r1) private key stored securely within
+/// the client vault. The private key material is marked with `#[serde(skip_serializing)]`
+/// and automatically wiped upon drop via [`Zeroize`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SovereignPasskey {
+    /// Base64URL-encoded unique credential identifier.
     pub credential_id_b64: String,
+    /// Relying Party Identifier (effective domain / origin).
     pub rp_id: String,
+    /// Opaque user handle identifying the account at the relying party.
     pub user_handle_b64: String,
+    /// Display username associated with the credential.
     pub user_name: String,
+    /// Unix timestamp (seconds) when the passkey was minted.
     pub created_at: u64,
+    /// Monotonically increasing signature counter used for replay detection.
     pub sign_count: u32,
     #[serde(skip_serializing)]
     private_key_bytes: Vec<u8>,
+    /// Base64URL-encoded uncompressed SEC1 public key point.
     pub public_key_der_b64: String,
 }
 
 impl SovereignPasskey {
+    /// Generates a new NIST P-256 keypair and registers a sovereign passkey credential.
+    ///
+    /// Derives a deterministic 20-byte credential ID prefixed with `azokle-passkey-v1:`,
+    /// formats the public key as an uncompressed SEC1 point, and initializes the replay counter.
+    ///
+    /// # Returns
+    /// A tuple containing the created [`SovereignPasskey`] and the raw binary credential ID.
     pub fn create(
         rp_id: &str,
         user_name: &str,
@@ -68,6 +87,11 @@ impl SovereignPasskey {
         Ok((passkey, credential_id.to_vec()))
     }
 
+    /// Signs an authentication challenge using the credential's private key.
+    ///
+    /// Increments `sign_count` monotonically to detect replay attacks.
+    /// Concatentates `authenticator_data` and `client_data_hash` according to WebAuthn Level 3 specs
+    /// and returns an ASN.1 DER-encoded ECDSA signature.
     pub fn sign_assertion(
         &mut self,
         authenticator_data: &[u8],

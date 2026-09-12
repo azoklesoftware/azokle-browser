@@ -1,0 +1,23 @@
+[package]
+name = "azokle-uniffi"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+name = "azokle_uniffi"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[[bin]]
+name = "azokle-bindgen"
+path = "src/bin/bindgen.rs"
+
+[dependencies]
+azokle-core = { path = "../../crates/core" }
+uniffi = { version = "0.28", features = ["cli"] }
+parking_lot.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+log.workspace = true
+url.workspace = true

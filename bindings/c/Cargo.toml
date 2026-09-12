@@ -10,7 +10,7 @@ name = "azokle_c"
 crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
-azokle-core = { path = "../../crates/azokle-core" }
+azokle-core = { path = "../../crates/core" }
 azokle-networking = { path = "../../crates/networking" }
 serde_json.workspace = true
 serde.workspace = true

@@ -86,14 +86,18 @@ object PwaManager {
             try {
                 var parsedManifest: WebAppManifest? = null
 
+                val isTor = com.azokle.search.tor.TorCircuitManager.isTorActive ||
+                    documentUrl.contains(".onion", ignoreCase = true) ||
+                    (manifestUrl?.contains(".onion", ignoreCase = true) == true)
+
                 if (!manifestJson.isNullOrBlank()) {
                     parsedManifest = WebAppManifest.parse(
                         jsonString = manifestJson,
                         manifestUrl = manifestUrl ?: "",
                         documentUrl = documentUrl
                     )
-                } else if (!manifestUrl.isNullOrBlank() && PwaInstallabilityValidator.isSecureOrigin(manifestUrl)) {
-                    // Fetch manifest JSON directly over HTTPS
+                } else if (!isTor && !manifestUrl.isNullOrBlank() && PwaInstallabilityValidator.isSecureOrigin(manifestUrl)) {
+                    // Fetch manifest JSON directly over HTTPS only on clearnet
                     try {
                         val req = Request.Builder()
                             .url(manifestUrl)

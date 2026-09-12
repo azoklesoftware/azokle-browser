@@ -65,6 +65,12 @@ android {
         abortOnError = false
     }
 
+    sourceSets {
+        getByName("main") {
+            assets.directories.add("${layout.buildDirectory.get()}/generated/shared_assets")
+        }
+    }
+
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
@@ -81,6 +87,23 @@ tasks.register<Exec>("buildRustCore") {
         "-o", "${projectDir}/src/main/jniLibs",
         "build", "--release"
     )
+}
+
+val syncSharedAssets = tasks.register<Sync>("syncSharedAssets") {
+    from(file("../../../data/filters")) {
+        into("adblock")
+    }
+    from(file("../../../data/filters")) {
+        into("data/filters")
+    }
+    from(file("../../../extensions")) {
+        into("extensions")
+    }
+    into(layout.buildDirectory.dir("generated/shared_assets"))
+}
+
+tasks.named("preBuild").configure {
+    dependsOn(syncSharedAssets)
 }
 
 configurations.all {

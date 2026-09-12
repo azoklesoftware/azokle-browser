@@ -1,0 +1,26 @@
+[Desktop Entry]
+Version=1.0
+Name=Azokle Sovereign Browser
+GenericName=Web Browser
+Comment=Access the internet with sovereign privacy, Tor onion routing, and zero-telemetry defense
+Exec=azokle-browser-linux %U
+Terminal=false
+X-MultipleArgs=false
+Type=Application
+Icon=azokle-browser
+Categories=Network;WebBrowser;Security;
+MimeType=text/html;text/xml;application/xhtml+xml;application/xml;application/vnd.mozilla.xul+xml;application/rss+xml;application/rdf+xml;image/gif;image/jpeg;image/png;x-scheme-handler/http;x-scheme-handler/https;x-scheme-handler/azokle;
+StartupNotify=true
+Actions=NewWindow;NewPrivateWindow;NewTorWindow;
+
+[Desktop Action NewWindow]
+Name=Open New Window
+Exec=azokle-browser-linux
+
+[Desktop Action NewPrivateWindow]
+Name=Open New Private Window
+Exec=azokle-browser-linux --private
+
+[Desktop Action NewTorWindow]
+Name=Open New Tor Onion Window
+Exec=azokle-browser-linux --tor

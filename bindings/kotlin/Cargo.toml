@@ -11,7 +11,7 @@ crate-type = ["cdylib"]
 doctest = false
 
 [dependencies]
-azokle-core = { path = "../../crates/azokle-core" }
+azokle-core = { path = "../../crates/core" }
 jni.workspace = true
 log.workspace = true
 android_logger.workspace = true

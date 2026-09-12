@@ -53,6 +53,11 @@ object IntentParser {
                 }
                 component = null
                 selector = null
+                clipData = null
+                val dataScheme = data?.scheme?.lowercase()
+                if (dataScheme != null && NavigationSecurity.isForbiddenWebScheme(dataScheme)) {
+                    data = null
+                }
             }
         } catch (e: Throwable) {
             null

@@ -3,10 +3,23 @@ use std::net::{IpAddr, Ipv4Addr};
 use url::Url;
 
 /// Sovereign SSRF & Local Loopback Filter
+///
+/// Guards against Server-Side Request Forgery (SSRF) and local intranet port-scanning
+/// attacks initiated by untrusted web content or malicious redirects.
 pub struct SecurityPolicy;
 
 impl SecurityPolicy {
-    /// Validates if an IP address is a private/internal/loopback/link-local address (SSRF check).
+    /// Evaluates whether an IP address belongs to a private network, loopback, or link-local subnet.
+    ///
+    /// # Protected Subnets:
+    /// - IPv4 Loopback: `127.0.0.0/8`
+    /// - IPv4 RFC 1918 Private: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`
+    /// - IPv4 Link-Local & Cloud Metadata: `169.254.0.0/16` (e.g. AWS/GCP `169.254.169.254`)
+    /// - IPv4 Broadcast & Unspecified: `255.255.255.255`, `0.0.0.0/32`
+    /// - IPv6 Loopback & Unspecified: `::1`, `::`
+    /// - IPv6 Unique Local (ULA): `fc00::/7`
+    /// - IPv6 Link-Local: `fe80::/10`
+    /// - IPv4-mapped/compatible IPv6 addresses (e.g. `::ffff:127.0.0.1`)
     pub fn is_private_or_loopback_ip(ip: &IpAddr) -> bool {
         match ip {
             IpAddr::V4(v4) => {
@@ -41,7 +54,10 @@ impl SecurityPolicy {
         }
     }
 
-    /// Validates request URL against SSRF policy.
+    /// Validates a candidate request URL against security policies.
+    ///
+    /// - Rejects non-HTTP(S) schemes.
+    /// - If `allow_private` is false, blocks `localhost` domain patterns and private IP addresses.
     pub fn validate_url(url_str: &str, allow_private: bool) -> Result<Url, NetworkError> {
         let parsed = Url::parse(url_str).map_err(|e| NetworkError::InvalidUrl(e.to_string()))?;
 
@@ -70,7 +86,7 @@ impl SecurityPolicy {
         Ok(parsed)
     }
 
-    /// Validates redirect target against scheme downgrade (HTTPS -> HTTP).
+    /// Validates HTTP redirect targets to block insecure scheme downgrades (`https://` to `http://`).
     pub fn validate_redirect(from: &Url, to: &Url) -> Result<(), NetworkError> {
         if from.scheme() == "https" && to.scheme() == "http" {
             return Err(NetworkError::InsecureRedirectBlocked(format!(

@@ -17,7 +17,9 @@ data class FilterDecision(
     val shouldBlock: Boolean = false,
     val category: Int = 0,
     val matchedRule: String? = null,
-    val isException: Boolean = false
+    val isException: Boolean = false,
+    val redirectUrl: String? = null,
+    val rewrittenUrl: String? = null
 )
 
 data class RustShieldStats(
@@ -42,6 +44,10 @@ object AzokleCore {
     private val _shieldStats = MutableStateFlow(RustShieldStats())
     val shieldStats: StateFlow<RustShieldStats> = _shieldStats.asStateFlow()
 
+    private val coreScope = CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.Default)
+    private val lastStatsRefresh = java.util.concurrent.atomic.AtomicLong(0)
+    private val statsRefreshPending = java.util.concurrent.atomic.AtomicBoolean(false)
+
     init {
         try {
             System.loadLibrary("azokle_core")
@@ -60,7 +66,14 @@ object AzokleCore {
     private external fun loadFilterRules(content: String, categoryId: Int): Int
     private external fun loadTrackerList(content: String): Int
     private external fun loadCosmeticRules(content: String): Int
+    private external fun loadResources(content: String): Int
+    private external fun loadDebounceRules(content: String): Int
+    private external fun unwrapBounceUrl(url: String): String
+    private external fun serializeEngine(): ByteArray?
+    private external fun loadSerializedEngine(data: ByteArray): Boolean
     private external fun checkUrl(url: String, sourceOrigin: String?, isThirdParty: Boolean): String
+    private external fun checkNetworkRequest(url: String, sourceOrigin: String?, requestType: String?, isThirdParty: Boolean): String
+    private external fun checkUrlFast(url: String, sourceOrigin: String?, isThirdParty: Boolean): Long
     private external fun cleanUrl(url: String): String
     private external fun getCosmeticCss(domain: String): String
     private external fun getScriptlets(domain: String): String
@@ -153,11 +166,47 @@ object AzokleCore {
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                loadAssetsRules(context)
+                val cacheFile = java.io.File(context.filesDir, "adblock_engine.dat")
+                val versionFile = java.io.File(context.filesDir, "adblock_engine_version.txt")
+                val versionCode = try {
+                    val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                    androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(pInfo)
+                } catch (_: Throwable) {
+                    1L
+                }
+                val currentVersion = "${versionCode}_v3_unified"
+                var loadedFromCache = false
+
+                if (cacheFile.exists() && cacheFile.length() > 0 && versionFile.exists() && versionFile.readText().trim() == currentVersion) {
+                    try {
+                        val bytes = cacheFile.readBytes()
+                        if (loadSerializedEngine(bytes)) {
+                            loadedFromCache = true
+                            Log.i(TAG, "AzokleCore: restored adblock engine from binary Flatbuffer cache (${bytes.size} bytes)")
+                        }
+                    } catch (e: Throwable) {
+                        Log.w(TAG, "Failed to restore adblock engine from cache: ${e.message}")
+                    }
+                }
+
+                if (!loadedFromCache) {
+                    loadAssetsRules(context)
+                    try {
+                        val serialized = serializeEngine()
+                        if (serialized != null && serialized.isNotEmpty()) {
+                            cacheFile.writeBytes(serialized)
+                            versionFile.writeText(currentVersion)
+                            Log.i(TAG, "AzokleCore: serialized adblock engine cache written (${serialized.size} bytes)")
+                        }
+                    } catch (e: Throwable) {
+                        Log.w(TAG, "Could not write adblock engine cache: ${e.message}")
+                    }
+                }
+
                 refreshShieldStats()
                 Log.i(TAG, "AzokleCore initialized and rules indexed in native memory.")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error loading adblock assets into AzokleCore: ${e.message}")
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error initializing adblock engine: ${e.message}")
             }
         }
     }
@@ -166,74 +215,164 @@ object AzokleCore {
         val assetManager = context.assets
         val adblockFolder = "adblock"
 
-        // 1. Load Ads & Network Rules (Category: 1 = Ad)
-        loadAssetFile(assetManager, "$adblockFolder/ads.txt")?.let { loadFilterRules(it, 1) }
-        loadAssetFile(assetManager, "$adblockFolder/ad_domains.txt")?.let { loadFilterRules(it, 1) }
+        // 1. Load Primary Unified Filters (EasyList + EasyPrivacy + Brave First-Party)
+        loadAssetFile(assetManager, "$adblockFolder/filters.txt")?.let {
+            loadFilterRules(it, 1)
+        }
 
-        // 2. Load Trackers & Analytics (Category: 2 = Tracker)
-        loadAssetFile(assetManager, "$adblockFolder/trackers.txt")?.let {
+        // 2. Load CNAME Cloaked Tracker Uncloaking Rules
+        loadAssetFile(assetManager, "$adblockFolder/cname.txt")?.let {
             loadTrackerList(it)
             loadFilterRules(it, 2)
         }
-        loadAssetFile(assetManager, "$adblockFolder/analytics.txt")?.let {
-            loadTrackerList(it)
-            loadFilterRules(it, 2)
+
+        // 3. Load Web Compatibility Unbreak Rules
+        loadAssetFile(assetManager, "$adblockFolder/unbreak.txt")?.let {
+            loadFilterRules(it, 1)
         }
 
-        // 3. Load Telemetry (Category: 3 = Telemetry)
-        loadAssetFile(assetManager, "$adblockFolder/telemetry.txt")?.let { loadFilterRules(it, 3) }
+        // 4. Load Cookie Consent & Annoyance Rules
+        loadAssetFile(assetManager, "$adblockFolder/cookies.txt")?.let {
+            loadFilterRules(it, 5)
+        }
 
-        // 4. Load Fingerprinting (Category: 4 = Fingerprinting)
-        loadAssetFile(assetManager, "$adblockFolder/fingerprinting.txt")?.let { loadFilterRules(it, 4) }
+        // 5. Load WebExtension Base Cosmetic CSS
+        loadAssetFile(assetManager, "extensions/azokle-shield/cosmetic.css")?.let {
+            loadCosmeticRules(it)
+        }
 
-        // 5. Load Annoyances (Category: 5 = Annoyance)
-        loadAssetFile(assetManager, "$adblockFolder/annoyances.txt")?.let { loadFilterRules(it, 5) }
+        // 6. Load Brave Surrogates, Scriptlets & Defusers from resources.json
+        loadAssetFile(assetManager, "$adblockFolder/resources.json")?.let {
+            try {
+                val count = loadResources(it)
+                Log.i(TAG, "Loaded $count Brave surrogates, defusers, and scriptlets into adblock engine.")
+            } catch (e: Throwable) {
+                Log.w(TAG, "loadResources not available: ${e.message}")
+            }
+        }
 
-        // 6. Load Social (Category: 7 = Social)
-        loadAssetFile(assetManager, "$adblockFolder/social.txt")?.let { loadFilterRules(it, 7) }
-
-        // 7. Load Cosmetic CSS rules
-        loadAssetFile(assetManager, "$adblockFolder/cosmetic_css.txt")?.let { loadCosmeticRules(it) }
-        loadAssetFile(assetManager, "extensions/azokle-shield/cosmetic.css")?.let { loadCosmeticRules(it) }
+        // 7. Load Brave Bounce Tracking Defense Rules from debounce.json
+        loadAssetFile(assetManager, "$adblockFolder/debounce.json")?.let {
+            try {
+                val count = loadDebounceRules(it)
+                Log.i(TAG, "Loaded $count bounce tracking redirect rules into debounce engine.")
+            } catch (e: Throwable) {
+                Log.w(TAG, "loadDebounceRules not available: ${e.message}")
+            }
+        }
     }
 
     private fun loadAssetFile(assetManager: android.content.res.AssetManager, path: String): String? {
-        return try {
-            assetManager.open(path).use { inputStream ->
-                BufferedReader(InputStreamReader(inputStream)).use { reader ->
-                    reader.readText()
-                }
-            }
-        } catch (e: Exception) {
-            null
+        val candidatePaths = if (path.startsWith("adblock/")) {
+            listOf("data/filters/" + path.removePrefix("adblock/"), path)
+        } else if (path.startsWith("data/filters/")) {
+            listOf(path, "adblock/" + path.removePrefix("data/filters/"))
+        } else {
+            listOf(path)
         }
+
+        for (candidate in candidatePaths) {
+            try {
+                assetManager.open(candidate).use { inputStream ->
+                    BufferedReader(InputStreamReader(inputStream)).use { reader ->
+                        return reader.readText()
+                    }
+                }
+            } catch (_: Exception) {
+                // Try next candidate path
+            }
+        }
+        return null
     }
 
     /**
-     * High-speed Rust URL classification check.
+     * High-speed Rust URL classification check with zero-allocation bitmask fast path.
      */
-    fun shouldBlock(url: String, sourceOrigin: String? = null, isThirdParty: Boolean = true): FilterDecision {
+    fun shouldBlock(
+        url: String,
+        sourceOrigin: String? = null,
+        requestType: String? = null,
+        isThirdParty: Boolean = true
+    ): FilterDecision {
         if (!isNativeLoaded || url.isBlank()) return FilterDecision()
         return try {
-            val jsonStr = checkUrl(url, sourceOrigin, isThirdParty)
-            val json = JSONObject(jsonStr)
-            val should = json.optBoolean("should_block", false)
-            val cat = json.optInt("category", 0)
-            val rule = json.optString("matched_rule", "").takeIf { it.isNotBlank() }
-            val isExc = json.optBoolean("is_exception", false)
+            if (requestType != null && requestType.isNotBlank()) {
+                val jsonStr = checkNetworkRequest(url, sourceOrigin, requestType, isThirdParty)
+                val json = JSONObject(jsonStr)
+                val should = json.optBoolean("should_block", false)
+                if (should) {
+                    scheduleShieldStatsRefresh()
+                }
+                return FilterDecision(
+                    shouldBlock = should,
+                    category = json.optInt("category", 0),
+                    matchedRule = json.optString("matched_rule", "").takeIf { it.isNotBlank() },
+                    isException = json.optBoolean("is_exception", false),
+                    redirectUrl = json.optString("redirect_url", "").takeIf { it.isNotBlank() },
+                    rewrittenUrl = json.optString("rewritten_url", "").takeIf { it.isNotBlank() }
+                )
+            }
+
+            val packed = checkUrlFast(url, sourceOrigin, isThirdParty)
+            val hasRedirect = (packed and (1L shl 9)) != 0L
+            val hasRewritten = (packed and (1L shl 10)) != 0L
+
+            if (hasRedirect || hasRewritten) {
+                // Special case requiring URL redirection or rewrite: retrieve full JSON payload
+                val jsonStr = checkUrl(url, sourceOrigin, isThirdParty)
+                val json = JSONObject(jsonStr)
+                val should = json.optBoolean("should_block", false)
+                val cat = json.optInt("category", 0)
+                val rule = json.optString("matched_rule", "").takeIf { it.isNotBlank() }
+                val isExc = json.optBoolean("is_exception", false)
+                val redir = json.optString("redirect_url", "").takeIf { it.isNotBlank() }
+                val rewrit = json.optString("rewritten_url", "").takeIf { it.isNotBlank() }
+
+                if (should) {
+                    scheduleShieldStatsRefresh()
+                }
+
+                return FilterDecision(
+                    shouldBlock = should,
+                    category = cat,
+                    matchedRule = rule,
+                    isException = isExc,
+                    redirectUrl = redir,
+                    rewrittenUrl = rewrit
+                )
+            }
+
+            val should = (packed and 1L) != 0L
+            val cat = ((packed shr 1) and 0x7FL).toInt()
+            val isExc = (packed and (1L shl 8)) != 0L
 
             if (should) {
-                refreshShieldStats()
+                scheduleShieldStatsRefresh()
             }
 
             FilterDecision(
                 shouldBlock = should,
                 category = cat,
-                matchedRule = rule,
-                isException = isExc
+                matchedRule = null,
+                isException = isExc,
+                redirectUrl = null,
+                rewrittenUrl = null
             )
         } catch (e: Exception) {
             FilterDecision()
+        }
+    }
+
+    /**
+     * Unwraps bounce tracking redirect URLs (e.g. from affiliate and tracking networks).
+     */
+    fun unwrapBounce(url: String): String {
+        if (!isNativeLoaded || url.isBlank()) return url
+        return try {
+            val unwrapped = unwrapBounceUrl(url)
+            if (unwrapped.isNotBlank()) unwrapped else url
+        } catch (e: Exception) {
+            url
         }
     }
 
@@ -243,7 +382,8 @@ object AzokleCore {
     fun cleanTrackingParameters(url: String): String {
         if (!isNativeLoaded || url.isBlank()) return url
         return try {
-            cleanUrl(url)
+            val unbounced = unwrapBounce(url)
+            cleanUrl(unbounced)
         } catch (e: Exception) {
             url
         }
@@ -304,9 +444,30 @@ object AzokleCore {
         if (!isNativeLoaded || host.isBlank()) return
         try {
             recordBlock(host, categoryId)
-            refreshShieldStats()
+            scheduleShieldStatsRefresh()
         } catch (e: Exception) {
             // Ignore
+        }
+    }
+
+    /**
+     * Debounces Shield stats refresh to prevent UI recomposition storms during heavy page loads.
+     */
+    fun scheduleShieldStatsRefresh() {
+        val now = android.os.SystemClock.elapsedRealtime()
+        val last = lastStatsRefresh.get()
+        if (now - last > 500) {
+            lastStatsRefresh.set(now)
+            refreshShieldStats()
+        } else {
+            if (statsRefreshPending.compareAndSet(false, true)) {
+                coreScope.launch {
+                    kotlinx.coroutines.delay(500)
+                    statsRefreshPending.set(false)
+                    lastStatsRefresh.set(android.os.SystemClock.elapsedRealtime())
+                    refreshShieldStats()
+                }
+            }
         }
     }
 

@@ -61,6 +61,17 @@ class AzokleNavigationDelegate(
         }
     }
 
+    /**
+     * Evaluates candidate URI loads initiated by user typing, links, script redirects, or subframes.
+     *
+     * # Policy Enforcement Hierarchy:
+     * 1. Firewall: Rejects forbidden local/internal schemes (`file:`, `content:`, `chrome:`, `resource:`).
+     * 2. External URI Schemes: Dispatches `tel:`, `mailto:`, `sms:`, `geo:`, `upi:`, `intent:` to native apps
+     *    with strict Tor/Private isolation guards.
+     * 3. Sovereign Media: Rewrites eligible YouTube/Vimeo URLs to the tracking-free distraction-free player.
+     * 4. Android AppLinks: Only offered if triggered by explicit user gesture and NOT in Tor/Private mode.
+     * 5. Standard Web: Allows legitimate HTTP/HTTPS/data/blob navigations.
+     */
     override fun onLoadRequest(
         session: GeckoSession,
         request: GeckoSession.NavigationDelegate.LoadRequest
@@ -89,8 +100,22 @@ class AzokleNavigationDelegate(
             }
         }
 
+        // 2.5 Azokle Sovereign Player Check for eligible videos (YouTube / Vimeo)
+        if (com.azokle.search.media.AzoklePlayerHelper.isEligibleVideoUrl(uriStr)) {
+            val prefMode = com.azokle.search.common.util.PreferencesManager(context).getAzoklePlayerMode()
+            if (prefMode == "always") {
+                val embedUrl = com.azokle.search.media.AzoklePlayerHelper.buildSovereignEmbedUrl(uriStr)
+                if (embedUrl != null && embedUrl != uriStr) {
+                    Handler(Looper.getMainLooper()).post {
+                        session.loadUri(embedUrl)
+                    }
+                    return GeckoResult.fromValue(AllowOrDeny.DENY)
+                }
+            }
+        }
+
         // 3. Android AppLinks for HTTP/HTTPS with explicit user click/tap (e.g. YouTube, Play Store, Reddit)
-        if ((scheme == "http" || scheme == "https") && request.hasUserGesture && !isTor) {
+        if ((scheme == "http" || scheme == "https") && request.hasUserGesture && !isTor && !isPrivate) {
             val targetUri = try { Uri.parse(uriStr) } catch (e: Exception) { null }
             if (targetUri != null) {
                 val viewIntent = Intent(Intent.ACTION_VIEW, targetUri).apply {

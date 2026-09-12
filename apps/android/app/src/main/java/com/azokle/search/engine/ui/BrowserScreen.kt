@@ -334,13 +334,31 @@ fun BrowserScreen(
             }
         }
 
+        val finalLoadUrl = if (cleanTargetUrl.startsWith("azokle://", ignoreCase = true)) {
+            val page = cleanTargetUrl.substringAfter("azokle://").trimEnd('/').lowercase()
+            when (page) {
+                "shield", "shields" -> "resource://android/assets/webui/pages/shield/index.html"
+                "settings" -> "resource://android/assets/webui/pages/settings/index.html"
+                "tor" -> "resource://android/assets/webui/pages/tor/index.html"
+                "history" -> "resource://android/assets/webui/pages/history/index.html"
+                "bookmarks" -> "resource://android/assets/webui/pages/bookmarks/index.html"
+                else -> cleanTargetUrl
+            }
+        } else {
+            cleanTargetUrl
+        }
+
         targetLoadingUrl = cleanTargetUrl
         isPageTransitioning = true
         currentUrl = cleanTargetUrl
-        currentTitle = title
+        currentTitle = if (cleanTargetUrl.startsWith("azokle://", ignoreCase = true)) {
+            "Azokle " + cleanTargetUrl.substringAfter("azokle://").replaceFirstChar { it.uppercase() }
+        } else {
+            title
+        }
         currentError = null
-        TabManager.updateActiveTab(cleanTargetUrl, title)
-        geckoSession?.loadUri(cleanTargetUrl)
+        TabManager.updateActiveTab(cleanTargetUrl, currentTitle)
+        geckoSession?.loadUri(finalLoadUrl)
     }
 
     val shieldStats by AdBlockStats.currentStats.collectAsState()
@@ -1244,7 +1262,10 @@ fun BrowserScreen(
                         )
                         return@BrowserUrlEditSheet
                     }
-                    val resolved = if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("about:")) {
+                    val resolved = if (trimmed.startsWith("http://", ignoreCase = true) ||
+                        trimmed.startsWith("https://", ignoreCase = true) ||
+                        trimmed.startsWith("about:", ignoreCase = true) ||
+                        trimmed.startsWith("azokle://", ignoreCase = true)) {
                         trimmed
                     } else {
                         UrlHelper.resolveSearchOrUrl(context, trimmed)

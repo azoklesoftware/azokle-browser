@@ -266,6 +266,67 @@ pub extern "C" fn azokle_protocol_dispatch(envelope_json: *const c_char) -> *mut
 }
 
 #[no_mangle]
+pub extern "C" fn azokle_core_load_filter_rules(rules: *const c_char) -> i32 {
+    if rules.is_null() {
+        return 0;
+    }
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        let rules_str = unsafe { CStr::from_ptr(rules).to_str().unwrap_or("") };
+        get_core().adblock.load_filter_lists(vec![rules_str.to_string()]) as i32
+    }));
+    result.unwrap_or(0)
+}
+
+#[no_mangle]
+pub extern "C" fn azokle_core_load_resources(resources_json: *const c_char) -> i32 {
+    if resources_json.is_null() {
+        return 0;
+    }
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        let res_str = unsafe { CStr::from_ptr(resources_json).to_str().unwrap_or("") };
+        get_core().adblock.load_resources_json(res_str).unwrap_or(0) as i32
+    }));
+    result.unwrap_or(0)
+}
+
+#[no_mangle]
+pub extern "C" fn azokle_core_load_serialized_engine(data: *const u8, len: usize) -> bool {
+    if data.is_null() || len == 0 {
+        return false;
+    }
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        let slice = unsafe { std::slice::from_raw_parts(data, len) };
+        get_core().adblock.deserialize_from_dat(slice).is_ok()
+    }));
+    result.unwrap_or(false)
+}
+
+#[no_mangle]
+pub extern "C" fn azokle_core_serialize_engine(out_len: *mut usize) -> *mut u8 {
+    if out_len.is_null() {
+        return std::ptr::null_mut();
+    }
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        let bytes = get_core().adblock.serialize_to_dat();
+        unsafe { *out_len = bytes.len(); }
+        let mut boxed = bytes.into_boxed_slice();
+        let ptr = boxed.as_mut_ptr();
+        std::mem::forget(boxed);
+        ptr
+    }));
+    result.unwrap_or(std::ptr::null_mut())
+}
+
+#[no_mangle]
+pub extern "C" fn azokle_byte_buffer_free(ptr: *mut u8, len: usize) {
+    if !ptr.is_null() && len > 0 {
+        let _ = catch_unwind(AssertUnwindSafe(|| unsafe {
+            let _ = Box::from_raw(std::slice::from_raw_parts_mut(ptr, len));
+        }));
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn azokle_string_free(s: *mut c_char) {
     if !s.is_null() {
         let _ = catch_unwind(AssertUnwindSafe(|| unsafe {

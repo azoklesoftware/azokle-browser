@@ -1,0 +1,17 @@
+[package]
+name = "azokle-adblock"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+adblock = { path = "../adblock-rust", default-features = false, features = ["embedded-domain-resolver", "full-regex-handling"] }
+azokle-common = { path = "../../common" }
+aho-corasick.workspace = true
+regex.workspace = true
+url.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+log.workspace = true
+parking_lot.workspace = true

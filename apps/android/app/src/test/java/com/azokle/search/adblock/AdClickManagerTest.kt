@@ -73,4 +73,13 @@ class AdClickManagerTest {
         assertFalse(AdClickManager.isAttributionActive(tabId))
         assertFalse(AdClickManager.isAttributionExempt(tabId, "shop.store.com"))
     }
+
+    @Test
+    fun testGetActiveExemptions() {
+        AdClickManager.registerAdClick("tab_1", "https://store.com/item?gclid=123")
+        val exemptions = AdClickManager.getActiveExemptions()
+        assertEquals(1, exemptions.size)
+        assertEquals("tab_1", exemptions[0].tabId)
+        assertEquals("store.com", exemptions[0].advertiserHost)
+    }
 }

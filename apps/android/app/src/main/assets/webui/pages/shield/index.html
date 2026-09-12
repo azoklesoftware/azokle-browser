@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Azokle Shields & Sovereign Defense</title>
+  <link rel="stylesheet" href="../../shared/style.css">
+</head>
+<body>
+  <div class="webui-container">
+    <header class="webui-header">
+      <div class="webui-title-group">
+        <div class="webui-icon">🛡️</div>
+        <div>
+          <h1 class="webui-title">Azokle Shield</h1>
+          <p class="webui-subtitle">Autonomous Real-Time Privacy & Adblock Defense</p>
+        </div>
+      </div>
+      <button class="btn btn-secondary" id="refresh-stats">Refresh Metrics</button>
+    </header>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="stat-ads">0</div>
+        <div class="stat-label">Ads & Popups Blocked</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-trackers">0</div>
+        <div class="stat-label">Trackers & Telemetry Defused</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-fingerprint">0</div>
+        <div class="stat-label">Fingerprinting Attempts Defused</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-bandwidth">0 MB</div>
+        <div class="stat-label">Bandwidth Conserved</div>
+      </div>
+    </div>
+
+    <section class="section-card">
+      <h2 class="section-title">Engine Configuration</h2>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <h4>Brave Adblock Engine</h4>
+          <p>High-throughput subresource and network request interceptor with Flatbuffer DAT binary rules</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-brave-adblock" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <h4>Cosmetic Filtering & Pruning</h4>
+          <p>Hides DOM ad containers dynamically using declarative CSS selector injection</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-cosmetic" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <h4>Sugarcoat & Brave Scriptlet Surrogates</h4>
+          <p>Defuses inline tracking scripts (Google Analytics, Facebook Pixel, YouTube SABR, Twitch ads)</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-scriptlets" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <h4>Farbling Anti-Fingerprinting</h4>
+          <p>Adds non-deterministic micro-noise to Canvas, WebGL, and AudioContext APIs</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-farbling" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <section class="section-card">
+      <h2 class="section-title">Active Filter Catalogs</h2>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <h4>EasyList & EasyPrivacy</h4>
+          <p>Standard ABP/uBlock baseline tracking and advertising filters</p>
+        </div>
+        <span style="font-size: 12px; color: var(--accent-emerald); font-weight: 600;">ACTIVE</span>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <h4>Brave Resources (Sugarcoat Surrogates)</h4>
+          <p>596 KB pre-compiled surrogate JavaScript defusers</p>
+        </div>
+        <span style="font-size: 12px; color: var(--accent-emerald); font-weight: 600;">ACTIVE</span>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <h4>Brave Unbreak & CNAME Cloaked Rules</h4>
+          <p>Protects site functionality and detects DNS-cloaked first-party trackers</p>
+        </div>
+        <span style="font-size: 12px; color: var(--accent-emerald); font-weight: 600;">ACTIVE</span>
+      </div>
+    </section>
+  </div>
+
+  <script src="shield.js"></script>
+</body>
+</html>

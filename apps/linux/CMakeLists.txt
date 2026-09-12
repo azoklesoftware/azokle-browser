@@ -4,7 +4,20 @@ project(azokle_browser_linux LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(RUST_LIB_DIR "${CMAKE_SOURCE_DIR}/target/debug")
+# Optimization Flags
+if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    add_compile_options(-O3 -pipe -fno-plt)
+    if(NOT MSVC)
+        add_compile_options(-flto)
+    endif()
+endif()
+
+# Determine Rust artifact directory
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(RUST_LIB_DIR "${CMAKE_SOURCE_DIR}/target/release")
+else()
+    set(RUST_LIB_DIR "${CMAKE_SOURCE_DIR}/target/debug")
+endif()
 
 add_executable(azokle-browser-linux
     src/main.cpp
@@ -33,3 +46,13 @@ target_link_libraries(azokle-browser-linux PRIVATE
     dl
     m
 )
+
+# Portable runtime RPATH configuration
+set_target_properties(azokle-browser-linux PROPERTIES
+    BUILD_RPATH "${RUST_LIB_DIR}"
+    INSTALL_RPATH "$ORIGIN/../lib:$ORIGIN"
+)
+
+# Standard installation targets
+install(TARGETS azokle-browser-linux DESTINATION bin)
+install(FILES "${RUST_LIB_DIR}/libazokle_c.so" DESTINATION lib OPTIONAL)

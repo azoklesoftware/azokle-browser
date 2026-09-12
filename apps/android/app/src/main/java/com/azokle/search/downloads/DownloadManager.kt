@@ -116,8 +116,9 @@ object DownloadManager {
         var counter = 1
         val baseName = targetFile.nameWithoutExtension
         val ext = targetFile.extension
+        val extSuffix = if (ext.isNotBlank()) ".$ext" else ""
         while (targetFile.exists()) {
-            targetFile = File(downloadDir, "${baseName}_$counter.$ext")
+            targetFile = File(downloadDir, "${baseName}_$counter$extSuffix")
             counter++
         }
 

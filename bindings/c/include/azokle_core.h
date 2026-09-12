@@ -41,6 +41,16 @@ char* azokle_core_get_cosmetic_css(const char* domain);
 
 char* azokle_core_get_scriptlets(const char* domain);
 
+int32_t azokle_core_load_filter_rules(const char* rules);
+
+int32_t azokle_core_load_resources(const char* resources_json);
+
+bool azokle_core_load_serialized_engine(const uint8_t* data, size_t len);
+
+uint8_t* azokle_core_serialize_engine(size_t* out_len);
+
+void azokle_byte_buffer_free(uint8_t* ptr, size_t len);
+
 bool azokle_core_is_tracker(const char* host);
 
 bool azokle_core_toggle_host_shield(const char* host, bool enabled);

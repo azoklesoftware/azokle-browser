@@ -9,6 +9,7 @@ use rand::RngCore;
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+/// Errors occurring during cryptographic operations in the Azokle Vault.
 #[derive(Error, Debug)]
 pub enum VaultCryptoError {
     #[error("Encryption failed")]
@@ -19,22 +20,37 @@ pub enum VaultCryptoError {
     KdfError(String),
 }
 
+/// Secure container for 256-bit symmetric encryption keys.
+///
+/// Implements [`Zeroize`] and [`ZeroizeOnDrop`] to guarantee memory is overwritten
+/// with zeros when dropped, mitigating key leakage via memory dumps or cold-boot attacks.
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct SecretKey([u8; 32]);
 
 impl SecretKey {
+    /// Wraps a raw 32-byte key array.
     pub fn new(key: [u8; 32]) -> Self {
         Self(key)
     }
 
+    /// Accesses the underlying 32-byte key slice.
     pub fn as_bytes(&self) -> &[u8; 32] {
         &self.0
     }
 }
 
+/// Core cryptographic operations provider for the secure storage vault.
 pub struct VaultCrypto;
 
 impl VaultCrypto {
+    /// Derives a 256-bit [`SecretKey`] from a user passphrase and cryptographic salt.
+    ///
+    /// # Cryptographic Parameters:
+    /// - Algorithm: Argon2id (v0x13), combining data-dependent and data-independent memory passes.
+    /// - Memory Cost: 64 MiB (65,536 KiB) to defeat GPU/ASIC parallel brute-force crackers.
+    /// - Iterations: 3 time passes.
+    /// - Parallelism: 4 threads.
+    /// - Salt: Enforces a strict minimum of 16 cryptographically random bytes.
     pub fn derive_key(passphrase: &str, salt: &[u8]) -> Result<SecretKey, VaultCryptoError> {
         if salt.len() < 16 {
             return Err(VaultCryptoError::KdfError(
@@ -54,6 +70,12 @@ impl VaultCrypto {
         Ok(SecretKey::new(key))
     }
 
+    /// Encrypts plaintext bytes using ChaCha20-Poly1305 authenticated encryption (AEAD).
+    ///
+    /// Generates a fresh 96-bit (12-byte) CSPRNG nonce for every invocation.
+    ///
+    /// # Wire Format:
+    /// `[12-byte Nonce] || [Ciphertext] || [16-byte Poly1305 MAC Tag]`
     pub fn encrypt(key: &SecretKey, plaintext: &[u8]) -> Result<Vec<u8>, VaultCryptoError> {
         let cipher = ChaCha20Poly1305::new(key.as_bytes().into());
         let mut nonce_bytes = [0u8; 12];
@@ -71,6 +93,10 @@ impl VaultCrypto {
         Ok(result)
     }
 
+    /// Decrypts a ChaCha20-Poly1305 payload and verifies the Poly1305 authentication tag.
+    ///
+    /// Ensures ciphertext integrity before yielding plaintext. Rejects truncated payloads
+    /// lacking the 12-byte nonce or 16-byte Poly1305 authentication tag.
     pub fn decrypt(key: &SecretKey, payload: &[u8]) -> Result<Vec<u8>, VaultCryptoError> {
         if payload.len() < 12 + 16 {
             return Err(VaultCryptoError::DecryptionError);

@@ -1,0 +1,11 @@
+Package: azokle-browser
+Version: 1.0.0
+Section: web
+Priority: optional
+Architecture: amd64
+Depends: libc6 (>= 2.34), libstdc++6 (>= 11), libx11-6
+Maintainer: Azokle Core Team <dev@azokle.com>
+Description: Azokle Sovereign Privacy Browser
+ Next-generation sovereign web browser built on Mozilla Gecko Engine,
+ Tor Onion routing, Brave AdBlock engine, and zero-trust local vaults.
+ Designed for absolute privacy, anti-fingerprinting, and speed.

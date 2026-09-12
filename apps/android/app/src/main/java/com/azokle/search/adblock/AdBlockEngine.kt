@@ -94,8 +94,8 @@ class AdBlockEngine private constructor() {
         }
     }
 
-    fun checkUrl(url: String, sourceOrigin: String? = null, isThirdParty: Boolean = true): FilterDecision {
-        return AzokleCore.shouldBlock(url, sourceOrigin, isThirdParty)
+    fun checkUrl(url: String, sourceOrigin: String? = null, requestType: String? = null, isThirdParty: Boolean = true): FilterDecision {
+        return AzokleCore.shouldBlock(url, sourceOrigin, requestType, isThirdParty)
     }
 
     fun cleanUrl(url: String): String {

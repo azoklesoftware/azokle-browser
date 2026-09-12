@@ -25,7 +25,12 @@ class PasskeyVaultManager private constructor(context: Context) {
     companion object {
         private const val KEY_PASSKEYS = "azokle_passkeys_v1"
         private const val PREFS_FILE = "azokle_passkey_vault_secure"
+        private const val FALLBACK_PREFS_FILE = "azokle_passkey_vault_fallback"
         private var instance: PasskeyVaultManager? = null
+
+        @Volatile
+        var isEncryptedStoreActive: Boolean = false
+            private set
 
         fun getInstance(context: Context): PasskeyVaultManager {
             return instance ?: synchronized(this) {
@@ -34,33 +39,39 @@ class PasskeyVaultManager private constructor(context: Context) {
         }
 
         private fun createEncryptedPrefs(context: Context): SharedPreferences {
-            return try {
-                val masterKey = MasterKey.Builder(context)
-                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                    .build()
+            var lastException: Exception? = null
+            for (attempt in 1..3) {
+                try {
+                    val masterKey = MasterKey.Builder(context)
+                        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                        .build()
 
-                EncryptedSharedPreferences.create(
-                    context,
-                    PREFS_FILE,
-                    masterKey,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-                )
-            } catch (e: Exception) {
-                android.util.Log.e("PasskeyVaultManager", "Keystore init error: ${e.message}, resetting key")
-                context.deleteSharedPreferences(PREFS_FILE)
-                val masterKey = MasterKey.Builder(context)
-                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                    .build()
-
-                EncryptedSharedPreferences.create(
-                    context,
-                    PREFS_FILE,
-                    masterKey,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-                )
+                    val p = EncryptedSharedPreferences.create(
+                        context,
+                        PREFS_FILE,
+                        masterKey,
+                        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                    )
+                    isEncryptedStoreActive = true
+                    return p
+                } catch (e: Exception) {
+                    lastException = e
+                    android.util.Log.w("PasskeyVaultManager", "Keystore init attempt $attempt/3 failed: ${e.message}")
+                    try {
+                        Thread.sleep(50L * attempt)
+                    } catch (_: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                    }
+                }
             }
+
+            android.util.Log.e(
+                "PasskeyVaultManager",
+                "Android Keystore unavailable. Preserving encrypted vault without deletion: ${lastException?.message}"
+            )
+            isEncryptedStoreActive = false
+            return context.getSharedPreferences(FALLBACK_PREFS_FILE, Context.MODE_PRIVATE)
         }
     }
 

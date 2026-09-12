@@ -1,0 +1,6 @@
+! Title: Azokle Test Filter Fixture
+! Version: 1.0.0
+||tracker-domain.test^$third-party
+||ad-server.test^
+/telemetry/beacon.js$script
+@@||trusted-partner.test^$image

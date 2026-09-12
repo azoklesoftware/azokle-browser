@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Azokle Sovereign Browser Settings</title>
+  <link rel="stylesheet" href="../../shared/style.css">
+  <style>
+    .select-input {
+      background: rgba(13, 21, 39, 0.9);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: #fff;
+      padding: 8px 12px;
+      font-size: 13px;
+      outline: none;
+      cursor: pointer;
+    }
+    .select-input:focus {
+      border-color: var(--accent-cyan);
+    }
+  </style>
+</head>
+<body>
+  <div class="webui-container">
+    <header class="webui-header">
+      <div class="webui-title-group">
+        <div class="webui-icon">⚙️</div>
+        <div>
+          <h1 class="webui-title">Settings</h1>
+          <p class="webui-subtitle">Privacy, Network, and Core Configuration</p>
+        </div>
+      </div>
+    </header>
+
+    <section class="section-card">
+      <h2 class="section-title">Search & Omnibar</h2>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <h4>Default Privacy Search Engine</h4>
+          <p>Choose which non-tracking engine resolves omnibar search queries</p>
+        </div>
+        <select class="select-input" id="search-engine-select">
+          <option value="azokle" selected>Azokle Sovereign Search</option>
+          <option value="duckduckgo">DuckDuckGo</option>
+          <option value="brave">Brave Search</option>
+          <option value="startpage">Startpage</option>
+          <option value="searxng">SearXNG (Decentralized)</option>
+        </select>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <h4>URL Parameter Sanitizer (Clean URLs)</h4>
+          <p>Automatically strips tracking tokens (fbclid, gclid, utm_*, msclkid) before navigation</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-clean-urls" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <section class="section-card">
+      <h2 class="section-title">Networking & Security</h2>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <h4>DNS-over-HTTPS (DoH) Provider</h4>
+          <p>Encrypt all DNS queries to eliminate ISP eavesdropping and DNS poisoning</p>
+        </div>
+        <select class="select-input" id="doh-provider-select">
+          <option value="quad9" selected>Quad9 (No-logging / Swiss Privacy)</option>
+          <option value="cloudflare">Cloudflare (1.1.1.1)</option>
+          <option value="mullvad">Mullvad DNS (Ad/Tracker Filtered)</option>
+          <option value="adguard">AdGuard Privacy DNS</option>
+        </select>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <h4>HTTPS-Only Mode</h4>
+          <p>Upgrades all connections to HTTPS and displays a security warning before insecure HTTP</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-https-only" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <h4>Data Incineration on Exit</h4>
+          <p>Automatically clears cookies, cache, and session storage when the last window closes</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-auto-incinerate">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

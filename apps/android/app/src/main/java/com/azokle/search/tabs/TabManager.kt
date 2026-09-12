@@ -34,6 +34,7 @@ import java.util.concurrent.ConcurrentLinkedDeque
 object TabManager {
     private const val TAG = "AzokleTabManager"
     private const val TABS_STATE_FILE = "azokle_tabs_state_v1.json"
+    const val MAX_WARM_SESSIONS = 3
 
     private val _tabs = MutableStateFlow<List<TabSession>>(listOf(TabSession()))
     val tabs: StateFlow<List<TabSession>> = _tabs.asStateFlow()
@@ -126,6 +127,10 @@ object TabManager {
         isPrivate: Boolean = false,
         isTor: Boolean = false
     ): GeckoSession {
+        // Enforce warm session budget before instantiating a new heavy GeckoSession
+        if (!sessionMap.containsKey(id) && sessionMap.size >= MAX_WARM_SESSIONS) {
+            reclaimInactiveTabMemory(MAX_WARM_SESSIONS - 1)
+        }
         return sessionMap.getOrPut(id) {
             val s = com.azokle.search.engine.GeckoEngineManager.createSession(context, isPrivate, isTor)
             val isActive = id == _activeTabId.value
@@ -299,8 +304,8 @@ object TabManager {
                 }
             }
 
-            // RAM Reclamation: only prune background GeckoSessions if exceeding max warm capacity (12)
-            val maxWarmSessions = 12
+            // RAM Reclamation: prune background GeckoSessions if exceeding max warm capacity
+            val maxWarmSessions = MAX_WARM_SESSIONS
             val currentTabs = _tabs.value
             val sortedTabs = currentTabs.sortedByDescending { if (it.id == id) Long.MAX_VALUE else it.lastAccessedAt }
             val tabsToKeep = sortedTabs.take(maxWarmSessions).map { it.id }.toSet() + id
@@ -333,7 +338,7 @@ object TabManager {
         }
     }
 
-    fun reclaimInactiveTabMemory(maxActiveSessions: Int = 2) {
+    fun reclaimInactiveTabMemory(maxActiveSessions: Int = MAX_WARM_SESSIONS) {
         val currentId = _activeTabId.value ?: return
         if (sessionMap.size <= maxActiveSessions) return
 

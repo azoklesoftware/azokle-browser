@@ -67,6 +67,16 @@ object AdClickManager {
             return rawUrl
         }
 
+        // Delegate to high-performance canonical native Rust tracker cleanser if available
+        try {
+            val cleaned = com.azokle.search.core.AzokleCore.cleanTrackingParameters(rawUrl)
+            if (cleaned.isNotBlank() && cleaned != rawUrl) {
+                return cleaned
+            }
+        } catch (_: Throwable) {
+            // Fall back to pure-Kotlin cleanser (e.g. during JVM unit tests or before native library initialization)
+        }
+
         return try {
             val qIndex = rawUrl.indexOf('?')
             val baseUrl = rawUrl.substring(0, qIndex)
@@ -119,6 +129,7 @@ object AdClickManager {
         val host = extractHost(landingUrl) ?: return
         val key = "$tabId:$host"
         activeExemptions[key] = AdClickExemption(tabId = tabId, advertiserHost = host)
+        syncToWebExtension()
     }
 
     /**
@@ -138,6 +149,7 @@ object AdClickManager {
 
         if (System.currentTimeMillis() > exemption.expiresAtMs) {
             activeExemptions.remove("${tabId}:${exemption.advertiserHost}")
+            syncToWebExtension()
             return false
         }
         return true
@@ -156,10 +168,25 @@ object AdClickManager {
         // Check if exemption has expired
         if (System.currentTimeMillis() > exemption.expiresAtMs) {
             activeExemptions.remove(key)
+            syncToWebExtension()
             return false
         }
 
         return true
+    }
+
+    fun getActiveExemptions(): List<AdClickExemption> {
+        val now = System.currentTimeMillis()
+        activeExemptions.values.removeIf { now > it.expiresAtMs }
+        return activeExemptions.values.toList()
+    }
+
+    private fun syncToWebExtension() {
+        try {
+            com.azokle.search.engine.GeckoEngineManager.notifyAdClickExemptionsChanged(getActiveExemptions())
+        } catch (e: Throwable) {
+            // Ignored during testing or if engine is not running
+        }
     }
 
     fun clearAttribution(tabId: String) {
@@ -168,14 +195,19 @@ object AdClickManager {
 
     fun clearTab(tabId: String) {
         activeExemptions.keys.removeIf { it.startsWith("$tabId:") }
+        syncToWebExtension()
     }
 
     fun clearExpired() {
         val now = System.currentTimeMillis()
-        activeExemptions.values.removeIf { now > it.expiresAtMs }
+        val removed = activeExemptions.values.removeIf { now > it.expiresAtMs }
+        if (removed) {
+            syncToWebExtension()
+        }
     }
 
     fun clearAll() {
         activeExemptions.clear()
+        syncToWebExtension()
     }
 }

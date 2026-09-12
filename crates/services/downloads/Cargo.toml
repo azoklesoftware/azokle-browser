@@ -1,0 +1,15 @@
+[package]
+name = "azokle-downloads"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+azokle-common = { path = "../../common" }
+serde.workspace = true
+serde_json.workspace = true
+parking_lot.workspace = true
+thiserror.workspace = true
+log.workspace = true
+url.workspace = true

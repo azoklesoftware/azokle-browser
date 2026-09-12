@@ -10,7 +10,10 @@ import android.net.Uri
  */
 object NavigationSecurity {
 
-    // Dangerous intent flags that allow granting file/content access or persistent permissions
+    /**
+     * Bitmask of dangerous intent flags that grant persistent or transient file/content URI permissions.
+     * These flags are stripped from untrusted web-dispatched intents to prevent sandbox access theft.
+     */
     const val DANGEROUS_FLAGS_MASK = (
         Intent.FLAG_GRANT_READ_URI_PERMISSION or
         Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
@@ -18,6 +21,9 @@ object NavigationSecurity {
         Intent.FLAG_GRANT_PREFIX_URI_PERMISSION
     )
 
+    /**
+     * Whitelist of safe, standard Android intent actions permissible for web content to launch.
+     */
     val ALLOWED_ACTIONS = setOf(
         Intent.ACTION_VIEW,
         Intent.ACTION_DIAL,
@@ -27,6 +33,9 @@ object NavigationSecurity {
         Intent.ACTION_MAIN
     )
 
+    /**
+     * Sensitive system action prefixes that untrusted web contexts are strictly forbidden from broadcasting.
+     */
     val FORBIDDEN_ACTION_PREFIXES = setOf(
         "android.intent.action.PACKAGE_",
         "android.intent.action.BOOT_",
@@ -62,13 +71,24 @@ object NavigationSecurity {
 
     /**
      * Sanitizes an Intent to eliminate injection attacks, privilege escalation,
-     * and component targeting.
+     * and internal component targeting.
+     *
+     * Neutralizes intent selectors, explicit component destinations, and clip data.
+     * If the payload scheme references forbidden internal protocols (file, content),
+     * the data URI is stripped.
      */
     fun sanitizeIntent(intent: Intent): Intent {
         intent.action = sanitizeAction(intent.action)
         intent.flags = sanitizeFlags(intent.flags)
         intent.selector = null
         intent.component = null
+        intent.clipData = null
+
+        val dataScheme = intent.data?.scheme?.lowercase()
+        if (dataScheme != null && isForbiddenWebScheme(dataScheme)) {
+            intent.data = null
+        }
+
         return intent
     }
 
@@ -92,14 +112,18 @@ object NavigationSecurity {
     }
 
     /**
-     * Returns true if external navigation would break Tor mode anonymity.
+     * Returns true if dispatching navigation to an external native Android app would break Tor anonymity.
+     *
+     * External applications operate over the standard device network stack (clearnet),
+     * completely bypassing the browser's Tor proxy tunnel and leaking the user's true IP.
      */
     fun isTorIsolationRisk(isTor: Boolean): Boolean {
         return isTor
     }
 
     /**
-     * Rejects local and content URIs from untrusted web contexts.
+     * Identifies local and privileged URI schemes (`file`, `content`, `chrome`, `resource`, `jar`)
+     * that untrusted web contexts are strictly prohibited from loading.
      */
     fun isForbiddenWebScheme(scheme: String?): Boolean {
         if (scheme.isNullOrBlank()) return false

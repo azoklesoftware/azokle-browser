@@ -15,7 +15,6 @@ import com.azokle.search.adblock.AdBlockEngine
 import com.azokle.search.adblock.AdBlockStats
 import com.azokle.search.engine.ui.BrowserErrorType
 import com.azokle.search.engine.GeckoSwipeRefreshLayout
-import com.azokle.search.history.HistoryManager
 import com.azokle.search.pwa.PwaManager
 import com.azokle.search.tabs.TabManager
 import org.mozilla.geckoview.GeckoSession
@@ -93,17 +92,6 @@ class AzokleProgressDelegate(
 
         onLoadingChanged(false)
         onProgressChanged(100)
-
-        val currentUrl = session.navigationDelegate?.let {
-            if (it is AzokleNavigationDelegate) it.lastLoadedUrl else null
-        } ?: ""
-
-        if (success && !isPrivate && !isTor && currentUrl.isNotBlank()) {
-            val isWebUrl = currentUrl.startsWith("http://", ignoreCase = true) || currentUrl.startsWith("https://", ignoreCase = true)
-            if (isWebUrl) {
-                HistoryManager.recordVisit(url = currentUrl, isPrivate = false)
-            }
-        }
 
         // Capture Lightweight Screenshot Thumbnail for Active Tabs Grid
         if (!isPrivate && !isTor) {

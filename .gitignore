@@ -4,7 +4,10 @@ Cargo.lock
 
 # C++ / CMake build artifacts
 /build_linux/
-build/
+/build_engine/
+/build_test/
+/build_output/
+build_*/
 *.o
 *.a
 *.so

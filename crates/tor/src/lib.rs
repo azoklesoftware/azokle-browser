@@ -5,6 +5,7 @@ use std::net::{SocketAddr, TcpStream};
 use std::sync::Arc;
 use std::time::Duration;
 
+/// Operational lifecycle states of the embedded Tor daemon.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TorStatus {
     Disabled,
@@ -15,6 +16,7 @@ pub enum TorStatus {
     Error,
 }
 
+/// Telemetry and circuit hop metadata for verified Tor network connections.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TorExitInfo {
     pub is_tor: bool,
@@ -29,6 +31,7 @@ pub struct TorExitInfo {
     pub latency_ms: u32,
 }
 
+/// Configuration parameters for the Tor daemon and proxy ports.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TorConfig {
     pub socks_port: u16,
@@ -50,6 +53,7 @@ impl Default for TorConfig {
     }
 }
 
+/// Controller managing Tor daemon process integration, circuit rotation, and proxy probes.
 #[derive(Clone)]
 pub struct TorController {
     config: Arc<RwLock<TorConfig>>,
@@ -63,6 +67,7 @@ impl Default for TorController {
 }
 
 impl TorController {
+    /// Creates a default disabled `TorController`.
     pub fn new() -> Self {
         Self {
             config: Arc::new(RwLock::new(TorConfig::default())),
@@ -70,8 +75,10 @@ impl TorController {
         }
     }
 
-    /// Performs strict RFC 1928 SOCKS5 Protocol Probe on the specified port.
-    /// Returns true only when 127.0.0.1:port successfully accepts No-Auth handshake (0x05, 0x00).
+    /// Performs a strict RFC 1928 SOCKS5 protocol probe on the specified local port.
+    ///
+    /// Sends a client greeting `[0x05, 0x01, 0x00]` (SOCKS version 5, 1 method: NO_AUTH)
+    /// and expects a valid server response `[0x05, 0x00]`. Returns `true` only upon success.
     pub fn probe_socks5_handshake(port: u16, timeout_ms: u64) -> bool {
         let addr: SocketAddr = match format!("127.0.0.1:{}", port).parse() {
             Ok(a) => a,
@@ -101,7 +108,10 @@ impl TorController {
         response[0] == 0x05 && response[1] == 0x00
     }
 
-    /// Rotates the Tor circuit via Tor Control Port protocol (SIGNAL NEWNYM).
+    /// Rotates the Tor circuit via the Tor Control Port protocol (`SIGNAL NEWNYM`).
+    ///
+    /// Issues an `AUTHENTICATE` command followed by `SIGNAL NEWNYM` to instruct Tor to cease
+    /// reusing existing circuits for new application requests. Generates a fresh circuit identifier.
     pub fn rotate_circuit(control_port: u16, auth: Option<&str>) -> Result<String, String> {
         let addr: SocketAddr = format!("127.0.0.1:{}", control_port)
             .parse()
@@ -150,7 +160,7 @@ impl TorController {
         }
     }
 
-    /// Verifies genuine Tor network exit connectivity and extracts exit node IP with live socket latency.
+    /// Verifies genuine Tor SOCKS5 proxy connectivity and measures handshake roundtrip latency.
     pub fn verify_tor_exit(socks_port: u16) -> Result<TorExitInfo, String> {
         let start = std::time::Instant::now();
         let is_ready = Self::probe_socks5_handshake(socks_port, 1000);
@@ -178,13 +188,18 @@ impl TorController {
         })
     }
 
-    /// Checks if a string or host is an Onion hidden service domain.
+    /// Checks if a string or host is an Onion hidden service domain (`.onion`).
     pub fn is_onion_url(url: &str) -> bool {
         let clean = url.trim().to_lowercase();
         clean.contains(".onion/") || clean.ends_with(".onion") || clean.contains(".onion:")
     }
 
-    /// Normalizes and resolves Tor search queries or .onion URLs.
+    /// Normalizes navigation input inside a Tor browsing session.
+    ///
+    /// - Prepends `http://` for bare `.onion` addresses.
+    /// - Preserves explicitly typed `http://` or `https://` URLs.
+    /// - Prepends `https://` for public domains.
+    /// - Dispatches search keywords to the configured privacy search engine query URL.
     pub fn resolve_tor_url(raw_input: &str, search_engine_query_url: &str) -> String {
         let trimmed = raw_input.trim();
         if trimmed.is_empty() {

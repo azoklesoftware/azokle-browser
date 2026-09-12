@@ -166,6 +166,15 @@ object GeckoEngineManager {
                                     val arr = org.json.JSONArray()
                                     com.azokle.search.adblock.AdBlockEngine.instance.getDisabledHostsList().forEach { arr.put(it) }
                                     put("disabledHosts", arr)
+                                    val exArr = org.json.JSONArray()
+                                    com.azokle.search.adblock.AdClickManager.getActiveExemptions().forEach { ex ->
+                                        exArr.put(JSONObject().apply {
+                                            put("tabId", ex.tabId)
+                                            put("advertiserHost", ex.advertiserHost)
+                                            put("expiresAtMs", ex.expiresAtMs)
+                                        })
+                                    }
+                                    put("adClickExemptions", exArr)
                                 }
                                 "GET_THEME" -> JSONObject().apply {
                                     put("theme", currentThemeMode)
@@ -174,12 +183,15 @@ object GeckoEngineManager {
                                     val url = json.optString("url", "")
                                     val origin = json.optString("origin", "").takeIf { it.isNotBlank() }
                                     val is3p = json.optBoolean("isThirdParty", true)
-                                    val decision = com.azokle.search.core.AzokleCore.shouldBlock(url, origin, is3p)
+                                    val reqType = json.optString("type", "").takeIf { it.isNotBlank() }
+                                    val decision = com.azokle.search.core.AzokleCore.shouldBlock(url, origin, reqType, is3p)
                                     JSONObject().apply {
                                         put("shouldBlock", decision.shouldBlock)
                                         put("category", decision.category)
                                         put("matchedRule", decision.matchedRule)
                                         put("isException", decision.isException)
+                                        put("redirectUrl", decision.redirectUrl)
+                                        put("rewrittenUrl", decision.rewrittenUrl)
                                     }
                                 }
                                 "GET_COSMETIC_CSS" -> {
@@ -224,12 +236,18 @@ object GeckoEngineManager {
                                         try { android.graphics.Color.parseColor(it) } catch (e: Exception) { null }
                                     }
 
-                                    val activeTabId = com.azokle.search.tabs.TabManager.activeTabId.value ?: "active"
-                                    if (fallbackIcon != null) {
+                                    val activeTab = com.azokle.search.tabs.TabManager.activeTab
+                                    val targetTab = if (activeTab != null && (activeTab.url == documentUrl || documentUrl.isBlank())) {
+                                        activeTab
+                                    } else {
+                                        com.azokle.search.tabs.TabManager.tabs.value.find { it.url == documentUrl } ?: activeTab
+                                    }
+                                    val targetTabId = targetTab?.id ?: (com.azokle.search.tabs.TabManager.activeTabId.value ?: "active")
+                                    if (fallbackIcon != null && targetTab != null && targetTab.id == activeTab?.id) {
                                         com.azokle.search.tabs.TabManager.updateActiveTabFavicon(fallbackIcon)
                                     }
                                     com.azokle.search.pwa.PwaManager.onManifestDiscovered(
-                                        tabId = activeTabId,
+                                        tabId = targetTabId,
                                         manifestUrl = manifestUrl,
                                         manifestJson = manifestJson,
                                         documentUrl = documentUrl,
@@ -325,10 +343,39 @@ object GeckoEngineManager {
                 val arr = org.json.JSONArray()
                 com.azokle.search.adblock.AdBlockEngine.instance.getDisabledHostsList().forEach { arr.put(it) }
                 put("disabledHosts", arr)
+                val exArr = org.json.JSONArray()
+                com.azokle.search.adblock.AdClickManager.getActiveExemptions().forEach { ex ->
+                    exArr.put(JSONObject().apply {
+                        put("tabId", ex.tabId)
+                        put("advertiserHost", ex.advertiserHost)
+                        put("expiresAtMs", ex.expiresAtMs)
+                    })
+                }
+                put("adClickExemptions", exArr)
             }
             targetPort.postMessage(payload)
         } catch (e: Exception) {
             android.util.Log.e("GeckoEngineManager", "Failed to push full app status: ${e.message}")
+        }
+    }
+
+    fun notifyAdClickExemptionsChanged(exemptions: List<com.azokle.search.adblock.AdClickExemption>) {
+        try {
+            val payload = JSONObject().apply {
+                put("type", "PUSH_AD_CLICK_EXEMPTIONS")
+                val arr = org.json.JSONArray()
+                exemptions.forEach { ex ->
+                    arr.put(JSONObject().apply {
+                        put("tabId", ex.tabId)
+                        put("advertiserHost", ex.advertiserHost)
+                        put("expiresAtMs", ex.expiresAtMs)
+                    })
+                }
+                put("exemptions", arr)
+            }
+            extensionPort?.postMessage(payload)
+        } catch (e: Exception) {
+            android.util.Log.e("GeckoEngineManager", "Failed to push ad click exemptions: ${e.message}")
         }
     }
 

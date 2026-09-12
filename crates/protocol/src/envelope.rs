@@ -8,18 +8,30 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 static ENVELOPE_SEQ: AtomicU64 = AtomicU64::new(1);
 
+/// Universal message frame utilized across IPC, FFI, and WebExtension protocol bridges.
+///
+/// Encapsulates routing metadata (endpoints, timestamps, unique identifiers) and polymorphic
+/// payloads (commands, events, requests, responses).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ProtocolEnvelope {
+    /// Semantic protocol version used for backward/forward compatibility validation.
     pub version: ProtocolVersion,
+    /// Globally unique message identifier formatted as `msg_{timestamp}_{sequence}`.
     pub message_id: String,
+    /// Optional correlation identifier linking requests with asynchronous responses.
     pub correlation_id: Option<String>,
+    /// Millisecond Unix timestamp when the message was formulated.
     pub timestamp_ms: u64,
+    /// Originating subsystem or process endpoint.
     pub source: MessageEndpoint,
+    /// Destination subsystem or process endpoint.
     pub target: MessageEndpoint,
+    /// Typed message payload containing domain-specific commands or events.
     pub payload: MessagePayload,
 }
 
 impl ProtocolEnvelope {
+    /// Constructs a new message envelope stamped with the current timestamp and protocol version.
     pub fn new(source: MessageEndpoint, target: MessageEndpoint, payload: MessagePayload) -> Self {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -39,18 +51,19 @@ impl ProtocolEnvelope {
         }
     }
 
+    /// Attaches a correlation ID to associate this message with a preceding request.
     pub fn with_correlation(mut self, correlation_id: &str) -> Self {
         self.correlation_id = Some(correlation_id.to_string());
         self
     }
 
-    /// Serializes envelope to canonical JSON string.
+    /// Serializes the envelope to a canonical JSON string.
     pub fn to_json(&self) -> Result<String, ProtocolError> {
         serde_json::to_string(self)
             .map_err(|e| ProtocolError::SerializationFailed(format!("JSON encode error: {}", e)))
     }
 
-    /// Deserializes envelope from JSON string with version validation.
+    /// Deserializes an envelope from a JSON string and validates protocol version compatibility.
     pub fn from_json(json: &str) -> Result<Self, ProtocolError> {
         let envelope: Self = serde_json::from_str(json)
             .map_err(|e| ProtocolError::InvalidEnvelope(format!("JSON decode error: {}", e)))?;
@@ -64,7 +77,7 @@ impl ProtocolEnvelope {
         Ok(envelope)
     }
 
-    /// Serializes envelope to compact binary CBOR bytes.
+    /// Serializes the envelope into compact binary CBOR bytes for high-throughput IPC.
     pub fn to_cbor(&self) -> Result<Vec<u8>, ProtocolError> {
         let mut buf = Vec::new();
         ciborium::into_writer(self, &mut buf)
@@ -72,7 +85,7 @@ impl ProtocolEnvelope {
         Ok(buf)
     }
 
-    /// Deserializes envelope from binary CBOR bytes with version validation.
+    /// Deserializes an envelope from binary CBOR bytes with protocol version negotiation.
     pub fn from_cbor(bytes: &[u8]) -> Result<Self, ProtocolError> {
         let envelope: Self = ciborium::from_reader(bytes)
             .map_err(|e| ProtocolError::InvalidEnvelope(format!("CBOR decode error: {}", e)))?;

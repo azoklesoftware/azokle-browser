@@ -8,7 +8,7 @@ object UrlHelper {
     private val IP_REGEX = Regex("""^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]{1,5})?(/.*)?$""")
     private val IPV6_REGEX = Regex("""^\[(?:[0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}\](?::[0-9]{1,5})?(/.*)?$""")
 
-    private val ALLOWED_SCHEMES = setOf("https", "http", "about")
+    private val ALLOWED_SCHEMES = setOf("https", "http", "about", "azokle")
 
     // Surveillance & Ad-Tech Query Tokens (Brave / Firefox ETP / PrivacyBadger Standard)
     private val TRACKING_PARAMS = hashSetOf(
@@ -107,6 +107,7 @@ object UrlHelper {
         if (trimmed.startsWith("http://", ignoreCase = true) ||
             trimmed.startsWith("https://", ignoreCase = true) ||
             trimmed.startsWith("about:blank", ignoreCase = true) ||
+            trimmed.startsWith("azokle://", ignoreCase = true) ||
             trimmed.startsWith("www.", ignoreCase = true) ||
             trimmed.startsWith("localhost:", ignoreCase = true) ||
             trimmed.startsWith("localhost/", ignoreCase = true) ||
@@ -177,7 +178,8 @@ object UrlHelper {
             val resolvedUrl = when {
                 trimmed.startsWith("http://", ignoreCase = true) ||
                 trimmed.startsWith("https://", ignoreCase = true) ||
-                trimmed.startsWith("about:blank", ignoreCase = true) -> trimmed
+                trimmed.startsWith("about:blank", ignoreCase = true) ||
+                trimmed.startsWith("azokle://", ignoreCase = true) -> trimmed
                 else -> "https://$trimmed"
             }
             return stripTrackingParameters(resolvedUrl)

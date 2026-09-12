@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Azokle Sovereign Tor Network & Onion Router</title>
+  <link rel="stylesheet" href="../../shared/style.css">
+  <style>
+    .circuit-chain {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 24px 0;
+      position: relative;
+    }
+    .node-box {
+      flex: 1;
+      background: rgba(13, 21, 39, 0.9);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      text-align: center;
+      position: relative;
+    }
+    .node-box.active {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 20px rgba(0, 229, 255, 0.15);
+    }
+    .node-role {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--accent-cyan);
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .node-ip {
+      font-size: 14px;
+      font-weight: 600;
+      font-family: monospace;
+      color: #fff;
+    }
+    .node-country {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .circuit-arrow {
+      color: var(--text-muted);
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="webui-container">
+    <header class="webui-header">
+      <div class="webui-title-group">
+        <div class="webui-icon">🧅</div>
+        <div>
+          <h1 class="webui-title">Tor Onion Routing</h1>
+          <p class="webui-subtitle">Sovereign Multi-Hop Anonymity & Circuit Management</p>
+        </div>
+      </div>
+      <button class="btn" id="rotate-circuit">New Tor Identity</button>
+    </header>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="tor-status" style="color: var(--accent-emerald);">CONNECTED</div>
+        <div class="stat-label">SOCKS5 Proxy Status</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="tor-port">9050</div>
+        <div class="stat-label">Local SOCKS5 Port</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="tor-hops">3 HOPS</div>
+        <div class="stat-label">Circuit Length</div>
+      </div>
+    </div>
+
+    <section class="section-card">
+      <h2 class="section-title">Current Tor Circuit</h2>
+      <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+        Your traffic is triple-encrypted across three volunteer relays. The destination server only sees the exit node IP address.
+      </p>
+
+      <div class="circuit-chain">
+        <div class="node-box">
+          <div class="node-role">Browser Client</div>
+          <div class="node-ip">This Device</div>
+          <div class="node-country">Local Host</div>
+        </div>
+        <div class="circuit-arrow">➔</div>
+        <div class="node-box active">
+          <div class="node-role">Guard Relay</div>
+          <div class="node-ip" id="guard-ip">185.220.101.4</div>
+          <div class="node-country" id="guard-loc">Germany</div>
+        </div>
+        <div class="circuit-arrow">➔</div>
+        <div class="node-box active">
+          <div class="node-role">Middle Relay</div>
+          <div class="node-ip" id="middle-ip">198.51.100.22</div>
+          <div class="node-country" id="middle-loc">Iceland</div>
+        </div>
+        <div class="circuit-arrow">➔</div>
+        <div class="node-box active">
+          <div class="node-role">Exit Relay</div>
+          <div class="node-ip" id="exit-ip">192.0.2.89</div>
+          <div class="node-country" id="exit-loc">Switzerland</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-card">
+      <h2 class="section-title">Tor Security Controls</h2>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <h4>Strict .onion DNS Isolation</h4>
+          <p>Prevents .onion addresses from leaking to the operating system's standard DNS resolver</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" checked disabled>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <h4>Automatic Circuit Renewal</h4>
+          <p>Rebuilds the circuit every 10 minutes to prevent traffic correlation attacks</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    document.getElementById('rotate-circuit').addEventListener('click', function() {
+      const btn = this;
+      btn.disabled = true;
+      btn.textContent = 'Rotating Circuit...';
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = 'New Tor Identity';
+        alert('Tor circuit rotated successfully. New sovereign IP assigned.');
+      }, 1200);
+    });
+  </script>
+</body>
+</html>

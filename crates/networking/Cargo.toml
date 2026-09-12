@@ -7,7 +7,7 @@ license.workspace = true
 
 [dependencies]
 azokle-common = { path = "../common" }
-azokle-tracker-block = { path = "../tracker-block" }
+azokle-tracker-block = { path = "../privacy/tracker-block" }
 serde.workspace = true
 serde_json.workspace = true
 parking_lot.workspace = true

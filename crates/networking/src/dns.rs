@@ -6,6 +6,7 @@ use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Instant;
 
+/// Upstream privacy-focused DNS resolver choices.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DnsProvider {
     Cloudflare,
@@ -16,6 +17,7 @@ pub enum DnsProvider {
 }
 
 impl DnsProvider {
+    /// Returns the DNS-over-HTTPS (DoH) JSON/RFC-8484 query endpoint URL.
     pub fn get_doh_url(&self) -> Option<&'static str> {
         match self {
             Self::Cloudflare => Some("https://cloudflare-dns.com/dns-query"),
@@ -26,6 +28,7 @@ impl DnsProvider {
         }
     }
 
+    /// Parses a string identifier into a [`DnsProvider`].
     pub fn from_id(id: &str) -> Self {
         match id.trim().to_lowercase().as_str() {
             "quad9" => Self::Quad9,
@@ -36,6 +39,7 @@ impl DnsProvider {
         }
     }
 
+    /// Canonical identifier string for the provider.
     pub fn id(&self) -> &'static str {
         match self {
             Self::Cloudflare => "cloudflare",
@@ -47,6 +51,7 @@ impl DnsProvider {
     }
 }
 
+/// Thread-safe DNS resolver supporting TTL caching and Tor `.onion` leak prevention.
 #[derive(Clone)]
 pub struct SovereignDnsResolver {
     active_provider: Arc<RwLock<DnsProvider>>,
@@ -61,6 +66,7 @@ impl Default for SovereignDnsResolver {
 }
 
 impl SovereignDnsResolver {
+    /// Creates a resolver configured with Cloudflare DoH and 300-second cache TTL.
     pub fn new() -> Self {
         Self {
             active_provider: Arc::new(RwLock::new(DnsProvider::Cloudflare)),
@@ -69,16 +75,23 @@ impl SovereignDnsResolver {
         }
     }
 
+    /// Updates active DNS provider and purges existing cache entries.
     pub fn set_provider(&self, provider: DnsProvider) {
         *self.active_provider.write() = provider;
         self.cache.write().clear();
     }
 
+    /// Retrieves current active provider configuration.
     pub fn get_provider(&self) -> DnsProvider {
         self.active_provider.read().clone()
     }
 
-    /// Resolves a hostname to IP addresses with strict leak prevention for .onion domains.
+    /// Resolves a hostname to IP addresses with strict leak prevention for `.onion` domains.
+    ///
+    /// # Security Guarantees:
+    /// - Returns [`NetworkError::DnsLeakPrevented`] if host ends with `.onion` to ensure hidden
+    ///   service destinations are NEVER queried through ISP or clearinghouse DNS.
+    /// - Checks in-memory TTL cache before network roundtrips.
     pub fn resolve(&self, host: &str) -> Result<Vec<IpAddr>, NetworkError> {
         let clean = host.trim().to_lowercase();
         if clean.is_empty() {
