@@ -2166,7 +2166,11 @@ private fun BrowserHomeScreenContent(
                         isSponsored = true
                     ),
                     BrowserShortcut("Reddit", "https://www.reddit.com", "https://www.google.com/s2/favicons?domain=reddit.com&sz=128"),
-                    BrowserShortcut("Flipkart", "https://www.flipkart.com", "https://www.google.com/s2/favicons?domain=flipkart.com&sz=128"),
+                    BrowserShortcut(
+                        label = "Azokle Auth",
+                        url = "https://azokle.com/authenticator",
+                        iconResId = com.azokle.search.R.drawable.ic_azokle_auth
+                    ),
                     BrowserShortcut("Kick", "https://kick.com", "https://www.google.com/s2/favicons?domain=kick.com&sz=128"),
                     BrowserShortcut("Azokle", "https://azokle.com", "https://azokle.com/favicon.ico")
                 )
@@ -2258,11 +2262,19 @@ private fun ShortcutTile(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            FaviconImage(
-                url = item.url,
-                faviconUrl = item.faviconUrl,
-                size = 30.dp
-            )
+            if (item.iconResId != null) {
+                androidx.compose.foundation.Image(
+                    painter = androidx.compose.ui.res.painterResource(id = item.iconResId),
+                    contentDescription = item.label,
+                    modifier = Modifier.size(30.dp)
+                )
+            } else {
+                FaviconImage(
+                    url = item.url,
+                    faviconUrl = item.faviconUrl,
+                    size = 30.dp
+                )
+            }
 
             if (item.isSponsored) {
                 Box(
@@ -2311,5 +2323,6 @@ private data class BrowserShortcut(
     val label: String,
     val url: String,
     val faviconUrl: String? = null,
+    val iconResId: Int? = null,
     val isSponsored: Boolean = false
 )
