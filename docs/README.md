@@ -27,7 +27,15 @@ Welcome to the official technical documentation for the **Azokle Sovereign Brows
 - [Swift UniFFI API Reference](api/swift-uniffi-api.md): Swift API contracts for Apple platforms (`UniversalBrowserEngine`, `UniversalFilterDecision`, `UniversalShieldStats`).
 - [Universal IPC Protocol](api/universal-protocol.md): Cross-layer wire protocol, CBOR/JSON envelopes, message contracts, and correlation handling.
 
-### 4. Development & Operations
+### 4. Technical Deep Dives
+- [Mozilla Quantum Internals](deep-dive/gecko-quantum-internals.md): Necko channels, WebRender GPU pipeline, SpiderMonkey JIT realms, and XPCOM messaging.
+- [Shield Filter Compilation & Engine](deep-dive/shield-filter-engine.md): N-gram tokenization, two-tier Bloom filters, CNAME uncloaking, and cosmetic selector compilation.
+- [Tor Onion Routing Mechanics](deep-dive/tor-onion-routing-mechanics.md): Circuit building, ntor key exchange, 512-byte relay cell multiplexing, and v3 hidden service rendezvous.
+- [Sovereign Passkeys & WebAuthn Flow](deep-dive/passkey-webauthn-flow.md): FIDO2/CTAP2 protocols, ECDSA P-256 signatures, CBOR attestation structures, and hardware biometric binding.
+- [Storage Encryption Vault & VFS](deep-dive/storage-encryption-vault.md): Page-level SQLite encryption, Argon2id derivation, IV generation without reuse, and ephemeral RAM scrubbing.
+- [Multi-Platform Presentation Internals](deep-dive/multiplatform-internals.md): Windowing models, DirectComposition, Wayland subsurfaces, Metal layers, and low-memory tab suspension.
+
+### 5. Development & Operations
 - [Getting Started & Prerequisites](development/getting-started.md): Development environment setup, toolchain requirements, and dependencies.
 - [Comprehensive Build Guide](development/build-guide.md): Compiling Cargo crates, CMake desktop engines, Android APKs, and Apple Swift packages.
 - [Testing & Quality Assurance](development/testing-strategy.md): Unit testing, headless verification (`MockBrowserEngine`), fuzzing, and regression suites.
