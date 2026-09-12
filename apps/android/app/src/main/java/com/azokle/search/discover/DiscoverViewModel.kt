@@ -3,9 +3,6 @@ package com.azokle.search.discover
 import android.app.Application
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
-import com.azokle.search.discover.DiscoverCatalog
-import com.azokle.search.discover.DiscoverCategory
-import com.azokle.search.discover.DiscoverItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,9 +12,6 @@ data class DiscoverUiState(
     val selectedCategory: DiscoverCategory = DiscoverCategory.ALL,
     val searchQuery: String = "",
     val topPickItems: List<DiscoverItem> = emptyList(),
-    val featuredItems: List<DiscoverItem> = emptyList(),
-    val gameItems: List<DiscoverItem> = emptyList(),
-    val streamingItems: List<DiscoverItem> = emptyList(),
     val displayedItems: List<DiscoverItem> = emptyList(),
     val favoriteIds: Set<String> = emptySet()
 )
@@ -28,10 +22,7 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
 
     private val _uiState = MutableStateFlow(
         DiscoverUiState(
-            topPickItems = DiscoverCatalog.sponsoredIds.mapNotNull { id -> DiscoverCatalog.items.find { it.id == id } },
-            featuredItems = DiscoverCatalog.items.filter { it.isFeatured },
-            gameItems = DiscoverCatalog.items.filter { it.category == DiscoverCategory.GAMES },
-            streamingItems = DiscoverCatalog.items.filter { it.category == DiscoverCategory.STREAMING },
+            topPickItems = DiscoverCatalog.topPickIds.mapNotNull { id -> DiscoverCatalog.items.find { it.id == id } },
             displayedItems = DiscoverCatalog.items,
             favoriteIds = prefs.getStringSet("favorite_portal_ids", emptySet()) ?: emptySet()
         )

@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -49,18 +48,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.azokle.search.common.components.FaviconImage
-import com.azokle.search.discover.DiscoverCategory
-import com.azokle.search.discover.DiscoverItem
 import com.azokle.search.common.theme.AzokleTheme
-import com.azokle.search.discover.DiscoverViewModel
 
 /**
- * Premium, Clean & Luxury Discover Hub Screen:
- *  - Pure solid background without muddy aura gradients or blotchy top glow.
- *  - Minimalist, confident header area with razor-sharp typography.
- *  - Refined, gradient-free search bar and solid high-contrast category pills.
- *  - Clean, luxury solid cards for Spotlight, Quick Access Dock, and Shelves.
- *  - Authentic high-resolution brand favicons (Poki, CrazyGames, MX Player, miniTV, etc.).
+ * Premium, Clean & Streamlined Discover Screen:
+ *  - Slide section removed (no clunky horizontal carousels or sliding shelves).
+ *  - Top Quick Access Dock featuring ChatGPT, Spotify, Amazon.in as #1, #2, #3.
+ *  - Curated All Portals section directly accessible with authentic high-res favicons.
+ *  - Minimalist search bar, crisp category pills, and zero text emojis.
  */
 @Composable
 fun DiscoverScreen(
@@ -82,13 +77,13 @@ fun DiscoverScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
         ) {
-            // 1. Clean & Minimal Header & Search Bar
+            // 1. Clean & Minimal Header with Integrated Search Bar
             DiscoverLuxuryHeader(
                 searchQuery = uiState.searchQuery,
                 onQueryChange = { viewModel.updateSearchQuery(it) }
             )
 
-            // 2. Refined Solid Category Filter Pills (No Gradients)
+            // 2. Refined Solid Category Filter Pills (No Emojis, High Contrast)
             DiscoverCategorySelector(
                 selectedCategory = uiState.selectedCategory,
                 onSelectCategory = { cat ->
@@ -99,30 +94,17 @@ fun DiscoverScreen(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // 3. Scrollable Content Body
+            // 3. Main Content: Quick Access Dock + All Portals Feed
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
                 contentPadding = PaddingValues(top = 8.dp, bottom = 100.dp)
             ) {
-                // If in "All" view with no active search, show Editorial Spotlight, Quick Access Dock & Shelves
+                // When in "All" view with no search, show the Quick Access Dock first
                 if (uiState.selectedCategory == DiscoverCategory.ALL && uiState.searchQuery.isBlank()) {
-                    // A. Editorial Spotlight Carousel (MX Player, MiniTV, Poki, CrazyGames, etc.)
-                    item(key = "spotlight_carousel") {
-                        SpotlightCarousel(
-                            items = uiState.featuredItems,
-                            onItemClick = { item ->
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onOpenUrl(item.url, item.title)
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(20.dp))
-                    }
-
-                    // B. SPONSORED Springboard Dock
-                    item(key = "sponsored_dock") {
-                        LuxurySectionEyebrow(title = "SPONSORED", count = uiState.topPickItems.size)
+                    item(key = "quick_access_dock") {
+                        LuxurySectionEyebrow(title = "QUICK ACCESS", count = uiState.topPickItems.size)
                         Spacer(modifier = Modifier.height(10.dp))
                         QuickAccessDock(
                             items = uiState.topPickItems,
@@ -131,53 +113,61 @@ fun DiscoverScreen(
                                 onOpenUrl(item.url, item.title)
                             }
                         )
-                        Spacer(modifier = Modifier.height(22.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
                     }
 
-                    // C. Instant Web Games Shelf (Poki, CrazyGames, 1001Games, etc.)
-                    item(key = "games_shelf") {
-                        LuxuryShelfHeader(
-                            title = "Web Games",
-                            actionLabel = "See all",
-                            onActionClick = { viewModel.selectCategory(DiscoverCategory.GAMES) }
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        HorizontalPortalShelf(
-                            items = uiState.gameItems,
-                            onItemClick = { item ->
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onOpenUrl(item.url, item.title)
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(22.dp))
-                    }
-
-                    // D. Free Streaming & MiniTV Shelf (MX Player, MiniTV, Disney+ Hotstar)
-                    item(key = "streaming_shelf") {
-                        LuxuryShelfHeader(
-                            title = "Cinema & Shows",
-                            actionLabel = "See all",
-                            onActionClick = { viewModel.selectCategory(DiscoverCategory.STREAMING) }
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        HorizontalPortalShelf(
-                            items = uiState.streamingItems,
-                            onItemClick = { item ->
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onOpenUrl(item.url, item.title)
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(22.dp))
-                    }
-
-                    // E. All Curated Portals Eyebrow
                     item(key = "all_portals_eyebrow") {
                         LuxurySectionEyebrow(title = "ALL PORTALS", count = uiState.displayedItems.size)
                         Spacer(modifier = Modifier.height(10.dp))
                     }
+                } else if (uiState.searchQuery.isNotBlank()) {
+                    item(key = "search_results_eyebrow") {
+                        LuxurySectionEyebrow(title = "SEARCH RESULTS", count = uiState.displayedItems.size)
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+                } else {
+                    item(key = "category_eyebrow") {
+                        LuxurySectionEyebrow(title = uiState.selectedCategory.label.uppercase(), count = uiState.displayedItems.size)
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
                 }
 
-                // Portals Feed / Filtered Search Results
+                // Empty State if no portals match filter or search
+                if (uiState.displayedItems.isEmpty()) {
+                    item(key = "empty_state") {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = colors.textSecondary.copy(alpha = 0.4f),
+                                    modifier = Modifier.size(36.dp)
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "No portals found",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = colors.textPrimary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Try searching for games, streaming, music, AI or tools",
+                                    fontSize = 12.5.sp,
+                                    color = colors.textSecondary,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // All Portals Feed
                 items(
                     items = uiState.displayedItems,
                     key = { it.id }
@@ -230,7 +220,7 @@ private fun DiscoverLuxuryHeader(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Clean Solid Search Bar (No blur, no messy border glow)
+        // Clean Solid Search Bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -261,7 +251,7 @@ private fun DiscoverLuxuryHeader(
                 decorationBox = { innerTextField ->
                     if (searchQuery.isEmpty()) {
                         Text(
-                            text = "Search web games, streaming, music, AI...",
+                            text = "Search portals, AI, games, music, shopping...",
                             color = colors.textSecondary.copy(alpha = 0.6f),
                             fontSize = 13.5.sp,
                             fontWeight = FontWeight.Normal
@@ -332,142 +322,10 @@ private fun DiscoverCategorySelector(
     }
 }
 
-@Composable
-private fun SpotlightCarousel(
-    items: List<DiscoverItem>,
-    onItemClick: (DiscoverItem) -> Unit
-) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(end = 8.dp)
-    ) {
-        items(items, key = { "spotlight_${it.id}" }) { item ->
-            SpotlightCard(
-                item = item,
-                onClick = { onItemClick(item) }
-            )
-        }
-    }
-}
-
-@Composable
-private fun SpotlightCard(
-    item: DiscoverItem,
-    onClick: () -> Unit
-) {
-    val colors = AzokleTheme.colors
-
-    Box(
-        modifier = Modifier
-            .width(280.dp)
-            .height(148.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(colors.cardBg)
-            .border(0.8.dp, colors.border.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
-            .padding(14.dp)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Top Row: Brand Favicon & Domain & Badge
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(colors.background)
-                            .border(0.8.dp, colors.border.copy(alpha = 0.6f), RoundedCornerShape(10.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        FaviconImage(
-                            url = item.domain.ifBlank { item.url },
-                            faviconUrl = item.faviconUrl,
-                            size = 20.dp
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(9.dp))
-                    Text(
-                        text = item.domain,
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Medium,
-                        color = colors.textSecondary
-                    )
-                }
-
-                item.badge?.let { b ->
-                    Box(
-                        modifier = Modifier
-                            .background(colors.border.copy(alpha = 0.35f), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 7.dp, vertical = 3.dp)
-                    ) {
-                        Text(
-                            text = b,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            fontFamily = FontFamily.Monospace,
-                            color = colors.textPrimary,
-                            letterSpacing = 0.5.sp
-                        )
-                    }
-                }
-            }
-
-            // Bottom Content & Launch Action
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Bottom,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.title,
-                        fontSize = 15.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = item.subtitle,
-                        fontSize = 11.5.sp,
-                        color = colors.textSecondary,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        lineHeight = 15.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(colors.background)
-                        .border(0.8.dp, colors.border.copy(alpha = 0.6f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "Open",
-                        tint = colors.textPrimary,
-                        modifier = Modifier.size(15.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
+/**
+ * Top Quick Access Dock:
+ * Clean 4-column grid featuring top services (ChatGPT, Spotify, Amazon.in at the top positions #1, #2, #3).
+ */
 @Composable
 private fun QuickAccessDock(
     items: List<DiscoverItem>,
@@ -539,122 +397,10 @@ private fun QuickAccessDock(
     }
 }
 
-@Composable
-private fun LuxuryShelfHeader(
-    title: String,
-    actionLabel: String,
-    onActionClick: () -> Unit
-) {
-    val colors = AzokleTheme.colors
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = title,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            color = colors.textPrimary,
-            letterSpacing = (-0.3).sp
-        )
-
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .clickable(onClick = onActionClick)
-                .padding(horizontal = 6.dp, vertical = 4.dp)
-        ) {
-            Text(
-                text = actionLabel,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = colors.textSecondary
-            )
-        }
-    }
-}
-
-@Composable
-private fun HorizontalPortalShelf(
-    items: List<DiscoverItem>,
-    onItemClick: (DiscoverItem) -> Unit
-) {
-    val colors = AzokleTheme.colors
-
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        contentPadding = PaddingValues(end = 8.dp)
-    ) {
-        items(items, key = { "shelf_${it.id}" }) { item ->
-            Column(
-                modifier = Modifier
-                    .width(132.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(colors.cardBg)
-                    .border(0.8.dp, colors.border.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
-                    .clickable { onItemClick(item) }
-                    .padding(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(colors.background)
-                        .border(0.8.dp, colors.border.copy(alpha = 0.6f), RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    FaviconImage(
-                        url = item.domain.ifBlank { item.url },
-                        faviconUrl = item.faviconUrl,
-                        size = 24.dp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = item.title,
-                    fontSize = 12.5.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = colors.textPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Text(
-                    text = item.domain,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace,
-                    color = colors.textSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(26.dp)
-                        .clip(RoundedCornerShape(7.dp))
-                        .background(colors.border.copy(alpha = 0.35f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = item.actionText,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = colors.textPrimary
-                    )
-                }
-            }
-        }
-    }
-}
-
+/**
+ * Clean & Luxury Portal Card:
+ * Full-width card with high-resolution favicon, crisp titles, domain, category badge, and bookmark toggle.
+ */
 @Composable
 private fun LuxuryPortalCard(
     item: DiscoverItem,
