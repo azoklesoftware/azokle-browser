@@ -82,4 +82,24 @@ class AdClickManagerTest {
         assertEquals("tab_1", exemptions[0].tabId)
         assertEquals("store.com", exemptions[0].advertiserHost)
     }
+
+    @Test
+    fun testIsExempt_strictlyScopedToAdvertiserOrAttribution() {
+        val tabId = "tab_100"
+        AdClickManager.registerAdClick(tabId, "https://merchant.com/deal?gclid=xyz")
+
+        // 1. First-party subresource on advertiser site is exempt
+        assertTrue(AdClickManager.isExempt(tabId, "https://merchant.com/deal", "https://merchant.com/style.css"))
+        assertTrue(AdClickManager.isExempt(tabId, "https://merchant.com/deal", "https://cdn.merchant.com/image.png"))
+
+        // 2. Specific conversion attribution endpoint is exempt
+        assertTrue(AdClickManager.isExempt(tabId, "https://merchant.com/deal", "https://googleadservices.com/pagead/conversion/123"))
+        assertTrue(AdClickManager.isExempt(tabId, "https://merchant.com/deal", "https://bat.bing.com/action/0"))
+
+        // 3. Unrelated third-party ad networks or trackers are NEVER exempt
+        assertFalse(AdClickManager.isExempt(tabId, "https://merchant.com/deal", "https://criteo.com/delivery/ajs.php"))
+        assertFalse(AdClickManager.isExempt(tabId, "https://merchant.com/deal", "https://taboola.com/feed"))
+        assertFalse(AdClickManager.isExempt(tabId, "https://merchant.com/deal", "https://facebook.com/tr?id=123"))
+        assertFalse(AdClickManager.isExempt(tabId, "https://merchant.com/deal", "https://analytics.tiktok.com/pixel"))
+    }
 }

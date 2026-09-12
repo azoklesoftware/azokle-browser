@@ -34,7 +34,9 @@
         'zergnet.com', 'contentexchange.me', 'adkernel.com', 'adform.net', 'serving-sys.com',
         'bs.serving-sys.com', 'zemanta.com', 'lijit.com', 'applifier.com',
         'adthrive.com', 'mediavine.com', 'monumetric.com', 'buysellads.com', 'carbonads.net',
-        'chitika.net', 'infolinks.com', 'skimmr.com', 'adroll.com', 'dianomi.com', 'trafficroots.com'
+        'chitika.net', 'infolinks.com', 'skimmr.com', 'adroll.com', 'dianomi.com', 'trafficroots.com',
+        'adtrue.com', 'adversal.com', 'bidvertiser.com', 'clickadu.com', 'hilltopads.com',
+        'juicyads.com', 'popmyads.com', 'richpush.com', 'smartads.ge'
     ]);
 
     var knownTrackerHosts = new Set([
@@ -62,7 +64,9 @@
         'liveramp.com', 'rlcdn.com', 'bluekai.com', 'demdex.net', 'omtrdc.net', 'everesttech.net',
         'exelator.com', 'lotame.com', 'crwdcntrl.net', 'tapad.com', 'neustar.biz', 'intentiq.com',
         'id5-sync.com', 'uidapi.com',
-        'coinhive.com', 'coin-hive.com', 'crypto-loot.com', 'minr.pw', 'webminepool.com'
+        'coinhive.com', 'coin-hive.com', 'crypto-loot.com', 'minr.pw', 'webminepool.com',
+        'criteo.com', 'criteo.net', 'gemini.yahoo.com', 'flurry.com', 'braze.com',
+        'inspectlet.com', 'luckyorange.com', 'smartlook.com', 'sessioncam.com'
     ]);
 
     // High-Precision Third-Party Path Filters (applied only to third-party requests)
@@ -84,11 +88,13 @@
             try { return new URL(url).hostname.toLowerCase(); } catch(e) { return ''; }
         }
         var end = url.indexOf('/', start);
-        var hostWithPort = end === -1 ? url.substring(start) : url.substring(start, end);
+        var authority = end === -1 ? url.substring(start) : url.substring(start, end);
+        var question = authority.indexOf('?');
+        if (question !== -1) authority = authority.substring(0, question);
+        var atIndex = authority.lastIndexOf('@');
+        var hostWithPort = atIndex !== -1 ? authority.substring(atIndex + 1) : authority;
         var colon = hostWithPort.indexOf(':');
         var host = colon === -1 ? hostWithPort : hostWithPort.substring(0, colon);
-        var question = host.indexOf('?');
-        if (question !== -1) host = host.substring(0, question);
         return host.toLowerCase();
     }
 
@@ -215,16 +221,17 @@
     }
 
     // Corporate Parent Entity Graph (TDS Entity Graph)
-    // Allows same-entity resource sharing so 1st-party single sign-on / captchas / cdns don't break
+    // Allows same-entity resource sharing so 1st-party CDNs and media don't break.
+    // NOTE: Advertising and tracking endpoints are strictly excluded from this graph.
     var entityGroups = [
-        // Alphabet / Google
-        new Set(['google.com', 'google.co.uk', 'gstatic.com', 'recaptcha.net', 'youtube.com', 'ytimg.com', 'doubleclick.net', 'googleadservices.com', 'googletagmanager.com', 'google-analytics.com']),
-        // Meta Platforms
+        // Alphabet / Google (Functional CDNs & Media only)
+        new Set(['google.com', 'google.co.uk', 'gstatic.com', 'recaptcha.net', 'youtube.com', 'ytimg.com']),
+        // Meta Platforms (Functional CDNs & Media only)
         new Set(['facebook.com', 'facebook.net', 'fbcdn.net', 'instagram.com', 'cdninstagram.com', 'whatsapp.com']),
-        // Microsoft
-        new Set(['microsoft.com', 'live.com', 'office.com', 'bing.com', 'clarity.ms', 'adnxs.com', 'azure.com', 'azureedge.net']),
-        // Amazon
-        new Set(['amazon.com', 'media-amazon.com', 'ssl-images-amazon.com', 'amazon-adsystem.com', 'a2z.com', 'aws.amazon.com']),
+        // Microsoft (Functional CDNs only)
+        new Set(['microsoft.com', 'live.com', 'office.com', 'bing.com', 'azure.com', 'azureedge.net']),
+        // Amazon (Functional CDNs only)
+        new Set(['amazon.com', 'media-amazon.com', 'ssl-images-amazon.com', 'a2z.com', 'aws.amazon.com']),
         // Apple
         new Set(['apple.com', 'icloud.com', 'mzstatic.com', 'cdn-apple.com'])
     ];
@@ -247,19 +254,30 @@
     }
 
     // Tab-scoped Ad Click Exemptions (Bridged from Kotlin AdClickManager)
+    // DuckDuckGo Ethical Attribution Model: strictly permits conversion reporting for the landing advertiser,
+    // NEVER granting a blanket bypass to third-party ad networks or trackers on that page.
     var activeAdClickExemptions = new Map();
 
+    var attributionEndpoints = new Set([
+        'bat.bing.com', 'adservice.google.com', 'googleadservices.com'
+    ]);
+
     function isAdClickExempt(docHost, host) {
-        if (!docHost || activeAdClickExemptions.size === 0) return false;
+        if (!docHost || !host || activeAdClickExemptions.size === 0) return false;
         var now = Date.now();
         var cleanDoc = docHost.toLowerCase();
+        var cleanTarget = host.toLowerCase();
+
         for (var [key, ex] of activeAdClickExemptions) {
             if (ex.expiresAtMs < now) {
                 activeAdClickExemptions.delete(key);
                 continue;
             }
             if (cleanDoc === ex.advertiserHost || cleanDoc.endsWith('.' + ex.advertiserHost)) {
-                return true;
+                // Only allow advertiser first-party subdomains or specific known conversion attribution endpoints
+                if (cleanTarget === ex.advertiserHost || cleanTarget.endsWith('.' + ex.advertiserHost) || isDomainInSet(cleanTarget, attributionEndpoints)) {
+                    return true;
+                }
             }
         }
         return false;

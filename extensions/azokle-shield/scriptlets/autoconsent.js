@@ -13,7 +13,7 @@
 
     function findAndClickRejectButton() {
         // 1. OneTrust CMP
-        var oneTrustReject = document.querySelector('#onetrust-reject-all-handler, .ot-pc-refuse-all-handler, button#accept-recommended-btn-handler');
+        var oneTrustReject = document.querySelector('#onetrust-reject-all-handler, .ot-pc-refuse-all-handler');
         if (oneTrustReject && isVisible(oneTrustReject)) {
             oneTrustReject.click();
             hideElement('#onetrust-consent-sdk');

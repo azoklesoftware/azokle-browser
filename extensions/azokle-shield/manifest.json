@@ -34,7 +34,6 @@
         "scriptlets/defuser.js",
         "scriptlets/fingerprint_shield.js",
         "scriptlets/autoconsent.js",
-        "scriptlets/ublock-scriptlets.js",
         "content.js"
       ],
       "css": ["cosmetic.css"],

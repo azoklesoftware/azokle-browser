@@ -155,6 +155,10 @@ object AdClickManager {
         return true
     }
 
+    private val ATTRIBUTION_HOSTS = setOf(
+        "bat.bing.com", "adservice.google.com", "googleadservices.com"
+    )
+
     /**
      * Checks whether a subresource request is exempt from blocking due to an active ad click in this tab.
      */
@@ -162,6 +166,7 @@ object AdClickManager {
         if (tabId.isNullOrBlank() || documentUrl.isNullOrBlank() || targetUrl.isNullOrBlank()) return false
 
         val docHost = extractHost(documentUrl) ?: return false
+        val targetHost = extractHost(targetUrl) ?: return false
         val key = "$tabId:$docHost"
         val exemption = activeExemptions[key] ?: return false
 
@@ -172,7 +177,9 @@ object AdClickManager {
             return false
         }
 
-        return true
+        val cleanTarget = targetHost.lowercase().trim()
+        val advHost = exemption.advertiserHost.lowercase().trim()
+        return cleanTarget == advHost || cleanTarget.endsWith(".$advHost") || ATTRIBUTION_HOSTS.any { cleanTarget == it || cleanTarget.endsWith(".$it") }
     }
 
     fun getActiveExemptions(): List<AdClickExemption> {

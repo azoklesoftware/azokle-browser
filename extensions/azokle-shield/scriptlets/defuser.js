@@ -86,35 +86,39 @@
         } catch(e) {}
     }
 
-    // 3. YouTube Ad & Anti-Adblock Defuser
+    // 3. YouTube Ad & Anti-Adblock Defuser (Conforms to GeckoView Browser Security Principles)
     try {
         if (location.hostname.includes('youtube.com')) {
-            var defuseYouTube = function() {
-                // Dismiss anti-adblock modal if displayed
+            var handleYouTubePlayerState = function() {
+                // Dismiss enforcement dialog without destroying polymer DOM trees
                 var dismissBtn = document.querySelector('ytd-enforcement-message-view-model button, yt-playability-error-supported-renderers button');
-                if (dismissBtn) {
+                if (dismissBtn && typeof dismissBtn.click === 'function') {
                     try { dismissBtn.click(); } catch(e) {}
                 }
-                var overlay = document.querySelector('tp-yt-iron-overlay-backdrop, ytd-popup-container');
-                if (overlay && overlay.innerHTML && overlay.innerHTML.includes('ad blocker')) {
-                    overlay.remove();
-                }
 
-                // Fast-forward and skip video ads
-                var video = document.querySelector('video.html5-main-video');
-                var adShowing = document.querySelector('.ad-showing, .ad-interrupting');
-                if (video && adShowing) {
-                    video.muted = true;
-                    if (isFinite(video.duration) && video.duration > 0) {
-                        video.currentTime = video.duration;
-                    }
-                    var skipBtn = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern');
-                    if (skipBtn) {
-                        try { skipBtn.click(); } catch(e) {}
-                    }
+                // If skip button is available, click it immediately
+                var skipBtn = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-ad-skip-button-slot button');
+                if (skipBtn && typeof skipBtn.click === 'function') {
+                    try { skipBtn.click(); } catch(e) {}
                 }
             };
-            setInterval(defuseYouTube, 500);
+
+            // Event-driven observation on player containers rather than battery-draining polling
+            var initObserver = function() {
+                var player = document.getElementById('movie_player') || document.querySelector('.html5-video-player') || document.body;
+                if (player) {
+                    var obs = new MutationObserver(function() {
+                        handleYouTubePlayerState();
+                    });
+                    obs.observe(player, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
+                }
+            };
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initObserver, { once: true });
+            } else {
+                initObserver();
+            }
         }
     } catch(e) {}
 
