@@ -852,11 +852,11 @@ fun PrivacyShieldSheet(
                             if (isShieldActive) {
                                 AdBlockEngine.instance.pauseShieldUntilRelaunch(stats.host)
                                 onShieldToggled()
-                                com.azokle.search.common.components.ToastManager.show("Protections paused for this session 🛡️")
+                                com.azokle.search.common.components.ToastManager.show("Protections paused for this session")
                             } else {
                                 AdBlockEngine.instance.enableShield(stats.host)
                                 onShieldToggled()
-                                com.azokle.search.common.components.ToastManager.show("Protections re-enabled 🛡️")
+                                com.azokle.search.common.components.ToastManager.show("Protections re-enabled")
                             }
                         }
                         .padding(horizontal = 12.dp, vertical = 10.dp),

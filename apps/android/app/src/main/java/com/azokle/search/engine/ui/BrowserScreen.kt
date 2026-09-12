@@ -799,7 +799,7 @@ fun BrowserScreen(
                                         activeTabId?.let { id ->
                                             TabManager.updateTabWallpaper(id, next)
                                         }
-                                        com.azokle.search.common.components.ToastManager.show("Wallpaper refreshed 🌄")
+                                        com.azokle.search.common.components.ToastManager.show("Wallpaper refreshed")
                                     } else if (isLoading) {
                                         geckoSession?.stop()
                                     } else {
@@ -837,7 +837,7 @@ fun BrowserScreen(
                             com.azokle.search.tor.TorCircuitStatusStripe(
                                 onNewCircuit = {
                                     com.azokle.search.tor.TorCircuitManager.requestNewCircuit()
-                                    com.azokle.search.common.components.ToastManager.showTor("Building new 3-hop Tor circuit 🧅...")
+                                    com.azokle.search.common.components.ToastManager.showTor("Building new 3-hop Tor circuit...")
                                 },
                                 onOpenDetails = {
                                     showTorCircuitSheet = true
@@ -990,7 +990,7 @@ fun BrowserScreen(
                                          geckoSession?.loadUri(upgradedUrl)
                                      }
                                      
-                                     com.azokle.search.common.components.ToastManager.show("Tab added to group 📑")
+                                     com.azokle.search.common.components.ToastManager.show("Tab added to group")
                                  },
                                  onLoadErrorChanged = { error ->
                                      currentError = error
@@ -1296,7 +1296,7 @@ fun BrowserScreen(
                         activeTabId?.let { id ->
                             TabManager.updateTabWallpaper(id, next)
                         }
-                        com.azokle.search.common.components.ToastManager.show("Wallpaper refreshed 🌄")
+                        com.azokle.search.common.components.ToastManager.show("Wallpaper refreshed")
                     } else {
                         geckoSession?.reload()
                     }
@@ -1304,7 +1304,7 @@ fun BrowserScreen(
                 onToggleBookmark = {
                     val added = vaultManager.toggleBookmark(currentTitle, currentUrl)
                     com.azokle.search.common.components.ToastManager.showSuccess(
-                        if (added) "Saved to Bookmarks 🔖" else "Removed from Bookmarks"
+                        if (added) "Saved to Bookmarks" else "Removed from Bookmarks"
                     )
                 },
                 onShare = {
@@ -1325,7 +1325,7 @@ fun BrowserScreen(
                     currentError = null
                     geckoSession?.reload()
                     com.azokle.search.common.components.ToastManager.show(
-                        if (newMode) "Desktop site enabled 💻" else "Mobile site enabled 📱"
+                        if (newMode) "Desktop site enabled" else "Mobile site enabled"
                     )
                 },
                 onSaveAsPdf = {
@@ -1339,7 +1339,7 @@ fun BrowserScreen(
                             url = currentUrl
                         ) { file: java.io.File? ->
                             if (file != null) {
-                                com.azokle.search.common.components.ToastManager.show("📄 PDF saved: ${file.name}")
+                                com.azokle.search.common.components.ToastManager.show("PDF saved: ${file.name}")
                             } else {
                                 com.azokle.search.common.components.ToastManager.show("Failed to generate PDF")
                             }
@@ -1675,7 +1675,7 @@ fun BrowserScreen(
                     currentUrl = url
                     currentTitle = title
                     currentError = null
-                    com.azokle.search.common.components.ToastManager.show("Opened in tab group 📑")
+                    com.azokle.search.common.components.ToastManager.show("Opened in tab group")
                 },
                 onOpenInNewTab = { url, title ->
                     // Inherits privacy & Tor isolation from active parent tab
@@ -1687,7 +1687,7 @@ fun BrowserScreen(
                     currentUrl = url
                     currentTitle = title
                     currentError = null
-                    com.azokle.search.common.components.ToastManager.show("Opened in new tab ↗️")
+                    com.azokle.search.common.components.ToastManager.show("Opened in new tab")
                 },
                 onOpenInPrivateTab = { url, title ->
                     // Standalone private tab with NO group
@@ -1696,7 +1696,7 @@ fun BrowserScreen(
                     currentUrl = url
                     currentTitle = title
                     currentError = null
-                    com.azokle.search.common.components.ToastManager.show("Opened in private tab 🕵️")
+                    com.azokle.search.common.components.ToastManager.show("Opened in private tab")
                 },
                 onDismiss = { activeLinkContextTarget = null }
             )
@@ -1721,7 +1721,7 @@ fun BrowserScreen(
                 currentTitle = "Search"
                 currentError = null
                 geckoSession?.loadUri(searchUrl)
-                com.azokle.search.common.components.ToastManager.show("Searching web 🔍")
+                com.azokle.search.common.components.ToastManager.show("Searching web")
             },
             onShareRequested = { selectedText ->
                 activeSharePayload = SharePayload(
@@ -1751,7 +1751,7 @@ fun BrowserScreen(
                             url = currentUrl
                         ) { pdfFile ->
                             if (pdfFile != null) {
-                                com.azokle.search.common.components.ToastManager.showSuccess("Page saved to Downloads 📄")
+                                com.azokle.search.common.components.ToastManager.showSuccess("Page saved to Downloads")
                             } else {
                                 com.azokle.search.common.components.ToastManager.show("Failed to export PDF")
                             }
@@ -1830,7 +1830,7 @@ fun BrowserScreen(
                     showBurnConfirmationSheet = false
                     isBurningData = false
 
-                    com.azokle.search.common.components.ToastManager.showSuccess("All browsing data burned 🔥")
+                    com.azokle.search.common.components.ToastManager.showSuccess("All browsing data cleared")
                 }
             )
         }
@@ -2000,7 +2000,7 @@ fun BrowserScreen(
                                 isPrivate = activePayload.isPrivate,
                                 isTor = activePayload.isTor
                             )
-                            android.widget.Toast.makeText(context, "📥 Downloading ${activePayload.filename}...", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, "Downloading ${activePayload.filename}...", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     ) {
                         androidx.compose.material3.Text(text = "Download", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)

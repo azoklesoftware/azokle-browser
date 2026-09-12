@@ -185,7 +185,7 @@ class AzokleContentDelegate(
                 isPrivate = isPrivate,
                 isTor = isTor
             )
-            Toast.makeText(context, "📥 Downloading $filename...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Downloading $filename...", Toast.LENGTH_SHORT).show()
         }
     }
 

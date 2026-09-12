@@ -453,12 +453,14 @@ class GeckoPromptDelegateImpl(
         }
 
         if (targetUri.isNotBlank()) {
-            val scheme = com.azokle.search.common.util.UrlHelper.extractScheme(targetUri)
-            val dangerousSchemes = setOf("file", "content", "chrome", "resource", "javascript", "data")
-            if (scheme == null || scheme !in dangerousSchemes) {
-                onPopupRequested?.invoke(targetUri)
+            val scheme = com.azokle.search.common.util.UrlHelper.extractScheme(targetUri)?.lowercase()
+            val dangerousSchemes = setOf("file", "content", "chrome", "resource", "javascript")
+            if (scheme != null && scheme in dangerousSchemes) {
+                return GeckoResult.fromValue(prompt.dismiss())
             }
+            onPopupRequested?.invoke(targetUri)
         }
-        return GeckoResult.fromValue(prompt.dismiss())
+        return GeckoResult.fromValue(prompt.confirm(org.mozilla.geckoview.AllowOrDeny.ALLOW))
     }
 }
+

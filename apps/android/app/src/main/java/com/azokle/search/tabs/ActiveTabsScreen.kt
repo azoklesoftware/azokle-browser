@@ -1036,7 +1036,7 @@ fun ActiveTabsScreen(
                     )
                     val newTab = TabManager.tabs.value.find { it.id == newTabId }
                     if (newTab != null) onTabSelected(newTab)
-                    com.azokle.search.common.components.ToastManager.show("Tab group \"$title\" created 📑")
+                    com.azokle.search.common.components.ToastManager.show("Tab group \"$title\" created")
                 },
                 onDismiss = { showCreateGroupDialog = false }
             )
