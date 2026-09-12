@@ -154,13 +154,49 @@ class AzokleNavigationDelegate(
 
     override fun onNewSession(session: GeckoSession, uri: String): GeckoResult<GeckoSession>? {
         if (uri.isNotBlank()) {
-            val scheme = UrlHelper.extractScheme(uri)
-            val dangerousSchemes = setOf("file", "content", "chrome", "resource", "javascript", "data")
-            if (scheme == null || scheme !in dangerousSchemes) {
-                onNewWindowRequested(uri)
+            val scheme = UrlHelper.extractScheme(uri)?.lowercase()
+            val dangerousSchemes = setOf("file", "content", "chrome", "resource", "javascript")
+            if (scheme != null && scheme in dangerousSchemes) {
+                return null
             }
         }
-        return null
+
+        return try {
+            val targetUrl = uri.ifBlank { "about:blank" }
+            val parentId = tabId ?: ""
+            val newTabId = if (parentId.isNotBlank()) {
+                TabManager.openTabFromParent(
+                    url = targetUrl,
+                    title = "New Tab",
+                    parentTabId = parentId,
+                    isPrivate = isPrivate,
+                    isTor = isTor
+                )
+            } else {
+                TabManager.openTab(
+                    url = targetUrl,
+                    title = "New Tab",
+                    isPrivate = isPrivate,
+                    isTor = isTor
+                )
+            }
+
+            val newSession = TabManager.getOrCreateSession(
+                id = newTabId,
+                context = context,
+                isPrivate = isPrivate,
+                isTor = isTor
+            )
+
+            Handler(Looper.getMainLooper()).post {
+                onNewWindowRequested(targetUrl)
+            }
+
+            GeckoResult.fromValue(newSession)
+        } catch (e: Exception) {
+            android.util.Log.e("AzokleNavigationDelegate", "Failed to create new session for window.open / popup: ${e.message}", e)
+            null
+        }
     }
 
     override fun onLoadError(

@@ -46,6 +46,12 @@ object DownloadManager {
      * Extracts or sanitizes a safe filename from a URL or Content-Disposition using native Rust engine.
      */
     fun extractFilename(urlStr: String, contentDisposition: String? = null, mimeType: String? = null): String {
+        if (urlStr.startsWith("data:", ignoreCase = true)) {
+            val detectedMime = mimeType?.takeIf { it.isNotBlank() }
+                ?: urlStr.substringAfter("data:").substringBefore(';').substringBefore(',')
+            val ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(detectedMime) ?: "bin"
+            return "download_${System.currentTimeMillis()}.$ext"
+        }
         return com.azokle.search.core.AzokleCore.extractDownloadFilename(
             urlStr,
             contentDisposition ?: "",
@@ -151,6 +157,27 @@ object DownloadManager {
             var downloaded = targetFile.length()
 
             try {
+                // Handle client-side data: URIs (e.g. data:image/png;base64,... or data:application/pdf,...)
+                if (item.url.startsWith("data:", ignoreCase = true)) {
+                    val commaIndex = item.url.indexOf(',')
+                    if (commaIndex != -1) {
+                        val metadata = item.url.substring(5, commaIndex)
+                        val dataPart = item.url.substring(commaIndex + 1)
+                        val isBase64 = metadata.contains(";base64", ignoreCase = true)
+                        val bytes = if (isBase64) {
+                            android.util.Base64.decode(dataPart, android.util.Base64.DEFAULT)
+                        } else {
+                            java.net.URLDecoder.decode(dataPart, "UTF-8").toByteArray()
+                        }
+                        targetFile.writeBytes(bytes)
+                        publishToPublicDownloads(context, targetFile, item.mimeType, targetFile.name)
+                        updateItemStatus(item.id, DownloadStatus.COMPLETED, bytes.size.toLong(), bytes.size.toLong())
+                        postCompletionNotification(context, item, isSuccess = true)
+                        saveHistory(context)
+                        return@launch
+                    }
+                }
+
                 val isTorActive = item.isTor || com.azokle.search.tor.TorCircuitManager.isTorActive || item.url.contains(".onion", ignoreCase = true)
                 if (isTorActive) {
                     val socksProxy = java.net.Proxy(
@@ -213,7 +240,9 @@ object DownloadManager {
                     }
 
                     outputStream.flush()
+                    publishToPublicDownloads(context, targetFile, item.mimeType, targetFile.name)
                     updateItemStatus(item.id, DownloadStatus.COMPLETED, downloaded, downloaded)
+                    postCompletionNotification(context, item, isSuccess = true)
                     saveHistory(context)
                 } else {
                     val url = URL(item.url)
@@ -266,6 +295,7 @@ object DownloadManager {
                     }
 
                     outputStream.flush()
+                    publishToPublicDownloads(context, targetFile, item.mimeType, targetFile.name)
                     updateItemStatus(item.id, DownloadStatus.COMPLETED, downloaded, downloaded)
                     postCompletionNotification(context, item, isSuccess = true)
                     saveHistory(context)
@@ -385,8 +415,67 @@ object DownloadManager {
             timestamp = System.currentTimeMillis()
         )
         _downloads.update { listOf(item) + it }
+        publishToPublicDownloads(context, file, mimeType, file.name)
         saveHistory(context)
         postCompletionNotification(context, item, isSuccess = true)
+    }
+
+    /**
+     * Publishes a completed download file to the public Android MediaStore (Android 10+ / Q+)
+     * or scans it via MediaScannerConnection (Android 9-).
+     * Returns the destination public file path or URI string.
+     */
+    fun publishToPublicDownloads(context: Context, sourceFile: File, mimeType: String, displayName: String): String {
+        if (!sourceFile.exists() || sourceFile.length() == 0L) return sourceFile.absolutePath
+
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                val resolver = context.contentResolver
+                val contentValues = android.content.ContentValues().apply {
+                    put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, displayName)
+                    put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                    put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Azokle")
+                    put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+
+                val targetUri = resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                if (targetUri != null) {
+                    resolver.openOutputStream(targetUri)?.use { outStream ->
+                        sourceFile.inputStream().use { inStream ->
+                            inStream.copyTo(outStream)
+                        }
+                    }
+                    contentValues.clear()
+                    contentValues.put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0)
+                    resolver.update(targetUri, contentValues, null, null)
+                    Log.i(TAG, "Successfully published download to MediaStore: $targetUri")
+                }
+            } else {
+                try {
+                    val publicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                    if (publicDir.exists() || publicDir.mkdirs()) {
+                        val publicFile = File(publicDir, displayName)
+                        sourceFile.copyTo(publicFile, overwrite = true)
+                        android.media.MediaScannerConnection.scanFile(
+                            context,
+                            arrayOf(publicFile.absolutePath),
+                            arrayOf(mimeType),
+                            null
+                        )
+                    }
+                } catch (e: Exception) {
+                    android.media.MediaScannerConnection.scanFile(
+                        context,
+                        arrayOf(sourceFile.absolutePath),
+                        arrayOf(mimeType),
+                        null
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to publish to MediaStore: ${e.message}")
+        }
+        return sourceFile.absolutePath
     }
 
     /**
