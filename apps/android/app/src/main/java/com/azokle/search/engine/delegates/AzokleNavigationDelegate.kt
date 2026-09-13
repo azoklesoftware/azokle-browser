@@ -181,6 +181,10 @@ class AzokleNavigationDelegate(
                 )
             }
 
+            if (targetUrl.isNotBlank() && !targetUrl.equals("about:blank", ignoreCase = true)) {
+                TabManager.markTabLoaded(newTabId, targetUrl)
+            }
+
             val newSession = TabManager.getOrCreateSession(
                 id = newTabId,
                 context = context,
@@ -188,12 +192,15 @@ class AzokleNavigationDelegate(
                 isTor = isTor
             )
 
-            Handler(Looper.getMainLooper()).post {
-                onNewWindowRequested(targetUrl)
-            }
+            // Switch to the new tab only AFTER GeckoView completes its internal session opening
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (newSession.isOpen && TabManager.activeTabId.value != newTabId) {
+                    TabManager.selectTab(newTabId)
+                }
+            }, 500)
 
             GeckoResult.fromValue(newSession)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             android.util.Log.e("AzokleNavigationDelegate", "Failed to create new session for window.open / popup: ${e.message}", e)
             null
         }

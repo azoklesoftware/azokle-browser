@@ -77,6 +77,7 @@ object GeckoConfigManager {
             appendLine("  content.sink.enable_perf_mode: true")
             appendLine("  layout.css.individual-transform.enabled: true")
             appendLine("  dom.input.autofocus: true")
+            appendLine("  dom.disable_open_during_load: true")
 
             // 5. Media, Video & Audio Hardware Decoding
             appendLine("  media.mediasource.enabled: true")

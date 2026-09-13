@@ -358,7 +358,8 @@ object AzokleCore {
                 redirectUrl = null,
                 rewrittenUrl = null
             )
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            Log.e(TAG, "shouldBlock error: ${e.message}")
             FilterDecision()
         }
     }

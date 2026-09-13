@@ -264,8 +264,8 @@ object GeckoEngineManager {
                                 }
                             }
                             GeckoResult.fromValue<Any>(response.toString())
-                        } catch (e: Exception) {
-                            android.util.Log.e("GeckoEngineManager", "onMessage error: ${e.message}")
+                        } catch (e: Throwable) {
+                            android.util.Log.e("GeckoEngineManager", "onMessage error: ${e.message}", e)
                             GeckoResult.fromValue<Any>("""{"error":"handler_exception"}""")
                         }
                     }
