@@ -97,7 +97,7 @@ public struct BrowserOmnibar: View {
                                     state.selectedSearchEngine = engine
                                 }) {
                                     HStack {
-                                        Text(engine.rawValue)
+                                        Text(engine.name)
                                         if state.selectedSearchEngine == engine {
                                             Image(systemName: "checkmark")
                                         }
@@ -106,16 +106,10 @@ public struct BrowserOmnibar: View {
                             }
                         } label: {
                             HStack(spacing: 3) {
-                                if let asset = state.selectedSearchEngine.assetName {
-                                    Image(asset)
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(width: 16, height: 16)
-                                } else {
-                                    Image(systemName: "magnifyingglass")
-                                        .font(.system(size: 13, weight: .bold))
-                                        .foregroundColor(colors.statusAccent)
-                                }
+                                Image(state.selectedSearchEngine.assetName)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 16, height: 16)
                                 Image(systemName: "chevron.down")
                                     .font(.system(size: 7, weight: .bold))
                                     .foregroundColor(colors.textMuted)

@@ -31,7 +31,7 @@ public struct OmniboxSheet: View {
                                 state.selectedSearchEngine = engine
                             }) {
                                 HStack {
-                                    Text(engine.rawValue)
+                                    Text(engine.name)
                                     if state.selectedSearchEngine == engine {
                                         Image(systemName: "checkmark")
                                     }
@@ -40,16 +40,10 @@ public struct OmniboxSheet: View {
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            if let asset = state.selectedSearchEngine.assetName {
-                                Image(asset)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 18, height: 18)
-                            } else {
-                                Image(systemName: "magnifyingglass")
-                                    .font(.system(size: 15, weight: .semibold))
-                                    .foregroundColor(colors.statusAccent)
-                            }
+                            Image(state.selectedSearchEngine.assetName)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 18, height: 18)
                             Image(systemName: "chevron.down")
                                 .font(.system(size: 9, weight: .bold))
                                 .foregroundColor(colors.textMuted)
@@ -125,7 +119,7 @@ public struct OmniboxSheet: View {
                                         Text(inputText)
                                             .font(.system(size: 15, weight: .medium))
                                             .foregroundColor(colors.textPrimary)
-                                        Text("Search with \(state.selectedSearchEngine.rawValue)")
+                                        Text("Search with \(state.selectedSearchEngine.name)")
                                             .font(.system(size: 12))
                                             .foregroundColor(colors.textSecondary)
                                     }

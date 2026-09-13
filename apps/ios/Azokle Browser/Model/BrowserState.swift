@@ -3,42 +3,74 @@ import SwiftUI
 import Combine
 import WebKit
 
-// MARK: - Search Engine Options
+// MARK: - Search Engine Options (Strict Parity with Android SEARCH_ENGINE_PROVIDERS)
 public enum SearchEngine: String, CaseIterable, Identifiable {
-    case azokle = "Azokle Sovereign"
+    case azokle = "Azokle Search"
     case duckduckgo = "DuckDuckGo"
-    case brave = "Brave"
+    case brave = "Brave Search"
     case startpage = "Startpage"
-    case google = "Google"
-    case bing = "Bing"
+    case mojeek = "Mojeek"
+    case qwant = "Qwant"
 
-    public var id: String { rawValue }
-
-    public func searchUrl(for query: String) -> String {
-        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+    public var id: String {
         switch self {
-        case .azokle:
-            return "https://search.azokle.com/search?q=\(encoded)"
-        case .duckduckgo:
-            return "https://duckduckgo.com/?q=\(encoded)"
-        case .brave:
-            return "https://search.brave.com/search?q=\(encoded)"
-        case .startpage:
-            return "https://www.startpage.com/sp/search?query=\(encoded)"
-        case .google:
-            return "https://www.google.com/search?q=\(encoded)"
-        case .bing:
-            return "https://www.bing.com/search?q=\(encoded)"
+        case .azokle: return "azokle"
+        case .duckduckgo: return "duckduckgo"
+        case .brave: return "brave"
+        case .startpage: return "startpage"
+        case .mojeek: return "mojeek"
+        case .qwant: return "qwant"
         }
     }
 
-    public var assetName: String? {
+    public var name: String { rawValue }
+
+    public var domain: String {
+        switch self {
+        case .azokle: return "search.azokle.com"
+        case .duckduckgo: return "duckduckgo.com"
+        case .brave: return "search.brave.com"
+        case .startpage: return "startpage.com"
+        case .mojeek: return "mojeek.com"
+        case .qwant: return "qwant.com"
+        }
+    }
+
+    public var subtitle: String {
+        switch self {
+        case .azokle: return "Decentralized AI & sovereign privacy search"
+        case .duckduckgo: return "Privacy, simplified. No profiling or tracker tracking"
+        case .brave: return "Independent search index with complete privacy"
+        case .startpage: return "Private search engine with Google-grade indexing"
+        case .mojeek: return "Independent web crawler with complete search privacy"
+        case .qwant: return "European privacy search with zero profiling or ad-tracking"
+        }
+    }
+
+    public var queryUrl: String {
+        switch self {
+        case .azokle: return "https://search.azokle.com/search?q="
+        case .duckduckgo: return "https://duckduckgo.com/?q="
+        case .brave: return "https://search.brave.com/search?q="
+        case .startpage: return "https://www.startpage.com/sp/search?query="
+        case .mojeek: return "https://www.mojeek.com/search?q="
+        case .qwant: return "https://www.qwant.com/?q="
+        }
+    }
+
+    public func searchUrl(for query: String) -> String {
+        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        return "\(queryUrl)\(encoded)"
+    }
+
+    public var assetName: String {
         switch self {
         case .azokle: return "ic_engine_azokle"
         case .duckduckgo: return "ic_engine_duckduckgo"
         case .brave: return "ic_engine_brave"
         case .startpage: return "ic_engine_startpage"
-        default: return nil
+        case .mojeek: return "ic_engine_mojeek"
+        case .qwant: return "ic_engine_qwant"
         }
     }
 }

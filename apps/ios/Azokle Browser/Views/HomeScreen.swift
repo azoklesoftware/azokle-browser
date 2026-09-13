@@ -96,16 +96,10 @@ public struct HomeScreen: View {
                     HStack(spacing: 10) {
                         // Search Engine Indicator
                         HStack(spacing: 4) {
-                            if let asset = state.selectedSearchEngine.assetName {
-                                Image(asset)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 18, height: 18)
-                            } else {
-                                Image(systemName: "magnifyingglass")
-                                    .font(.system(size: 15, weight: .bold))
-                                    .foregroundColor(colors.statusAccent)
-                            }
+                            Image(state.selectedSearchEngine.assetName)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 18, height: 18)
                             Image(systemName: "chevron.down")
                                 .font(.system(size: 8, weight: .bold))
                                 .foregroundColor(colors.textMuted)

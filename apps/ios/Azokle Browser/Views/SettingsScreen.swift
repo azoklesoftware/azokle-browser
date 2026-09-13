@@ -12,21 +12,36 @@ public struct SettingsScreen: View {
                 colors.background.ignoresSafeArea()
 
                 List {
-                    // 1. Search Engine
+                    // 1. Search Engine (Exact Android SEARCH_ENGINE_PROVIDERS Parity)
                     Section(header: Text("SEARCH ENGINE").foregroundColor(colors.textMuted)) {
                         ForEach(SearchEngine.allCases) { engine in
                             Button(action: {
                                 state.selectedSearchEngine = engine
                             }) {
-                                HStack {
-                                    Text(engine.rawValue)
-                                        .foregroundColor(colors.textPrimary)
+                                HStack(spacing: 12) {
+                                    Image(engine.assetName)
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 22, height: 22)
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(engine.name)
+                                            .font(.system(size: 15, weight: .semibold))
+                                            .foregroundColor(colors.textPrimary)
+                                        Text(engine.subtitle)
+                                            .font(.system(size: 11))
+                                            .foregroundColor(colors.textSecondary)
+                                            .lineLimit(1)
+                                    }
+
                                     Spacer()
                                     if state.selectedSearchEngine == engine {
                                         Image(systemName: "checkmark")
+                                            .font(.system(size: 14, weight: .bold))
                                             .foregroundColor(colors.statusAccent)
                                     }
                                 }
+                                .padding(.vertical, 3)
                             }
                         }
                     }
