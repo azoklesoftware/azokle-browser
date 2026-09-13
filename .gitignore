@@ -37,3 +37,10 @@ scratch/
 playground-demo/
 .planning/
 assets/Azokle Search /
+
+# iOS / Xcode
+*.xcuserstate
+project.xcworkspace/xcuserdata/
+xcuserdata/
+DerivedData/
+*.xcbkptlist
