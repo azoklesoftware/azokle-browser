@@ -76,8 +76,11 @@ object GeckoConfigManager {
             appendLine("  content.notify.backoffcount: 5")
             appendLine("  content.sink.enable_perf_mode: true")
             appendLine("  layout.css.individual-transform.enabled: true")
+            appendLine("  layout.css.font-display.enabled: true")
+            appendLine("  layout.css.webkit-scrollbar.enabled: true")
             appendLine("  dom.input.autofocus: true")
             appendLine("  dom.disable_open_during_load: true")
+            appendLine("  dom.vibrator.enabled: true")
 
             // 5. Media, Video & Audio Hardware Decoding
             appendLine("  media.mediasource.enabled: true")
@@ -93,6 +96,8 @@ object GeckoConfigManager {
             appendLine("  media.autoplay.default: 0")
             appendLine("  media.autoplay.blocking_policy: 0")
             appendLine("  media.eme.enabled: true")
+            appendLine("  media.webspeech.recognition.enable: true")
+            appendLine("  media.webspeech.recognition.force_enable: true")
 
             // 6. Advanced Web APIs: Async Clipboard, WebXR, WebAuthn
             appendLine("  dom.events.asyncClipboard.readText: true")

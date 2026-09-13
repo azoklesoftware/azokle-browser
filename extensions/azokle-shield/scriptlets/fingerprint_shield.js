@@ -135,4 +135,38 @@
             }
         }
     } catch (e) {}
+
+    // 4. Modern Web Standards Compatibility Shims
+    try {
+        if (typeof window.webkitStorageInfo === 'undefined' && navigator.storage && navigator.storage.estimate) {
+            window.webkitStorageInfo = {
+                TEMPORARY: 0,
+                PERSISTENT: 1,
+                queryUsageAndQuota: function(type, successCallback, errorCallback) {
+                    navigator.storage.estimate().then(function(estimate) {
+                        if (typeof successCallback === 'function') {
+                            successCallback(estimate.usage || 0, estimate.quota || 0);
+                        }
+                    }).catch(function(err) {
+                        if (typeof errorCallback === 'function') errorCallback(err);
+                    });
+                },
+                requestQuota: function(type, newQuotaInBytes, successCallback, errorCallback) {
+                    if (typeof successCallback === 'function') {
+                        successCallback(newQuotaInBytes);
+                    }
+                }
+            };
+        }
+    } catch (e) {}
+
+    // 5. Input Search Event Dispatcher for WebKit compatibility
+    try {
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' && event.target && event.target.tagName === 'INPUT' && event.target.type === 'search') {
+                var searchEvt = new CustomEvent('search', { bubbles: true, cancelable: true });
+                event.target.dispatchEvent(searchEvt);
+            }
+        }, true);
+    } catch (e) {}
 })();

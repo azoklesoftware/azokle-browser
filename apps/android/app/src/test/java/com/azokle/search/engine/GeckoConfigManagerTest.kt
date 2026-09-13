@@ -32,6 +32,9 @@ class GeckoConfigManagerTest {
         assertTrue(yaml.contains("browser.cache.memory.capacity: 65536"))
         assertTrue(yaml.contains("content.notify.interval: 15000"))
         assertTrue(yaml.contains("content.notify.ontimer: true"))
+        assertTrue(yaml.contains("layout.css.font-display.enabled: true"))
+        assertTrue(yaml.contains("layout.css.webkit-scrollbar.enabled: true"))
+        assertTrue(yaml.contains("dom.vibrator.enabled: true"))
 
         // Media & Hardware Video Decoding
         assertTrue(yaml.contains("media.mediasource.enabled: true"))
@@ -41,6 +44,8 @@ class GeckoConfigManagerTest {
         assertTrue(yaml.contains("media.hardware-video-decoding.enabled: true"))
         assertTrue(yaml.contains("media.autoplay.default: 0"))
         assertTrue(yaml.contains("media.eme.enabled: true"))
+        assertTrue(yaml.contains("media.webspeech.recognition.enable: true"))
+        assertTrue(yaml.contains("media.webspeech.recognition.force_enable: true"))
 
         // WebRTC Leak Prevention & Local IP Protection
         assertTrue(yaml.contains("media.peerconnection.ice.no_host: true"))
