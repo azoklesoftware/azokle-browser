@@ -106,9 +106,16 @@ public struct BrowserOmnibar: View {
                             }
                         } label: {
                             HStack(spacing: 3) {
-                                Image(systemName: "magnifyingglass")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(colors.statusAccent)
+                                if let asset = state.selectedSearchEngine.assetName {
+                                    Image(asset)
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 16, height: 16)
+                                } else {
+                                    Image(systemName: "magnifyingglass")
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundColor(colors.statusAccent)
+                                }
                                 Image(systemName: "chevron.down")
                                     .font(.system(size: 7, weight: .bold))
                                     .foregroundColor(colors.textMuted)

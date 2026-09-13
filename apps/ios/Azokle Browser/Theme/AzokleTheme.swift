@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreText
 
 // MARK: - Color Hex Initializer
 extension Color {
@@ -111,3 +112,33 @@ struct AzokleRadius {
     static let large: CGFloat = 20.0
     static let pill: CGFloat = 999.0
 }
+
+// MARK: - Custom Typography & Audiowide Font Registration
+public enum AzokleFonts {
+    private static let _registerOnce: Void = {
+        let fontNames = ["audiowide_regular"]
+        for fontName in fontNames {
+            let fontURL = Bundle.main.url(forResource: fontName, withExtension: "ttf")
+                ?? Bundle.main.url(forResource: fontName, withExtension: "ttf", subdirectory: "Fonts")
+                ?? Bundle.main.url(forResource: fontName, withExtension: "ttf", subdirectory: "Resources/Fonts")
+            
+            if let url = fontURL {
+                var error: Unmanaged<CFError>?
+                CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error)
+            }
+        }
+    }()
+
+    public static func registerCustomFonts() {
+        _ = _registerOnce
+    }
+}
+
+extension Font {
+    /// Audiowide Brand Logo Typography matching Android AudiowideFontFamily
+    public static func audiowide(size: CGFloat) -> Font {
+        AzokleFonts.registerCustomFonts()
+        return Font.custom("Audiowide-Regular", size: size)
+    }
+}
+

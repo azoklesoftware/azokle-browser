@@ -40,9 +40,16 @@ public struct OmniboxSheet: View {
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(colors.statusAccent)
+                            if let asset = state.selectedSearchEngine.assetName {
+                                Image(asset)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 18, height: 18)
+                            } else {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundColor(colors.statusAccent)
+                            }
                             Image(systemName: "chevron.down")
                                 .font(.system(size: 9, weight: .bold))
                                 .foregroundColor(colors.textMuted)

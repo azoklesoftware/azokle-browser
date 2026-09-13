@@ -9,6 +9,10 @@ import SwiftUI
 
 @main
 struct Azokle_BrowserApp: App {
+    init() {
+        AzokleFonts.registerCustomFonts()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

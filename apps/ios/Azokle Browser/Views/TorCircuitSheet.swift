@@ -23,9 +23,16 @@ public struct TorCircuitSheet: View {
                                 .fill(colors.statusTor.opacity(0.18))
                                 .frame(width: 68, height: 68)
 
-                            Image(systemName: "network.badge.shield.half.filled")
-                                .font(.system(size: 32))
-                                .foregroundColor(colors.statusTor)
+                            if UIImage(named: "ic_tor") != nil {
+                                Image("ic_tor")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 44, height: 44)
+                            } else {
+                                Image(systemName: "network.badge.shield.half.filled")
+                                    .font(.system(size: 32))
+                                    .foregroundColor(colors.statusTor)
+                            }
                         }
 
                         Text("Tor Onion Circuit")

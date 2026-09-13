@@ -29,36 +29,62 @@ public struct HomeScreen: View {
         BrowserShortcut(label: "Amazon", url: "https://www.amazon.com", faviconUrl: "https://www.google.com/s2/favicons?domain=amazon.com&sz=128", isSponsored: true),
         BrowserShortcut(label: "Trip", url: "https://www.trip.com", faviconUrl: "https://www.google.com/s2/favicons?domain=trip.com&sz=128", isSponsored: true),
         BrowserShortcut(label: "Reddit", url: "https://www.reddit.com", faviconUrl: "https://www.google.com/s2/favicons?domain=reddit.com&sz=128"),
-        BrowserShortcut(label: "Azokle Auth", url: "https://azokle.com/authenticator", iconName: "key.fill"),
+        BrowserShortcut(label: "Azokle Auth", url: "https://azokle.com/authenticator", iconName: "ic_azokle_auth"),
         BrowserShortcut(label: "Kick", url: "https://kick.com", faviconUrl: "https://www.google.com/s2/favicons?domain=kick.com&sz=128"),
-        BrowserShortcut(label: "Azokle", url: "https://search.azokle.com", iconName: "shield.fill")
+        BrowserShortcut(label: "Azokle", url: "https://search.azokle.com", iconName: "ic_engine_azokle")
     ]
 
     public var body: some View {
         ZStack {
-            // 1. Wallpaper Backdrop with Vignette Gradient Scrims
+            // 1. High-Resolution Photographic Wallpaper Backdrop (Android WallpaperManager Parity)
             colors.background.ignoresSafeArea()
 
-            LinearGradient(
-                colors: [
-                    Color.black.opacity(0.65),
-                    Color.black.opacity(0.15),
-                    Color.black.opacity(0.70)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+            Image("bg_home_1")
+                .resizable()
+                .scaledToFill()
+                .ignoresSafeArea()
+
+            // Status Bar & Navigation Scrims
+            VStack {
+                // Top Status Bar Scrim (100dp)
+                LinearGradient(
+                    colors: [
+                        Color.black.opacity(0.60),
+                        Color.black.opacity(0.20),
+                        Color.clear
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 110)
+                .ignoresSafeArea()
+
+                Spacer()
+
+                // Bottom Navigation Scrim (140dp)
+                LinearGradient(
+                    colors: [
+                        Color.clear,
+                        Color.black.opacity(0.35),
+                        Color.black.opacity(0.70)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 150)
+                .ignoresSafeArea()
+            }
             .ignoresSafeArea()
 
             // 2. Center Content Stack
             VStack(spacing: 0) {
                 Spacer()
 
-                // Lowercase Brand Logo
+                // Audiowide Brand Logo in Lowercase (Exact match to Android)
                 Text("azokle")
-                    .font(.system(size: 52, weight: .heavy, design: .rounded))
+                    .font(.audiowide(size: 52))
                     .foregroundColor(.white)
-                    .tracking(-1.5)
+                    .tracking(-1.0)
                     .shadow(color: Color.black.opacity(0.5), radius: 8, x: 0, y: 4)
 
                 Spacer().frame(height: 24)
@@ -70,9 +96,16 @@ public struct HomeScreen: View {
                     HStack(spacing: 10) {
                         // Search Engine Indicator
                         HStack(spacing: 4) {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundColor(colors.statusAccent)
+                            if let asset = state.selectedSearchEngine.assetName {
+                                Image(asset)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 18, height: 18)
+                            } else {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(colors.statusAccent)
+                            }
                             Image(systemName: "chevron.down")
                                 .font(.system(size: 8, weight: .bold))
                                 .foregroundColor(colors.textMuted)
@@ -138,9 +171,16 @@ public struct HomeScreen: View {
                         .shadow(color: Color.black.opacity(0.25), radius: 6, x: 0, y: 3)
 
                     if let iconName = shortcut.iconName {
-                        Image(systemName: iconName)
-                            .font(.system(size: 22))
-                            .foregroundColor(colors.statusAccent)
+                        if UIImage(named: iconName) != nil {
+                            Image(iconName)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 28, height: 28)
+                        } else {
+                            Image(systemName: iconName)
+                                .font(.system(size: 22))
+                                .foregroundColor(colors.statusAccent)
+                        }
                     } else if let faviconUrl = shortcut.faviconUrl, let url = URL(string: faviconUrl) {
                         AsyncImage(url: url) { phase in
                             switch phase {

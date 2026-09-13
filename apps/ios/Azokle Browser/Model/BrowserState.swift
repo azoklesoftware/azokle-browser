@@ -31,6 +31,16 @@ public enum SearchEngine: String, CaseIterable, Identifiable {
             return "https://www.bing.com/search?q=\(encoded)"
         }
     }
+
+    public var assetName: String? {
+        switch self {
+        case .azokle: return "ic_engine_azokle"
+        case .duckduckgo: return "ic_engine_duckduckgo"
+        case .brave: return "ic_engine_brave"
+        case .startpage: return "ic_engine_startpage"
+        default: return nil
+        }
+    }
 }
 
 // MARK: - Tab Filter Mode

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
+  <path d="M80,10 A70,70 0 1,0 80,150 A70,70 0 1,0 80,10 Z" fill="none" />
+  <path d="M80,26 L124,46 L124,96 L80,134 L36,96 L36,46 Z" fill="none" stroke="#38BDF8" stroke-width="2.5" />
+  <path d="M80,48 L108,62 L108,98 L80,116 L52,98 L52,62 Z" fill="none" stroke="#818CF8" stroke-width="1.5" />
+  <path d="M80,68 A7,7 0 1,0 80,82 A7,7 0 1,0 80,68 Z M76,82 L84,82 L86,96 L74,96 Z" fill="#FFFFFF" />
+</svg>
