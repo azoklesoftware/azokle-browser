@@ -99,10 +99,22 @@ public struct PrivacyShieldSheet: View {
                         .cornerRadius(AzokleRadius.medium)
                     }
 
-                    // 4. Lifetime Stats Callout
-                    HStack(spacing: 16) {
-                        statBox(title: "Trackers Blocked", count: "\(state.totalTrackersBlocked)", color: colors.statusSuccess)
-                        statBox(title: "Ads Suppressed", count: "\(state.totalAdsBlocked)", color: colors.statusAccent)
+                    // 4. Lifetime Stats Callout (Mirroring Android AdBlockStats.kt)
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("CUMULATIVE SHIELD SAVINGS")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(colors.textMuted)
+                            .padding(.horizontal, 4)
+
+                        HStack(spacing: 12) {
+                            statBox(title: "Trackers Blocked", count: "\(AdBlockStats.shared.lifetimeTrackersBlocked)", color: colors.statusSuccess)
+                            statBox(title: "Ads Suppressed", count: "\(AdBlockStats.shared.lifetimeAdsBlocked)", color: colors.statusAccent)
+                        }
+
+                        HStack(spacing: 12) {
+                            statBox(title: "Data Saved", count: String(format: "%.1f MB", AdBlockStats.shared.estimatedDataSavedMB), color: colors.statusTor)
+                            statBox(title: "Time Saved", count: String(format: "%.1f s", AdBlockStats.shared.estimatedTimeSavedSeconds), color: colors.statusWarning)
+                        }
                     }
                 }
                 .padding(20)

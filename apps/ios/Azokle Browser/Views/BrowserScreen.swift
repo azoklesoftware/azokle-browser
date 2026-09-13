@@ -166,6 +166,53 @@ public struct BrowserScreen: View {
         .fullScreenCover(isPresented: $state.showOnboarding) {
             OnboardingScreen(isPresented: $state.showOnboarding, state: state)
         }
+        .sheet(isPresented: $state.showPasskeyVaultSheet) {
+            PasskeyVaultSheet(state: state, isPresented: $state.showPasskeyVaultSheet)
+        }
+        .sheet(isPresented: $state.showAzoklePlayerPrompt) {
+            AzoklePlayerPromptSheet(
+                videoUrl: state.activeVideoUrl,
+                onWatchInPlayer: { remember in
+                    if remember { state.playerMode = .always }
+                    state.showAzoklePlayer = true
+                },
+                onWatchOnPlatform: { remember in
+                    if remember { state.playerMode = .disabled }
+                },
+                isPresented: $state.showAzoklePlayerPrompt
+            )
+        }
+        .fullScreenCover(isPresented: $state.showAzoklePlayer) {
+            AzoklePlayerSheet(
+                videoId: state.activeVideoId,
+                originalUrl: state.activeVideoUrl,
+                isPresented: $state.showAzoklePlayer
+            )
+        }
+        .fullScreenCover(isPresented: $state.showReaderScreen) {
+            if let article = state.readerArticleContent {
+                ReaderModeScreen(article: article, isPresented: $state.showReaderScreen)
+            }
+        }
+        .fullScreenCover(isPresented: $state.showTorConnectScreen) {
+            TorConnectScreen(state: state, isPresented: $state.showTorConnectScreen)
+        }
+        .sheet(isPresented: $state.showProUpgradeSheet) {
+            ProUpgradeSheet(isPresented: $state.showProUpgradeSheet)
+        }
+        .fullScreenCover(item: $state.activeThreatAssessment) { threat in
+            SafeBrowsingWarningOverlay(
+                threat: threat,
+                onBackToSafety: {
+                    state.activeThreatAssessment = nil
+                },
+                onBypass: {
+                    SafeBrowsingGuard.shared.bypassThreatForSession(host: threat.host)
+                    state.activeThreatAssessment = nil
+                    state.navigateActiveTab(to: threat.url)
+                }
+            )
+        }
         .onAppear {
             let hasOnboarded = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
             if !hasOnboarded {

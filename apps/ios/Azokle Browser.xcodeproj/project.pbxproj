@@ -43,6 +43,18 @@
 		C10100010000000000000007 /* PwaInstallBottomSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100010000000000000007 /* PwaInstallBottomSheet.swift */; };
 		C10100010000000000000008 /* OnboardingScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100010000000000000008 /* OnboardingScreen.swift */; };
 		C10100010000000000000009 /* SuggestionsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100010000000000000009 /* SuggestionsSheet.swift */; };
+		C20100010000000000000001 /* AzoklePlayerHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20100010000000000000001 /* AzoklePlayerHelper.swift */; };
+		C20100010000000000000002 /* PasskeyItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20100010000000000000002 /* PasskeyItem.swift */; };
+		C20100010000000000000003 /* ArticleContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20100010000000000000003 /* ArticleContent.swift */; };
+		C20100010000000000000004 /* AdBlockStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20100010000000000000004 /* AdBlockStats.swift */; };
+		C20100010000000000000005 /* SafeBrowsingGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20100010000000000000005 /* SafeBrowsingGuard.swift */; };
+		C20100010000000000000006 /* AzoklePlayerPromptSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20100010000000000000006 /* AzoklePlayerPromptSheet.swift */; };
+		C20100010000000000000007 /* AzoklePlayerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20100010000000000000007 /* AzoklePlayerSheet.swift */; };
+		C20100010000000000000008 /* PasskeyVaultSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20100010000000000000008 /* PasskeyVaultSheet.swift */; };
+		C20100010000000000000009 /* ReaderModeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20100010000000000000009 /* ReaderModeScreen.swift */; };
+		C2010001000000000000000A /* TorConnectScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2010001000000000000000A /* TorConnectScreen.swift */; };
+		C2010001000000000000000B /* SafeBrowsingWarningOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2010001000000000000000B /* SafeBrowsingWarningOverlay.swift */; };
+		C2010001000000000000000C /* ProUpgradeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2010001000000000000000C /* ProUpgradeSheet.swift */; };
 		99812033B8BD7CDC0C7E876A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CC3340C45202B29152467289 /* Assets.xcassets */; };
 		77F64868BF35BABF693845E1 /* audiowide_regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 8E67E77BA70C82C0F061FB51 /* audiowide_regular.ttf */; };
 /* End PBXBuildFile section */
@@ -85,6 +97,18 @@
 		D10100010000000000000007 /* PwaInstallBottomSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PwaInstallBottomSheet.swift"; sourceTree = "<group>"; };
 		D10100010000000000000008 /* OnboardingScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OnboardingScreen.swift"; sourceTree = "<group>"; };
 		D10100010000000000000009 /* SuggestionsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SuggestionsSheet.swift"; sourceTree = "<group>"; };
+		D20100010000000000000001 /* AzoklePlayerHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AzoklePlayerHelper.swift"; sourceTree = "<group>"; };
+		D20100010000000000000002 /* PasskeyItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PasskeyItem.swift"; sourceTree = "<group>"; };
+		D20100010000000000000003 /* ArticleContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ArticleContent.swift"; sourceTree = "<group>"; };
+		D20100010000000000000004 /* AdBlockStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AdBlockStats.swift"; sourceTree = "<group>"; };
+		D20100010000000000000005 /* SafeBrowsingGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SafeBrowsingGuard.swift"; sourceTree = "<group>"; };
+		D20100010000000000000006 /* AzoklePlayerPromptSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AzoklePlayerPromptSheet.swift"; sourceTree = "<group>"; };
+		D20100010000000000000007 /* AzoklePlayerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AzoklePlayerSheet.swift"; sourceTree = "<group>"; };
+		D20100010000000000000008 /* PasskeyVaultSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PasskeyVaultSheet.swift"; sourceTree = "<group>"; };
+		D20100010000000000000009 /* ReaderModeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ReaderModeScreen.swift"; sourceTree = "<group>"; };
+		D2010001000000000000000A /* TorConnectScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TorConnectScreen.swift"; sourceTree = "<group>"; };
+		D2010001000000000000000B /* SafeBrowsingWarningOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SafeBrowsingWarningOverlay.swift"; sourceTree = "<group>"; };
+		D2010001000000000000000C /* ProUpgradeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ProUpgradeSheet.swift"; sourceTree = "<group>"; };
 		CC3340C45202B29152467289 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Assets.xcassets"; sourceTree = "<group>"; };
 		8E67E77BA70C82C0F061FB51 /* audiowide_regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "audiowide_regular.ttf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -130,6 +154,9 @@
 				D54F69F09B77466C371809F0 /* BrowserState.swift */,
 				F987552751BB7003F2F4B3C0 /* BrowserTab.swift */,
 				D10100010000000000000001 /* TabGroup.swift */,
+				D20100010000000000000002 /* PasskeyItem.swift */,
+				D20100010000000000000003 /* ArticleContent.swift */,
+				D20100010000000000000004 /* AdBlockStats.swift */,
 			);
 			path = "Model";
 			sourceTree = "<group>";
@@ -138,8 +165,17 @@
 			isa = PBXGroup;
 			children = (
 				D10100010000000000000002 /* ScriptletSignatureValidator.swift */,
+				D20100010000000000000005 /* SafeBrowsingGuard.swift */,
 			);
 			path = "Security";
+			sourceTree = "<group>";
+		};
+		E20100010000000000000001 /* Media */ = {
+			isa = PBXGroup;
+			children = (
+				D20100010000000000000001 /* AzoklePlayerHelper.swift */,
+			);
+			path = "Media";
 			sourceTree = "<group>";
 		};
 		136AA85951D85D2ABADC94F9 /* Engine */ = {
@@ -181,6 +217,13 @@
 				D10100010000000000000007 /* PwaInstallBottomSheet.swift */,
 				D10100010000000000000008 /* OnboardingScreen.swift */,
 				D10100010000000000000009 /* SuggestionsSheet.swift */,
+				D20100010000000000000006 /* AzoklePlayerPromptSheet.swift */,
+				D20100010000000000000007 /* AzoklePlayerSheet.swift */,
+				D20100010000000000000008 /* PasskeyVaultSheet.swift */,
+				D20100010000000000000009 /* ReaderModeScreen.swift */,
+				D2010001000000000000000A /* TorConnectScreen.swift */,
+				D2010001000000000000000B /* SafeBrowsingWarningOverlay.swift */,
+				D2010001000000000000000C /* ProUpgradeSheet.swift */,
 			);
 			path = "Views";
 			sourceTree = "<group>";
@@ -193,6 +236,7 @@
 				7999BCA23EC4E9B2C00838D3 /* Theme */,
 				5FBDDD8D8F0A83C001DDD25A /* Model */,
 				E10100010000000000000001 /* Security */,
+				E20100010000000000000001 /* Media */,
 				136AA85951D85D2ABADC94F9 /* Engine */,
 				C454586A1F4E28C340BDC1AD /* Views */,
 				CC3340C45202B29152467289 /* Assets.xcassets */,
@@ -306,6 +350,18 @@
 				C10100010000000000000007 /* PwaInstallBottomSheet.swift in Sources */,
 				C10100010000000000000008 /* OnboardingScreen.swift in Sources */,
 				C10100010000000000000009 /* SuggestionsSheet.swift in Sources */,
+				C20100010000000000000001 /* AzoklePlayerHelper.swift in Sources */,
+				C20100010000000000000002 /* PasskeyItem.swift in Sources */,
+				C20100010000000000000003 /* ArticleContent.swift in Sources */,
+				C20100010000000000000004 /* AdBlockStats.swift in Sources */,
+				C20100010000000000000005 /* SafeBrowsingGuard.swift in Sources */,
+				C20100010000000000000006 /* AzoklePlayerPromptSheet.swift in Sources */,
+				C20100010000000000000007 /* AzoklePlayerSheet.swift in Sources */,
+				C20100010000000000000008 /* PasskeyVaultSheet.swift in Sources */,
+				C20100010000000000000009 /* ReaderModeScreen.swift in Sources */,
+				C2010001000000000000000A /* TorConnectScreen.swift in Sources */,
+				C2010001000000000000000B /* SafeBrowsingWarningOverlay.swift in Sources */,
+				C2010001000000000000000C /* ProUpgradeSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

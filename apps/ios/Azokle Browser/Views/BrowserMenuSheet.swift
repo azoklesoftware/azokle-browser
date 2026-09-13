@@ -182,6 +182,28 @@ public struct BrowserMenuSheet: View {
                         state.showDiscoverScreen = true
                     }
 
+                    menuItem(icon: "doc.plaintext", label: "Reader View") {
+                        isPresented = false
+                        if let tab = state.activeTab {
+                            state.triggerReaderMode(for: tab)
+                        }
+                    }
+
+                    menuItem(icon: "key.fill", label: "Passkeys", color: colors.statusAccent) {
+                        isPresented = false
+                        state.showPasskeyVaultSheet = true
+                    }
+
+                    menuItem(icon: "network", label: "Tor Cockpit", color: colors.statusTor) {
+                        isPresented = false
+                        state.showTorConnectScreen = true
+                    }
+
+                    menuItem(icon: "crown.fill", label: "Azokle Pro", color: colors.statusAccent) {
+                        isPresented = false
+                        state.showProUpgradeSheet = true
+                    }
+
                     menuItem(icon: "flame.fill", label: "Burn Data", color: colors.statusFire) {
                         isPresented = false
                         state.showBurnConfirmation = true
@@ -192,7 +214,7 @@ public struct BrowserMenuSheet: View {
             }
         }
         .background(colors.cardBg)
-        .presentationDetents([.fraction(0.55), .large])
+        .presentationDetents([.fraction(0.68), .large])
     }
 
     private func quickActionButton(icon: String, label: String, isEnabled: Bool = true, action: @escaping () -> Void) -> some View {

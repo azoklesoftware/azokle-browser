@@ -263,6 +263,20 @@ public class BrowserState: ObservableObject {
     @Published public var showSuggestionsSheet: Bool = false
     @Published public var activeTabGroupForDetail: TabGroup? = nil
 
+    // Advanced Ported Modules (Azokle Player, Passkey, Reader, Tor, SafeBrowsing, Pro)
+    @Published public var passkeys: [PasskeyItem] = []
+    @Published public var showPasskeyVaultSheet: Bool = false
+    @Published public var showAzoklePlayerPrompt: Bool = false
+    @Published public var showAzoklePlayer: Bool = false
+    @Published public var activeVideoUrl: String = ""
+    @Published public var activeVideoId: String = ""
+    @Published public var showTorConnectScreen: Bool = false
+    @Published public var showProUpgradeSheet: Bool = false
+    @Published public var activeThreatAssessment: ThreatAssessment? = nil
+    @Published public var readerArticleContent: ArticleContent? = nil
+    @Published public var showReaderScreen: Bool = false
+    @Published public var playerMode: AzoklePlayerMode = .ask
+
     // History, Bookmarks, Downloads
     @Published public var history: [HistoryItem] = []
     @Published public var bookmarks: [BookmarkItem] = []
@@ -295,6 +309,56 @@ public class BrowserState: ObservableObject {
             BookmarkItem(url: "https://en.wikipedia.org", title: "Wikipedia", dateAdded: Date()),
             BookmarkItem(url: "https://github.com", title: "GitHub", dateAdded: Date())
         ]
+
+        // Populate standard sample passkeys
+        self.passkeys = [
+            PasskeyItem(rpId: "github.com", userName: "azokle-developer"),
+            PasskeyItem(rpId: "apple.com", userName: "developer@azokle.com"),
+            PasskeyItem(rpId: "google.com", userName: "azokle.sovereign")
+        ]
+
+        // Populate sample downloads
+        self.downloads = [
+            DownloadItem(fileName: "tor-browser-manual.pdf", url: "https://torproject.org/manual.pdf", fileSize: "2.4 MB", date: Date()),
+            DownloadItem(fileName: "azokle-privacy-manifest.json", url: "https://azokle.com/manifest.json", fileSize: "18 KB", date: Date())
+        ]
+    }
+
+    public func addBookmark(title: String, url: String) {
+        let item = BookmarkItem(url: url, title: title, dateAdded: Date())
+        self.bookmarks.insert(item, at: 0)
+    }
+
+    public func addPasskey(rpId: String, userName: String) {
+        let item = PasskeyItem(rpId: rpId, userName: userName)
+        self.passkeys.append(item)
+    }
+
+    public func deletePasskey(id: UUID) {
+        self.passkeys.removeAll { $0.id == id }
+    }
+
+    public func openVideoInPlayer(url: String, videoId: String) {
+        self.activeVideoUrl = url
+        self.activeVideoId = videoId
+        self.showAzoklePlayer = true
+    }
+
+    public func triggerReaderMode(for tab: BrowserTab) {
+        let sampleArticle = ArticleContent(
+            title: tab.title.isEmpty ? "Distraction-Free Article" : tab.title,
+            byline: "Azokle Sovereign Reader",
+            domain: URL(string: tab.url)?.host ?? "",
+            excerpt: "Sovereign Reader Mode strips tracking scripts, advertisement canvases, and cosmetic clutter.",
+            paragraphs: [
+                "The web was originally designed as an open, decentralized medium for sharing knowledge and ideas without surveillance.",
+                "In modern web browsing, pages often load megabytes of invasive behavioral tracking code, third-party analytics telemetry, and distracting ad units that drain device battery and memory.",
+                "Azokle Sovereign Reader restores the focus directly to the written text, formatting content in typography designed for readability with zero network beacons or user profiling."
+            ],
+            estimatedReadingTimeMinutes: 3
+        )
+        self.readerArticleContent = sampleArticle
+        self.showReaderScreen = true
     }
 
     // MARK: - Tab Management
@@ -402,6 +466,25 @@ public class BrowserState: ObservableObject {
             }
         } else {
             targetUrl = selectedSearchEngine.searchUrl(for: trimmed)
+        }
+
+        // 1. SafeBrowsing Heuristic Threat Assessment (Android SafeBrowsingGuard Parity)
+        let threat = SafeBrowsingGuard.shared.assessUrl(targetUrl)
+        if threat.isThreat {
+            self.activeThreatAssessment = threat
+            return
+        }
+
+        // 2. Azokle Sovereign Player Interception (Android AzoklePlayerHelper Parity)
+        if AzoklePlayerHelper.isEligibleVideoUrl(targetUrl), let videoId = AzoklePlayerHelper.extractVideoId(targetUrl) {
+            self.activeVideoUrl = targetUrl
+            self.activeVideoId = videoId
+            if playerMode == .always {
+                self.showAzoklePlayer = true
+                return
+            } else if playerMode == .ask {
+                self.showAzoklePlayerPrompt = true
+            }
         }
 
         if let index = tabs.firstIndex(where: { $0.id == activeTabId }) {

@@ -238,31 +238,58 @@ public struct SettingsScreen: View {
                             }
                         }
 
-                        // Passkeys & Biometrics
+                        // Passkeys & Biometrics (Tap opens PasskeyVaultSheet)
+                        Button(action: {
+                            state.showPasskeyVaultSheet = true
+                        }) {
+                            HStack {
+                                Image(systemName: "touchid")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(colors.statusAccent)
+                                    .frame(width: 24)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Passkeys & Biometrics")
+                                        .font(.system(size: 15))
+                                        .foregroundColor(colors.textPrimary)
+                                    Text("FIDO2 WebAuthn & FaceID Vault (\(state.passkeys.count) keys)")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(colors.textMuted)
+                                }
+
+                                Spacer()
+
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(colors.textMuted)
+                            }
+                            .padding(.vertical, 2)
+                        }
+
+                        // Azokle Sovereign Player Mode (Android Parity)
                         HStack {
-                            Image(systemName: "touchid")
+                            Image(systemName: "play.circle.fill")
                                 .font(.system(size: 16))
-                                .foregroundColor(colors.statusAccent)
+                                .foregroundColor(colors.statusTor)
                                 .frame(width: 24)
 
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Passkeys & Biometrics")
+                                Text("Azokle Sovereign Player")
                                     .font(.system(size: 15))
                                     .foregroundColor(colors.textPrimary)
-                                Text("FIDO2 WebAuthn & FaceID Vault")
+                                Text("Ad-free, zero-cookie YouTube & Vimeo")
                                     .font(.system(size: 11))
                                     .foregroundColor(colors.textMuted)
                             }
 
                             Spacer()
 
-                            Text("Active")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(colors.statusSuccess)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(colors.statusSuccess.opacity(0.15))
-                                .cornerRadius(6)
+                            Picker("Player Mode", selection: $state.playerMode) {
+                                Text("Ask").tag(AzoklePlayerMode.ask)
+                                Text("Always").tag(AzoklePlayerMode.always)
+                                Text("Off").tag(AzoklePlayerMode.disabled)
+                            }
+                            .pickerStyle(MenuPickerStyle())
                         }
                         .padding(.vertical, 2)
 
@@ -346,6 +373,19 @@ public struct SettingsScreen: View {
                             Spacer()
                             Text("RFC 8828 / Tor 3-Hop Onion")
                                 .foregroundColor(colors.statusTor)
+                        }
+
+                        Button(action: {
+                            isPresented = false
+                            state.showProUpgradeSheet = true
+                        }) {
+                            HStack {
+                                Image(systemName: "crown.fill")
+                                    .foregroundColor(colors.statusAccent)
+                                    .frame(width: 24)
+                                Text("Azokle Pro Membership")
+                                    .foregroundColor(colors.statusAccent)
+                            }
                         }
 
                         Button(action: {
