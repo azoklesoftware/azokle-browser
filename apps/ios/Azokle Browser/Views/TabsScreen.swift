@@ -61,6 +61,19 @@ public struct TabsScreen: View {
                             .clipShape(Circle())
                     }
 
+                    // New Tab Group Button
+                    Button(action: {
+                        let newGroup = state.createTabGroup(title: "New Group")
+                        state.activeTabGroupForDetail = newGroup
+                    }) {
+                        Image(systemName: "folder.badge.plus")
+                            .font(.system(size: 14))
+                            .foregroundColor(colors.statusAccent)
+                            .padding(8)
+                            .background(colors.surfaceElevated)
+                            .clipShape(Circle())
+                    }
+
                     Spacer()
 
                     // 3-Way Segmented Pill Switcher with Counts
@@ -168,6 +181,103 @@ public struct TabsScreen: View {
                         }
                         Spacer()
                     }
+                } else if state.selectedTabMode == .standard && !state.tabGroups.isEmpty {
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            // Render Tab Groups (Mirroring Android ActiveTabsScreen.kt)
+                            ForEach(state.tabGroups) { group in
+                                let groupTabs = filteredTabs.filter { group.tabIds.contains($0.id) }
+                                VStack(alignment: .leading, spacing: 10) {
+                                    HStack(spacing: 8) {
+                                        Circle()
+                                            .fill(Color(hex: group.colorHex))
+                                            .frame(width: 12, height: 12)
+
+                                        Text(group.title)
+                                            .font(.system(size: 15, weight: .bold))
+                                            .foregroundColor(colors.textPrimary)
+
+                                        Text("\(groupTabs.count)")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundColor(colors.textSecondary)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(colors.surfaceElevated)
+                                            .cornerRadius(8)
+
+                                        Spacer()
+
+                                        Button(action: {
+                                            state.activeTabGroupForDetail = group
+                                        }) {
+                                            Image(systemName: "pencil")
+                                                .font(.system(size: 12, weight: .semibold))
+                                                .foregroundColor(colors.textSecondary)
+                                                .padding(6)
+                                                .background(colors.surfaceElevated)
+                                                .clipShape(Circle())
+                                        }
+
+                                        Button(action: {
+                                            withAnimation {
+                                                state.toggleTabGroupCollapse(id: group.id)
+                                            }
+                                        }) {
+                                            Image(systemName: group.isCollapsed ? "chevron.right" : "chevron.down")
+                                                .font(.system(size: 12, weight: .semibold))
+                                                .foregroundColor(colors.textMuted)
+                                                .padding(6)
+                                        }
+                                    }
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 8)
+                                    .background(Color(hex: group.colorHex).opacity(0.14))
+                                    .cornerRadius(AzokleRadius.small)
+
+                                    if !group.isCollapsed {
+                                        if groupTabs.isEmpty {
+                                            Text("No tabs in this group. Tap the pencil icon to manage tabs.")
+                                                .font(.system(size: 12))
+                                                .foregroundColor(colors.textMuted)
+                                                .padding(.horizontal, 14)
+                                                .padding(.vertical, 6)
+                                        } else {
+                                            LazyVGrid(columns: [
+                                                GridItem(.flexible(), spacing: 14),
+                                                GridItem(.flexible(), spacing: 14)
+                                            ], spacing: 14) {
+                                                ForEach(groupTabs) { tab in
+                                                    tabCard(tab: tab, groupColorHex: group.colorHex)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Ungrouped Tabs Section
+                            let groupedIds = Set(state.tabGroups.flatMap { $0.tabIds })
+                            let ungroupedTabs = filteredTabs.filter { !groupedIds.contains($0.id) }
+                            if !ungroupedTabs.isEmpty {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("Ungrouped Tabs")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundColor(colors.textMuted)
+                                        .padding(.horizontal, 4)
+
+                                    LazyVGrid(columns: [
+                                        GridItem(.flexible(), spacing: 14),
+                                        GridItem(.flexible(), spacing: 14)
+                                    ], spacing: 14) {
+                                        ForEach(ungroupedTabs) { tab in
+                                            tabCard(tab: tab)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .padding(16)
+                    }
                 } else {
                     ScrollView {
                         LazyVGrid(columns: [
@@ -225,15 +335,21 @@ public struct TabsScreen: View {
         }
     }
 
-    private func tabCard(tab: BrowserTab) -> some View {
+    private func tabCard(tab: BrowserTab, groupColorHex: UInt32? = nil) -> some View {
         let isSelected = tab.id == state.activeTabId
 
         return VStack(spacing: 0) {
             // Card Header (Favicon + Title + Close Button)
             HStack(spacing: 8) {
-                Image(systemName: "globe")
-                    .font(.system(size: 12))
-                    .foregroundColor(colors.statusAccent)
+                if let groupColorHex = groupColorHex {
+                    Circle()
+                        .fill(Color(hex: groupColorHex))
+                        .frame(width: 8, height: 8)
+                } else {
+                    Image(systemName: "globe")
+                        .font(.system(size: 12))
+                        .foregroundColor(colors.statusAccent)
+                }
 
                 Text(tab.title)
                     .font(.system(size: 12, weight: .semibold))
@@ -298,7 +414,7 @@ public struct TabsScreen: View {
         .clipShape(RoundedRectangle(cornerRadius: AzokleRadius.medium))
         .overlay(
             RoundedRectangle(cornerRadius: AzokleRadius.medium)
-                .stroke(isSelected ? colors.statusAccent : colors.border, lineWidth: isSelected ? 2 : 1)
+                .stroke(isSelected ? (groupColorHex != nil ? Color(hex: groupColorHex!) : colors.statusAccent) : colors.border, lineWidth: isSelected ? 2 : 1)
         )
         .shadow(color: Color.black.opacity(0.3), radius: 6, x: 0, y: 3)
     }

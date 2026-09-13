@@ -251,6 +251,18 @@ public class BrowserState: ObservableObject {
     @Published public var sitePermissions: [String: [SitePermissionType: SitePermissionState]] = [:]
     @Published public var siteShieldOverrides: [String: Bool] = [:]
 
+    // Feature Modules Parity
+    @Published public var tabGroups: [TabGroup] = []
+    @Published public var selectedWallpaper: String = "bg_home_1"
+    @Published public var selectedLanguageCode: String = "en"
+    @Published public var showVoiceSearch: Bool = false
+    @Published public var showChooseEngineSheet: Bool = false
+    @Published public var showLanguageSheet: Bool = false
+    @Published public var showPwaSheet: Bool = false
+    @Published public var showOnboarding: Bool = false
+    @Published public var showSuggestionsSheet: Bool = false
+    @Published public var activeTabGroupForDetail: TabGroup? = nil
+
     // History, Bookmarks, Downloads
     @Published public var history: [HistoryItem] = []
     @Published public var bookmarks: [BookmarkItem] = []
@@ -609,6 +621,37 @@ public class BrowserState: ObservableObject {
             WKWebsiteDataStore.default().removeData(ofTypes: dataTypes, for: matching) {
                 print("[AzokleIos] Cleared site storage for \(clean)")
             }
+        }
+    }
+
+    // MARK: - Tab Group Management
+    public func createTabGroup(title: String, colorHex: UInt32 = 0x38BDF8, tabIds: [UUID] = []) -> TabGroup {
+        let newGroup = TabGroup(title: title, colorHex: colorHex, tabIds: tabIds)
+        tabGroups.append(newGroup)
+        return newGroup
+    }
+
+    public func deleteTabGroup(id: UUID) {
+        tabGroups.removeAll { $0.id == id }
+    }
+
+    public func toggleTabGroupCollapse(id: UUID) {
+        if let index = tabGroups.firstIndex(where: { $0.id == id }) {
+            tabGroups[index].isCollapsed.toggle()
+        }
+    }
+
+    public func addTabToGroup(tabId: UUID, groupId: UUID) {
+        if let index = tabGroups.firstIndex(where: { $0.id == groupId }) {
+            if !tabGroups[index].tabIds.contains(tabId) {
+                tabGroups[index].tabIds.append(tabId)
+            }
+        }
+    }
+
+    public func removeTabFromGroup(tabId: UUID, groupId: UUID) {
+        if let index = tabGroups.firstIndex(where: { $0.id == groupId }) {
+            tabGroups[index].tabIds.removeAll { $0 == tabId }
         }
     }
 }

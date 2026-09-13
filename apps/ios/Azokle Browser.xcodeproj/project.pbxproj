@@ -34,6 +34,15 @@
 		A10100010000000000000004 /* LinkContextMenuSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10100010000000000000004 /* LinkContextMenuSheet.swift */; };
 		A10100010000000000000005 /* BrowserShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10100010000000000000005 /* BrowserShareSheet.swift */; };
 		A10100010000000000000006 /* FindInPageBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10100010000000000000006 /* FindInPageBar.swift */; };
+		C10100010000000000000001 /* TabGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100010000000000000001 /* TabGroup.swift */; };
+		C10100010000000000000002 /* ScriptletSignatureValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100010000000000000002 /* ScriptletSignatureValidator.swift */; };
+		C10100010000000000000003 /* VoiceSearchModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100010000000000000003 /* VoiceSearchModal.swift */; };
+		C10100010000000000000004 /* ChooseSearchEngineSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100010000000000000004 /* ChooseSearchEngineSheet.swift */; };
+		C10100010000000000000005 /* ChooseLanguageSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100010000000000000005 /* ChooseLanguageSheet.swift */; };
+		C10100010000000000000006 /* TabGroupDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100010000000000000006 /* TabGroupDetailSheet.swift */; };
+		C10100010000000000000007 /* PwaInstallBottomSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100010000000000000007 /* PwaInstallBottomSheet.swift */; };
+		C10100010000000000000008 /* OnboardingScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100010000000000000008 /* OnboardingScreen.swift */; };
+		C10100010000000000000009 /* SuggestionsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10100010000000000000009 /* SuggestionsSheet.swift */; };
 		99812033B8BD7CDC0C7E876A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CC3340C45202B29152467289 /* Assets.xcassets */; };
 		77F64868BF35BABF693845E1 /* audiowide_regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 8E67E77BA70C82C0F061FB51 /* audiowide_regular.ttf */; };
 /* End PBXBuildFile section */
@@ -67,6 +76,15 @@
 		B10100010000000000000004 /* LinkContextMenuSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinkContextMenuSheet.swift"; sourceTree = "<group>"; };
 		B10100010000000000000005 /* BrowserShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserShareSheet.swift"; sourceTree = "<group>"; };
 		B10100010000000000000006 /* FindInPageBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FindInPageBar.swift"; sourceTree = "<group>"; };
+		D10100010000000000000001 /* TabGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TabGroup.swift"; sourceTree = "<group>"; };
+		D10100010000000000000002 /* ScriptletSignatureValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ScriptletSignatureValidator.swift"; sourceTree = "<group>"; };
+		D10100010000000000000003 /* VoiceSearchModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VoiceSearchModal.swift"; sourceTree = "<group>"; };
+		D10100010000000000000004 /* ChooseSearchEngineSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChooseSearchEngineSheet.swift"; sourceTree = "<group>"; };
+		D10100010000000000000005 /* ChooseLanguageSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChooseLanguageSheet.swift"; sourceTree = "<group>"; };
+		D10100010000000000000006 /* TabGroupDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TabGroupDetailSheet.swift"; sourceTree = "<group>"; };
+		D10100010000000000000007 /* PwaInstallBottomSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PwaInstallBottomSheet.swift"; sourceTree = "<group>"; };
+		D10100010000000000000008 /* OnboardingScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OnboardingScreen.swift"; sourceTree = "<group>"; };
+		D10100010000000000000009 /* SuggestionsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SuggestionsSheet.swift"; sourceTree = "<group>"; };
 		CC3340C45202B29152467289 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Assets.xcassets"; sourceTree = "<group>"; };
 		8E67E77BA70C82C0F061FB51 /* audiowide_regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "audiowide_regular.ttf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -111,8 +129,17 @@
 			children = (
 				D54F69F09B77466C371809F0 /* BrowserState.swift */,
 				F987552751BB7003F2F4B3C0 /* BrowserTab.swift */,
+				D10100010000000000000001 /* TabGroup.swift */,
 			);
 			path = "Model";
+			sourceTree = "<group>";
+		};
+		E10100010000000000000001 /* Security */ = {
+			isa = PBXGroup;
+			children = (
+				D10100010000000000000002 /* ScriptletSignatureValidator.swift */,
+			);
+			path = "Security";
 			sourceTree = "<group>";
 		};
 		136AA85951D85D2ABADC94F9 /* Engine */ = {
@@ -147,6 +174,13 @@
 				B10100010000000000000004 /* LinkContextMenuSheet.swift */,
 				B10100010000000000000005 /* BrowserShareSheet.swift */,
 				B10100010000000000000006 /* FindInPageBar.swift */,
+				D10100010000000000000003 /* VoiceSearchModal.swift */,
+				D10100010000000000000004 /* ChooseSearchEngineSheet.swift */,
+				D10100010000000000000005 /* ChooseLanguageSheet.swift */,
+				D10100010000000000000006 /* TabGroupDetailSheet.swift */,
+				D10100010000000000000007 /* PwaInstallBottomSheet.swift */,
+				D10100010000000000000008 /* OnboardingScreen.swift */,
+				D10100010000000000000009 /* SuggestionsSheet.swift */,
 			);
 			path = "Views";
 			sourceTree = "<group>";
@@ -158,6 +192,7 @@
 				0A8C13525269D9F9FAC9D986 /* ContentView.swift */,
 				7999BCA23EC4E9B2C00838D3 /* Theme */,
 				5FBDDD8D8F0A83C001DDD25A /* Model */,
+				E10100010000000000000001 /* Security */,
 				136AA85951D85D2ABADC94F9 /* Engine */,
 				C454586A1F4E28C340BDC1AD /* Views */,
 				CC3340C45202B29152467289 /* Assets.xcassets */,
@@ -262,6 +297,15 @@
 				A10100010000000000000004 /* LinkContextMenuSheet.swift in Sources */,
 				A10100010000000000000005 /* BrowserShareSheet.swift in Sources */,
 				A10100010000000000000006 /* FindInPageBar.swift in Sources */,
+				C10100010000000000000001 /* TabGroup.swift in Sources */,
+				C10100010000000000000002 /* ScriptletSignatureValidator.swift in Sources */,
+				C10100010000000000000003 /* VoiceSearchModal.swift in Sources */,
+				C10100010000000000000004 /* ChooseSearchEngineSheet.swift in Sources */,
+				C10100010000000000000005 /* ChooseLanguageSheet.swift in Sources */,
+				C10100010000000000000006 /* TabGroupDetailSheet.swift in Sources */,
+				C10100010000000000000007 /* PwaInstallBottomSheet.swift in Sources */,
+				C10100010000000000000008 /* OnboardingScreen.swift in Sources */,
+				C10100010000000000000009 /* SuggestionsSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

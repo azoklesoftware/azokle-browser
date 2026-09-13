@@ -90,21 +90,10 @@ public struct BrowserOmnibar: View {
                                 .frame(width: 24, height: 24)
                         }
                     } else {
-                        // Search Engine Selector Menu on Home
-                        Menu {
-                            ForEach(SearchEngine.allCases) { engine in
-                                Button(action: {
-                                    state.selectedSearchEngine = engine
-                                }) {
-                                    HStack {
-                                        Text(engine.name)
-                                        if state.selectedSearchEngine == engine {
-                                            Image(systemName: "checkmark")
-                                        }
-                                    }
-                                }
-                            }
-                        } label: {
+                        // Search Engine Selector on Home (Tap opens ChooseSearchEngineSheet)
+                        Button(action: {
+                            state.showChooseEngineSheet = true
+                        }) {
                             HStack(spacing: 3) {
                                 Image(state.selectedSearchEngine.assetName)
                                     .resizable()
@@ -186,7 +175,7 @@ public struct BrowserOmnibar: View {
                     } else {
                         Button(action: {
                             triggerHaptic()
-                            state.showOmniboxSheet = true
+                            state.showVoiceSearch = true
                         }) {
                             Image(systemName: "mic.fill")
                                 .font(.system(size: 14))

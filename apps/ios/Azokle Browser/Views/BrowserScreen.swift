@@ -138,5 +138,39 @@ public struct BrowserScreen: View {
         .sheet(item: $state.activeLinkContext) { context in
             LinkContextMenuSheet(target: context, state: state)
         }
+        .sheet(isPresented: $state.showVoiceSearch) {
+            VoiceSearchModal(isPresented: $state.showVoiceSearch, state: state)
+        }
+        .sheet(isPresented: $state.showChooseEngineSheet) {
+            ChooseSearchEngineSheet(isPresented: $state.showChooseEngineSheet, state: state)
+        }
+        .sheet(isPresented: $state.showLanguageSheet) {
+            ChooseLanguageSheet(isPresented: $state.showLanguageSheet, state: state)
+        }
+        .sheet(isPresented: $state.showPwaSheet) {
+            PwaInstallBottomSheet(isPresented: $state.showPwaSheet, state: state)
+        }
+        .sheet(isPresented: $state.showSuggestionsSheet) {
+            SuggestionsSheet(isPresented: $state.showSuggestionsSheet, state: state)
+        }
+        .sheet(item: $state.activeTabGroupForDetail) { group in
+            TabGroupDetailSheet(
+                group: group,
+                state: state,
+                isPresented: Binding(
+                    get: { state.activeTabGroupForDetail != nil },
+                    set: { if !$0 { state.activeTabGroupForDetail = nil } }
+                )
+            )
+        }
+        .fullScreenCover(isPresented: $state.showOnboarding) {
+            OnboardingScreen(isPresented: $state.showOnboarding, state: state)
+        }
+        .onAppear {
+            let hasOnboarded = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+            if !hasOnboarded {
+                state.showOnboarding = true
+            }
+        }
     }
 }
