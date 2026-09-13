@@ -51,7 +51,8 @@ public struct BookmarksScreen: View {
                                 .listRowBackground(colors.surface)
                             }
                             .onDelete { indexSet in
-                                state.bookmarks.remove(atOffsets: indexSet)
+                                let itemsToDelete = indexSet.map { state.bookmarks[$0] }
+                                state.bookmarks.removeAll { item in itemsToDelete.contains { $0.id == item.id } }
                             }
                         }
                         .listStyle(.plain)

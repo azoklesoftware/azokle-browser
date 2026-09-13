@@ -43,6 +43,7 @@ public struct HomeScreen: View {
                 .resizable()
                 .scaledToFill()
                 .ignoresSafeArea()
+                .clipped()
 
             // Status Bar & Navigation Scrims
             VStack {

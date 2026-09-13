@@ -74,6 +74,11 @@ public struct WebViewContainer: UIViewRepresentable {
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         configuration.allowsInlineMediaPlayback = true
 
+        // 3. Isolated Ephemeral Website Data Store for Private & Tor Modes
+        if let currentTab = state.tabs.first(where: { $0.id == tabId }), currentTab.isPrivate || currentTab.isTor {
+            configuration.websiteDataStore = WKWebsiteDataStore.nonPersistent()
+        }
+
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
@@ -102,6 +107,27 @@ public struct WebViewContainer: UIViewRepresentable {
             webView.customUserAgent = nil
         }
 
+        // Handle pending web navigation actions (Back, Forward, Reload, Stop)
+        if let pending = state.pendingAction, pending.0 == tabId {
+            switch pending.1 {
+            case .goBack:
+                if webView.canGoBack {
+                    webView.goBack()
+                }
+            case .goForward:
+                if webView.canGoForward {
+                    webView.goForward()
+                }
+            case .reload:
+                webView.reload()
+            case .stop:
+                webView.stopLoading()
+            }
+            DispatchQueue.main.async {
+                self.state.pendingAction = nil
+            }
+        }
+
         // Check if URL changed externally (e.g. from omnibox navigation)
         if let currentUrl = webView.url?.absoluteString, currentUrl != tab.url {
             if let newUrl = URL(string: tab.url) {
@@ -121,6 +147,14 @@ public struct WebViewContainer: UIViewRepresentable {
 
         init(_ parent: WebViewContainer) {
             self.parent = parent
+        }
+
+        deinit {
+            progressObservation?.invalidate()
+            titleObservation?.invalidate()
+            urlObservation?.invalidate()
+            canGoBackObservation?.invalidate()
+            canGoForwardObservation?.invalidate()
         }
 
         func setupObservers(for webView: WKWebView) {
@@ -201,15 +235,44 @@ public struct WebViewContainer: UIViewRepresentable {
             }
         }
 
-        // Handle target="_blank" or window.open in the same tab or new tab safely
+        // Intercept navigation to prevent dangerous schemes and handle system intents
+        public func webView(
+            _ webView: WKWebView,
+            decidePolicyFor navigationAction: WKNavigationAction,
+            decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+        ) {
+            guard let url = navigationAction.request.url else {
+                decisionHandler(.cancel)
+                return
+            }
+
+            let scheme = url.scheme?.lowercased() ?? ""
+            if scheme == "http" || scheme == "https" || scheme == "about" {
+                decisionHandler(.allow)
+            } else if scheme == "tel" || scheme == "mailto" || scheme == "sms" {
+                DispatchQueue.main.async {
+                    UIApplication.shared.open(url)
+                }
+                decisionHandler(.cancel)
+            } else {
+                decisionHandler(.cancel)
+            }
+        }
+
+        // Handle target="_blank" or window.open in isolated new tab
         public func webView(
             _ webView: WKWebView,
             createWebViewWith configuration: WKWebViewConfiguration,
             for navigationAction: WKNavigationAction,
             windowFeatures: WKWindowFeatures
         ) -> WKWebView? {
-            if navigationAction.targetFrame == nil {
-                webView.load(navigationAction.request)
+            if navigationAction.targetFrame == nil, let url = navigationAction.request.url?.absoluteString {
+                let currentTab = parent.state.tabs.first(where: { $0.id == parent.tabId })
+                let isPrivate = currentTab?.isPrivate ?? false
+                let isTor = currentTab?.isTor ?? false
+                DispatchQueue.main.async {
+                    self.parent.state.openNewTab(url: url, title: "New Tab", isPrivate: isPrivate, isTor: isTor)
+                }
             }
             return nil
         }

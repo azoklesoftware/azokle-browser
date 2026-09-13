@@ -79,7 +79,8 @@ public struct HistoryScreen: View {
                                 .listRowBackground(colors.surface)
                             }
                             .onDelete { indexSet in
-                                state.history.remove(atOffsets: indexSet)
+                                let itemsToDelete = indexSet.map { filteredHistory[$0] }
+                                state.history.removeAll { item in itemsToDelete.contains { $0.id == item.id } }
                             }
                         }
                         .listStyle(.plain)

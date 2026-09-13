@@ -90,6 +90,14 @@ public enum TorConnectionState: String {
     case rotating = "Rotating Circuit..."
 }
 
+// MARK: - Web Navigation Action
+public enum WebAction {
+    case goBack
+    case goForward
+    case reload
+    case stop
+}
+
 // MARK: - History & Bookmark Items
 public struct HistoryItem: Identifiable, Hashable {
     public let id = UUID()
@@ -120,6 +128,7 @@ public class BrowserState: ObservableObject {
     @Published public var tabs: [BrowserTab] = []
     @Published public var activeTabId: UUID = UUID()
     @Published public var selectedTabMode: TabFilterMode = .standard
+    @Published public var pendingAction: (UUID, WebAction)? = nil
 
     // Protection & Privacy
     @Published public var isShieldActive: Bool = true
@@ -227,9 +236,18 @@ public class BrowserState: ObservableObject {
         }
 
         if tabs.isEmpty {
+            selectedTabMode = .standard
             openNewTab()
         } else if !tabs.contains(where: { $0.id == activeTabId }) {
-            activeTabId = tabs.first!.id
+            let nextTab = tabs.first!
+            activeTabId = nextTab.id
+            if nextTab.isTor {
+                selectedTabMode = .torMode
+            } else if nextTab.isPrivate {
+                selectedTabMode = .privateMode
+            } else {
+                selectedTabMode = .standard
+            }
         }
     }
 
@@ -248,11 +266,24 @@ public class BrowserState: ObservableObject {
 
     // MARK: - Navigation
     public func navigateActiveTab(to rawInput: String) {
-        var trimmed = rawInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = rawInput.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { return }
 
+        let lower = trimmed.lowercased()
+        // Neutralize dangerous self-executing or local file access schemes by treating as search query
+        if lower.hasPrefix("javascript:") || lower.hasPrefix("data:") || lower.hasPrefix("file:") {
+            let targetUrl = selectedSearchEngine.searchUrl(for: trimmed)
+            if let index = tabs.firstIndex(where: { $0.id == activeTabId }) {
+                tabs[index].url = targetUrl
+                tabs[index].title = trimmed
+                tabs[index].isLoading = true
+                tabs[index].progress = 0.1
+            }
+            return
+        }
+
         let targetUrl: String
-        let isUrl = trimmed.contains(".") && !trimmed.contains(" ") || trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") || trimmed.hasPrefix("about:")
+        let isUrl = (trimmed.contains(".") && !trimmed.contains(" ")) || trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") || trimmed.hasPrefix("about:")
 
         if isUrl {
             if !trimmed.hasPrefix("http://") && !trimmed.hasPrefix("https://") && !trimmed.hasPrefix("about:") {
@@ -277,11 +308,17 @@ public class BrowserState: ObservableObject {
         }
     }
 
+    public func triggerWebAction(_ action: WebAction, for tabId: UUID? = nil) {
+        let targetId = tabId ?? activeTabId
+        pendingAction = (targetId, action)
+    }
+
     public func reloadActiveTab() {
         if let index = tabs.firstIndex(where: { $0.id == activeTabId }) {
             tabs[index].isLoading = true
             tabs[index].progress = 0.2
         }
+        triggerWebAction(.reload)
     }
 
     // MARK: - Data Incineration (Burn Browsing Data)

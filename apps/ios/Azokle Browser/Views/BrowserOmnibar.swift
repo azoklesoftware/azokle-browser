@@ -24,7 +24,11 @@ public struct BrowserOmnibar: View {
     private var cleanHost: String {
         guard !activeUrl.isEmpty, let url = URL(string: activeUrl) else { return "" }
         if let host = url.host {
-            return host.replacingOccurrences(of: "www.", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmed = host.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.hasPrefix("www.") {
+                return String(trimmed.dropFirst(4))
+            }
+            return trimmed
         }
         return ""
     }
@@ -219,6 +223,7 @@ public struct BrowserOmnibar: View {
                 // 5. Quick Actions: Stop or Reload
                 if let activeTab = state.activeTab, activeTab.isLoading {
                     Button(action: {
+                        state.triggerWebAction(.stop)
                         if let index = state.tabs.firstIndex(where: { $0.id == state.activeTabId }) {
                             state.tabs[index].isLoading = false
                         }

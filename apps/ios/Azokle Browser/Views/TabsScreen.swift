@@ -228,79 +228,79 @@ public struct TabsScreen: View {
     private func tabCard(tab: BrowserTab) -> some View {
         let isSelected = tab.id == state.activeTabId
 
-        return Button(action: {
+        return VStack(spacing: 0) {
+            // Card Header (Favicon + Title + Close Button)
+            HStack(spacing: 8) {
+                Image(systemName: "globe")
+                    .font(.system(size: 12))
+                    .foregroundColor(colors.statusAccent)
+
+                Text(tab.title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(colors.textPrimary)
+                    .lineLimit(1)
+
+                Spacer(minLength: 0)
+
+                Button(action: {
+                    state.closeTab(id: tab.id)
+                }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(colors.textSecondary)
+                        .frame(width: 22, height: 22)
+                        .background(colors.surfaceElevated)
+                        .clipShape(Circle())
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(colors.surfaceElevated)
+
+            // Card Body / Thumbnail Preview
+            ZStack {
+                colors.cardBg
+
+                VStack(spacing: 6) {
+                    if tab.isTor {
+                        Image(systemName: "network.badge.shield.half.filled")
+                            .font(.system(size: 30))
+                            .foregroundColor(colors.statusTor)
+                        Text("Tor Encrypted Circuit")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(colors.statusTor)
+                    } else if tab.isPrivate {
+                        Image(systemName: "eye.slash.fill")
+                            .font(.system(size: 30))
+                            .foregroundColor(colors.statusWarning)
+                        Text("Private Browsing")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(colors.statusWarning)
+                    } else {
+                        Image(systemName: "safari")
+                            .font(.system(size: 28))
+                            .foregroundColor(colors.textMuted)
+                        Text(displayDomain(for: tab.url))
+                            .font(.system(size: 11))
+                            .foregroundColor(colors.textMuted)
+                            .lineLimit(1)
+                    }
+                }
+                .padding(10)
+            }
+            .frame(height: 140)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
             state.selectTab(id: tab.id)
             isPresented = false
-        }) {
-            VStack(spacing: 0) {
-                // Card Header (Favicon + Title + Close Button)
-                HStack(spacing: 8) {
-                    Image(systemName: "globe")
-                        .font(.system(size: 12))
-                        .foregroundColor(colors.statusAccent)
-
-                    Text(tab.title)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(colors.textPrimary)
-                        .lineLimit(1)
-
-                    Spacer(minLength: 0)
-
-                    Button(action: {
-                        state.closeTab(id: tab.id)
-                    }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(colors.textSecondary)
-                            .frame(width: 22, height: 22)
-                            .background(colors.surfaceElevated)
-                            .clipShape(Circle())
-                    }
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .background(colors.surfaceElevated)
-
-                // Card Body / Thumbnail Preview
-                ZStack {
-                    colors.cardBg
-
-                    VStack(spacing: 6) {
-                        if tab.isTor {
-                            Image(systemName: "network.badge.shield.half.filled")
-                                .font(.system(size: 30))
-                                .foregroundColor(colors.statusTor)
-                            Text("Tor Encrypted Circuit")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(colors.statusTor)
-                        } else if tab.isPrivate {
-                            Image(systemName: "eye.slash.fill")
-                                .font(.system(size: 30))
-                                .foregroundColor(colors.statusWarning)
-                            Text("Private Browsing")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(colors.statusWarning)
-                        } else {
-                            Image(systemName: "safari")
-                                .font(.system(size: 28))
-                                .foregroundColor(colors.textMuted)
-                            Text(displayDomain(for: tab.url))
-                                .font(.system(size: 11))
-                                .foregroundColor(colors.textMuted)
-                                .lineLimit(1)
-                        }
-                    }
-                    .padding(10)
-                }
-                .frame(height: 140)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: AzokleRadius.medium))
-            .overlay(
-                RoundedRectangle(cornerRadius: AzokleRadius.medium)
-                    .stroke(isSelected ? colors.statusAccent : colors.border, lineWidth: isSelected ? 2 : 1)
-            )
-            .shadow(color: Color.black.opacity(0.3), radius: 6, x: 0, y: 3)
         }
+        .clipShape(RoundedRectangle(cornerRadius: AzokleRadius.medium))
+        .overlay(
+            RoundedRectangle(cornerRadius: AzokleRadius.medium)
+                .stroke(isSelected ? colors.statusAccent : colors.border, lineWidth: isSelected ? 2 : 1)
+        )
+        .shadow(color: Color.black.opacity(0.3), radius: 6, x: 0, y: 3)
     }
 
     private func modePill(title: String, mode: TabFilterMode, icon: String) -> some View {
@@ -324,7 +324,11 @@ public struct TabsScreen: View {
 
     private func displayDomain(for urlString: String) -> String {
         if let url = URL(string: urlString), let host = url.host {
-            return host.replacingOccurrences(of: "www.", with: "")
+            let trimmed = host.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.hasPrefix("www.") {
+                return String(trimmed.dropFirst(4))
+            }
+            return trimmed
         }
         return urlString
     }

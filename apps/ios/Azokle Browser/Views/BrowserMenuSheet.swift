@@ -56,8 +56,26 @@ public struct BrowserMenuSheet: View {
             Divider()
                 .background(colors.border)
 
-            // 2. Quick Action Row
+            // 2. Quick Action Row (Back, Forward, Reload, Bookmark, Share)
             HStack(spacing: 0) {
+                quickActionButton(
+                    icon: "arrow.left",
+                    label: "Back",
+                    isEnabled: state.activeTab?.canGoBack ?? false
+                ) {
+                    state.triggerWebAction(.goBack)
+                    isPresented = false
+                }
+
+                quickActionButton(
+                    icon: "arrow.right",
+                    label: "Forward",
+                    isEnabled: state.activeTab?.canGoForward ?? false
+                ) {
+                    state.triggerWebAction(.goForward)
+                    isPresented = false
+                }
+
                 quickActionButton(icon: "arrow.clockwise", label: "Reload") {
                     state.reloadActiveTab()
                     isPresented = false
@@ -81,15 +99,6 @@ public struct BrowserMenuSheet: View {
                             rootVC.present(activityVC, animated: true)
                         }
                     }
-                    isPresented = false
-                }
-
-                quickActionButton(
-                    icon: "desktopcomputer",
-                    label: state.desktopMode ? "Mobile" : "Desktop"
-                ) {
-                    state.desktopMode.toggle()
-                    state.reloadActiveTab()
                     isPresented = false
                 }
             }
@@ -148,6 +157,16 @@ public struct BrowserMenuSheet: View {
                         state.showTorCircuitSheet = true
                     }
 
+                    menuItem(
+                        icon: "desktopcomputer",
+                        label: state.desktopMode ? "Mobile Site" : "Desktop Site",
+                        color: state.desktopMode ? colors.statusAccent : nil
+                    ) {
+                        state.desktopMode.toggle()
+                        state.reloadActiveTab()
+                        isPresented = false
+                    }
+
                     menuItem(icon: "gearshape", label: "Settings") {
                         isPresented = false
                         state.showSettingsSheet = true
@@ -171,18 +190,23 @@ public struct BrowserMenuSheet: View {
         .presentationDetents([.fraction(0.55), .large])
     }
 
-    private func quickActionButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+    private func quickActionButton(icon: String, label: String, isEnabled: Bool = true, action: @escaping () -> Void) -> some View {
+        Button(action: {
+            if isEnabled {
+                action()
+            }
+        }) {
             VStack(spacing: 6) {
                 Image(systemName: icon)
                     .font(.system(size: 18))
-                    .foregroundColor(colors.textPrimary)
+                    .foregroundColor(isEnabled ? colors.textPrimary : colors.textMuted.opacity(0.5))
                 Text(label)
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(colors.textSecondary)
+                    .foregroundColor(isEnabled ? colors.textSecondary : colors.textMuted.opacity(0.5))
             }
             .frame(maxWidth: .infinity)
         }
+        .disabled(!isEnabled)
     }
 
     private func menuItem(icon: String, label: String, color: Color? = nil, action: @escaping () -> Void) -> some View {
