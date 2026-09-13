@@ -82,11 +82,7 @@ public struct BrowserOmnibar: View {
                     if !isInternal && !cleanHost.isEmpty {
                         Button(action: {
                             triggerHaptic()
-                            if isOnion {
-                                state.showTorCircuitSheet = true
-                            } else {
-                                state.showShieldSheet = true
-                            }
+                            state.showCertificateSheet = true
                         }) {
                             Image(systemName: sslIcon)
                                 .font(.system(size: 13, weight: .semibold))

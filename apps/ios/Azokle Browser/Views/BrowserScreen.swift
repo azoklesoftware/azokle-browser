@@ -17,6 +17,12 @@ public struct BrowserScreen: View {
                 // 1. Top Omnibar
                 BrowserOmnibar(state: state)
 
+                // Find in Page Search Bar (when active)
+                if state.showFindInPage {
+                    FindInPageBar(state: state)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
                 // 2. Tor Circuit Active Banner (if in Tor Mode)
                 if let tab = state.activeTab, tab.isTor {
                     HStack(spacing: 6) {
@@ -116,6 +122,21 @@ public struct BrowserScreen: View {
         }
         .sheet(isPresented: $state.showDiscoverScreen) {
             DiscoverScreen(state: state, isPresented: $state.showDiscoverScreen)
+        }
+        .sheet(isPresented: $state.showCertificateSheet) {
+            SiteSecurityCertificateSheet(state: state, isPresented: $state.showCertificateSheet)
+        }
+        .sheet(isPresented: $state.showSiteSettingsSheet) {
+            SiteSettingsSheet(state: state, isPresented: $state.showSiteSettingsSheet)
+        }
+        .sheet(isPresented: $state.showShareSheet) {
+            BrowserShareSheet(state: state, isPresented: $state.showShareSheet)
+        }
+        .sheet(item: $state.activePermissionPrompt) { prompt in
+            SitePermissionPromptSheet(request: prompt, state: state)
+        }
+        .sheet(item: $state.activeLinkContext) { context in
+            LinkContextMenuSheet(target: context, state: state)
         }
     }
 }

@@ -91,15 +91,10 @@ public struct BrowserMenuSheet: View {
                 }
 
                 quickActionButton(icon: "square.and.arrow.up", label: "Share") {
-                    // Trigger iOS share sheet
-                    if let tab = state.activeTab, let url = URL(string: tab.url) {
-                        let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-                        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                           let rootVC = windowScene.windows.first?.rootViewController {
-                            rootVC.present(activityVC, animated: true)
-                        }
-                    }
                     isPresented = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        state.showShareSheet = true
+                    }
                 }
             }
             .padding(.vertical, 12)
@@ -165,6 +160,16 @@ public struct BrowserMenuSheet: View {
                         state.desktopMode.toggle()
                         state.reloadActiveTab()
                         isPresented = false
+                    }
+
+                    menuItem(icon: "magnifyingglass", label: "Find in Page") {
+                        isPresented = false
+                        state.showFindInPage = true
+                    }
+
+                    menuItem(icon: "slider.horizontal.3", label: "Site Controls") {
+                        isPresented = false
+                        state.showSiteSettingsSheet = true
                     }
 
                     menuItem(icon: "gearshape", label: "Settings") {
