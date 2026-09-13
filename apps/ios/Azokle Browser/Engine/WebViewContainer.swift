@@ -12,69 +12,49 @@ public struct WebViewContainer: UIViewRepresentable {
     public func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
 
-        // 1. Azokle Shield Privacy Scriptlet
-        let shieldScriptSource = """
+        // 1. Compile & Apply Native WebKit Declarative Content Blocker Rules
+        AdBlockEngine.shared.compileNativeRuleList { ruleList in
+            if let ruleList = ruleList, self.state.isShieldActive {
+                configuration.userContentController.add(ruleList)
+            }
+        }
+
+        // 2. Azokle Shield Privacy Scriptlet (Hardware Uniformity, Battery Shield, RFC 8828 WebRTC Local IP Obfuscation)
+        let domain = (state.tabs.first(where: { $0.id == tabId })?.url).flatMap { URL(string: $0)?.host } ?? ""
+        let defuserScriptSource = AdBlockEngine.shared.getDefuserScriptlet(domain: domain)
+        let cosmeticCss = AdBlockEngine.shared.getCosmeticCss(domain: domain)
+        
+        let jsonCssData = (try? JSONSerialization.data(withJSONObject: [cosmeticCss], options: [])) ?? Data()
+        let jsonCssString = String(data: jsonCssData, encoding: .utf8) ?? "[\"\"]"
+
+        let combinedScriptSource = """
+        \(defuserScriptSource)
+
         (function() {
-            'use strict';
-            if (window.__azokle_shield_active) return;
-            window.__azokle_shield_active = true;
-
-            // Hardware Uniformity
             try {
-                Object.defineProperty(navigator, 'hardwareConcurrency', { get: function() { return 4; }, configurable: true });
-                Object.defineProperty(navigator, 'deviceMemory', { get: function() { return 8; }, configurable: true });
-            } catch(e) {}
-
-            // Battery API Shield
-            try {
-                if (navigator.getBattery) {
-                    navigator.getBattery = function() {
-                        return Promise.resolve({
-                            charging: true,
-                            chargingTime: 0,
-                            dischargingTime: Infinity,
-                            level: 1.0,
-                            addEventListener: function() {},
-                            removeEventListener: function() {}
-                        });
-                    };
-                }
-            } catch(e) {}
-
-            // WebRTC Local IP Obfuscation
-            try {
-                var OrigRTC = window.RTCPeerConnection || window.webkitRTCPeerConnection;
-                if (OrigRTC && OrigRTC.prototype) {
-                    var origCreateOffer = OrigRTC.prototype.createOffer;
-                    if (origCreateOffer) {
-                        OrigRTC.prototype.createOffer = function() {
-                            return origCreateOffer.apply(this, arguments).then(function(offer) {
-                                if (offer && offer.sdp) {
-                                    offer.sdp = offer.sdp.split('\\r\\n').filter(function(line) {
-                                        return line.indexOf('a=candidate:') !== 0 || line.indexOf(' typ host') === -1;
-                                    }).join('\\r\\n');
-                                }
-                                return offer;
-                            });
-                        };
-                    }
+                var cssArray = \(jsonCssString);
+                if (cssArray && cssArray.length > 0 && cssArray[0]) {
+                    var style = document.createElement('style');
+                    style.type = 'text/css';
+                    style.appendChild(document.createTextNode(cssArray[0]));
+                    (document.head || document.documentElement).appendChild(style);
                 }
             } catch(e) {}
         })();
         """
 
         let shieldScript = WKUserScript(
-            source: shieldScriptSource,
+            source: combinedScriptSource,
             injectionTime: .atDocumentStart,
             forMainFrameOnly: false
         )
         configuration.userContentController.addUserScript(shieldScript)
 
-        // 2. Preferences & Media Playback
+        // 3. Preferences & Media Playback
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         configuration.allowsInlineMediaPlayback = true
 
-        // 3. Isolated Ephemeral Website Data Store for Private & Tor Modes
+        // 4. Isolated Ephemeral Website Data Store for Private & Tor Modes
         if let currentTab = state.tabs.first(where: { $0.id == tabId }), currentTab.isPrivate || currentTab.isTor {
             configuration.websiteDataStore = WKWebsiteDataStore.nonPersistent()
         }
@@ -90,7 +70,8 @@ public struct WebViewContainer: UIViewRepresentable {
 
         if let tab = state.tabs.first(where: { $0.id == tabId }),
            let url = URL(string: tab.url) {
-            let request = URLRequest(url: url)
+            let safeUrl = NavigationSecurity.shared.upgradeToHttps(url: url)
+            let request = URLRequest(url: safeUrl)
             webView.load(request)
         }
 
@@ -129,9 +110,10 @@ public struct WebViewContainer: UIViewRepresentable {
         }
 
         // Check if URL changed externally (e.g. from omnibox navigation)
-        if let currentUrl = webView.url?.absoluteString, currentUrl != tab.url {
+        if let currentUrl = webView.url?.absoluteString, currentUrl != tab.url, !tab.isLoading {
             if let newUrl = URL(string: tab.url) {
-                let request = URLRequest(url: newUrl)
+                let safeUrl = NavigationSecurity.shared.upgradeToHttps(url: newUrl)
+                let request = URLRequest(url: safeUrl)
                 webView.load(request)
             }
         }
@@ -219,10 +201,6 @@ public struct WebViewContainer: UIViewRepresentable {
                 if let index = self.parent.state.tabs.firstIndex(where: { $0.id == self.parent.tabId }) {
                     self.parent.state.tabs[index].isLoading = false
                     self.parent.state.tabs[index].progress = 1.0
-                    // Simulate tracker blocking tally
-                    if self.parent.state.isShieldActive {
-                        self.parent.state.tabs[index].blockedTrackers = Int.random(in: 4...18)
-                    }
                 }
             }
         }
@@ -235,7 +213,7 @@ public struct WebViewContainer: UIViewRepresentable {
             }
         }
 
-        // Intercept navigation to prevent dangerous schemes and handle system intents
+        // Intercept navigation to prevent dangerous schemes and handle system intents via NavigationSecurity
         public func webView(
             _ webView: WKWebView,
             decidePolicyFor navigationAction: WKNavigationAction,
@@ -246,15 +224,25 @@ public struct WebViewContainer: UIViewRepresentable {
                 return
             }
 
-            let scheme = url.scheme?.lowercased() ?? ""
-            if scheme == "http" || scheme == "https" || scheme == "about" {
+            let currentTab = parent.state.tabs.first(where: { $0.id == parent.tabId })
+            let isTor = currentTab?.isTor ?? false
+            let decision = NavigationSecurity.shared.evaluateNavigation(url: url, isTor: isTor)
+
+            switch decision {
+            case .allow:
                 decisionHandler(.allow)
-            } else if scheme == "tel" || scheme == "mailto" || scheme == "sms" {
+            case .cancel:
+                decisionHandler(.cancel)
+            case .openExternalApp(let externalUrl):
                 DispatchQueue.main.async {
-                    UIApplication.shared.open(url)
+                    UIApplication.shared.open(externalUrl)
                 }
                 decisionHandler(.cancel)
-            } else {
+            case .blockedDangerousScheme(let scheme):
+                print("[NavigationSecurity] Blocked dangerous scheme: \(scheme)")
+                decisionHandler(.cancel)
+            case .blockedTorClearnetLeak(let externalUrl):
+                print("[NavigationSecurity] Prevented Tor clearnet leak to external app: \(externalUrl)")
                 decisionHandler(.cancel)
             }
         }

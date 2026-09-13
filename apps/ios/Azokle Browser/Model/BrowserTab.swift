@@ -9,6 +9,7 @@ public struct BrowserTab: Identifiable, Equatable, Hashable {
     public var isTor: Bool
     public var lastAccessed: Date
     public var blockedTrackers: Int
+    public var blockedTrackerRecords: [BlockedTrackerRecord]
     public var canGoBack: Bool
     public var canGoForward: Bool
     public var isLoading: Bool
@@ -23,6 +24,7 @@ public struct BrowserTab: Identifiable, Equatable, Hashable {
         isTor: Bool = false,
         lastAccessed: Date = Date(),
         blockedTrackers: Int = 0,
+        blockedTrackerRecords: [BlockedTrackerRecord] = [],
         canGoBack: Bool = false,
         canGoForward: Bool = false,
         isLoading: Bool = false,
@@ -36,6 +38,7 @@ public struct BrowserTab: Identifiable, Equatable, Hashable {
         self.isTor = isTor
         self.lastAccessed = lastAccessed
         self.blockedTrackers = blockedTrackers
+        self.blockedTrackerRecords = blockedTrackerRecords
         self.canGoBack = canGoBack
         self.canGoForward = canGoForward
         self.isLoading = isLoading

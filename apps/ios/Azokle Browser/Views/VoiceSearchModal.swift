@@ -1,6 +1,8 @@
 import SwiftUI
+import Speech
+import AVFoundation
 
-// MARK: - Voice Search Modal (1:1 Android VoiceSearchModal.kt Parity)
+// MARK: - Voice Search Modal with Real Speech Recognition (1:1 Android Parity)
 public struct VoiceSearchModal: View {
     @ObservedObject var state: BrowserState
     @Binding var isPresented: Bool
@@ -9,11 +11,16 @@ public struct VoiceSearchModal: View {
     @State private var waveScale2: CGFloat = 1.0
     @State private var statusText: String = "Listening..."
     @State private var recognizedText: String = ""
-    @State private var isListening: Bool = true
+    @State private var isRecording: Bool = false
+
+    @State private var audioEngine = AVAudioEngine()
+    @State private var speechRecognizer = SFSpeechRecognizer(locale: Locale.current)
+    @State private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
+    @State private var recognitionTask: SFSpeechRecognitionTask?
 
     let colors: AzokleColors = .dark
 
-    let samplePrompts = [
+    let suggestedPrompts = [
         "What is quantum computing?",
         "Latest tech privacy news",
         "How does Tor encryption work?",
@@ -25,6 +32,7 @@ public struct VoiceSearchModal: View {
             Color.black.opacity(0.85)
                 .ignoresSafeArea()
                 .onTapGesture {
+                    stopRecording()
                     isPresented = false
                 }
 
@@ -33,6 +41,7 @@ public struct VoiceSearchModal: View {
                 HStack {
                     Spacer()
                     Button(action: {
+                        stopRecording()
                         isPresented = false
                     }) {
                         Image(systemName: "xmark")
@@ -66,14 +75,27 @@ public struct VoiceSearchModal: View {
                         .opacity(1.8 - Double(waveScale1))
 
                     // Center Microphone Core
-                    Circle()
-                        .fill(colors.actionPrimaryBg)
-                        .frame(width: 76, height: 76)
-                        .shadow(color: colors.statusAccent.opacity(0.5), radius: 16)
-
-                    Image(systemName: "mic.fill")
-                        .font(.system(size: 32, weight: .semibold))
-                        .foregroundColor(colors.actionPrimaryText)
+                    Button(action: {
+                        if isRecording {
+                            if !recognizedText.isEmpty {
+                                submitQuery(recognizedText)
+                            } else {
+                                stopRecording()
+                            }
+                        } else {
+                            startSpeechRecognition()
+                        }
+                    }) {
+                        Circle()
+                            .fill(colors.actionPrimaryBg)
+                            .frame(width: 76, height: 76)
+                            .shadow(color: colors.statusAccent.opacity(0.5), radius: 16)
+                            .overlay(
+                                Image(systemName: "mic.fill")
+                                    .font(.system(size: 32, weight: .semibold))
+                                    .foregroundColor(colors.actionPrimaryText)
+                            )
+                    }
                 }
                 .padding(.vertical, 16)
 
@@ -103,8 +125,9 @@ public struct VoiceSearchModal: View {
                         .foregroundColor(colors.textMuted)
 
                     VStack(spacing: 6) {
-                        ForEach(samplePrompts, id: \.self) { prompt in
+                        ForEach(suggestedPrompts, id: \.self) { prompt in
                             Button(action: {
+                                stopRecording()
                                 submitQuery(prompt)
                             }) {
                                 Text(prompt)
@@ -128,6 +151,10 @@ public struct VoiceSearchModal: View {
         }
         .onAppear {
             startAudioAnimation()
+            startSpeechRecognition()
+        }
+        .onDisappear {
+            stopRecording()
         }
     }
 
@@ -146,25 +173,98 @@ public struct VoiceSearchModal: View {
         ) {
             waveScale2 = 1.6
         }
+    }
 
-        // Simulate voice recognition prompt after 1.8s
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
-            if isListening && recognizedText.isEmpty {
-                withAnimation {
-                    statusText = "Transcribing..."
-                    recognizedText = "Azokle Sovereign Search"
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                    submitQuery(recognizedText)
+    // MARK: - Native Apple Speech Recognition
+    private func startSpeechRecognition() {
+        SFSpeechRecognizer.requestAuthorization { authStatus in
+            DispatchQueue.main.async {
+                switch authStatus {
+                case .authorized:
+                    self.beginAudioRecording()
+                case .denied, .restricted, .notDetermined:
+                    self.statusText = "Microphone or Speech Access Required"
+                    self.isRecording = false
+                @unknown default:
+                    self.statusText = "Speech Recognition Unavailable"
                 }
             }
         }
     }
 
+    private func beginAudioRecording() {
+        // Cancel previous task if active
+        recognitionTask?.cancel()
+        recognitionTask = nil
+
+        let audioSession = AVAudioSession.sharedInstance()
+        do {
+            try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
+            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+        } catch {
+            statusText = "Audio Recording Error"
+            return
+        }
+
+        recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
+        guard let recognitionRequest = recognitionRequest else { return }
+        recognitionRequest.shouldReportPartialResults = true
+
+        let inputNode = audioEngine.inputNode
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
+
+        inputNode.removeTap(onBus: 0)
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
+            recognitionRequest.append(buffer)
+        }
+
+        audioEngine.prepare()
+        do {
+            try audioEngine.start()
+            self.isRecording = true
+            self.statusText = "Listening..."
+        } catch {
+            self.statusText = "Could not start audio engine"
+            return
+        }
+
+        recognitionTask = speechRecognizer?.recognitionTask(with: recognitionRequest) { result, error in
+            if let result = result {
+                DispatchQueue.main.async {
+                    self.recognizedText = result.bestTranscription.formattedString
+                    if result.isFinal {
+                        self.submitQuery(self.recognizedText)
+                    }
+                }
+            }
+
+            if error != nil || (result?.isFinal ?? false) {
+                self.stopRecording()
+            }
+        }
+    }
+
+    private func stopRecording() {
+        if audioEngine.isRunning {
+            audioEngine.stop()
+            audioEngine.inputNode.removeTap(onBus: 0)
+            recognitionRequest?.endAudio()
+            recognitionTask?.cancel()
+            recognitionTask = nil
+            recognitionRequest = nil
+        }
+        isRecording = false
+        try? AVAudioSession.sharedInstance().setActive(false)
+    }
+
     private func submitQuery(_ query: String) {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        stopRecording()
         let gen = UIImpactFeedbackGenerator(style: .medium)
         gen.impactOccurred()
-        state.navigateActiveTab(to: query)
+        state.navigateActiveTab(to: trimmed)
         isPresented = false
     }
 }

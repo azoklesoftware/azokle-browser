@@ -92,56 +92,10 @@ public struct HomeScreen: View {
                 Spacer().frame(height: 24)
 
                 // Search Bar Capsule (Mirroring Android SearchBarCapsule.kt)
-                HStack(spacing: 10) {
-                    // Search Engine Indicator (Tap opens ChooseSearchEngineSheet)
-                    Button(action: {
-                        state.showChooseEngineSheet = true
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(state.selectedSearchEngine.assetName)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 20, height: 20)
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundColor(colors.textMuted)
-                        }
-                        .padding(.leading, 6)
-                        .padding(.vertical, 4)
-                    }
-
-                    // Main Query Input Area
-                    Button(action: {
-                        state.showOmniboxSheet = true
-                    }) {
-                        HStack {
-                            Text("Search or enter address")
-                                .font(.system(size: 15, weight: .medium))
-                                .foregroundColor(colors.textSecondary)
-                            Spacer()
-                        }
-                    }
-
-                    // Microphone Icon (Tap opens VoiceSearchModal)
-                    Button(action: {
-                        state.showVoiceSearch = true
-                    }) {
-                        Image(systemName: "mic.fill")
-                            .font(.system(size: 16))
-                            .foregroundColor(colors.textSecondary)
-                            .padding(.trailing, 6)
-                            .padding(.vertical, 4)
-                    }
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .background(colors.surfaceElevated.opacity(0.88))
-                .cornerRadius(AzokleRadius.pill)
-                .overlay(
-                    RoundedRectangle(cornerRadius: AzokleRadius.pill)
-                        .stroke(colors.borderLight, lineWidth: 1)
+                SearchBarCapsule(
+                    state: state,
+                    placeholderText: "Search or enter address"
                 )
-                .shadow(color: Color.black.opacity(0.35), radius: 10, x: 0, y: 5)
                 .padding(.horizontal, 24)
 
                 Spacer().frame(height: 32)

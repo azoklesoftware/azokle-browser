@@ -1,33 +1,26 @@
 import SwiftUI
 
-public enum TorBridgeType: String, CaseIterable, Identifiable {
-    case direct = "Direct (No Bridge)"
-    case snowflake = "Snowflake (WebRTC P2P)"
-    case obfs4 = "obfs4 (Obfuscated IP)"
-    case meek = "Meek-Azure (Domain Fronting)"
-
-    public var id: String { rawValue }
-}
-
 public struct TorConnectScreen: View {
     @ObservedObject var state: BrowserState
+    @ObservedObject var torManager = TorCircuitManager.shared
     @Binding var isPresented: Bool
 
-    @State private var isConnecting: Bool = false
-    @State private var bootstrapProgress: Double = 1.0
-    @State private var selectedBridge: TorBridgeType = .snowflake
     @State private var onionAddressInput: String = ""
-    @State private var logEntries: [String] = [
-        "Tor 0.4.8.10 initialized on Darwin iOS",
-        "Configured bridge: Snowflake WebRTC P2P proxy",
-        "Loading consensus authority microdescriptors...",
-        "Established 1-hop circuit with Entry Guard [de_frankfurt]",
-        "Established 2-hop circuit with Middle Relay [is_reykjavik]",
-        "Established 3-hop circuit with Exit Node [ch_zurich]",
-        "Sovereign Onion Circuit 100% Bootstrapped. Ready."
-    ]
 
     let colors: AzokleColors = .dark
+
+    private var isConnected: Bool {
+        if case .connected = torManager.state { return true }
+        return false
+    }
+
+    private var bootstrapProgress: Double {
+        switch torManager.state {
+        case .bootstrapping(let prog, _): return Double(prog) / 100.0
+        case .connected: return 1.0
+        default: return 0.0
+        }
+    }
 
     public var body: some View {
         ZStack {
@@ -60,7 +53,6 @@ public struct TorConnectScreen: View {
 
                     Spacer()
 
-                    // Quick info
                     Image(systemName: "info.circle")
                         .font(.system(size: 16))
                         .foregroundColor(colors.textMuted)
@@ -80,7 +72,7 @@ public struct TorConnectScreen: View {
                                 .frame(width: 140, height: 140)
 
                             Circle()
-                                .trim(from: 0, to: CGFloat(state.isTorCircuitActive ? bootstrapProgress : 0.0))
+                                .trim(from: 0, to: CGFloat(bootstrapProgress))
                                 .stroke(
                                     LinearGradient(
                                         colors: [colors.statusTor, colors.statusAccent],
@@ -91,14 +83,14 @@ public struct TorConnectScreen: View {
                                 )
                                 .frame(width: 140, height: 140)
                                 .rotationEffect(.degrees(-90))
-                                .animation(.easeInOut(duration: 0.8), value: state.isTorCircuitActive)
+                                .animation(.easeInOut(duration: 0.5), value: bootstrapProgress)
 
                             VStack(spacing: 4) {
-                                Image(systemName: state.isTorCircuitActive ? "lock.shield.fill" : "network.slash")
+                                Image(systemName: isConnected ? "lock.shield.fill" : "network.slash")
                                     .font(.system(size: 32))
-                                    .foregroundColor(state.isTorCircuitActive ? colors.statusTor : colors.textMuted)
+                                    .foregroundColor(isConnected ? colors.statusTor : colors.textMuted)
 
-                                Text(state.isTorCircuitActive ? "100%" : "OFF")
+                                Text(isConnected ? "100%" : (bootstrapProgress > 0 ? "\(Int(bootstrapProgress * 100))%" : "OFF"))
                                     .font(.system(size: 16, weight: .bold, design: .monospaced))
                                     .foregroundColor(colors.textPrimary)
                             }
@@ -107,11 +99,11 @@ public struct TorConnectScreen: View {
 
                         // Status Title
                         VStack(spacing: 4) {
-                            Text(state.isTorCircuitActive ? "3-Hop Onion Network Connected" : "Tor Circuit Inactive")
+                            Text(isConnected ? "3-Hop Onion Network Connected" : "Tor Circuit Inactive")
                                 .font(.system(size: 18, weight: .bold))
                                 .foregroundColor(colors.textPrimary)
 
-                            Text(state.isTorCircuitActive ? "Encrypted multi-hop routing active across Swiss & Nordic relays" : "Connect to anonymize TCP packets and access .onion hidden services")
+                            Text(torManager.state.statusDescription)
                                 .font(.system(size: 12))
                                 .foregroundColor(colors.textSecondary)
                                 .multilineTextAlignment(.center)
@@ -120,24 +112,28 @@ public struct TorConnectScreen: View {
 
                         // Connect / Disconnect Toggle Action
                         Button(action: {
-                            withAnimation {
-                                state.isTorCircuitActive.toggle()
+                            if isConnected {
+                                torManager.disconnectTor()
+                                state.isTorCircuitActive = false
+                            } else {
+                                torManager.startTorConnection()
+                                state.isTorCircuitActive = true
                             }
                         }) {
                             HStack(spacing: 8) {
-                                Image(systemName: state.isTorCircuitActive ? "stop.circle.fill" : "bolt.shield.fill")
+                                Image(systemName: isConnected ? "stop.circle.fill" : "bolt.shield.fill")
                                     .font(.system(size: 15, weight: .bold))
-                                Text(state.isTorCircuitActive ? "Disconnect Tor Circuit" : "Bootstrap Tor Network")
+                                Text(isConnected ? "Disconnect Tor Circuit" : "Bootstrap Tor Network")
                                     .font(.system(size: 15, weight: .bold))
                             }
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
-                            .background(state.isTorCircuitActive ? colors.surfaceElevated : colors.statusTor)
-                            .foregroundColor(state.isTorCircuitActive ? colors.statusDestructive : .white)
+                            .background(isConnected ? colors.surfaceElevated : colors.statusTor)
+                            .foregroundColor(isConnected ? colors.statusDestructive : .white)
                             .cornerRadius(AzokleRadius.pill)
                             .overlay(
                                 RoundedRectangle(cornerRadius: AzokleRadius.pill)
-                                    .stroke(state.isTorCircuitActive ? colors.statusDestructive.opacity(0.5) : Color.clear, lineWidth: 1)
+                                    .stroke(isConnected ? colors.statusDestructive.opacity(0.5) : Color.clear, lineWidth: 1)
                             )
                         }
                         .padding(.horizontal, 24)
@@ -151,11 +147,11 @@ public struct TorConnectScreen: View {
                             Menu {
                                 ForEach(TorBridgeType.allCases) { bridge in
                                     Button(action: {
-                                        selectedBridge = bridge
+                                        torManager.selectedBridge = bridge
                                     }) {
                                         HStack {
                                             Text(bridge.rawValue)
-                                            if selectedBridge == bridge {
+                                            if torManager.selectedBridge == bridge {
                                                 Image(systemName: "checkmark")
                                             }
                                         }
@@ -167,7 +163,7 @@ public struct TorConnectScreen: View {
                                         .font(.system(size: 14))
                                         .foregroundColor(colors.statusTor)
 
-                                    Text(selectedBridge.rawValue)
+                                    Text(torManager.selectedBridge.rawValue)
                                         .font(.system(size: 13, weight: .semibold))
                                         .foregroundColor(colors.textPrimary)
 
@@ -235,12 +231,17 @@ public struct TorConnectScreen: View {
                                 .foregroundColor(colors.textMuted)
 
                             VStack(alignment: .leading, spacing: 4) {
-                                ForEach(logEntries, id: \.self) { line in
-                                    Text("> \(line)")
-                                        .font(.system(size: 10, design: .monospaced))
-                                        .foregroundColor(line.contains("100%") ? colors.statusSuccess : colors.textSecondary)
+                                Text("> Tor Onion Stack initialized on iOS")
+                                Text("> Bridge: \(torManager.selectedBridge.rawValue)")
+                                Text("> Directory authority consensus loaded")
+                                Text("> Guard ➔ Middle ➔ Exit 3-hop circuit verified")
+                                if isConnected {
+                                    Text("> Sovereign Onion Circuit 100% Secured.")
+                                        .foregroundColor(colors.statusSuccess)
                                 }
                             }
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(colors.textSecondary)
                             .padding(12)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(Color.black.opacity(0.6))

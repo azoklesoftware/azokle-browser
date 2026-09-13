@@ -31,6 +31,7 @@ public struct ThreatAssessment: Identifiable, Hashable {
 public class SafeBrowsingGuard {
     public static let shared = SafeBrowsingGuard()
     private var userAllowedThreats = Set<String>()
+    private let lock = NSLock()
 
     private let knownMaliciousDomains: [String: ThreatType] = [
         "paypal-security-verification.com": .phishing,
@@ -58,7 +59,11 @@ public class SafeBrowsingGuard {
             return ThreatAssessment(url: rawUrl, host: "", isThreat: false, threatType: .none)
         }
 
-        if userAllowedThreats.contains(host) {
+        lock.lock()
+        let isBypassed = userAllowedThreats.contains(host)
+        lock.unlock()
+
+        if isBypassed {
             return ThreatAssessment(url: rawUrl, host: host, isThreat: false, threatType: .none)
         }
 
@@ -86,6 +91,14 @@ public class SafeBrowsingGuard {
     }
 
     public func bypassThreatForSession(host: String) {
+        lock.lock()
         userAllowedThreats.insert(host.lowercased().trimmingCharacters(in: .whitespacesAndNewlines))
+        lock.unlock()
+    }
+
+    public func clearSessionBypasses() {
+        lock.lock()
+        userAllowedThreats.removeAll()
+        lock.unlock()
     }
 }

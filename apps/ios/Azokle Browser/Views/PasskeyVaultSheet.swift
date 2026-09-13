@@ -7,9 +7,16 @@ public struct PasskeyVaultSheet: View {
 
     @State private var isUnlocked: Bool = false
     @State private var authFailed: Bool = false
+    @State private var selectedTab: Int = 0 // 0: Passkeys, 1: Password Generator
     @State private var searchQuery: String = ""
     @State private var passkeyToDelete: PasskeyItem? = nil
     @State private var showDeleteAlert: Bool = false
+
+    // Password generator states
+    @State private var generatedPassword: String = ""
+    @State private var passwordLength: Double = 20
+    @State private var includeSymbols: Bool = true
+    @State private var copiedToClipboard: Bool = false
 
     let colors: AzokleColors = .dark
 
@@ -49,11 +56,11 @@ public struct PasskeyVaultSheet: View {
                     }
 
                     VStack(spacing: 6) {
-                        Text("Passkey Vault Locked")
+                        Text("Sovereign Vault Locked")
                             .font(.system(size: 18, weight: .bold))
                             .foregroundColor(colors.textPrimary)
 
-                        Text("Authenticate using Face ID or device passcode to inspect and manage your sovereign WebAuthn passkeys.")
+                        Text("Authenticate using Face ID or device passcode to inspect and manage your sovereign passkeys and credentials.")
                             .font(.system(size: 13))
                             .foregroundColor(colors.textSecondary)
                             .multilineTextAlignment(.center)
@@ -86,7 +93,7 @@ public struct PasskeyVaultSheet: View {
                 }
                 .padding(24)
             } else {
-                // Unlocked Vault View (1:1 Android PasskeyVaultSheet Parity)
+                // Unlocked Vault View
                 VStack(spacing: 12) {
                     // Header Bar
                     HStack {
@@ -96,10 +103,10 @@ public struct PasskeyVaultSheet: View {
                                 .foregroundColor(colors.statusAccent)
 
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("PASSKEY VAULT")
+                                Text("SOVEREIGN VAULT")
                                     .font(.system(size: 14, weight: .bold))
                                     .foregroundColor(colors.textPrimary)
-                                Text("\(state.passkeys.count) sovereign credentials")
+                                Text("\(state.passkeys.count) passkeys • Hardware Encrypted")
                                     .font(.system(size: 11))
                                     .foregroundColor(colors.textSecondary)
                             }
@@ -119,61 +126,166 @@ public struct PasskeyVaultSheet: View {
                     }
                     .padding(.horizontal, 20)
 
-                    // Search Filter Bar
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 13))
-                            .foregroundColor(colors.textMuted)
-
-                        TextField("Filter passkeys...", text: $searchQuery)
-                            .font(.system(size: 13))
-                            .foregroundColor(colors.textPrimary)
-                            .autocapitalization(.none)
-
-                        if !searchQuery.isEmpty {
-                            Button(action: { searchQuery = "" }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 13))
-                                    .foregroundColor(colors.textMuted)
-                            }
-                        }
+                    // Picker for Passkeys vs Password Generator
+                    Picker("Vault Section", selection: $selectedTab) {
+                        Text("Passkeys (\(state.passkeys.count))").tag(0)
+                        Text("Password Generator").tag(1)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(colors.surfaceElevated)
-                    .cornerRadius(AzokleRadius.small)
+                    .pickerStyle(SegmentedPickerStyle())
                     .padding(.horizontal, 20)
 
-                    Divider().background(colors.border)
-
-                    // Passkeys List
-                    if filteredPasskeys.isEmpty {
-                        VStack(spacing: 12) {
-                            Spacer()
-                            Image(systemName: "key.slash")
-                                .font(.system(size: 40))
+                    if selectedTab == 0 {
+                        // Search Filter Bar
+                        HStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 13))
                                 .foregroundColor(colors.textMuted)
 
-                            Text(state.passkeys.isEmpty ? "No Passkeys Stored" : "No matching passkeys found")
-                                .font(.system(size: 15, weight: .semibold))
+                            TextField("Filter passkeys...", text: $searchQuery)
+                                .font(.system(size: 13))
                                 .foregroundColor(colors.textPrimary)
+                                .autocapitalization(.none)
 
-                            Text("When websites offer passkey sign-in, Azokle securely stores your cryptographic credentials on-device.")
-                                .font(.system(size: 12))
-                                .foregroundColor(colors.textSecondary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 32)
-                            Spacer()
-                        }
-                    } else {
-                        ScrollView {
-                            VStack(spacing: 10) {
-                                ForEach(filteredPasskeys) { item in
-                                    passkeyCard(item)
+                            if !searchQuery.isEmpty {
+                                Button(action: { searchQuery = "" }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 13))
+                                        .foregroundColor(colors.textMuted)
                                 }
                             }
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 8)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(colors.surfaceElevated)
+                        .cornerRadius(AzokleRadius.small)
+                        .padding(.horizontal, 20)
+
+                        Divider().background(colors.border)
+
+                        // Passkeys List
+                        if filteredPasskeys.isEmpty {
+                            VStack(spacing: 12) {
+                                Spacer()
+                                Image(systemName: "key.slash")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(colors.textMuted)
+
+                                Text(state.passkeys.isEmpty ? "No Passkeys Stored" : "No matching passkeys found")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundColor(colors.textPrimary)
+
+                                Text("When websites offer passkey sign-in, Azokle securely stores your cryptographic credentials on-device.")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(colors.textSecondary)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 32)
+                                Spacer()
+                            }
+                        } else {
+                            ScrollView {
+                                VStack(spacing: 10) {
+                                    ForEach(filteredPasskeys) { item in
+                                        passkeyCard(item)
+                                    }
+                                }
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 8)
+                            }
+                        }
+                    } else {
+                        // Password Generator View
+                        VStack(spacing: 16) {
+                            // Generated Password Field
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("GENERATED PASSWORD")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(colors.textMuted)
+
+                                HStack {
+                                    Text(generatedPassword.isEmpty ? "Tap Generate" : generatedPassword)
+                                        .font(.system(size: 15, weight: .bold, design: .monospaced))
+                                        .foregroundColor(colors.textPrimary)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.7)
+
+                                    Spacer()
+
+                                    Button(action: {
+                                        UIPasteboard.general.string = generatedPassword
+                                        copiedToClipboard = true
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                            copiedToClipboard = false
+                                        }
+                                    }) {
+                                        Image(systemName: copiedToClipboard ? "checkmark.circle.fill" : "doc.on.doc")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(copiedToClipboard ? colors.statusSuccess : colors.statusAccent)
+                                            .padding(8)
+                                            .background(colors.cardBg)
+                                            .clipShape(Circle())
+                                    }
+                                }
+                                .padding(12)
+                                .background(colors.surfaceElevated)
+                                .cornerRadius(AzokleRadius.small)
+                            }
+
+                            // Strength indicator
+                            let strength = EncryptedVaultManager.shared.calculatePasswordStrength(password: generatedPassword)
+                            HStack {
+                                Text("Strength: \(strength.label)")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(colors.textSecondary)
+                                Spacer()
+                                ProgressView(value: strength.score)
+                                    .frame(width: 100)
+                                    .tint(strength.score > 0.7 ? colors.statusSuccess : colors.statusWarning)
+                            }
+
+                            // Length Slider
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text("Length: \(Int(passwordLength))")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundColor(colors.textPrimary)
+                                    Spacer()
+                                }
+                                Slider(value: $passwordLength, in: 12...36, step: 1)
+                                    .tint(colors.statusAccent)
+                            }
+
+                            // Symbols toggle
+                            Toggle("Include Special Symbols", isOn: $includeSymbols)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(colors.textPrimary)
+                                .tint(colors.statusAccent)
+
+                            // Generate Button
+                            Button(action: {
+                                generatedPassword = EncryptedVaultManager.shared.generateSecurePassword(
+                                    length: Int(passwordLength),
+                                    includeSymbols: includeSymbols
+                                )
+                            }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "dice.fill")
+                                    Text("Generate New Password")
+                                }
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(colors.actionPrimaryText)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(colors.actionPrimaryBg)
+                                .cornerRadius(AzokleRadius.medium)
+                            }
+
+                            Spacer()
+                        }
+                        .padding(20)
+                        .onAppear {
+                            if generatedPassword.isEmpty {
+                                generatedPassword = EncryptedVaultManager.shared.generateSecurePassword(length: 20)
+                            }
                         }
                     }
                 }
@@ -251,23 +363,9 @@ public struct PasskeyVaultSheet: View {
     }
 
     private func authenticateWithBiometrics() {
-        let context = LAContext()
-        var error: NSError?
-
-        if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
-            context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: "Unlock Azokle Passkey Vault") { success, _ in
-                DispatchQueue.main.async {
-                    if success {
-                        self.isUnlocked = true
-                        self.authFailed = false
-                    } else {
-                        self.authFailed = true
-                    }
-                }
-            }
-        } else {
-            // Fallback to passcode or direct unlock if biometrics unavailable on simulator
-            isUnlocked = true
+        EncryptedVaultManager.shared.authenticate { success in
+            self.isUnlocked = success
+            self.authFailed = !success
         }
     }
 }

@@ -82,14 +82,6 @@ public enum TabFilterMode: String, CaseIterable {
     case torMode = "Tor Circuit"
 }
 
-// MARK: - Tor Connection State
-public enum TorConnectionState: String {
-    case disconnected = "Disconnected"
-    case connecting = "Connecting Hops..."
-    case connected = "Circuits Secured"
-    case rotating = "Rotating Circuit..."
-}
-
 // MARK: - Web Navigation Action
 public enum WebAction {
     case goBack
@@ -217,9 +209,8 @@ public class BrowserState: ObservableObject {
     // Protection & Privacy
     @Published public var isShieldActive: Bool = true
     @Published public var isTorCircuitActive: Bool = false
-    @Published public var torStatus: TorConnectionState = .connected
-    @Published public var totalAdsBlocked: Int = 1842
-    @Published public var totalTrackersBlocked: Int = 3491
+    @Published public var totalAdsBlocked: Int = 0
+    @Published public var totalTrackersBlocked: Int = 0
     @Published public var desktopMode: Bool = false
     @Published public var readerModeActive: Bool = false
     @Published public var selectedSearchEngine: SearchEngine = .azokle
@@ -302,26 +293,10 @@ public class BrowserState: ObservableObject {
         self.tabs = [initialTab]
         self.activeTabId = initialTab.id
 
-        // Populate standard sample bookmarks
-        self.bookmarks = [
-            BookmarkItem(url: "https://search.azokle.com", title: "Azokle Search", dateAdded: Date()),
-            BookmarkItem(url: "https://duckduckgo.com", title: "DuckDuckGo", dateAdded: Date()),
-            BookmarkItem(url: "https://en.wikipedia.org", title: "Wikipedia", dateAdded: Date()),
-            BookmarkItem(url: "https://github.com", title: "GitHub", dateAdded: Date())
-        ]
-
-        // Populate standard sample passkeys
-        self.passkeys = [
-            PasskeyItem(rpId: "github.com", userName: "azokle-developer"),
-            PasskeyItem(rpId: "apple.com", userName: "developer@azokle.com"),
-            PasskeyItem(rpId: "google.com", userName: "azokle.sovereign")
-        ]
-
-        // Populate sample downloads
-        self.downloads = [
-            DownloadItem(fileName: "tor-browser-manual.pdf", url: "https://torproject.org/manual.pdf", fileSize: "2.4 MB", date: Date()),
-            DownloadItem(fileName: "azokle-privacy-manifest.json", url: "https://azokle.com/manifest.json", fileSize: "18 KB", date: Date())
-        ]
+        self.bookmarks = []
+        self.passkeys = []
+        self.downloads = []
+        self.history = []
     }
 
     public func addBookmark(title: String, url: String) {
@@ -345,20 +320,14 @@ public class BrowserState: ObservableObject {
     }
 
     public func triggerReaderMode(for tab: BrowserTab) {
-        let sampleArticle = ArticleContent(
-            title: tab.title.isEmpty ? "Distraction-Free Article" : tab.title,
-            byline: "Azokle Sovereign Reader",
-            domain: URL(string: tab.url)?.host ?? "",
-            excerpt: "Sovereign Reader Mode strips tracking scripts, advertisement canvases, and cosmetic clutter.",
-            paragraphs: [
-                "The web was originally designed as an open, decentralized medium for sharing knowledge and ideas without surveillance.",
-                "In modern web browsing, pages often load megabytes of invasive behavioral tracking code, third-party analytics telemetry, and distracting ad units that drain device battery and memory.",
-                "Azokle Sovereign Reader restores the focus directly to the written text, formatting content in typography designed for readability with zero network beacons or user profiling."
-            ],
-            estimatedReadingTimeMinutes: 3
-        )
-        self.readerArticleContent = sampleArticle
-        self.showReaderScreen = true
+        ReaderExtractor.shared.extractArticle(from: tab.url, fallbackTitle: tab.title, isTor: tab.isTor) { article in
+            self.readerArticleContent = article
+            self.showReaderScreen = true
+        }
+    }
+
+    public func clearHistory() {
+        self.history.removeAll()
     }
 
     // MARK: - Tab Management
@@ -455,7 +424,7 @@ public class BrowserState: ObservableObject {
             return
         }
 
-        let targetUrl: String
+        var targetUrl: String
         let isUrl = (trimmed.contains(".") && !trimmed.contains(" ")) || trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") || trimmed.hasPrefix("about:")
 
         if isUrl {
@@ -463,6 +432,11 @@ public class BrowserState: ObservableObject {
                 targetUrl = "https://" + trimmed
             } else {
                 targetUrl = trimmed
+            }
+
+            // Strip tracking telemetry parameters (utm_*, fbclid, gclid, etc.)
+            if let parsed = URL(string: targetUrl) {
+                targetUrl = NavigationSecurity.shared.stripTrackingParameters(from: parsed).absoluteString
             }
         } else {
             targetUrl = selectedSearchEngine.searchUrl(for: trimmed)
@@ -513,11 +487,11 @@ public class BrowserState: ObservableObject {
         triggerWebAction(.reload)
     }
 
-    // MARK: - Data Incineration (Burn Browsing Data)
+    // MARK: - Sovereign Data Incineration (Burn All Browsing Data & Memory Hardening)
     public func burnAllData() {
         isBurningAnimationActive = true
 
-        // Clean WebKit website data store
+        // 1. Clean WebKit website data store (all cookies, caches, local storage, indexedDB, service workers)
         let dataTypes = WKWebsiteDataStore.allWebsiteDataTypes()
         WKWebsiteDataStore.default().removeData(ofTypes: dataTypes, modifiedSince: .distantPast) {
             DispatchQueue.main.async {
@@ -525,7 +499,25 @@ public class BrowserState: ObservableObject {
             }
         }
 
-        // Reset history, downloads, tabs
+        // 2. Lock Sovereign Hardware Encrypted Vault
+        EncryptedVaultManager.shared.lock()
+
+        // 3. Stop Active Background Media & Reset Audio Session
+        MediaPlaybackManager.shared.isPlaying = false
+        MediaPlaybackManager.shared.setSleepTimer(.off)
+
+        // 4. Clear In-Memory Caches, Reader Content & Threats
+        readerArticleContent = nil
+        showReaderScreen = false
+        activeVideoUrl = ""
+        activeVideoId = ""
+        showAzoklePlayer = false
+        activeThreatAssessment = nil
+        SafeBrowsingGuard.shared.clearSessionBypasses()
+        showFindInPage = false
+        findInPageQuery = ""
+
+        // 5. Purge history, tabs, and reseed fresh sandboxed tab
         history.removeAll()
         tabs.removeAll()
         openNewTab(url: "https://search.azokle.com", title: "Azokle Sovereign Search")
@@ -544,20 +536,14 @@ public class BrowserState: ObservableObject {
     public func toggleTorCircuit() {
         isTorCircuitActive.toggle()
         if isTorCircuitActive {
-            torStatus = .connecting
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                self.torStatus = .connected
-            }
+            TorCircuitManager.shared.startTorConnection()
         } else {
-            torStatus = .disconnected
+            TorCircuitManager.shared.disconnectTor()
         }
     }
 
     public func rotateTorCircuit() {
-        torStatus = .rotating
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            self.torStatus = .connected
-        }
+        TorCircuitManager.shared.rotateCircuit()
     }
 
     public func toggleBookmark(url: String, title: String) {

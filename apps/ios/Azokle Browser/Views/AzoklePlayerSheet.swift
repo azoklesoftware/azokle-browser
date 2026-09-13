@@ -6,11 +6,12 @@ public struct AzoklePlayerSheet: View {
     let originalUrl: String
     @Binding var isPresented: Bool
 
+    @StateObject private var mediaManager = MediaPlaybackManager.shared
     @State private var playbackSpeed: Double = 1.0
-    @State private var showControls: Bool = true
+    @State private var showSleepTimerMenu: Bool = false
     let colors: AzokleColors = .dark
 
-    let speeds: [Double] = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
+    let speeds: [Double] = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
 
     private var embedUrlString: String {
         AzoklePlayerHelper.buildZeroCookieEmbedUrl(videoId: videoId)
@@ -54,14 +55,45 @@ public struct AzoklePlayerSheet: View {
 
                     Spacer()
 
+                    // Sleep Timer Button
+                    Menu {
+                        ForEach(SleepTimerDuration.allCases) { duration in
+                            Button(action: {
+                                mediaManager.setSleepTimer(duration)
+                            }) {
+                                HStack {
+                                    Text(duration.label)
+                                    if mediaManager.activeSleepTimer == duration {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: mediaManager.activeSleepTimer != .off ? "moon.fill" : "moon")
+                                .font(.system(size: 13))
+                            if mediaManager.activeSleepTimer != .off {
+                                Text("\(mediaManager.sleepTimerRemainingSeconds / 60)m")
+                                    .font(.system(size: 11, weight: .bold))
+                            }
+                        }
+                        .foregroundColor(mediaManager.activeSleepTimer != .off ? colors.statusTor : .white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(Color.white.opacity(0.12))
+                        .cornerRadius(6)
+                    }
+
                     // Playback Speed Menu
                     Menu {
                         ForEach(speeds, id: \.self) { speed in
                             Button(action: {
                                 playbackSpeed = speed
+                                mediaManager.playbackRate = Float(speed)
                             }) {
                                 HStack {
-                                    Text("\(String(format: "%.2f", speed))x")
+                                    Text("\(String(format: "%.2g", speed))x")
                                     if playbackSpeed == speed {
                                         Image(systemName: "checkmark")
                                     }
@@ -96,7 +128,7 @@ public struct AzoklePlayerSheet: View {
                         .font(.system(size: 12))
                         .foregroundColor(colors.statusSuccess)
 
-                    Text("Tracking cookies stripped • Ad-free isolated container")
+                    Text("Tracking cookies stripped • Ad-free isolated container • Background audio active")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.white.opacity(0.7))
 
@@ -106,6 +138,10 @@ public struct AzoklePlayerSheet: View {
                 .padding(.vertical, 10)
                 .background(Color.black.opacity(0.95))
             }
+        }
+        .onAppear {
+            mediaManager.setupAudioSession()
+            mediaManager.updateNowPlayingInfo(title: "Azokle Sovereign Player", artist: "Video Stream")
         }
     }
 }

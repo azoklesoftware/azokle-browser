@@ -25,8 +25,8 @@ public class AdBlockStats: ObservableObject {
     }
 
     private init() {
-        self.lifetimeAdsBlocked = max(1420, userDefaults.integer(forKey: adsKey))
-        self.lifetimeTrackersBlocked = max(3890, userDefaults.integer(forKey: trackersKey))
+        self.lifetimeAdsBlocked = userDefaults.integer(forKey: adsKey)
+        self.lifetimeTrackersBlocked = userDefaults.integer(forKey: trackersKey)
     }
 
     public func recordBlocked(ads: Int = 1, trackers: Int = 0) {

@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct TorCircuitSheet: View {
     @ObservedObject var state: BrowserState
+    @ObservedObject var torManager = TorCircuitManager.shared
     @Binding var isPresented: Bool
     let colors: AzokleColors = .dark
 
@@ -23,16 +24,9 @@ public struct TorCircuitSheet: View {
                                 .fill(colors.statusTor.opacity(0.18))
                                 .frame(width: 68, height: 68)
 
-                            if UIImage(named: "ic_tor") != nil {
-                                Image("ic_tor")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 44, height: 44)
-                            } else {
-                                Image(systemName: "network.badge.shield.half.filled")
-                                    .font(.system(size: 32))
-                                    .foregroundColor(colors.statusTor)
-                            }
+                            Image(systemName: "network.badge.shield.half.filled")
+                                .font(.system(size: 32))
+                                .foregroundColor(colors.statusTor)
                         }
 
                         Text("Tor Onion Circuit")
@@ -41,60 +35,109 @@ public struct TorCircuitSheet: View {
 
                         HStack(spacing: 6) {
                             Circle()
-                                .fill(state.isTorCircuitActive ? colors.statusSuccess : colors.textMuted)
+                                .fill(colors.statusSuccess)
                                 .frame(width: 8, height: 8)
-                            Text(state.torStatus.rawValue)
+                            Text(torManager.state.statusDescription)
                                 .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(state.isTorCircuitActive ? colors.statusTor : colors.textSecondary)
+                                .foregroundColor(colors.statusTor)
                         }
                     }
 
                     // 2. Tor Circuit Relay Hops Visualizer
-                    VStack(alignment: .leading, spacing: 0) {
-                        circuitHopRow(
-                            step: "1",
-                            role: "This Device",
-                            detail: "Local encrypted client endpoint",
-                            icon: "iphone",
-                            isLast: false
-                        )
-                        circuitHopRow(
-                            step: "2",
-                            role: "Guard Relay (Entry)",
-                            detail: "Frankfurt, Germany • 185.220.101.5",
-                            icon: "lock.shield",
-                            isLast: false
-                        )
-                        circuitHopRow(
-                            step: "3",
-                            role: "Middle Relay",
-                            detail: "Amsterdam, Netherlands • 194.26.29.112",
-                            icon: "arrow.triangle.swap",
-                            isLast: false
-                        )
-                        circuitHopRow(
-                            step: "4",
-                            role: "Exit Relay",
-                            detail: "Zurich, Switzerland • 178.17.170.89",
-                            icon: "globe",
-                            isLast: false
-                        )
-                        circuitHopRow(
-                            step: "5",
-                            role: "Destination",
-                            detail: state.activeTab?.url ?? "search.azokle.com",
-                            icon: "checkmark.shield.fill",
-                            isLast: true
-                        )
-                    }
-                    .padding(16)
-                    .background(colors.surfaceElevated)
-                    .cornerRadius(AzokleRadius.medium)
+                    if case .connected(let g, let m, let e, let circuitId, let latency) = torManager.state {
+                        VStack(alignment: .leading, spacing: 0) {
+                            // Header banner
+                            HStack {
+                                Text("CIRCUIT \(circuitId)")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(colors.textMuted)
+                                Spacer()
+                                HStack(spacing: 4) {
+                                    Image(systemName: "bolt.fill")
+                                        .font(.system(size: 10))
+                                    Text("\(latency) ms")
+                                        .font(.system(size: 11, weight: .semibold))
+                                }
+                                .foregroundColor(colors.statusSuccess)
+                            }
+                            .padding(.bottom, 12)
 
-                    // 3. Actions
+                            circuitHopRow(
+                                step: "1",
+                                role: "This Device",
+                                detail: "Ephemeral Tor Client Sandbox",
+                                flag: "📱",
+                                ip: "127.0.0.1:9050",
+                                isLast: false
+                            )
+                            circuitHopRow(
+                                step: "2",
+                                role: g.role,
+                                detail: "\(g.name) • \(g.bandwidthMBps) MB/s",
+                                flag: g.flagEmoji,
+                                ip: g.ipAddress,
+                                isLast: false
+                            )
+                            circuitHopRow(
+                                step: "3",
+                                role: m.role,
+                                detail: "\(m.name) • \(m.bandwidthMBps) MB/s",
+                                flag: m.flagEmoji,
+                                ip: m.ipAddress,
+                                isLast: false
+                            )
+                            circuitHopRow(
+                                step: "4",
+                                role: e.role,
+                                detail: "\(e.name) • \(e.bandwidthMBps) MB/s",
+                                flag: e.flagEmoji,
+                                ip: e.ipAddress,
+                                isLast: false
+                            )
+                            circuitHopRow(
+                                step: "5",
+                                role: "Destination",
+                                detail: state.activeTab?.url ?? "search.azokle.com",
+                                flag: "🎯",
+                                ip: "Onion / Clearnet",
+                                isLast: true
+                            )
+                        }
+                        .padding(16)
+                        .background(colors.surfaceElevated)
+                        .cornerRadius(AzokleRadius.medium)
+                    }
+
+                    // 3. Bridge Configuration Card
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("ACTIVE PLUGGABLE TRANSPORT")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(colors.textMuted)
+
+                        HStack(spacing: 12) {
+                            Image(systemName: "antenna.radiowaves.left.and.right")
+                                .font(.system(size: 16))
+                                .foregroundColor(colors.statusAccent)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(torManager.selectedBridge.rawValue)
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(colors.textPrimary)
+                                Text(torManager.selectedBridge.subtitle)
+                                    .font(.system(size: 11))
+                                    .foregroundColor(colors.textSecondary)
+                                    .lineLimit(2)
+                            }
+                        }
+                        .padding(12)
+                        .background(colors.surfaceElevated)
+                        .cornerRadius(AzokleRadius.small)
+                    }
+
+                    // 4. Actions
                     VStack(spacing: 10) {
                         Button(action: {
-                            state.rotateTorCircuit()
+                            torManager.rotateCircuit()
                         }) {
                             HStack(spacing: 8) {
                                 Image(systemName: "arrow.clockwise")
@@ -110,15 +153,14 @@ public struct TorCircuitSheet: View {
                         }
 
                         Button(action: {
-                            state.toggleTorCircuit()
+                            state.showTorConnectScreen = true
+                            isPresented = false
                         }) {
-                            Text(state.isTorCircuitActive ? "Disconnect Tor Circuit" : "Connect Tor Circuit")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(colors.statusTor)
+                            Text("Configure Bridges & Advanced Tor Settings")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(colors.statusAccent)
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 11)
-                                .background(colors.surfaceElevated)
-                                .cornerRadius(AzokleRadius.medium)
+                                .padding(.vertical, 10)
                         }
                     }
                 }
@@ -126,39 +168,40 @@ public struct TorCircuitSheet: View {
             }
         }
         .background(colors.cardBg)
-        .presentationDetents([.fraction(0.75), .large])
+        .presentationDetents([.fraction(0.8), .large])
     }
 
-    private func circuitHopRow(step: String, role: String, detail: String, icon: String, isLast: Bool) -> some View {
+    private func circuitHopRow(step: String, role: String, detail: String, flag: String, ip: String, isLast: Bool) -> some View {
         HStack(alignment: .top, spacing: 14) {
             VStack(spacing: 0) {
                 ZStack {
                     Circle()
                         .fill(colors.statusTor.opacity(0.2))
-                        .frame(width: 28, height: 28)
+                        .frame(width: 30, height: 30)
 
-                    Image(systemName: icon)
-                        .font(.system(size: 12))
-                        .foregroundColor(colors.statusTor)
+                    Text(flag)
+                        .font(.system(size: 14))
                 }
 
                 if !isLast {
                     Rectangle()
                         .fill(colors.statusTor.opacity(0.35))
-                        .frame(width: 2, height: 32)
+                        .frame(width: 2, height: 28)
                 }
             }
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text(role)
                     .font(.system(size: 13, weight: .bold))
                     .foregroundColor(colors.textPrimary)
                 Text(detail)
                     .font(.system(size: 11))
                     .foregroundColor(colors.textSecondary)
-                    .lineLimit(1)
+                Text(ip)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(colors.textMuted)
             }
-            .padding(.top, 4)
+            .padding(.top, 2)
 
             Spacer()
         }

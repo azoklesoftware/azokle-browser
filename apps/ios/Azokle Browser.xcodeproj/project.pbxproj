@@ -55,6 +55,17 @@
 		C2010001000000000000000A /* TorConnectScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2010001000000000000000A /* TorConnectScreen.swift */; };
 		C2010001000000000000000B /* SafeBrowsingWarningOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2010001000000000000000B /* SafeBrowsingWarningOverlay.swift */; };
 		C2010001000000000000000C /* ProUpgradeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2010001000000000000000C /* ProUpgradeSheet.swift */; };
+		C30100010000000000000001 /* EntityLookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30100010000000000000001 /* EntityLookup.swift */; };
+		C30100010000000000000002 /* AdBlockEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30100010000000000000002 /* AdBlockEngine.swift */; };
+		C30100010000000000000003 /* NavigationSecurity.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30100010000000000000003 /* NavigationSecurity.swift */; };
+		C30100010000000000000004 /* TorCircuitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30100010000000000000004 /* TorCircuitManager.swift */; };
+		C30100010000000000000005 /* MediaPlaybackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30100010000000000000005 /* MediaPlaybackManager.swift */; };
+		C30100010000000000000006 /* ReaderExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30100010000000000000006 /* ReaderExtractor.swift */; };
+		C30100010000000000000007 /* EncryptedVaultManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30100010000000000000007 /* EncryptedVaultManager.swift */; };
+		C30100010000000000000008 /* FireIncinerationOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30100010000000000000008 /* FireIncinerationOverlay.swift */; };
+		C30100010000000000000009 /* PwaManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30100010000000000000009 /* PwaManager.swift */; };
+		C40100010000000000000001 /* SearchEngineDropdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = D40100010000000000000001 /* SearchEngineDropdown.swift */; };
+		C40100010000000000000002 /* SearchBarCapsule.swift in Sources */ = {isa = PBXBuildFile; fileRef = D40100010000000000000002 /* SearchBarCapsule.swift */; };
 		99812033B8BD7CDC0C7E876A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CC3340C45202B29152467289 /* Assets.xcassets */; };
 		77F64868BF35BABF693845E1 /* audiowide_regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 8E67E77BA70C82C0F061FB51 /* audiowide_regular.ttf */; };
 /* End PBXBuildFile section */
@@ -109,6 +120,17 @@
 		D2010001000000000000000A /* TorConnectScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TorConnectScreen.swift"; sourceTree = "<group>"; };
 		D2010001000000000000000B /* SafeBrowsingWarningOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SafeBrowsingWarningOverlay.swift"; sourceTree = "<group>"; };
 		D2010001000000000000000C /* ProUpgradeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ProUpgradeSheet.swift"; sourceTree = "<group>"; };
+		D30100010000000000000001 /* EntityLookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EntityLookup.swift"; sourceTree = "<group>"; };
+		D30100010000000000000002 /* AdBlockEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AdBlockEngine.swift"; sourceTree = "<group>"; };
+		D30100010000000000000003 /* NavigationSecurity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NavigationSecurity.swift"; sourceTree = "<group>"; };
+		D30100010000000000000004 /* TorCircuitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TorCircuitManager.swift"; sourceTree = "<group>"; };
+		D30100010000000000000005 /* MediaPlaybackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MediaPlaybackManager.swift"; sourceTree = "<group>"; };
+		D30100010000000000000006 /* ReaderExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ReaderExtractor.swift"; sourceTree = "<group>"; };
+		D30100010000000000000007 /* EncryptedVaultManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EncryptedVaultManager.swift"; sourceTree = "<group>"; };
+		D30100010000000000000008 /* FireIncinerationOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FireIncinerationOverlay.swift"; sourceTree = "<group>"; };
+		D30100010000000000000009 /* PwaManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PwaManager.swift"; sourceTree = "<group>"; };
+		D40100010000000000000001 /* SearchEngineDropdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SearchEngineDropdown.swift"; sourceTree = "<group>"; };
+		D40100010000000000000002 /* SearchBarCapsule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SearchBarCapsule.swift"; sourceTree = "<group>"; };
 		CC3340C45202B29152467289 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Assets.xcassets"; sourceTree = "<group>"; };
 		8E67E77BA70C82C0F061FB51 /* audiowide_regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "audiowide_regular.ttf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -166,6 +188,9 @@
 			children = (
 				D10100010000000000000002 /* ScriptletSignatureValidator.swift */,
 				D20100010000000000000005 /* SafeBrowsingGuard.swift */,
+				D30100010000000000000001 /* EntityLookup.swift */,
+				D30100010000000000000002 /* AdBlockEngine.swift */,
+				D30100010000000000000007 /* EncryptedVaultManager.swift */,
 			);
 			path = "Security";
 			sourceTree = "<group>";
@@ -174,8 +199,41 @@
 			isa = PBXGroup;
 			children = (
 				D20100010000000000000001 /* AzoklePlayerHelper.swift */,
+				D30100010000000000000005 /* MediaPlaybackManager.swift */,
 			);
 			path = "Media";
+			sourceTree = "<group>";
+		};
+		E30100010000000000000001 /* Navigation */ = {
+			isa = PBXGroup;
+			children = (
+				D30100010000000000000003 /* NavigationSecurity.swift */,
+			);
+			path = "Navigation";
+			sourceTree = "<group>";
+		};
+		E30100010000000000000002 /* Tor */ = {
+			isa = PBXGroup;
+			children = (
+				D30100010000000000000004 /* TorCircuitManager.swift */,
+			);
+			path = "Tor";
+			sourceTree = "<group>";
+		};
+		E30100010000000000000003 /* Reader */ = {
+			isa = PBXGroup;
+			children = (
+				D30100010000000000000006 /* ReaderExtractor.swift */,
+			);
+			path = "Reader";
+			sourceTree = "<group>";
+		};
+		E30100010000000000000004 /* PWA */ = {
+			isa = PBXGroup;
+			children = (
+				D30100010000000000000009 /* PwaManager.swift */,
+			);
+			path = "PWA";
 			sourceTree = "<group>";
 		};
 		136AA85951D85D2ABADC94F9 /* Engine */ = {
@@ -224,6 +282,9 @@
 				D2010001000000000000000A /* TorConnectScreen.swift */,
 				D2010001000000000000000B /* SafeBrowsingWarningOverlay.swift */,
 				D2010001000000000000000C /* ProUpgradeSheet.swift */,
+				D30100010000000000000008 /* FireIncinerationOverlay.swift */,
+				D40100010000000000000001 /* SearchEngineDropdown.swift */,
+				D40100010000000000000002 /* SearchBarCapsule.swift */,
 			);
 			path = "Views";
 			sourceTree = "<group>";
@@ -237,6 +298,10 @@
 				5FBDDD8D8F0A83C001DDD25A /* Model */,
 				E10100010000000000000001 /* Security */,
 				E20100010000000000000001 /* Media */,
+				E30100010000000000000001 /* Navigation */,
+				E30100010000000000000002 /* Tor */,
+				E30100010000000000000003 /* Reader */,
+				E30100010000000000000004 /* PWA */,
 				136AA85951D85D2ABADC94F9 /* Engine */,
 				C454586A1F4E28C340BDC1AD /* Views */,
 				CC3340C45202B29152467289 /* Assets.xcassets */,
@@ -362,6 +427,17 @@
 				C2010001000000000000000A /* TorConnectScreen.swift in Sources */,
 				C2010001000000000000000B /* SafeBrowsingWarningOverlay.swift in Sources */,
 				C2010001000000000000000C /* ProUpgradeSheet.swift in Sources */,
+				C30100010000000000000001 /* EntityLookup.swift in Sources */,
+				C30100010000000000000002 /* AdBlockEngine.swift in Sources */,
+				C30100010000000000000003 /* NavigationSecurity.swift in Sources */,
+				C30100010000000000000004 /* TorCircuitManager.swift in Sources */,
+				C30100010000000000000005 /* MediaPlaybackManager.swift in Sources */,
+				C30100010000000000000006 /* ReaderExtractor.swift in Sources */,
+				C30100010000000000000007 /* EncryptedVaultManager.swift in Sources */,
+				C30100010000000000000008 /* FireIncinerationOverlay.swift in Sources */,
+				C30100010000000000000009 /* PwaManager.swift in Sources */,
+				C40100010000000000000001 /* SearchEngineDropdown.swift in Sources */,
+				C40100010000000000000002 /* SearchBarCapsule.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

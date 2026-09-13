@@ -90,21 +90,12 @@ public struct BrowserOmnibar: View {
                                 .frame(width: 24, height: 24)
                         }
                     } else {
-                        // Search Engine Selector on Home (Tap opens ChooseSearchEngineSheet)
-                        Button(action: {
-                            state.showChooseEngineSheet = true
-                        }) {
-                            HStack(spacing: 3) {
-                                Image(state.selectedSearchEngine.assetName)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 16, height: 16)
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 7, weight: .bold))
-                                    .foregroundColor(colors.textMuted)
-                            }
-                            .frame(height: 24)
-                        }
+                        // Search Engine Selector on Home Tabs (Interactive Dropdown Menu)
+                        SearchEngineDropdown(
+                            state: state,
+                            iconSize: 18,
+                            showDropdownArrow: true
+                        )
                     }
 
                     // 2. Center Text: Anti-Spoofing Visual Hierarchy

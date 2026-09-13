@@ -65,20 +65,9 @@ public struct BrowserScreen: View {
 
                     // 4. Incineration Flame Burn Animation Overlay
                     if state.isBurningAnimationActive {
-                        ZStack {
-                            colors.background.opacity(0.92)
-
-                            VStack(spacing: 14) {
-                                Image(systemName: "flame.fill")
-                                    .font(.system(size: 64))
-                                    .foregroundColor(colors.statusFire)
-                                    .scaleEffect(1.2)
-                                    .animation(.easeInOut(duration: 0.6).repeatForever(), value: state.isBurningAnimationActive)
-
-                                Text("Incinerating Browsing Traces...")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
+                        FireIncinerationOverlay {
+                            state.isBurningAnimationActive = false
+                            state.showBurnConfirmation = false
                         }
                         .transition(.opacity)
                     }
@@ -139,24 +128,24 @@ public struct BrowserScreen: View {
             LinkContextMenuSheet(target: context, state: state)
         }
         .sheet(isPresented: $state.showVoiceSearch) {
-            VoiceSearchModal(isPresented: $state.showVoiceSearch, state: state)
+            VoiceSearchModal(state: state, isPresented: $state.showVoiceSearch)
         }
         .sheet(isPresented: $state.showChooseEngineSheet) {
-            ChooseSearchEngineSheet(isPresented: $state.showChooseEngineSheet, state: state)
+            ChooseSearchEngineSheet(state: state, isPresented: $state.showChooseEngineSheet)
         }
         .sheet(isPresented: $state.showLanguageSheet) {
-            ChooseLanguageSheet(isPresented: $state.showLanguageSheet, state: state)
+            ChooseLanguageSheet(state: state, isPresented: $state.showLanguageSheet)
         }
         .sheet(isPresented: $state.showPwaSheet) {
-            PwaInstallBottomSheet(isPresented: $state.showPwaSheet, state: state)
+            PwaInstallBottomSheet(state: state, isPresented: $state.showPwaSheet)
         }
         .sheet(isPresented: $state.showSuggestionsSheet) {
-            SuggestionsSheet(isPresented: $state.showSuggestionsSheet, state: state)
+            SuggestionsSheet(state: state, isPresented: $state.showSuggestionsSheet)
         }
         .sheet(item: $state.activeTabGroupForDetail) { group in
             TabGroupDetailSheet(
-                group: group,
                 state: state,
+                group: group,
                 isPresented: Binding(
                     get: { state.activeTabGroupForDetail != nil },
                     set: { if !$0 { state.activeTabGroupForDetail = nil } }
@@ -164,7 +153,7 @@ public struct BrowserScreen: View {
             )
         }
         .fullScreenCover(isPresented: $state.showOnboarding) {
-            OnboardingScreen(isPresented: $state.showOnboarding, state: state)
+            OnboardingScreen(state: state, isPresented: $state.showOnboarding)
         }
         .sheet(isPresented: $state.showPasskeyVaultSheet) {
             PasskeyVaultSheet(state: state, isPresented: $state.showPasskeyVaultSheet)
