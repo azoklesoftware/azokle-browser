@@ -41,5 +41,12 @@ class GeckoConfigManagerTest {
         assertTrue(yaml.contains("media.hardware-video-decoding.enabled: true"))
         assertTrue(yaml.contains("media.autoplay.default: 0"))
         assertTrue(yaml.contains("media.eme.enabled: true"))
+
+        // WebRTC Leak Prevention & Local IP Protection
+        assertTrue(yaml.contains("media.peerconnection.ice.no_host: true"))
+        assertTrue(yaml.contains("media.peerconnection.ice.default_address_only: true"))
+        assertTrue(yaml.contains("media.peerconnection.ice.obfuscate_host_addresses: true"))
+        assertTrue(yaml.contains("media.peerconnection.ice.obfuscate_host_addresses.sync: true"))
+        assertTrue(yaml.contains("media.peerconnection.ice.link_local_ips: false"))
     }
 }

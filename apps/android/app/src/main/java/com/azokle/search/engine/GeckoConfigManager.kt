@@ -102,6 +102,13 @@ object GeckoConfigManager {
             appendLine("  dom.vr.webxr.enabled: true")
             appendLine("  security.webauth.webauthn: true")
             appendLine("  security.webauth.webauthn.enable_android_fido2: true")
+
+            // 7. WebRTC Leak Prevention & Local IP Shield (RFC 8828 / LibreWolf / Tor Standards)
+            appendLine("  media.peerconnection.ice.no_host: true")
+            appendLine("  media.peerconnection.ice.default_address_only: true")
+            appendLine("  media.peerconnection.ice.obfuscate_host_addresses: true")
+            appendLine("  media.peerconnection.ice.obfuscate_host_addresses.sync: true")
+            appendLine("  media.peerconnection.ice.link_local_ips: false")
         }
     }
 }
