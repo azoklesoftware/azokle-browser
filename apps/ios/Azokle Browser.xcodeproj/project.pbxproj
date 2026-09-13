@@ -3,20 +3,61 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 56;
 	objects = {
+
+/* Begin PBXBuildFile section */
+		9CE60B7C66CA9755A58F3801 /* Azokle_BrowserApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8910847A741F003463A847D2 /* Azokle_BrowserApp.swift */; };
+		F3EB1DD40F7AFFCF4C5B2777 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8C13525269D9F9FAC9D986 /* ContentView.swift */; };
+		58BF122BEB3F53824F3E8D24 /* AzokleTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AACDED3439FE5AC17EFF93B /* AzokleTheme.swift */; };
+		4B9AB32D507108898BF380CE /* BrowserState.swift in Sources */ = {isa = PBXBuildFile; fileRef = D54F69F09B77466C371809F0 /* BrowserState.swift */; };
+		F3CA5D43C4166EBC00116F6B /* BrowserTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = F987552751BB7003F2F4B3C0 /* BrowserTab.swift */; };
+		C9C97C032535CC4B71B08922 /* WebViewContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C83EAE8E8D4CA44C5A019237 /* WebViewContainer.swift */; };
+		78CDFE74F4C383EAFB41BFAE /* BrowserScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 940A686446ADD3071E82FE2C /* BrowserScreen.swift */; };
+		B3B9EA8A917965455AF8B59D /* BrowserOmnibar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E111946F645F08FBED69B2E /* BrowserOmnibar.swift */; };
+		B87AEA019FA4BAA1F7A9853E /* BrowserBottomBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AFDB48E8659BC166ADF4915 /* BrowserBottomBar.swift */; };
+		58AEDEC383A1909F2C1E2DB8 /* HomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE16BB16EA654B34CC20E5F6 /* HomeScreen.swift */; };
+		C5AAC699E40B9D9BF1EE0453 /* OmniboxSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CA259F2FF6D99706DC856BD /* OmniboxSheet.swift */; };
+		991412E0B7357E93BAD41B57 /* TabsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA3B895C7B1579D704266AA5 /* TabsScreen.swift */; };
+		7ACC14859FBB02D5DBA1AB00 /* PrivacyShieldSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D99B2B68B14059BEE1EB68B8 /* PrivacyShieldSheet.swift */; };
+		3137B8441D88A82721F9EA0A /* BurnConfirmationSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10577295DC0AF03082C750D1 /* BurnConfirmationSheet.swift */; };
+		1434229C44D46BE721F17A48 /* TorCircuitSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 616A20F8C1423BF789178D34 /* TorCircuitSheet.swift */; };
+		1FA96C6D023C132472167C6A /* DiscoverScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FFAC0AE86CBCBCC4859A7CC /* DiscoverScreen.swift */; };
+		8516118DDA43325AA635393A /* HistoryScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 464F01CBD3F0E6626E0B8A76 /* HistoryScreen.swift */; };
+		405B303ABD7DE7EA9A217E87 /* BookmarksScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03C5B97491771BEEE1C0D29F /* BookmarksScreen.swift */; };
+		018C7702CD822CAE14B0EAB4 /* DownloadsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 300C60C43FA9CD67519CCF7D /* DownloadsScreen.swift */; };
+		BBE30694758A52508A2DC1FC /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE642F4FD53D320C75FF53FE /* SettingsScreen.swift */; };
+		42A3EA0B8049CE3E916EAA23 /* BrowserMenuSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D7AF9B8032DC90040CE4E58 /* BrowserMenuSheet.swift */; };
+		99812033B8BD7CDC0C7E876A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CC3340C45202B29152467289 /* Assets.xcassets */; };
+		77F64868BF35BABF693845E1 /* audiowide_regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 8E67E77BA70C82C0F061FB51 /* audiowide_regular.ttf */; };
+/* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		A6F3F14C3056B4D9004304E1 /* Azokle Browser.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Azokle Browser.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		8910847A741F003463A847D2 /* Azokle_BrowserApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Azokle_BrowserApp.swift"; sourceTree = "<group>"; };
+		0A8C13525269D9F9FAC9D986 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ContentView.swift"; sourceTree = "<group>"; };
+		0AACDED3439FE5AC17EFF93B /* AzokleTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AzokleTheme.swift"; sourceTree = "<group>"; };
+		D54F69F09B77466C371809F0 /* BrowserState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserState.swift"; sourceTree = "<group>"; };
+		F987552751BB7003F2F4B3C0 /* BrowserTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserTab.swift"; sourceTree = "<group>"; };
+		C83EAE8E8D4CA44C5A019237 /* WebViewContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewContainer.swift"; sourceTree = "<group>"; };
+		940A686446ADD3071E82FE2C /* BrowserScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserScreen.swift"; sourceTree = "<group>"; };
+		9E111946F645F08FBED69B2E /* BrowserOmnibar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserOmnibar.swift"; sourceTree = "<group>"; };
+		6AFDB48E8659BC166ADF4915 /* BrowserBottomBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserBottomBar.swift"; sourceTree = "<group>"; };
+		EE16BB16EA654B34CC20E5F6 /* HomeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HomeScreen.swift"; sourceTree = "<group>"; };
+		3CA259F2FF6D99706DC856BD /* OmniboxSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OmniboxSheet.swift"; sourceTree = "<group>"; };
+		DA3B895C7B1579D704266AA5 /* TabsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TabsScreen.swift"; sourceTree = "<group>"; };
+		D99B2B68B14059BEE1EB68B8 /* PrivacyShieldSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PrivacyShieldSheet.swift"; sourceTree = "<group>"; };
+		10577295DC0AF03082C750D1 /* BurnConfirmationSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BurnConfirmationSheet.swift"; sourceTree = "<group>"; };
+		616A20F8C1423BF789178D34 /* TorCircuitSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TorCircuitSheet.swift"; sourceTree = "<group>"; };
+		5FFAC0AE86CBCBCC4859A7CC /* DiscoverScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiscoverScreen.swift"; sourceTree = "<group>"; };
+		464F01CBD3F0E6626E0B8A76 /* HistoryScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HistoryScreen.swift"; sourceTree = "<group>"; };
+		03C5B97491771BEEE1C0D29F /* BookmarksScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BookmarksScreen.swift"; sourceTree = "<group>"; };
+		300C60C43FA9CD67519CCF7D /* DownloadsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DownloadsScreen.swift"; sourceTree = "<group>"; };
+		BE642F4FD53D320C75FF53FE /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsScreen.swift"; sourceTree = "<group>"; };
+		7D7AF9B8032DC90040CE4E58 /* BrowserMenuSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserMenuSheet.swift"; sourceTree = "<group>"; };
+		CC3340C45202B29152467289 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Assets.xcassets"; sourceTree = "<group>"; };
+		8E67E77BA70C82C0F061FB51 /* audiowide_regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "audiowide_regular.ttf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
-
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		A6F3F14E3056B4D9004304E1 /* Azokle Browser */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Azokle Browser";
-			sourceTree = "<group>";
-		};
-/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		A6F3F1493056B4D9004304E1 /* Frameworks */ = {
@@ -32,7 +73,7 @@
 		A6F3F1433056B4D9004304E1 = {
 			isa = PBXGroup;
 			children = (
-				A6F3F14E3056B4D9004304E1 /* Azokle Browser */,
+				2F0F09EE55877F79E76A06D5 /* Azokle Browser */,
 				A6F3F14D3056B4D9004304E1 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -43,6 +84,68 @@
 				A6F3F14C3056B4D9004304E1 /* Azokle Browser.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		7999BCA23EC4E9B2C00838D3 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				0AACDED3439FE5AC17EFF93B /* AzokleTheme.swift */,
+			);
+			path = "Theme";
+			sourceTree = "<group>";
+		};
+		5FBDDD8D8F0A83C001DDD25A /* Model */ = {
+			isa = PBXGroup;
+			children = (
+				D54F69F09B77466C371809F0 /* BrowserState.swift */,
+				F987552751BB7003F2F4B3C0 /* BrowserTab.swift */,
+			);
+			path = "Model";
+			sourceTree = "<group>";
+		};
+		136AA85951D85D2ABADC94F9 /* Engine */ = {
+			isa = PBXGroup;
+			children = (
+				C83EAE8E8D4CA44C5A019237 /* WebViewContainer.swift */,
+			);
+			path = "Engine";
+			sourceTree = "<group>";
+		};
+		C454586A1F4E28C340BDC1AD /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				940A686446ADD3071E82FE2C /* BrowserScreen.swift */,
+				9E111946F645F08FBED69B2E /* BrowserOmnibar.swift */,
+				6AFDB48E8659BC166ADF4915 /* BrowserBottomBar.swift */,
+				EE16BB16EA654B34CC20E5F6 /* HomeScreen.swift */,
+				3CA259F2FF6D99706DC856BD /* OmniboxSheet.swift */,
+				DA3B895C7B1579D704266AA5 /* TabsScreen.swift */,
+				D99B2B68B14059BEE1EB68B8 /* PrivacyShieldSheet.swift */,
+				10577295DC0AF03082C750D1 /* BurnConfirmationSheet.swift */,
+				616A20F8C1423BF789178D34 /* TorCircuitSheet.swift */,
+				5FFAC0AE86CBCBCC4859A7CC /* DiscoverScreen.swift */,
+				464F01CBD3F0E6626E0B8A76 /* HistoryScreen.swift */,
+				03C5B97491771BEEE1C0D29F /* BookmarksScreen.swift */,
+				300C60C43FA9CD67519CCF7D /* DownloadsScreen.swift */,
+				BE642F4FD53D320C75FF53FE /* SettingsScreen.swift */,
+				7D7AF9B8032DC90040CE4E58 /* BrowserMenuSheet.swift */,
+			);
+			path = "Views";
+			sourceTree = "<group>";
+		};
+		2F0F09EE55877F79E76A06D5 /* Azokle Browser */ = {
+			isa = PBXGroup;
+			children = (
+				8910847A741F003463A847D2 /* Azokle_BrowserApp.swift */,
+				0A8C13525269D9F9FAC9D986 /* ContentView.swift */,
+				7999BCA23EC4E9B2C00838D3 /* Theme */,
+				5FBDDD8D8F0A83C001DDD25A /* Model */,
+				136AA85951D85D2ABADC94F9 /* Engine */,
+				C454586A1F4E28C340BDC1AD /* Views */,
+				CC3340C45202B29152467289 /* Assets.xcassets */,
+				8E67E77BA70C82C0F061FB51 /* audiowide_regular.ttf */,
+			);
+			path = "Azokle Browser";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -60,12 +163,7 @@
 			);
 			dependencies = (
 			);
-			fileSystemSynchronizedGroups = (
-				A6F3F14E3056B4D9004304E1 /* Azokle Browser */,
-			);
 			name = "Azokle Browser";
-			packageProductDependencies = (
-			);
 			productName = "Azokle Browser";
 			productReference = A6F3F14C3056B4D9004304E1 /* Azokle Browser.app */;
 			productType = "com.apple.product-type.application";
@@ -77,15 +175,15 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2660;
-				LastUpgradeCheck = 2660;
+				LastUpgradeCheck = 1520;
 				TargetAttributes = {
 					A6F3F14B3056B4D9004304E1 = {
-						CreatedOnToolsVersion = 26.6;
+						CreatedOnToolsVersion = 15.2;
 					};
 				};
 			};
 			buildConfigurationList = A6F3F1473056B4D9004304E1 /* Build configuration list for PBXProject "Azokle Browser" */;
+			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -93,8 +191,6 @@
 				Base,
 			);
 			mainGroup = A6F3F1433056B4D9004304E1;
-			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			productRefGroup = A6F3F14D3056B4D9004304E1 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -109,6 +205,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				99812033B8BD7CDC0C7E876A /* Assets.xcassets in Resources */,
+				77F64868BF35BABF693845E1 /* audiowide_regular.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -119,6 +217,27 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9CE60B7C66CA9755A58F3801 /* Azokle_BrowserApp.swift in Sources */,
+				F3EB1DD40F7AFFCF4C5B2777 /* ContentView.swift in Sources */,
+				58BF122BEB3F53824F3E8D24 /* AzokleTheme.swift in Sources */,
+				4B9AB32D507108898BF380CE /* BrowserState.swift in Sources */,
+				F3CA5D43C4166EBC00116F6B /* BrowserTab.swift in Sources */,
+				C9C97C032535CC4B71B08922 /* WebViewContainer.swift in Sources */,
+				78CDFE74F4C383EAFB41BFAE /* BrowserScreen.swift in Sources */,
+				B3B9EA8A917965455AF8B59D /* BrowserOmnibar.swift in Sources */,
+				B87AEA019FA4BAA1F7A9853E /* BrowserBottomBar.swift in Sources */,
+				58AEDEC383A1909F2C1E2DB8 /* HomeScreen.swift in Sources */,
+				C5AAC699E40B9D9BF1EE0453 /* OmniboxSheet.swift in Sources */,
+				991412E0B7357E93BAD41B57 /* TabsScreen.swift in Sources */,
+				7ACC14859FBB02D5DBA1AB00 /* PrivacyShieldSheet.swift in Sources */,
+				3137B8441D88A82721F9EA0A /* BurnConfirmationSheet.swift in Sources */,
+				1434229C44D46BE721F17A48 /* TorCircuitSheet.swift in Sources */,
+				1FA96C6D023C132472167C6A /* DiscoverScreen.swift in Sources */,
+				8516118DDA43325AA635393A /* HistoryScreen.swift in Sources */,
+				405B303ABD7DE7EA9A217E87 /* BookmarksScreen.swift in Sources */,
+				018C7702CD822CAE14B0EAB4 /* DownloadsScreen.swift in Sources */,
+				BBE30694758A52508A2DC1FC /* SettingsScreen.swift in Sources */,
+				42A3EA0B8049CE3E916EAA23 /* BrowserMenuSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -173,11 +292,10 @@
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNDEFINED_VARIABLES = YES;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -230,11 +348,10 @@
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNDEFINED_VARIABLES = YES;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -253,6 +370,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Azokle Browser";
 				INFOPLIST_KEY_UIAppFonts = "audiowide_regular.ttf";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -263,14 +381,9 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Azokle-Private-Limited.Azokle-Browser";
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.azokle.browser";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -285,6 +398,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Azokle Browser";
 				INFOPLIST_KEY_UIAppFonts = "audiowide_regular.ttf";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -295,14 +409,9 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Azokle-Private-Limited.Azokle-Browser";
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.azokle.browser";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -330,6 +439,7 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
 	};
 	rootObject = A6F3F1443056B4D9004304E1 /* Project object */;
 }

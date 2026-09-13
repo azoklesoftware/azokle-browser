@@ -10,15 +10,15 @@ public struct TabsScreen: View {
     let colors: AzokleColors = .dark
 
     private var standardCount: Int {
-        state.tabs.count { !$0.isPrivate && !$0.isTor }
+        state.tabs.filter { !$0.isPrivate && !$0.isTor }.count
     }
 
     private var privateCount: Int {
-        state.tabs.count { $0.isPrivate && !$0.isTor }
+        state.tabs.filter { $0.isPrivate && !$0.isTor }.count
     }
 
     private var torCount: Int {
-        state.tabs.count { $0.isTor }
+        state.tabs.filter { $0.isTor }.count
     }
 
     private var filteredTabs: [BrowserTab] {
