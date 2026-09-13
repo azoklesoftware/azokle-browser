@@ -1,82 +1,221 @@
 import SwiftUI
 
+// MARK: - Redesigned Browser Omnibar (1:1 Android BrowserOmnibar.kt Parity)
 public struct BrowserOmnibar: View {
     @ObservedObject var state: BrowserState
     let colors: AzokleColors = .dark
 
+    @State private var copiedFeedbackActive: Bool = false
+
+    private var activeUrl: String {
+        state.activeTab?.url ?? ""
+    }
+
+    private var isHttp: Bool {
+        activeUrl.hasPrefix("http://")
+    }
+
+    private var isInternal: Bool {
+        activeUrl.hasPrefix("about:") || activeUrl.isEmpty || activeUrl == "https://search.azokle.com"
+    }
+
+    // RFC 3986 Anti-Spoofing Host Extraction:
+    // Strips embedded credentials/user-info prefixes (e.g. https://brand.com@evil.com -> evil.com)
+    private var cleanHost: String {
+        guard !activeUrl.isEmpty, let url = URL(string: activeUrl) else { return "" }
+        if let host = url.host {
+            return host.replacingOccurrences(of: "www.", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return ""
+    }
+
+    private var isOnion: Bool {
+        cleanHost.hasSuffix(".onion") || (state.activeTab?.isTor ?? false)
+    }
+
+    private var displayHost: String {
+        if isInternal || cleanHost.isEmpty {
+            return "Search or type URL"
+        }
+        return cleanHost
+    }
+
+    private var urlPath: String {
+        guard !isInternal, let url = URL(string: activeUrl) else { return "" }
+        let path = url.path
+        if path.isEmpty || path == "/" {
+            return ""
+        }
+        return path
+    }
+
+    private var sslIcon: String {
+        if isOnion {
+            return "network.badge.shield.half.filled"
+        } else if isHttp {
+            return "exclamationmark.triangle.fill"
+        } else {
+            return "lock.fill"
+        }
+    }
+
+    private var sslTint: Color {
+        if isOnion {
+            return colors.statusTor
+        } else if isHttp {
+            return colors.statusDestructive
+        } else {
+            return colors.statusSuccess
+        }
+    }
+
     public var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                // 1. Security Lock & Shield Badge
-                Button(action: {
-                    state.showShieldSheet = true
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: state.isShieldActive ? "shield.fill" : "shield.slash.fill")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(state.isShieldActive ? colors.statusSuccess : colors.textMuted)
-
-                        if state.isShieldActive, let activeTab = state.activeTab, activeTab.blockedTrackers > 0 {
-                            Text("\(activeTab.blockedTrackers)")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(colors.statusSuccess)
+            HStack(spacing: 10) {
+                // Main Address Capsule (42pt height, surfaceElevated background, 14pt radius)
+                HStack(spacing: 8) {
+                    // 1. Left Element: Security Padlock OR Search Engine Dropdown
+                    if !isInternal && !cleanHost.isEmpty {
+                        Button(action: {
+                            triggerHaptic()
+                            if isOnion {
+                                state.showTorCircuitSheet = true
+                            } else {
+                                state.showShieldSheet = true
+                            }
+                        }) {
+                            Image(systemName: sslIcon)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(sslTint)
+                                .frame(width: 24, height: 24)
+                        }
+                    } else {
+                        // Search Engine Selector Menu on Home
+                        Menu {
+                            ForEach(SearchEngine.allCases) { engine in
+                                Button(action: {
+                                    state.selectedSearchEngine = engine
+                                }) {
+                                    HStack {
+                                        Text(engine.rawValue)
+                                        if state.selectedSearchEngine == engine {
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 3) {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(colors.statusAccent)
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 7, weight: .bold))
+                                    .foregroundColor(colors.textMuted)
+                            }
+                            .frame(height: 24)
                         }
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
-                    .background(colors.surfaceElevated)
-                    .cornerRadius(AzokleRadius.small)
-                }
 
-                // 2. Center Omnibar Capsule
-                Button(action: {
-                    state.showOmniboxSheet = true
-                }) {
-                    HStack(spacing: 6) {
-                        if let activeTab = state.activeTab, activeTab.isTor {
-                            Image(systemName: "network.badge.shield.half.filled")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(colors.statusTor)
-                        } else if let activeTab = state.activeTab, activeTab.isPrivate {
-                            Image(systemName: "eye.slash.fill")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(colors.statusWarning)
-                        } else if let url = state.activeTab?.url, url.hasPrefix("https://") {
-                            Image(systemName: "lock.fill")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(colors.textSecondary)
+                    // 2. Center Text: Anti-Spoofing Visual Hierarchy
+                    Button(action: {
+                        state.showOmniboxSheet = true
+                    }) {
+                        HStack(spacing: 0) {
+                            if copiedFeedbackActive {
+                                Text("URL copied to clipboard")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(colors.statusSuccess)
+                            } else if isInternal || cleanHost.isEmpty {
+                                Text(displayHost)
+                                    .font(.system(size: 14, weight: .regular))
+                                    .foregroundColor(colors.textSecondary)
+                            } else {
+                                // Bold Host in White
+                                Text(displayHost)
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(colors.textPrimary)
+                                    .lineLimit(1)
+
+                                // Dimmed Path in Gray
+                                if !urlPath.isEmpty {
+                                    Text(urlPath)
+                                        .font(.system(size: 13, weight: .regular))
+                                        .foregroundColor(colors.textMuted)
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
+                                }
+                            }
+
+                            Spacer(minLength: 0)
                         }
-
-                        Text(displayHost)
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(colors.textPrimary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-
-                        Spacer(minLength: 0)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity)
-                    .background(colors.omnibarBg)
-                    .cornerRadius(AzokleRadius.medium)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: AzokleRadius.medium)
-                            .stroke(colors.border, lineWidth: 1)
+                    .simultaneousGesture(
+                        LongPressGesture().onEnded { _ in
+                            handleLongPressCopy()
+                        }
                     )
+
+                    // 3. Right Element: Live Shield Counter OR Voice Search
+                    if !isInternal && !cleanHost.isEmpty {
+                        let blockedCount = state.activeTab?.blockedTrackers ?? 0
+                        let isShieldActive = state.isShieldActive && blockedCount > 0
+                        let shieldTint = isShieldActive ? colors.statusSuccess : colors.textMuted
+
+                        Button(action: {
+                            triggerHaptic()
+                            state.showShieldSheet = true
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "shield.fill")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(shieldTint)
+
+                                if isShieldActive {
+                                    Text("\(blockedCount)")
+                                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                        .foregroundColor(shieldTint)
+                                }
+                            }
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(colors.surface)
+                            .cornerRadius(AzokleRadius.small)
+                        }
+                    } else {
+                        Button(action: {
+                            triggerHaptic()
+                            state.showOmniboxSheet = true
+                        }) {
+                            Image(systemName: "mic.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(colors.textSecondary)
+                                .frame(width: 24, height: 24)
+                        }
+                    }
+                }
+                .padding(.horizontal, 10)
+                .frame(height: 42)
+                .background(colors.surfaceElevated)
+                .cornerRadius(AzokleRadius.medium)
+                .overlay(
+                    RoundedRectangle(cornerRadius: AzokleRadius.medium)
+                        .stroke(colors.border, lineWidth: 1)
+                )
+
+                // 4. Quick Actions: Reader Mode
+                if !isInternal {
+                    Button(action: {
+                        state.readerModeActive.toggle()
+                    }) {
+                        Image(systemName: state.readerModeActive ? "book.fill" : "book")
+                            .font(.system(size: 15))
+                            .foregroundColor(state.readerModeActive ? colors.statusAccent : colors.textSecondary)
+                            .frame(width: 28, height: 28)
+                    }
                 }
 
-                // 3. Reader Mode Icon (if available)
-                Button(action: {
-                    state.readerModeActive.toggle()
-                }) {
-                    Image(systemName: state.readerModeActive ? "book.fill" : "book")
-                        .font(.system(size: 15, weight: .regular))
-                        .foregroundColor(state.readerModeActive ? colors.statusAccent : colors.textSecondary)
-                        .frame(width: 32, height: 32)
-                }
-
-                // 4. Reload or Stop Button
+                // 5. Quick Actions: Stop or Reload
                 if let activeTab = state.activeTab, activeTab.isLoading {
                     Button(action: {
                         if let index = state.tabs.firstIndex(where: { $0.id == state.activeTabId }) {
@@ -84,50 +223,63 @@ public struct BrowserOmnibar: View {
                         }
                     }) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.system(size: 13, weight: .bold))
                             .foregroundColor(colors.textSecondary)
-                            .frame(width: 32, height: 32)
+                            .frame(width: 28, height: 28)
                     }
-                } else {
+                } else if !isInternal {
                     Button(action: {
                         state.reloadActiveTab()
                     }) {
                         Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.system(size: 13, weight: .bold))
                             .foregroundColor(colors.textSecondary)
-                            .frame(width: 32, height: 32)
+                            .frame(width: 28, height: 28)
                     }
                 }
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(colors.surface)
+            .padding(.vertical, 8)
+            .background(colors.cardBg)
 
-            // Progress Bar (Slim linear loader at bottom of Omnibar)
-            if let activeTab = state.activeTab, activeTab.isLoading {
+            // 6. Smooth Linear Progress Indicator (2.5pt height)
+            if let activeTab = state.activeTab, activeTab.isLoading && activeTab.progress < 1.0 {
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
                         Rectangle()
-                            .fill(Color.clear)
+                            .fill(colors.surfaceElevated)
                         Rectangle()
-                            .fill(colors.statusAccent)
-                            .frame(width: geometry.size.width * CGFloat(activeTab.progress))
-                            .animation(.easeOut(duration: 0.2), value: activeTab.progress)
+                            .fill(colors.textPrimary)
+                            .frame(width: max(0, geometry.size.width * CGFloat(activeTab.progress)))
+                            .animation(.easeOut(duration: 0.18), value: activeTab.progress)
                     }
                 }
-                .frame(height: 2)
+                .frame(height: 2.5)
             } else {
                 Divider()
-                    .background(colors.border)
+                    .background(colors.border.opacity(0.8))
             }
         }
     }
 
-    private var displayHost: String {
-        guard let tab = state.activeTab, !tab.url.isEmpty else { return "Search or enter address" }
-        if let url = URL(string: tab.url), let host = url.host {
-            return host.replacingOccurrences(of: "www.", with: "")
+    private func triggerHaptic() {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.impactOccurred()
+    }
+
+    private func handleLongPressCopy() {
+        guard !activeUrl.isEmpty && !isInternal else { return }
+        UIPasteboard.general.string = activeUrl
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
+
+        withAnimation {
+            copiedFeedbackActive = true
         }
-        return tab.url
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+            withAnimation {
+                self.copiedFeedbackActive = false
+            }
+        }
     }
 }
