@@ -66,6 +66,7 @@
             <data android:scheme="geo" />
         </intent>
         <!-- App Stores -->
+        <package android:name="com.android.vending" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="market" />

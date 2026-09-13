@@ -122,6 +122,10 @@ object UriClassifier {
             return UriType.INTENT
         }
 
+        if (isPlayStoreUrl(trimmed)) {
+            return UriType.APP_STORE
+        }
+
         val scheme = extractScheme(trimmed) ?: return UriType.UNKNOWN
 
         return when {
@@ -169,6 +173,21 @@ object UriClassifier {
             UriType.CUSTOM_APP_SCHEME -> true
             else -> false
         }
+    }
+
+    /**
+     * Checks if a URI string represents a Google Play Store / Android Market link.
+     */
+    fun isPlayStoreUrl(uriStr: String?): Boolean {
+        if (uriStr.isNullOrBlank()) return false
+        val lower = uriStr.trim().lowercase()
+        return (lower.startsWith("market://") ||
+                lower.startsWith("https://play.google.com/") ||
+                lower.startsWith("http://play.google.com/") ||
+                lower.startsWith("https://market.android.com/") ||
+                lower.startsWith("http://market.android.com/") ||
+                lower.startsWith("https://play.app.goo.gl/") ||
+                lower.startsWith("http://play.app.goo.gl/"))
     }
 
     /**

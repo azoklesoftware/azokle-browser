@@ -204,4 +204,64 @@ object UrlHelper {
             "${searchEngineQueryUrl}${encodedQuery}"
         }
     }
+
+    /**
+     * Unwraps tracking and redirect shims (Instagram, Facebook, Google) to recover the destination URL.
+     * Recursively un-nests chained shims up to a maximum depth of 3.
+     * Implemented using pure Kotlin and standard Java URLDecoder to operate reliably in both
+     * Android runtime and host JVM unit tests without android.net.Uri mocking.
+     */
+    fun unwrapLinkShim(rawUrl: String, depth: Int = 0): String {
+        if (depth > 3) return rawUrl
+        val trimmed = rawUrl.trim()
+        if (trimmed.isBlank() || trimmed.startsWith("about:", ignoreCase = true)) return trimmed
+
+        return try {
+            val questionIdx = trimmed.indexOf('?')
+            if (questionIdx == -1) return trimmed
+
+            val base = trimmed.substring(0, questionIdx).lowercase()
+            val queryString = trimmed.substring(questionIdx + 1)
+
+            val isInstagramShim = base.contains("l.instagram.com") || base.contains("instagram.com/linkshim") ||
+                    base.contains("instagram.com")
+            val isFacebookShim = base.contains("facebook.com/l.php") || base.contains("l.facebook.com") ||
+                    base.contains("lm.facebook.com") || base.contains("m.facebook.com")
+            val isGoogleShim = base.contains("google.com/url") || base.contains("www.google.com/url")
+
+            val target = when {
+                (isInstagramShim || isFacebookShim) -> extractQueryParam(queryString, "u")
+                isGoogleShim -> extractQueryParam(queryString, "q") ?: extractQueryParam(queryString, "url")
+                else -> null
+            }
+
+            if (!target.isNullOrBlank()) {
+                val decoded = try {
+                    java.net.URLDecoder.decode(target, "UTF-8")
+                } catch (e: Exception) {
+                    target
+                }
+                unwrapLinkShim(decoded, depth + 1)
+            } else {
+                trimmed
+            }
+        } catch (e: Exception) {
+            trimmed
+        }
+    }
+
+    private fun extractQueryParam(queryString: String, paramName: String): String? {
+        val hashIdx = queryString.indexOf('#')
+        val cleanQuery = if (hashIdx != -1) queryString.substring(0, hashIdx) else queryString
+        for (part in cleanQuery.split('&')) {
+            val eqIdx = part.indexOf('=')
+            if (eqIdx > 0) {
+                val key = part.substring(0, eqIdx).trim()
+                if (key.equals(paramName, ignoreCase = true)) {
+                    return part.substring(eqIdx + 1).trim()
+                }
+            }
+        }
+        return null
+    }
 }

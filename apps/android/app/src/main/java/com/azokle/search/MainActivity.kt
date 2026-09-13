@@ -352,7 +352,25 @@ class MainActivity : FragmentActivity() {
         val dataString = intent.dataString ?: intent.data?.toString()
 
         if (action == Intent.ACTION_VIEW && !dataString.isNullOrBlank()) {
-            val sanitized = com.azokle.search.common.util.UrlHelper.stripTrackingParameters(dataString.trim())
+            val rawTrimmed = dataString.trim()
+            val unwrapped = com.azokle.search.common.util.UrlHelper.unwrapLinkShim(rawTrimmed)
+            val sanitized = com.azokle.search.common.util.UrlHelper.stripTrackingParameters(unwrapped)
+
+            // Direct external dispatch for Play Store links, market links, or external app schemes
+            if (com.azokle.search.navigation.ExternalNavigationHandler.isExternalNavigation(sanitized)) {
+                val handled = com.azokle.search.navigation.ExternalNavigationHandler.handleNavigation(
+                    context = this,
+                    uriStr = sanitized,
+                    session = null,
+                    hasUserGesture = true,
+                    isPrivate = false,
+                    isTor = false
+                )
+                if (handled) {
+                    return
+                }
+            }
+
             if (com.azokle.search.common.util.UrlHelper.isAllowedScheme(sanitized)) {
                 val resolved = com.azokle.search.common.util.UrlHelper.resolveSearchOrUrl(this, sanitized)
                 viewModel.openInAppBrowser(resolved)

@@ -26,7 +26,8 @@ object ExternalNavigationHandler {
             return true
         }
 
-        if (isPlayStoreLink(trimmed)) {
+        val unwrapped = com.azokle.search.common.util.UrlHelper.unwrapLinkShim(trimmed)
+        if (isPlayStoreLink(unwrapped) || isPlayStoreLink(trimmed)) {
             return true
         }
 
@@ -45,15 +46,18 @@ object ExternalNavigationHandler {
     }
 
     /**
-     * Checks if an HTTP/HTTPS URI is a direct Google Play Store link.
+     * Checks if an HTTP/HTTPS or market URI is a Google Play Store link.
      */
     fun isPlayStoreLink(uriStr: String?): Boolean {
         if (uriStr.isNullOrBlank()) return false
         val lower = uriStr.trim().lowercase()
-        return (lower.startsWith("https://play.google.com/store/apps/") ||
-                lower.startsWith("http://play.google.com/store/apps/") ||
-                lower.startsWith("https://market.android.com/details") ||
-                lower.startsWith("http://market.android.com/details"))
+        return (lower.startsWith("market://") ||
+                lower.startsWith("https://play.google.com/") ||
+                lower.startsWith("http://play.google.com/") ||
+                lower.startsWith("https://market.android.com/") ||
+                lower.startsWith("http://market.android.com/") ||
+                lower.startsWith("https://play.app.goo.gl/") ||
+                lower.startsWith("http://play.app.goo.gl/"))
     }
 
     /**
@@ -80,7 +84,9 @@ object ExternalNavigationHandler {
         onTorConfirmationRequired: (((proceed: () -> Unit) -> Unit))? = null
     ): Boolean {
         if (uriStr.isNullOrBlank()) return false
-        val trimmed = uriStr.trim()
+        val rawTrimmed = uriStr.trim()
+        val unwrapped = com.azokle.search.common.util.UrlHelper.unwrapLinkShim(rawTrimmed)
+        val trimmed = if (isPlayStoreLink(unwrapped)) unwrapped else rawTrimmed
 
         // 1. Strict blocking of dangerous internal schemes
         if (NavigationSecurity.isForbiddenWebScheme(UriClassifier.extractScheme(trimmed))) {
@@ -102,7 +108,15 @@ object ExternalNavigationHandler {
         }
 
         // 3. Enforce user gesture for external application launches
-        if (!NavigationSecurity.isGestureAllowed(hasUserGesture, targetWindow)) {
+        // Exempt safe redirect targets (Play Store, UPI payments, OAuth) from strict user-gesture gating
+        // because redirect chains (e.g. Instagram/Facebook link-shims, ad clicks, or payment gateways)
+        // drop hasUserGesture in GeckoView.
+        val isRedirectExempt = isPlayStore ||
+                type == UriClassifier.UriType.APP_STORE ||
+                type == UriClassifier.UriType.UPI_PAYMENT ||
+                (type == UriClassifier.UriType.CUSTOM_APP_SCHEME && OAuthRedirectHandler.isOAuthCallback(trimmed))
+
+        if (!isRedirectExempt && !NavigationSecurity.isGestureAllowed(hasUserGesture, targetWindow)) {
             return true // blocked unauthorized auto-redirect
         }
 
@@ -319,14 +333,23 @@ object ExternalNavigationHandler {
         uriStr: String,
         session: GeckoSession?
     ): Boolean {
+        val lower = uriStr.trim().lowercase()
         val targetUri = try {
-            val lower = uriStr.trim().lowercase()
-            if (lower.startsWith("https://play.google.com/store/apps/details?") || lower.startsWith("http://play.google.com/store/apps/details?")) {
+            if (lower.startsWith("https://play.google.com/store/apps/details?") ||
+                lower.startsWith("http://play.google.com/store/apps/details?") ||
+                lower.startsWith("https://market.android.com/details?") ||
+                lower.startsWith("http://market.android.com/details?")) {
                 val query = uriStr.substringAfter('?')
                 Uri.parse("market://details?$query")
-            } else if (lower.startsWith("https://market.android.com/details?") || lower.startsWith("http://market.android.com/details?")) {
-                val query = uriStr.substringAfter('?')
-                Uri.parse("market://details?$query")
+            } else if (lower.startsWith("https://play.google.com/store/apps/details") ||
+                lower.startsWith("http://play.google.com/store/apps/details")) {
+                val afterDetails = uriStr.substringAfter("details", "").trimStart('?', '/')
+                if (afterDetails.isNotEmpty()) {
+                    if (afterDetails.contains("=")) Uri.parse("market://details?$afterDetails")
+                    else Uri.parse("market://details?id=$afterDetails")
+                } else {
+                    Uri.parse(uriStr)
+                }
             } else {
                 Uri.parse(uriStr)
             }

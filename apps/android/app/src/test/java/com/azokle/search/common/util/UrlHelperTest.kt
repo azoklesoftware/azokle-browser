@@ -102,4 +102,23 @@ class UrlHelperTest {
         val resolvedContent = UrlHelper.resolveSearchOrUrl(contentUri)
         assertTrue("content: scheme must be redirected to search", resolvedContent.contains("search.azokle.com"))
     }
+
+    @Test
+    fun testUnwrapLinkShim() {
+        val igShim = "https://l.instagram.com/?u=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.whatsapp&e=AT12345"
+        val unwrappedIg = UrlHelper.unwrapLinkShim(igShim)
+        assertEquals("https://play.google.com/store/apps/details?id=com.whatsapp", unwrappedIg)
+
+        val fbShim = "https://lm.facebook.com/l.php?u=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dorg.telegram.messenger"
+        val unwrappedFb = UrlHelper.unwrapLinkShim(fbShim)
+        assertEquals("https://play.google.com/store/apps/details?id=org.telegram.messenger", unwrappedFb)
+
+        val googleShim = "https://www.google.com/url?q=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.spotify.music&sa=U"
+        val unwrappedGoogle = UrlHelper.unwrapLinkShim(googleShim)
+        assertEquals("https://play.google.com/store/apps/details?id=com.spotify.music", unwrappedGoogle)
+
+        val normalUrl = "https://play.google.com/store/apps/details?id=com.whatsapp"
+        assertEquals(normalUrl, UrlHelper.unwrapLinkShim(normalUrl))
+    }
 }
+

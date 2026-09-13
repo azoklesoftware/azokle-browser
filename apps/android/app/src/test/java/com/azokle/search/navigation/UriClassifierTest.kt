@@ -38,8 +38,15 @@ class UriClassifierTest {
         assertEquals(UriClassifier.UriType.MAPS, UriClassifier.classify("geo:37.7749,-122.4194"))
         assertEquals(UriClassifier.UriType.MAPS, UriClassifier.classify("geo:0,0?q=San+Francisco"))
         assertEquals(UriClassifier.UriType.APP_STORE, UriClassifier.classify("market://details?id=com.azokle.search"))
+        assertEquals(UriClassifier.UriType.APP_STORE, UriClassifier.classify("https://play.google.com/store/apps/details?id=com.whatsapp"))
+        assertEquals(UriClassifier.UriType.APP_STORE, UriClassifier.classify("http://play.google.com/store/apps/details?id=com.whatsapp"))
+        assertEquals(UriClassifier.UriType.APP_STORE, UriClassifier.classify("https://play.app.goo.gl/xyz123"))
+        assertEquals(UriClassifier.UriType.APP_STORE, UriClassifier.classify("https://market.android.com/details?id=com.whatsapp"))
+
         assertTrue(UriClassifier.isExternalNavigation("geo:37.7749,-122.4194"))
         assertTrue(UriClassifier.isExternalNavigation("market://details?id=com.azokle.search"))
+        assertTrue(UriClassifier.isExternalNavigation("https://play.google.com/store/apps/details?id=com.whatsapp"))
+        assertTrue(UriClassifier.isExternalNavigation("https://play.app.goo.gl/xyz123"))
     }
 
     @Test
