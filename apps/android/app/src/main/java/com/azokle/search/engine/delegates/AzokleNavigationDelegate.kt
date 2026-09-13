@@ -170,14 +170,16 @@ class AzokleNavigationDelegate(
                     title = "New Tab",
                     parentTabId = parentId,
                     isPrivate = isPrivate,
-                    isTor = isTor
+                    isTor = isTor,
+                    selectAfterOpen = false
                 )
             } else {
                 TabManager.openTab(
                     url = targetUrl,
                     title = "New Tab",
                     isPrivate = isPrivate,
-                    isTor = isTor
+                    isTor = isTor,
+                    selectAfterOpen = false
                 )
             }
 
@@ -192,12 +194,12 @@ class AzokleNavigationDelegate(
                 isTor = isTor
             )
 
-            // Switch to the new tab only AFTER GeckoView completes its internal session opening
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (newSession.isOpen && TabManager.activeTabId.value != newTabId) {
+            // Switch to the new tab on main thread
+            Handler(Looper.getMainLooper()).post {
+                if (TabManager.activeTabId.value != newTabId) {
                     TabManager.selectTab(newTabId)
                 }
-            }, 500)
+            }
 
             GeckoResult.fromValue(newSession)
         } catch (e: Throwable) {

@@ -60,6 +60,16 @@ enum class SitePermissionType(
         displayName = "Clipboard Access",
         description = "Read text from your clipboard",
         icon = Icons.AutoMirrored.Filled.Assignment
+    ),
+    SCREEN_SHARE(
+        displayName = "Screen Sharing",
+        description = "Capture and share your device screen",
+        icon = Icons.Default.CameraAlt
+    ),
+    VR_AR(
+        displayName = "Virtual & Augmented Reality",
+        description = "Access XR headsets, motion sensors, and 3D tracking",
+        icon = Icons.Default.Lock
     );
 
     val requiredAndroidPermissions: List<String>
@@ -75,6 +85,18 @@ enum class SitePermissionType(
             } else emptyList()
             else -> emptyList()
         }
+
+    fun hasAndroidPermissions(context: android.content.Context): Boolean {
+        return when (this) {
+            GEOLOCATION -> {
+                androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
+                androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            }
+            else -> requiredAndroidPermissions.all {
+                androidx.core.content.ContextCompat.checkSelfPermission(context, it) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            }
+        }
+    }
 }
 
 enum class SitePermissionState {
@@ -93,7 +115,8 @@ data class SitePermissionRequest(
     val videoSources: Array<out GeckoSession.PermissionDelegate.MediaSource>? = null,
     val audioSources: Array<out GeckoSession.PermissionDelegate.MediaSource>? = null,
     val mediaCallback: GeckoSession.PermissionDelegate.MediaCallback? = null,
-    val contentCallback: ((Int) -> Unit)? = null
+    val contentCallback: ((Int) -> Unit)? = null,
+    val clipboardCallback: ((org.mozilla.geckoview.AllowOrDeny) -> Unit)? = null
 ) {
     private val isResolved = AtomicBoolean(false)
 
@@ -101,9 +124,9 @@ data class SitePermissionRequest(
         video: GeckoSession.PermissionDelegate.MediaSource?,
         audio: GeckoSession.PermissionDelegate.MediaSource?
     ) {
-        if (isResolved.compareAndSet(false, true)) {
+        if (mediaCallback != null && isResolved.compareAndSet(false, true)) {
             try {
-                mediaCallback?.grant(video, audio)
+                mediaCallback.grant(video, audio)
             } catch (e: Exception) {
                 android.util.Log.e("SitePermissionRequest", "grantMedia error: ${e.message}")
             }
@@ -111,11 +134,21 @@ data class SitePermissionRequest(
     }
 
     fun grantContent(grantValue: Int = GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW) {
-        if (isResolved.compareAndSet(false, true)) {
+        if (contentCallback != null && isResolved.compareAndSet(false, true)) {
             try {
-                contentCallback?.invoke(grantValue)
+                contentCallback.invoke(grantValue)
             } catch (e: Exception) {
                 android.util.Log.e("SitePermissionRequest", "grantContent error: ${e.message}")
+            }
+        }
+    }
+
+    fun grantClipboard(allowOrDeny: org.mozilla.geckoview.AllowOrDeny = org.mozilla.geckoview.AllowOrDeny.ALLOW) {
+        if (clipboardCallback != null && isResolved.compareAndSet(false, true)) {
+            try {
+                clipboardCallback.invoke(allowOrDeny)
+            } catch (e: Exception) {
+                android.util.Log.e("SitePermissionRequest", "grantClipboard error: ${e.message}")
             }
         }
     }
@@ -131,6 +164,11 @@ data class SitePermissionRequest(
                 contentCallback?.invoke(denyValue)
             } catch (e: Exception) {
                 android.util.Log.e("SitePermissionRequest", "contentCallback reject error: ${e.message}")
+            }
+            try {
+                clipboardCallback?.invoke(org.mozilla.geckoview.AllowOrDeny.DENY)
+            } catch (e: Exception) {
+                android.util.Log.e("SitePermissionRequest", "clipboardCallback reject error: ${e.message}")
             }
         }
     }

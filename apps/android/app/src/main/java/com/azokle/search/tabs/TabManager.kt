@@ -153,7 +153,8 @@ object TabManager {
         groupTitle: String? = null,
         groupColor: Long? = null,
         parentTabId: String? = null,
-        wallpaperResId: Int? = null
+        wallpaperResId: Int? = null,
+        selectAfterOpen: Boolean = true
     ): String {
         val assignedWallpaper = wallpaperResId ?: com.azokle.search.settings.WallpaperManager.rotateWallpaper()
         val newTab = TabSession(
@@ -180,7 +181,9 @@ object TabManager {
             }
         }
 
-        selectTab(newTab.id)
+        if (selectAfterOpen) {
+            selectTab(newTab.id)
+        }
         if (!isPrivate && !isTor) {
             persistTabs()
         }
@@ -219,7 +222,8 @@ object TabManager {
         title: String = "New Tab",
         parentTabId: String,
         isPrivate: Boolean = false,
-        isTor: Boolean = false
+        isTor: Boolean = false,
+        selectAfterOpen: Boolean = true
     ): String {
         val parent = _tabs.value.find { it.id == parentTabId }
         val targetGroupId: String
@@ -277,7 +281,8 @@ object TabManager {
             groupId = targetGroupId,
             groupTitle = targetGroupTitle,
             groupColor = targetGroupColor,
-            parentTabId = parentTabId
+            parentTabId = parentTabId,
+            selectAfterOpen = selectAfterOpen
         )
     }
 

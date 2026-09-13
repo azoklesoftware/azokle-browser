@@ -458,7 +458,6 @@ class GeckoPromptDelegateImpl(
             if (scheme != null && scheme in dangerousSchemes) {
                 return GeckoResult.fromValue(prompt.dismiss())
             }
-            onPopupRequested?.invoke(targetUri)
         }
         return GeckoResult.fromValue(prompt.confirm(org.mozilla.geckoview.AllowOrDeny.ALLOW))
     }

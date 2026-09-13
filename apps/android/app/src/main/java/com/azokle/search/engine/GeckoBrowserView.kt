@@ -296,7 +296,13 @@ fun GeckoBrowserView(
                 )
 
                 // 8. Selection Action Delegate (Floating Context Menu: Copy, Cut, Paste, Select All, Share, Web Search)
-                session.selectionActionDelegate = AzokleSelectionDelegate(onTextSelectionChanged)
+                session.selectionActionDelegate = AzokleSelectionDelegate(
+                    context = context,
+                    isPrivate = isPrivate,
+                    isTor = isTor,
+                    onPermissionPromptRequested = onPermissionPromptRequested,
+                    onSelectionAction = onTextSelectionChanged
+                )
 
                 // 9. Permission Delegate (Two-Tier Brave-Grade Origin Security & Hardware Access Engine)
                 session.permissionDelegate = AzoklePermissionDelegate(
@@ -309,7 +315,11 @@ fun GeckoBrowserView(
                 // Attach session to GeckoView & open runtime
                 setSession(session)
                 if (!session.isOpen) {
-                    session.open(runtime)
+                    try {
+                        session.open(runtime)
+                    } catch (e: Exception) {
+                        android.util.Log.w("GeckoBrowserView", "session already open or opening: ${e.message}")
+                    }
                 }
 
                 isFocusable = true

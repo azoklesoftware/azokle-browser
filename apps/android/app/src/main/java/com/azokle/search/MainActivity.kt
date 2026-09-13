@@ -116,6 +116,100 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    private val pendingAndroidPermissions = java.util.concurrent.ConcurrentLinkedQueue<Pair<Array<String>, org.mozilla.geckoview.GeckoSession.PermissionDelegate.Callback>>()
+    private var isRequestingAndroidPermission = false
+
+    private val androidPermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissionsMap ->
+        val current = pendingAndroidPermissions.poll()
+        if (current != null) {
+            val (perms, cb) = current
+            val isLocationReq = perms.any {
+                it == android.Manifest.permission.ACCESS_FINE_LOCATION || it == android.Manifest.permission.ACCESS_COARSE_LOCATION
+            }
+            val locationOk = if (isLocationReq) {
+                (permissionsMap[android.Manifest.permission.ACCESS_FINE_LOCATION] == true) ||
+                (permissionsMap[android.Manifest.permission.ACCESS_COARSE_LOCATION] == true) ||
+                (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) ||
+                (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED)
+            } else true
+
+            val otherPerms = perms.filter {
+                it != android.Manifest.permission.ACCESS_FINE_LOCATION && it != android.Manifest.permission.ACCESS_COARSE_LOCATION
+            }
+            val otherOk = otherPerms.all {
+                permissionsMap[it] == true ||
+                androidx.core.content.ContextCompat.checkSelfPermission(this, it) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            }
+
+            if (locationOk && otherOk) {
+                cb.grant()
+            } else {
+                cb.reject()
+            }
+        }
+        isRequestingAndroidPermission = false
+        processNextAndroidPermissionRequest()
+    }
+
+    fun requestAndroidPermissions(
+        permissions: Array<String>,
+        callback: org.mozilla.geckoview.GeckoSession.PermissionDelegate.Callback
+    ) {
+        val isLocationReq = permissions.any {
+            it == android.Manifest.permission.ACCESS_FINE_LOCATION || it == android.Manifest.permission.ACCESS_COARSE_LOCATION
+        }
+        val locationSatisfied = if (isLocationReq) {
+            androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
+            androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        } else true
+
+        val nonLocationUngranted = permissions.filter {
+            it != android.Manifest.permission.ACCESS_FINE_LOCATION &&
+            it != android.Manifest.permission.ACCESS_COARSE_LOCATION &&
+            androidx.core.content.ContextCompat.checkSelfPermission(this, it) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+
+        if (locationSatisfied && nonLocationUngranted.isEmpty()) {
+            callback.grant()
+            return
+        }
+
+        pendingAndroidPermissions.offer(Pair(permissions, callback))
+        if (!isRequestingAndroidPermission) {
+            processNextAndroidPermissionRequest()
+        }
+    }
+
+    private fun processNextAndroidPermissionRequest() {
+        val next = pendingAndroidPermissions.peek() ?: return
+        isRequestingAndroidPermission = true
+        val (perms, _) = next
+        val isLocationReq = perms.any {
+            it == android.Manifest.permission.ACCESS_FINE_LOCATION || it == android.Manifest.permission.ACCESS_COARSE_LOCATION
+        }
+        val hasLocation = androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
+                          androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+        val ungranted = perms.filter { perm ->
+            if (perm == android.Manifest.permission.ACCESS_FINE_LOCATION || perm == android.Manifest.permission.ACCESS_COARSE_LOCATION) {
+                !hasLocation
+            } else {
+                androidx.core.content.ContextCompat.checkSelfPermission(this, perm) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            }
+        }.distinct()
+
+        if (ungranted.isEmpty()) {
+            val polled = pendingAndroidPermissions.poll()
+            polled?.second?.grant()
+            isRequestingAndroidPermission = false
+            processNextAndroidPermissionRequest()
+        } else {
+            androidPermissionsLauncher.launch(ungranted.toTypedArray())
+        }
+    }
+
     private var currentConfig by androidx.compose.runtime.mutableStateOf(android.content.res.Configuration())
 
     override fun onConfigurationChanged(newConfig: Configuration) {

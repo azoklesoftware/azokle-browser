@@ -1,5 +1,6 @@
 package com.azokle.search.engine.ui
 
+import android.Manifest
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -252,8 +253,21 @@ fun BrowserScreen(
     val osPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { results ->
-        val allGranted = results.values.all { it }
         val req = activePermissionRequest
+        val isLocationReq = req?.requestedTypes?.contains(SitePermissionType.GEOLOCATION) == true
+        val locationOk = if (isLocationReq) {
+            (results[Manifest.permission.ACCESS_FINE_LOCATION] == true) ||
+            (results[Manifest.permission.ACCESS_COARSE_LOCATION] == true) ||
+            (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) ||
+            (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+        } else true
+
+        val otherPerms = results.filter {
+            it.key != Manifest.permission.ACCESS_FINE_LOCATION && it.key != Manifest.permission.ACCESS_COARSE_LOCATION
+        }
+        val otherOk = otherPerms.values.all { it }
+
+        val allGranted = locationOk && otherOk
         if (req != null) {
             if (allGranted) {
                 pendingActionAfterOsPerms?.invoke()
@@ -267,10 +281,17 @@ fun BrowserScreen(
     }
 
     fun handleAllowPermission(request: SitePermissionRequest, rememberChoice: Boolean) {
+        val hasLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                          ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
         val requiredPerms = request.requestedTypes.flatMap { it.requiredAndroidPermissions }.distinct()
-        val missingPerms = requiredPerms.filter {
-            ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
-        }
+        val missingPerms = requiredPerms.filter { perm ->
+            if (perm == Manifest.permission.ACCESS_FINE_LOCATION || perm == Manifest.permission.ACCESS_COARSE_LOCATION) {
+                !hasLocation
+            } else {
+                ContextCompat.checkSelfPermission(context, perm) != PackageManager.PERMISSION_GRANTED
+            }
+        }.distinct()
 
         val grantAction = {
             if (rememberChoice) {
@@ -282,6 +303,7 @@ fun BrowserScreen(
             val audio = request.audioSources?.firstOrNull()
             request.grantMedia(video, audio)
             request.grantContent(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
+            request.grantClipboard(org.mozilla.geckoview.AllowOrDeny.ALLOW)
             activePermissionRequest = null
         }
 

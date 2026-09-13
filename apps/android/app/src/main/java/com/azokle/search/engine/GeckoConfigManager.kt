@@ -93,6 +93,15 @@ object GeckoConfigManager {
             appendLine("  media.autoplay.default: 0")
             appendLine("  media.autoplay.blocking_policy: 0")
             appendLine("  media.eme.enabled: true")
+
+            // 6. Advanced Web APIs: Async Clipboard, WebXR, WebAuthn
+            appendLine("  dom.events.asyncClipboard.readText: true")
+            appendLine("  dom.events.asyncClipboard.clipboardItem: true")
+            appendLine("  dom.events.asyncClipboard.dataTransfer: true")
+            appendLine("  dom.vr.enabled: true")
+            appendLine("  dom.vr.webxr.enabled: true")
+            appendLine("  security.webauth.webauthn: true")
+            appendLine("  security.webauth.webauthn.enable_android_fido2: true")
         }
     }
 }

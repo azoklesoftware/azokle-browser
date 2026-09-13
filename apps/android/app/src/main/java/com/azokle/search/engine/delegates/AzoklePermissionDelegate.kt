@@ -95,6 +95,7 @@ class AzoklePermissionDelegate(
             GeckoSession.PermissionDelegate.PERMISSION_MEDIA_KEY_SYSTEM_ACCESS -> SitePermissionType.MEDIA_KEY_SYSTEM
             GeckoSession.PermissionDelegate.PERMISSION_PERSISTENT_STORAGE -> SitePermissionType.PERSISTENT_STORAGE
             GeckoSession.PermissionDelegate.PERMISSION_AUTOPLAY_AUDIBLE -> SitePermissionType.AUTOPLAY
+            GeckoSession.PermissionDelegate.PERMISSION_XR -> SitePermissionType.VR_AR
             else -> null
         }
 
@@ -117,10 +118,7 @@ class AzoklePermissionDelegate(
             return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
         }
 
-        val reqAndroidPerms = mappedType.requiredAndroidPermissions
-        val hasAllAndroidPerms = reqAndroidPerms.all {
-            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
-        }
+        val hasAllAndroidPerms = mappedType.hasAndroidPermissions(context)
 
         if (siteState == SitePermissionState.ALLOW && hasAllAndroidPerms) {
             return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
@@ -144,6 +142,42 @@ class AzoklePermissionDelegate(
         return geckoResult
     }
 
+    override fun onAndroidPermissionsRequest(
+        session: GeckoSession,
+        permissions: Array<out String>?,
+        callback: GeckoSession.PermissionDelegate.Callback
+    ) {
+        if (permissions == null || permissions.isEmpty()) {
+            callback.grant()
+            return
+        }
+
+        val activity = unwrapActivity(context) as? com.azokle.search.MainActivity
+        if (activity != null && !activity.isFinishing && !activity.isDestroyed) {
+            activity.requestAndroidPermissions(permissions.filterNotNull().toTypedArray(), callback)
+        } else {
+            val isLocationReq = permissions.any {
+                it == android.Manifest.permission.ACCESS_FINE_LOCATION || it == android.Manifest.permission.ACCESS_COARSE_LOCATION
+            }
+            val locationOk = if (isLocationReq) {
+                ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            } else true
+
+            val otherOk = permissions.filter {
+                it != android.Manifest.permission.ACCESS_FINE_LOCATION && it != android.Manifest.permission.ACCESS_COARSE_LOCATION
+            }.all {
+                ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+            }
+
+            if (locationOk && otherOk) {
+                callback.grant()
+            } else {
+                callback.reject()
+            }
+        }
+    }
+
     override fun onMediaPermissionRequest(
         session: GeckoSession,
         uri: String,
@@ -164,9 +198,16 @@ class AzoklePermissionDelegate(
         val origin = permManager.canonicalizeOrigin(uri)
         val isTabPrivate = isPrivate || isTor
 
+        val hasScreen = video?.any { it.source == GeckoSession.PermissionDelegate.MediaSource.SOURCE_SCREEN } == true
         val requestedTypes = mutableListOf<SitePermissionType>()
-        if (video != null && video.isNotEmpty()) requestedTypes.add(SitePermissionType.CAMERA)
-        if (audio != null && audio.isNotEmpty()) requestedTypes.add(SitePermissionType.MICROPHONE)
+        if (hasScreen) {
+            requestedTypes.add(SitePermissionType.SCREEN_SHARE)
+        } else if (video != null && video.isNotEmpty()) {
+            requestedTypes.add(SitePermissionType.CAMERA)
+        }
+        if (audio != null && audio.isNotEmpty()) {
+            requestedTypes.add(SitePermissionType.MICROPHONE)
+        }
 
         if (requestedTypes.isEmpty()) {
             callback.reject()
@@ -180,12 +221,14 @@ class AzoklePermissionDelegate(
         }
 
         val isAllAllowed = requestedTypes.all { permManager.getPermission(origin, it, isPrivate = isTabPrivate) == SitePermissionState.ALLOW }
-        val hasAllAndroidPerms = requestedTypes.flatMap { it.requiredAndroidPermissions }.all {
-            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
-        }
+        val hasAllAndroidPerms = requestedTypes.all { it.hasAndroidPermissions(context) }
 
         if (isAllAllowed && hasAllAndroidPerms) {
-            val selectedVideo = video?.firstOrNull()
+            val selectedVideo = if (hasScreen) {
+                video?.firstOrNull { it.source == GeckoSession.PermissionDelegate.MediaSource.SOURCE_SCREEN } ?: video?.firstOrNull()
+            } else {
+                video?.firstOrNull { it.source == GeckoSession.PermissionDelegate.MediaSource.SOURCE_CAMERA } ?: video?.firstOrNull()
+            }
             val selectedAudio = audio?.firstOrNull()
             callback.grant(selectedVideo, selectedAudio)
             return
@@ -204,5 +247,14 @@ class AzoklePermissionDelegate(
             )
             onPermissionPromptRequested(requestPayload)
         }
+    }
+
+    private fun unwrapActivity(ctx: Context): android.app.Activity? {
+        var c = ctx
+        while (c is android.content.ContextWrapper) {
+            if (c is android.app.Activity) return c
+            c = c.baseContext
+        }
+        return null
     }
 }

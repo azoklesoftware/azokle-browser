@@ -36,6 +36,10 @@ data class TextSelectionPayload(
  * seamless integration with Jetpack Compose floating context menu.
  */
 class AzokleSelectionDelegate(
+    private val context: android.content.Context? = null,
+    private val isPrivate: Boolean = false,
+    private val isTor: Boolean = false,
+    private val onPermissionPromptRequested: ((com.azokle.search.permissions.SitePermissionRequest) -> Unit)? = null,
     var onSelectionAction: ((TextSelectionPayload?) -> Unit)? = null
 ) : SelectionActionDelegate {
 
@@ -45,9 +49,44 @@ class AzokleSelectionDelegate(
         session: GeckoSession,
         perm: SelectionActionDelegate.ClipboardPermission
     ): GeckoResult<AllowOrDeny>? {
-        // VULN-01: Disallow silent web script clipboard reading (e.g. navigator.clipboard.readText())
-        // User-initiated paste operations through the floating selection menu execute safely via selection.paste()
-        return GeckoResult.fromValue(AllowOrDeny.DENY)
+        val uriStr = perm.uri ?: ""
+        val scheme = try { android.net.Uri.parse(uriStr).scheme?.lowercase() ?: "" } catch (e: Exception) { "" }
+        val host = try { android.net.Uri.parse(uriStr).host ?: uriStr } catch (e: Exception) { uriStr }
+
+        // Insecure origins are denied clipboard read access
+        if (scheme != "https" && !host.equals("localhost", true) && !host.equals("127.0.0.1", true)) {
+            return GeckoResult.fromValue(AllowOrDeny.DENY)
+        }
+
+        val ctx = context ?: return GeckoResult.fromValue(AllowOrDeny.DENY)
+        val permManager = com.azokle.search.permissions.SitePermissionsManager.getInstance(ctx)
+        val origin = permManager.canonicalizeOrigin(uriStr)
+        val isTabPrivate = isPrivate || isTor
+
+        val siteState = permManager.getPermission(origin, com.azokle.search.permissions.SitePermissionType.CLIPBOARD, isPrivate = isTabPrivate)
+        if (siteState == com.azokle.search.permissions.SitePermissionState.BLOCK) {
+            return GeckoResult.fromValue(AllowOrDeny.DENY)
+        }
+        if (siteState == com.azokle.search.permissions.SitePermissionState.ALLOW) {
+            return GeckoResult.fromValue(AllowOrDeny.ALLOW)
+        }
+
+        val promptDispatcher = onPermissionPromptRequested ?: return GeckoResult.fromValue(AllowOrDeny.DENY)
+        val geckoResult = GeckoResult<AllowOrDeny>()
+        mainHandler.post {
+            val requestPayload = com.azokle.search.permissions.SitePermissionRequest(
+                host = permManager.getDisplayHost(origin),
+                origin = origin,
+                uri = uriStr,
+                isPrivate = isTabPrivate,
+                requestedTypes = listOf(com.azokle.search.permissions.SitePermissionType.CLIPBOARD),
+                clipboardCallback = { allowOrDeny ->
+                    geckoResult.complete(allowOrDeny)
+                }
+            )
+            promptDispatcher(requestPayload)
+        }
+        return geckoResult
     }
 
     override fun onShowActionRequest(
