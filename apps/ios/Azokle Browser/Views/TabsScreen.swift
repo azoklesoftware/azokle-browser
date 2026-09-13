@@ -3,16 +3,42 @@ import SwiftUI
 public struct TabsScreen: View {
     @ObservedObject var state: BrowserState
     @Binding var isPresented: Bool
+
+    @State private var searchQuery: String = ""
+    @State private var showCloseAllAlert: Bool = false
+
     let colors: AzokleColors = .dark
 
+    private var standardCount: Int {
+        state.tabs.count { !$0.isPrivate && !$0.isTor }
+    }
+
+    private var privateCount: Int {
+        state.tabs.count { $0.isPrivate && !$0.isTor }
+    }
+
+    private var torCount: Int {
+        state.tabs.count { $0.isTor }
+    }
+
     private var filteredTabs: [BrowserTab] {
+        let baseList: [BrowserTab]
         switch state.selectedTabMode {
         case .standard:
-            return state.tabs.filter { !$0.isPrivate && !$0.isTor }
+            baseList = state.tabs.filter { !$0.isPrivate && !$0.isTor }
         case .privateMode:
-            return state.tabs.filter { $0.isPrivate && !$0.isTor }
+            baseList = state.tabs.filter { $0.isPrivate && !$0.isTor }
         case .torMode:
-            return state.tabs.filter { $0.isTor }
+            baseList = state.tabs.filter { $0.isTor }
+        }
+
+        if searchQuery.isEmpty {
+            return baseList.reversed() // Newest tabs first, matching Android
+        } else {
+            return baseList.filter {
+                $0.title.localizedCaseInsensitiveContains(searchQuery) ||
+                $0.url.localizedCaseInsensitiveContains(searchQuery)
+            }.reversed()
         }
     }
 
@@ -21,14 +47,14 @@ public struct TabsScreen: View {
             colors.background.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // 1. Top Header & Segmented Mode Switcher
+                // 1. Top Header (Segmented Mode Switcher + Done)
                 HStack {
-                    // Close All Tabs
+                    // Close All Tabs (Trash Sweep)
                     Button(action: {
-                        state.closeAllTabs(forMode: state.selectedTabMode)
+                        showCloseAllAlert = true
                     }) {
                         Image(systemName: "trash")
-                            .font(.system(size: 16))
+                            .font(.system(size: 15))
                             .foregroundColor(colors.statusDestructive)
                             .padding(8)
                             .background(colors.surfaceElevated)
@@ -37,15 +63,31 @@ public struct TabsScreen: View {
 
                     Spacer()
 
-                    // Tab Mode Segmented Pills
-                    HStack(spacing: 4) {
-                        modeTabButton(title: "Standard", mode: .standard)
-                        modeTabButton(title: "Private", mode: .privateMode, icon: "eye.slash.fill")
-                        modeTabButton(title: "Tor", mode: .torMode, icon: "network.badge.shield.half.filled")
+                    // 3-Way Segmented Pill Switcher with Counts
+                    HStack(spacing: 2) {
+                        modePill(
+                            title: "Tabs (\(standardCount))",
+                            mode: .standard,
+                            icon: "square.stack.3d.up.fill"
+                        )
+                        modePill(
+                            title: "Private (\(privateCount))",
+                            mode: .privateMode,
+                            icon: "eye.slash.fill"
+                        )
+                        modePill(
+                            title: "Tor (\(torCount))",
+                            mode: .torMode,
+                            icon: "network.badge.shield.half.filled"
+                        )
                     }
                     .padding(3)
-                    .background(colors.surfaceElevated)
+                    .background(colors.cardBg)
                     .cornerRadius(AzokleRadius.pill)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: AzokleRadius.pill)
+                            .stroke(colors.border, lineWidth: 1)
+                    )
 
                     Spacer()
 
@@ -56,19 +98,52 @@ public struct TabsScreen: View {
                         Text("Done")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundColor(colors.statusAccent)
-                            .padding(.horizontal, 10)
+                            .padding(.horizontal, 8)
                             .padding(.vertical, 6)
                     }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 14)
                 .padding(.top, 14)
-                .padding(.bottom, 12)
+                .padding(.bottom, 10)
                 .background(colors.surface)
+
+                // 2. Search Tabs Filter Bar
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 14))
+                        .foregroundColor(colors.textMuted)
+
+                    TextField("Search open tabs...", text: $searchQuery)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(colors.textPrimary)
+                        .autocapitalization(.none)
+                        .disableAutocorrection(true)
+
+                    if !searchQuery.isEmpty {
+                        Button(action: {
+                            searchQuery = ""
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(colors.textMuted)
+                        }
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(colors.cardBg)
+                .cornerRadius(AzokleRadius.medium)
+                .overlay(
+                    RoundedRectangle(cornerRadius: AzokleRadius.medium)
+                        .stroke(colors.border, lineWidth: 0.8)
+                )
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
 
                 Divider()
                     .background(colors.border)
 
-                // 2. Tabs Grid
+                // 3. Tabs Grid
                 if filteredTabs.isEmpty {
                     VStack(spacing: 16) {
                         Spacer()
@@ -77,8 +152,8 @@ public struct TabsScreen: View {
                             .foregroundColor(colors.textMuted)
 
                         Text(emptyStateText)
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(colors.textSecondary)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(colors.textPrimary)
 
                         Button(action: {
                             openNewTabForCurrentMode()
@@ -86,10 +161,10 @@ public struct TabsScreen: View {
                             Text("+ Open New Tab")
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(colors.actionPrimaryText)
-                                .padding(.horizontal, 20)
+                                .padding(.horizontal, 22)
                                 .padding(.vertical, 10)
                                 .background(colors.actionPrimaryBg)
-                                .cornerRadius(AzokleRadius.medium)
+                                .cornerRadius(AzokleRadius.pill)
                         }
                         Spacer()
                     }
@@ -107,7 +182,7 @@ public struct TabsScreen: View {
                     }
                 }
 
-                // 3. Bottom Bar with New Tab (+) Button
+                // 4. Bottom Floating New Tab Button
                 VStack(spacing: 0) {
                     Divider()
                         .background(colors.border)
@@ -123,13 +198,14 @@ public struct TabsScreen: View {
                                 Image(systemName: "plus")
                                     .font(.system(size: 14, weight: .bold))
                                 Text("New Tab")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .font(.system(size: 14, weight: .bold))
                             }
                             .foregroundColor(colors.actionPrimaryText)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 10)
+                            .padding(.horizontal, 26)
+                            .padding(.vertical, 11)
                             .background(colors.actionPrimaryBg)
                             .cornerRadius(AzokleRadius.pill)
+                            .shadow(color: Color.black.opacity(0.4), radius: 8, x: 0, y: 4)
                         }
 
                         Spacer()
@@ -138,6 +214,14 @@ public struct TabsScreen: View {
                     .background(colors.surface)
                 }
             }
+        }
+        .alert("Close All Tabs?", isPresented: $showCloseAllAlert) {
+            Button("Close All", role: .destructive) {
+                state.closeAllTabs(forMode: state.selectedTabMode)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to close all tabs in \(state.selectedTabMode.rawValue) mode?")
         }
     }
 
@@ -156,7 +240,7 @@ public struct TabsScreen: View {
                         .foregroundColor(colors.statusAccent)
 
                     Text(tab.title)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(colors.textPrimary)
                         .lineLimit(1)
 
@@ -166,14 +250,15 @@ public struct TabsScreen: View {
                         state.closeTab(id: tab.id)
                     }) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.system(size: 10, weight: .bold))
                             .foregroundColor(colors.textSecondary)
                             .frame(width: 22, height: 22)
                             .background(colors.surfaceElevated)
                             .clipShape(Circle())
                     }
                 }
-                .padding(10)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
                 .background(colors.surfaceElevated)
 
                 // Card Body / Thumbnail Preview
@@ -183,30 +268,29 @@ public struct TabsScreen: View {
                     VStack(spacing: 6) {
                         if tab.isTor {
                             Image(systemName: "network.badge.shield.half.filled")
-                                .font(.system(size: 28))
+                                .font(.system(size: 30))
                                 .foregroundColor(colors.statusTor)
                             Text("Tor Encrypted Circuit")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(colors.textMuted)
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(colors.statusTor)
                         } else if tab.isPrivate {
                             Image(systemName: "eye.slash.fill")
-                                .font(.system(size: 28))
+                                .font(.system(size: 30))
                                 .foregroundColor(colors.statusWarning)
                             Text("Private Browsing")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(colors.textMuted)
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(colors.statusWarning)
                         } else {
                             Image(systemName: "safari")
                                 .font(.system(size: 28))
                                 .foregroundColor(colors.textMuted)
-                            Text(tab.url)
-                                .font(.system(size: 10))
+                            Text(displayDomain(for: tab.url))
+                                .font(.system(size: 11))
                                 .foregroundColor(colors.textMuted)
-                                .lineLimit(2)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 8)
+                                .lineLimit(1)
                         }
                     }
+                    .padding(10)
                 }
                 .frame(height: 140)
             }
@@ -215,28 +299,34 @@ public struct TabsScreen: View {
                 RoundedRectangle(cornerRadius: AzokleRadius.medium)
                     .stroke(isSelected ? colors.statusAccent : colors.border, lineWidth: isSelected ? 2 : 1)
             )
+            .shadow(color: Color.black.opacity(0.3), radius: 6, x: 0, y: 3)
         }
     }
 
-    private func modeTabButton(title: String, mode: TabFilterMode, icon: String? = nil) -> some View {
+    private func modePill(title: String, mode: TabFilterMode, icon: String) -> some View {
         let isSelected = state.selectedTabMode == mode
         return Button(action: {
             state.selectedTabMode = mode
         }) {
             HStack(spacing: 4) {
-                if let icon = icon {
-                    Image(systemName: icon)
-                        .font(.system(size: 11))
-                }
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
                 Text(title)
-                    .font(.system(size: 12, weight: isSelected ? .bold : .medium))
+                    .font(.system(size: 11, weight: isSelected ? .bold : .medium))
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(isSelected ? colors.actionPrimaryBg : Color.clear)
-            .foregroundColor(isSelected ? colors.actionPrimaryText : colors.textSecondary)
+            .foregroundColor(isSelected ? colors.actionPrimaryText : colors.textMuted)
             .cornerRadius(AzokleRadius.pill)
         }
+    }
+
+    private func displayDomain(for urlString: String) -> String {
+        if let url = URL(string: urlString), let host = url.host {
+            return host.replacingOccurrences(of: "www.", with: "")
+        }
+        return urlString
     }
 
     private var emptyStateIcon: String {
@@ -249,7 +339,7 @@ public struct TabsScreen: View {
 
     private var emptyStateText: String {
         switch state.selectedTabMode {
-        case .standard: return "No standard tabs open"
+        case .standard: return "No regular tabs open"
         case .privateMode: return "No private tabs open"
         case .torMode: return "No Tor circuits open"
         }

@@ -4,6 +4,11 @@ public struct BrowserScreen: View {
     @StateObject private var state = BrowserState()
     let colors: AzokleColors = .dark
 
+    private var isHomeTab: Bool {
+        guard let tab = state.activeTab else { return true }
+        return tab.url == "https://search.azokle.com" || tab.url == "about:blank" || tab.url.isEmpty
+    }
+
     public var body: some View {
         ZStack {
             colors.background.ignoresSafeArea()
@@ -33,11 +38,15 @@ public struct BrowserScreen: View {
                     .background(colors.statusTor.opacity(0.15))
                 }
 
-                // 3. Web View Surface
+                // 3. Main Surface (Home Screen vs Web View Surface)
                 ZStack {
-                    if let activeTab = state.activeTab {
+                    if isHomeTab {
+                        HomeScreen(state: state)
+                            .transition(.opacity)
+                    } else if let activeTab = state.activeTab {
                         WebViewContainer(state: state, tabId: activeTab.id)
                             .id(activeTab.id)
+                            .transition(.opacity)
                     } else {
                         VStack(spacing: 12) {
                             Image(systemName: "globe")
