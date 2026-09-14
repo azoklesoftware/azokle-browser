@@ -178,6 +178,18 @@
                 android:resource="@xml/azokle_search_widget_info" />
         </receiver>
 
+        <receiver
+            android:name=".widget.AzokleShieldsWidgetProvider"
+            android:exported="true"
+            android:label="Azokle Privacy Shield">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/azokle_shields_widget_info" />
+        </receiver>
+
     </application>
 
 </manifest>

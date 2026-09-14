@@ -39,6 +39,7 @@ data class HomeUiState(
     val isTermsModalOpen: Boolean = false,
     val isAboutModalOpen: Boolean = false,
     val isVoiceModalOpen: Boolean = false,
+    val isQrScannerOpen: Boolean = false,
     val selectedLocation: SearchLocation = PreferencesManager.DEFAULT_LOCATIONS[0],
     val selectedSafeSearch: String = "Moderate",
     val selectedThemeMode: String = "system",
@@ -73,6 +74,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setVoiceModalOpen(open: Boolean) {
         _uiState.update { it.copy(isVoiceModalOpen = open) }
+    }
+
+    fun setQrScannerOpen(open: Boolean) {
+        _uiState.update { it.copy(isQrScannerOpen = open) }
     }
 
     private var debounceJob: Job? = null

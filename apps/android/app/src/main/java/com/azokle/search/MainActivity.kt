@@ -496,6 +496,13 @@ class MainActivity : FragmentActivity() {
             viewModel.openInAppBrowser("about:tor", isTor = true)
             return
         }
+        if (intent.getBooleanExtra(com.azokle.search.widget.AzokleSearchWidgetProvider.EXTRA_SCAN_QR, false)) {
+            if (viewModel.uiState.value.inAppBrowserUrl != null) {
+                viewModel.closeInAppBrowser()
+            }
+            viewModel.setQrScannerOpen(true)
+            return
+        }
         if (intent.getBooleanExtra(com.azokle.search.widget.AzokleSearchWidgetProvider.EXTRA_FOCUS_SEARCH, false)) {
             viewModel.setSearchExpanded(true)
             return

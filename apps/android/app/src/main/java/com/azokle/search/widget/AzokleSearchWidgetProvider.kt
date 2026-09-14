@@ -24,6 +24,7 @@ class AzokleSearchWidgetProvider : AppWidgetProvider() {
     companion object {
         const val EXTRA_FOCUS_SEARCH = "com.azokle.search.EXTRA_FOCUS_SEARCH"
         const val EXTRA_START_VOICE = "com.azokle.search.EXTRA_START_VOICE"
+        const val EXTRA_SCAN_QR = "com.azokle.search.EXTRA_SCAN_QR"
         const val EXTRA_OPEN_TOR = "com.azokle.search.EXTRA_OPEN_TOR"
 
         fun updateAllWidgets(context: Context) {
@@ -79,11 +80,14 @@ class AzokleSearchWidgetProvider : AppWidgetProvider() {
             views.setInt(R.id.widget_btn_voice, "setBackgroundResource", iconBgRes)
             views.setInt(R.id.widget_voice_icon, "setColorFilter", iconTintColor)
 
+            views.setInt(R.id.widget_btn_qr, "setBackgroundResource", iconBgRes)
+            views.setInt(R.id.widget_qr_icon, "setColorFilter", iconTintColor)
+
             views.setInt(R.id.widget_btn_tor, "setBackgroundResource", iconBgRes)
             views.setInt(R.id.widget_tor_icon, "setColorFilter", iconTintColor)
 
             // Universal clean search prompt text
-            views.setTextViewText(R.id.widget_search_text, "Search web or type URL")
+            views.setTextViewText(R.id.widget_search_text, "Search with Azokle")
 
             // 1. Main Search Bar Click -> Opens Azokle with Search Focus
             val searchIntent = Intent(context, MainActivity::class.java).apply {
@@ -113,7 +117,21 @@ class AzokleSearchWidgetProvider : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.widget_btn_voice, voicePendingIntent)
 
-            // 3. Tor Onion Search Action Click -> Opens Instant Anonymous Tor Tab
+            // 3. QR Scanner Action Click -> Opens Camera Scanner
+            val qrIntent = Intent(context, MainActivity::class.java).apply {
+                action = Intent.ACTION_MAIN
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra(EXTRA_SCAN_QR, true)
+            }
+            val qrPendingIntent = PendingIntent.getActivity(
+                context,
+                2,
+                qrIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            views.setOnClickPendingIntent(R.id.widget_btn_qr, qrPendingIntent)
+
+            // 4. Tor Onion Search Action Click -> Opens Instant Anonymous Tor Tab
             val torIntent = Intent(context, MainActivity::class.java).apply {
                 action = Intent.ACTION_MAIN
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -121,7 +139,7 @@ class AzokleSearchWidgetProvider : AppWidgetProvider() {
             }
             val torPendingIntent = PendingIntent.getActivity(
                 context,
-                2,
+                3,
                 torIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )

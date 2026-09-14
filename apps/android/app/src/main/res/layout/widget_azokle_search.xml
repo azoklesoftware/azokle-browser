@@ -3,20 +3,20 @@
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/widget_bg"
+    android:background="@drawable/widget_bg_dark"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingStart="16dp"
-    android:paddingTop="8dp"
+    android:paddingStart="14dp"
+    android:paddingTop="7dp"
     android:paddingEnd="8dp"
-    android:paddingBottom="8dp">
+    android:paddingBottom="7dp">
 
-    <!-- Search Magnifier Icon -->
+    <!-- Brand / Search Icon -->
     <ImageView
         android:id="@+id/widget_search_icon"
-        android:layout_width="20dp"
-        android:layout_height="20dp"
-        android:contentDescription="Search"
+        android:layout_width="22dp"
+        android:layout_height="22dp"
+        android:contentDescription="@string/app_name"
         android:src="@drawable/ic_widget_search"
         android:tint="#FFFFFFFF" />
 
@@ -25,48 +25,68 @@
         android:id="@+id/widget_search_text"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
+        android:layout_marginStart="10dp"
         android:layout_marginEnd="6dp"
         android:layout_weight="1"
         android:ellipsize="end"
+        android:fontFamily="sans-serif"
         android:maxLines="1"
-        android:text="Search web or type URL"
+        android:text="Search with Azokle"
         android:textColor="#E6FFFFFF"
         android:textSize="14sp" />
 
     <!-- Voice Search Action Button -->
     <LinearLayout
         android:id="@+id/widget_btn_voice"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
-        android:background="@drawable/widget_icon_bg"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:background="@drawable/widget_icon_bg_dark"
         android:gravity="center"
         android:orientation="vertical">
 
         <ImageView
             android:id="@+id/widget_voice_icon"
-            android:layout_width="17dp"
-            android:layout_height="17dp"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
             android:contentDescription="Voice Search"
             android:src="@drawable/ic_widget_mic"
             android:tint="#FFFFFFFF" />
     </LinearLayout>
 
-    <!-- Tor Private Onion Action Button -->
+    <!-- QR Code / Camera Scanner Action Button -->
+    <LinearLayout
+        android:id="@+id/widget_btn_qr"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:layout_marginStart="5dp"
+        android:background="@drawable/widget_icon_bg_dark"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <ImageView
+            android:id="@+id/widget_qr_icon"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:contentDescription="QR Scanner"
+            android:src="@drawable/ic_widget_qr"
+            android:tint="#FFFFFFFF" />
+    </LinearLayout>
+
+    <!-- Tor Onion Private Tab Action Button -->
     <LinearLayout
         android:id="@+id/widget_btn_tor"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
-        android:layout_marginStart="6dp"
-        android:background="@drawable/widget_icon_bg"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:layout_marginStart="5dp"
+        android:background="@drawable/widget_icon_bg_dark"
         android:gravity="center"
         android:orientation="vertical">
 
         <ImageView
             android:id="@+id/widget_tor_icon"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:contentDescription="Tor Onion Window"
+            android:layout_width="17dp"
+            android:layout_height="17dp"
+            android:contentDescription="Tor Private Tab"
             android:src="@drawable/ic_tor" />
     </LinearLayout>
 </LinearLayout>
