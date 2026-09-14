@@ -1,0 +1,132 @@
+/**
+ * Navigation Toolbar Component Styling (Brave-Grade Architecture)
+ */
+
+.toolbar-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  min-height: 42px;
+  background-color: var(--bg-toolbar);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.nav-buttons-group,
+.action-buttons-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.omnibar-slot {
+  flex: 1;
+  display: flex;
+  margin: 0 4px;
+}
+
+/* Nav & Icon Buttons */
+.nav-btn,
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.12s ease;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.nav-btn:hover,
+.icon-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.nav-btn:active,
+.icon-btn:active {
+  background-color: var(--bg-active);
+  transform: scale(0.94);
+}
+
+/* Brave-Style Shield Pill Button */
+.shield-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-full);
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid var(--border-strong);
+  background-color: var(--bg-omnibar);
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.shield-pill-btn:hover {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.2);
+  transform: translateY(-0.5px);
+}
+
+.shield-pill-btn.active {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.18) 0%, rgba(22, 101, 52, 0.25) 100%);
+  border-color: rgba(34, 197, 94, 0.45);
+  color: var(--color-shield-green);
+}
+
+.shield-pill-btn.active:hover {
+  border-color: var(--color-shield-green);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.3);
+}
+
+.shield-pill-btn.off {
+  background-color: var(--bg-hover);
+  border-color: var(--border-subtle);
+  color: var(--text-muted);
+}
+
+.shield-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: -0.2px;
+}
+
+/* Tor Button */
+.tor-btn {
+  position: relative;
+}
+
+.tor-btn.active {
+  background-color: rgba(192, 132, 252, 0.15);
+  color: var(--color-tor-purple);
+}
+
+.tor-active-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  background-color: #22c55e;
+  border-radius: 50%;
+  box-shadow: 0 0 4px #22c55e;
+}
+
+.menu-btn {
+  color: var(--text-secondary);
+}
+
+.menu-btn:hover {
+  color: var(--text-primary);
+}

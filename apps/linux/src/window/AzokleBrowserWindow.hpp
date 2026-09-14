@@ -45,6 +45,7 @@ public:
     void UpdateProgress(int progress);
     void UpdateLoading(bool isLoading);
     void UpdateSecurity(const engine::SecurityInfo& secInfo);
+    void HandleNativeIpc(const std::string& json);
 
 private:
     std::shared_ptr<engine::IGeckoEngine> m_engine;

@@ -1,0 +1,426 @@
+/**
+ * Brave-Grade New Tab Page Styling
+ */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body, html {
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #12141a;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
+  color: #ffffff;
+}
+
+#newtab-root {
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #12141a;
+}
+
+.brave-ntp-root {
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 36px 48px;
+  background-color: #12141a;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  user-select: none;
+}
+
+.brave-ntp-root.with-wallpaper {
+  background-image:
+    radial-gradient(ellipse at center, rgba(18, 20, 26, 0.4) 0%, rgba(18, 20, 26, 0.85) 100%),
+    url('https://images.unsplash.com/photo-1518495973542-4542c06a5843?q=80&w=2560&auto=format&fit=crop');
+}
+
+.brave-ntp-root.solid-dark {
+  background: radial-gradient(circle at 50% 30%, #1c202c 0%, #12141a 100%);
+}
+
+/* 1. Hero Privacy Stats */
+.brave-ntp-stats-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 36px;
+  animation: fadeInDown 0.4s ease-out;
+}
+
+.stat-metric-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-metric-number {
+  font-size: 38px;
+  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+}
+
+.stat-metric-number.orange {
+  color: #f97316;
+}
+
+.stat-metric-number.cyan {
+  color: #38bdf8;
+}
+
+.stat-metric-number.emerald {
+  color: #22c55e;
+}
+
+.stat-metric-number .unit {
+  font-size: 20px;
+  font-weight: 600;
+  margin-left: 2px;
+}
+
+.stat-metric-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #e2e8f0;
+  margin-top: 6px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+
+/* 2. Center Area (Clock, Search, Top Sites) */
+.brave-ntp-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.brave-ntp-clock {
+  font-size: 64px;
+  font-weight: 700;
+  letter-spacing: -1.5px;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  margin-bottom: 24px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Central Search Capsule */
+.brave-ntp-search-capsule {
+  width: 100%;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  background: rgba(28, 32, 44, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 26px;
+  padding: 0 20px;
+  gap: 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s ease;
+}
+
+.brave-ntp-search-capsule:focus-within {
+  background: rgba(36, 41, 56, 0.95);
+  border-color: #f97316;
+  box-shadow: 0 12px 40px rgba(249, 115, 22, 0.25);
+  transform: translateY(-1px);
+}
+
+.search-engine-icon {
+  font-size: 18px;
+}
+
+.search-capsule-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 15px;
+  outline: none;
+}
+
+.search-capsule-input::placeholder {
+  color: #94a3b8;
+  font-size: 14.5px;
+}
+
+.search-submit-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+
+.search-submit-btn:hover {
+  color: #f97316;
+}
+
+/* 3. Top Sites Grid */
+.brave-ntp-top-sites-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 36px;
+  width: 100%;
+}
+
+.top-site-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 82px;
+  text-decoration: none;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  transition: transform 0.15s ease;
+}
+
+.top-site-tile:hover {
+  transform: translateY(-3px);
+}
+
+.top-site-icon-box {
+  width: 50px;
+  height: 50px;
+  background: rgba(28, 32, 44, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  transition: all 0.15s ease;
+}
+
+.top-site-tile:hover .top-site-icon-box {
+  background: rgba(36, 41, 56, 0.95);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.top-site-title {
+  font-size: 11.5px;
+  color: #f1f5f9;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.add-tile .add-icon {
+  font-size: 18px;
+  color: #94a3b8;
+  border-style: dashed;
+}
+
+.add-tile:hover .add-icon {
+  color: #f97316;
+  border-color: #f97316;
+}
+
+/* 4. Footer Badges */
+.wallpaper-credit-pill {
+  position: absolute;
+  bottom: 24px;
+  left: 36px;
+  background: rgba(18, 20, 26, 0.6);
+  backdrop-filter: blur(8px);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: #cbd5e1;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.customize-dashboard-btn {
+  position: absolute;
+  bottom: 24px;
+  right: 36px;
+  background: rgba(28, 32, 44, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.customize-dashboard-btn:hover {
+  background: rgba(36, 41, 56, 1);
+  border-color: #f97316;
+}
+
+/* Customize Drawer */
+.customize-drawer {
+  position: absolute;
+  bottom: 70px;
+  right: 36px;
+  width: 280px;
+  background: #1c202c;
+  border: 1px solid #2d3345;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  animation: flyoutFadeIn 0.15s ease-out;
+}
+
+.customize-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.customize-drawer-header h3 {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.close-drawer-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.customize-toggle-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.customize-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #cbd5e1;
+  cursor: pointer;
+}
+
+/* Modal Dialog */
+.modal-backdrop {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal-dialog {
+  background: #1c202c;
+  border: 1px solid #2d3345;
+  border-radius: 14px;
+  padding: 22px;
+  width: 320px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+}
+
+.modal-dialog h3 {
+  font-size: 15px;
+  margin-bottom: 16px;
+}
+
+.modal-form-group {
+  margin-bottom: 14px;
+}
+
+.modal-form-group label {
+  display: block;
+  font-size: 11.5px;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+
+.modal-form-group input {
+  width: 100%;
+  background: #141720;
+  border: 1px solid #2d3345;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  outline: none;
+}
+
+.modal-form-group input:focus {
+  border-color: #f97316;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.btn-cancel, .btn-confirm {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-cancel {
+  background: transparent;
+  border: 1px solid #2d3345;
+  color: #cbd5e1;
+}
+
+.btn-confirm {
+  background: #f97316;
+  border: 1px solid #f97316;
+  color: #fff;
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes flyoutFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}

@@ -1,0 +1,8 @@
+# Bun Configuration for Azokle Desktop UI
+[test]
+coverage = false
+
+[build]
+target = "browser"
+minify = true
+sourcemap = "inline"

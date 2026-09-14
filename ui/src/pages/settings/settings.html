@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Azokle Settings</title>
+  <link rel="stylesheet" href="../../styles/theme.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-app);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      padding: 40px 20px;
+      display: flex;
+      justify-content: center;
+    }
+    .settings-wrapper {
+      width: 100%;
+      max-width: 680px;
+    }
+    .settings-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      color: var(--text-primary);
+    }
+    .settings-section {
+      background-color: var(--bg-toolbar);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 14px;
+      color: var(--color-accent);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .settings-row:last-child {
+      border-bottom: none;
+    }
+    .row-info h4 {
+      font-size: 13.5px;
+      font-weight: 500;
+    }
+    .row-info p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    select {
+      background: var(--bg-omnibar);
+      color: var(--text-primary);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      padding: 6px 12px;
+      font-size: 12.5px;
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="settings-wrapper">
+    <h1 class="settings-title">⚙️ Browser Settings</h1>
+
+    <div class="settings-section">
+      <div class="section-title">Shields & Privacy</div>
+      <div class="settings-row">
+        <div class="row-info">
+          <h4>Trackers & Ads Blocking</h4>
+          <p>Block aggressive third-party trackers, beacons, and banners</p>
+        </div>
+        <select id="shield-level">
+          <option value="aggressive">Aggressive</option>
+          <option value="standard" selected>Standard</option>
+          <option value="off">Off</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <div class="row-info">
+          <h4>Fingerprinting Resistance</h4>
+          <p>Block canvas, audio context, and sensor fingerprinting</p>
+        </div>
+        <select id="fingerprint-mode">
+          <option value="strict" selected>Strict</option>
+          <option value="off">Off</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="section-title">Search Engine</div>
+      <div class="settings-row">
+        <div class="row-info">
+          <h4>Default Search Engine</h4>
+          <p>The search provider used in the Omnibar</p>
+        </div>
+        <select id="search-engine-select">
+          <option value="azokle" selected>Azokle Sovereign Search</option>
+          <option value="duckduckgo">DuckDuckGo</option>
+          <option value="brave">Brave Search</option>
+          <option value="google">Google</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="section-title">Tor & Onion Routing</div>
+      <div class="settings-row">
+        <div class="row-info">
+          <h4>Tor SOCKS5 Proxy</h4>
+          <p>Route all traffic through the decentralized Tor onion network</p>
+        </div>
+        <select id="tor-proxy-mode">
+          <option value="disabled" selected>Disabled</option>
+          <option value="enabled">Enabled (Port 9050)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./settings.ts"></script>
+</body>
+</html>

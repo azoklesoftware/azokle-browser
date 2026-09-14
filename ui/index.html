@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Azokle Browser</title>
+  <link rel="stylesheet" href="./src/styles/global.css">
+  <link rel="stylesheet" href="./src/components/tabstrip/tabstrip.css">
+  <link rel="stylesheet" href="./src/components/omnibar/omnibar.css">
+  <link rel="stylesheet" href="./src/components/toolbar/toolbar.css">
+  <link rel="stylesheet" href="./src/components/shield/shield.css">
+  <link rel="stylesheet" href="./src/components/shield/shields-panel.css">
+  <link rel="stylesheet" href="./src/components/tor/tor.css">
+  <link rel="stylesheet" href="./src/components/bookmarks/bookmarks.css">
+  <link rel="stylesheet" href="./src/components/menu/menu.css">
+</head>
+<body>
+  <div id="app-container">
+    <header class="browser-chrome-header">
+      <div id="tabstrip-root"></div>
+      <div id="toolbar-root"></div>
+      <div id="bookmarks-root"></div>
+    </header>
+
+    <main class="viewport-container" id="viewport-root">
+      <iframe id="web-viewport" class="viewport-iframe" src="./pages/newtab/index.html"></iframe>
+    </main>
+
+    <!-- Floating Overlays -->
+    <div id="shield-flyout-root"></div>
+    <div id="tor-modal-root"></div>
+    <div id="menu-root"></div>
+  </div>
+
+  <script type="module" src="./src/index.ts"></script>
+</body>
+</html>

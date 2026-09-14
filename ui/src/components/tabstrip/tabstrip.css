@@ -1,0 +1,191 @@
+/**
+ * Tab Strip Component Styling (Brave-Grade Architecture)
+ */
+
+.tabstrip-container {
+  display: flex;
+  align-items: flex-end;
+  background-color: var(--bg-tabstrip);
+  padding: 6px 8px 0px 8px;
+  min-height: 38px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  gap: 2px;
+}
+
+.tabstrip-container::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 240px;
+  min-width: 130px;
+  height: 32px;
+  padding: 0 10px;
+  background-color: transparent;
+  border-radius: 8px 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border-top: 2px solid transparent;
+  transition: background-color 0.12s ease, color 0.12s ease;
+  position: relative;
+  user-select: none;
+}
+
+/* Inactive tab separator line */
+.tab-item:not(.active)::after {
+  content: '';
+  position: absolute;
+  right: -1px;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.tab-item:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.tab-item:hover::after,
+.tab-item.active::after {
+  display: none;
+}
+
+/* Active tab style: seamlessly blends into toolbar with Brave Orange top indicator */
+.tab-item.active {
+  background-color: var(--bg-toolbar);
+  color: var(--text-primary);
+  border-top: 2px solid var(--color-accent);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.25);
+  font-weight: 600;
+}
+
+/* Tor private active tab */
+.tab-item.tor.active {
+  border-top-color: var(--color-tor-purple);
+}
+
+/* Pinned tab */
+.tab-item.pinned {
+  min-width: 38px;
+  max-width: 38px;
+  padding: 0;
+  justify-content: center;
+}
+
+.tab-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.tab-icon img {
+  border-radius: 2px;
+}
+
+.tab-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.1px;
+}
+
+/* Audio button indicator */
+.tab-audio-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  color: var(--color-accent);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tab-audio-btn.muted {
+  color: var(--text-muted);
+}
+
+.tab-audio-btn:hover {
+  background-color: var(--bg-hover);
+}
+
+/* Tab close button with circular hover */
+.tab-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+}
+
+.tab-item:hover .tab-close-btn,
+.tab-item.active .tab-close-btn {
+  opacity: 1;
+}
+
+.tab-close-btn:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+}
+
+.tab-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--border-subtle);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: tabSpin 0.75s linear infinite;
+}
+
+@keyframes tabSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Add Tab Button "+" */
+.add-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 2px;
+  margin-left: 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.add-tab-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.add-tab-btn:active {
+  transform: scale(0.92);
+}

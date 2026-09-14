@@ -21,11 +21,11 @@
 
     <!-- Modern Android 12+ SplashScreen Theme with backward compatibility -->
     <style name="Theme.AppSplashScreen" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">#FAFAFA</item>
+        <item name="windowSplashScreenBackground">#000000</item>
         <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
         <item name="windowSplashScreenAnimationDuration">500</item>
         <item name="postSplashScreenTheme">@style/Theme.AzokleSearch</item>
-        <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 </resources>

@@ -44,3 +44,15 @@ project.xcworkspace/xcuserdata/
 xcuserdata/
 DerivedData/
 *.xcbkptlist
+
+# Node / Bun / Web
+node_modules/
+**/node_modules/
+.npm
+.pnpm-store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.cache/
+

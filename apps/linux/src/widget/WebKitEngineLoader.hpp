@@ -93,6 +93,23 @@ public:
         webkit_settings_set_enable_developer_extras = (void(*)(WebKitSettings*, int))dlsym(m_webkitLib, "webkit_settings_set_enable_developer_extras");
         webkit_settings_set_enable_javascript = (void(*)(WebKitSettings*, int))dlsym(m_webkitLib, "webkit_settings_set_enable_javascript");
         webkit_settings_set_user_agent = (void(*)(WebKitSettings*, const char*))dlsym(m_webkitLib, "webkit_settings_set_user_agent");
+        webkit_settings_set_allow_file_access_from_file_urls = (void(*)(WebKitSettings*, int))dlsym(m_webkitLib, "webkit_settings_set_allow_file_access_from_file_urls");
+        webkit_settings_set_allow_universal_access_from_file_urls = (void(*)(WebKitSettings*, int))dlsym(m_webkitLib, "webkit_settings_set_allow_universal_access_from_file_urls");
+
+        // Load WebKitGTK IPC & Script Message Handlers
+        g_free = (void(*)(void*))dlsym(m_gtkLib, "g_free");
+        webkit_web_view_get_user_content_manager = (void*(*)(GtkWidget*))dlsym(m_webkitLib, "webkit_web_view_get_user_content_manager");
+        webkit_user_content_manager_register_script_message_handler = (void(*)(void*, const char*))dlsym(m_webkitLib, "webkit_user_content_manager_register_script_message_handler");
+        webkit_web_view_run_javascript = (void(*)(GtkWidget*, const char*, void*, void*, void*))dlsym(m_webkitLib, "webkit_web_view_run_javascript");
+        webkit_javascript_result_get_js_value = (void*(*)(void*))dlsym(m_webkitLib, "webkit_javascript_result_get_js_value");
+
+        m_jscLib = dlopen("libjavascriptcoregtk-4.1.so.0", RTLD_LAZY);
+        if (!m_jscLib) {
+            m_jscLib = dlopen("/usr/lib/x86_64-linux-gnu/libjavascriptcoregtk-4.1.so.0", RTLD_LAZY);
+        }
+        if (m_jscLib) {
+            jsc_value_to_json = (char*(*)(void*, int))dlsym(m_jscLib, "jsc_value_to_json");
+        }
 
         m_initialized = (gtk_init && webkit_web_view_new && webkit_web_view_load_uri);
         std::cout << "[WebKitLoader] Engine initialization " << (m_initialized ? "SUCCESSFUL" : "FAILED") << "\n";
@@ -147,11 +164,20 @@ public:
     void (*webkit_settings_set_enable_developer_extras)(WebKitSettings*, int){nullptr};
     void (*webkit_settings_set_enable_javascript)(WebKitSettings*, int){nullptr};
     void (*webkit_settings_set_user_agent)(WebKitSettings*, const char*){nullptr};
+    void (*webkit_settings_set_allow_file_access_from_file_urls)(WebKitSettings*, int){nullptr};
+    void (*webkit_settings_set_allow_universal_access_from_file_urls)(WebKitSettings*, int){nullptr};
+    void (*g_free)(void*){nullptr};
+    void* (*webkit_web_view_get_user_content_manager)(GtkWidget*){nullptr};
+    void (*webkit_user_content_manager_register_script_message_handler)(void*, const char*){nullptr};
+    void (*webkit_web_view_run_javascript)(GtkWidget*, const char*, void*, void*, void*){nullptr};
+    void* (*webkit_javascript_result_get_js_value)(void*){nullptr};
+    char* (*jsc_value_to_json)(void*, int){nullptr};
 
 private:
     WebKitEngineLoader() = default;
     void* m_gtkLib{nullptr};
     void* m_webkitLib{nullptr};
+    void* m_jscLib{nullptr};
     bool m_initialized{false};
 };
 

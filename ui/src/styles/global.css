@@ -1,0 +1,137 @@
+/**
+ * Azokle Browser - Shared Desktop UI
+ * Global Base Layout & Resets
+ */
+
+@import './theme.css';
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+/* Chrome Header Wrapper */
+.browser-chrome-header {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-toolbar);
+  border-bottom: 1px solid var(--border-subtle);
+  z-index: 100;
+}
+
+/* Tab Strip Row */
+.tabstrip-container {
+  display: flex;
+  align-items: flex-end;
+  background-color: var(--bg-tabstrip);
+  padding: 6px 8px 0px 8px;
+  min-height: 40px;
+  border-bottom: 1px solid var(--border-subtle);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabstrip-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* Navigation Toolbar Row */
+.toolbar-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  min-height: 44px;
+  background-color: var(--bg-toolbar);
+}
+
+/* Live Web Content Container */
+.viewport-container {
+  flex: 1;
+  width: 100%;
+  height: calc(100% - 84px);
+  position: relative;
+  background-color: var(--bg-app, #12141a);
+}
+
+.viewport-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background-color: var(--bg-app, #12141a);
+}
+
+/* Universal Button Styles */
+button.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+button.icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+button.icon-btn:active {
+  background: var(--bg-active);
+  transform: scale(0.96);
+}
+
+button.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Floating Modals & Overlays */
+.flyout-overlay {
+  position: absolute;
+  top: 86px;
+  right: 12px;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  animation: flyoutFadeIn 0.15s ease-out;
+}
+
+@keyframes flyoutFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

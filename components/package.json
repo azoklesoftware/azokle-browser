@@ -1,0 +1,10 @@
+{
+  "name": "@azokle/components",
+  "version": "2.0.0",
+  "description": "Modular Browser Chrome & Feature Components for Azokle Browser",
+  "type": "module",
+  "main": "index.ts",
+  "keywords": ["browser", "components", "shields", "newtab", "omnibox", "tor", "bookmarks", "menu"],
+  "author": "Azokle Developer <dev@azokle.com>",
+  "license": "MPL-2.0 OR Apache-2.0"
+}

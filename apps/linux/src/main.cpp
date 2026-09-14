@@ -7,7 +7,7 @@
 
 int main(int argc, char* argv[]) {
     std::cout << "=================================================================\n";
-    std::cout << "  Azokle Sovereign Browser for Linux (C++20 / GTK / GeckoEngine)\n";
+    std::cout << "  Azokle Browser for Linux (C++20 / GTK / GeckoEngine)\n";
     std::cout << "=================================================================\n";
 
     // 1. Initialize Rust Cross-Platform Core

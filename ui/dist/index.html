@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Azokle Browser</title>
+  <link rel="stylesheet" href="./bundle.css">
+</head>
+<body>
+  <div id="app-container">
+    <header class="browser-chrome-header">
+      <div id="tabstrip-root"></div>
+      <div id="toolbar-root"></div>
+      <div id="bookmarks-root"></div>
+    </header>
+
+    <main class="viewport-container" id="viewport-root">
+      <iframe id="web-viewport" class="viewport-iframe" src="./pages/newtab/index.html"></iframe>
+    </main>
+
+    <!-- Floating Overlays -->
+    <div id="shield-flyout-root"></div>
+    <div id="tor-modal-root"></div>
+    <div id="menu-root"></div>
+  </div>
+
+  <script type="module" src="./index.js"></script>
+</body>
+</html>

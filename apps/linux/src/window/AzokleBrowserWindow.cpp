@@ -6,8 +6,9 @@
 
 namespace azokle::linux_app {
 
-const char* NEWTAB_LOCAL_URL = "file:///home/azokledeveloper/azokledeveloper/azokle-software/azokle-browser/apps/linux/resources/newtab/newtab.html";
-const char* SETTINGS_LOCAL_URL = "file:///home/azokledeveloper/azokledeveloper/azokle-software/azokle-browser/apps/linux/resources/pages/settings.html";
+const char* CHROME_DESKTOP_URL = "file:///home/azokledeveloper/azokledeveloper/azokle-software/azokle-browser/ui/dist/index.html";
+const char* NEWTAB_LOCAL_URL = "file:///home/azokledeveloper/azokledeveloper/azokle-software/azokle-browser/ui/dist/pages/newtab/index.html";
+const char* SETTINGS_LOCAL_URL = "file:///home/azokledeveloper/azokledeveloper/azokle-software/azokle-browser/ui/dist/pages/settings/index.html";
 const char* HISTORY_LOCAL_URL = "file:///home/azokledeveloper/azokledeveloper/azokle-software/azokle-browser/apps/linux/resources/pages/history.html";
 const char* DOWNLOADS_LOCAL_URL = "file:///home/azokledeveloper/azokledeveloper/azokle-software/azokle-browser/apps/linux/resources/pages/downloads.html";
 const char* BOOKMARKS_LOCAL_URL = "file:///home/azokledeveloper/azokledeveloper/azokle-software/azokle-browser/apps/linux/resources/pages/bookmarks.html";
@@ -55,12 +56,7 @@ AzokleBrowserWindow::AzokleBrowserWindow(std::shared_ptr<engine::IGeckoEngine> e
 
 // Global GTK pointers
 static GtkWidget* g_webView = nullptr;
-static GtkWidget* g_entryUrl = nullptr;
-static GtkWidget* g_tabBox = nullptr;
-static GtkWidget* g_btnShield = nullptr;
-static GtkWidget* g_btnTor = nullptr;
 static bool g_shieldActive = true;
-static bool g_torActive = false;
 static uint64_t g_blockedCount = 42;
 
 static std::string ResolveInputQuery(const std::string& input) {
@@ -117,155 +113,16 @@ static void NavigateInternal(const std::string& targetUrl) {
         loader.webkit_web_view_load_uri(g_webView, cleaned.c_str());
     }
 
-    if (g_entryUrl) {
-        if (cleaned == NEWTAB_LOCAL_URL) {
-            loader.gtk_entry_set_text(g_entryUrl, "");
-        } else if (cleaned == SETTINGS_LOCAL_URL) {
-            loader.gtk_entry_set_text(g_entryUrl, "azokle://settings");
-        } else if (cleaned == HISTORY_LOCAL_URL) {
-            loader.gtk_entry_set_text(g_entryUrl, "azokle://history");
-        } else if (cleaned == DOWNLOADS_LOCAL_URL) {
-            loader.gtk_entry_set_text(g_entryUrl, "azokle://downloads");
-        } else if (cleaned == BOOKMARKS_LOCAL_URL) {
-            loader.gtk_entry_set_text(g_entryUrl, "azokle://bookmarks");
-        } else {
-            loader.gtk_entry_set_text(g_entryUrl, cleaned.c_str());
-        }
-    }
-
     if (g_shieldActive) {
         g_blockedCount += 2;
-        if (g_btnShield) {
-            std::string label = "🛡️ " + std::to_string(g_blockedCount);
-            loader.gtk_button_set_label(g_btnShield, label.c_str());
-        }
     }
-}
-
-static void on_entry_activate(GtkWidget* entry, void*) {
-    auto& loader = WebKitEngineLoader::Instance();
-    const char* text = loader.gtk_entry_get_text(entry);
-    if (text) {
-        NavigateInternal(text);
-    }
-}
-
-static void on_btn_home_clicked(GtkWidget*, void*) {
-    NavigateInternal(NEWTAB_LOCAL_URL);
-}
-
-static void on_btn_back_clicked(GtkWidget*, void*) {
-    if (g_webView) WebKitEngineLoader::Instance().webkit_web_view_go_back(g_webView);
-}
-
-static void on_btn_forward_clicked(GtkWidget*, void*) {
-    if (g_webView) WebKitEngineLoader::Instance().webkit_web_view_go_forward(g_webView);
-}
-
-static void on_btn_reload_clicked(GtkWidget*, void*) {
-    if (g_webView) WebKitEngineLoader::Instance().webkit_web_view_reload(g_webView);
-}
-
-static void on_btn_shield_clicked(GtkWidget* btn, void*) {
-    g_shieldActive = !g_shieldActive;
-    auto& loader = WebKitEngineLoader::Instance();
-    if (g_shieldActive) {
-        std::string label = "🛡️ " + std::to_string(g_blockedCount);
-        loader.gtk_button_set_label(btn, label.c_str());
-        std::cout << "[AzokleShield] Protection toggled: ACTIVE\n";
-    } else {
-        loader.gtk_button_set_label(btn, "🛡️ OFF");
-        std::cout << "[AzokleShield] Protection toggled: PAUSED\n";
-    }
-}
-
-static void on_btn_tor_clicked(GtkWidget* btn, void*) {
-    g_torActive = !g_torActive;
-    auto& loader = WebKitEngineLoader::Instance();
-    if (g_torActive) {
-        loader.gtk_button_set_label(btn, "🧅 ON");
-        std::cout << "[Tor] Circuit toggled: ON\n";
-        NavigateInternal("https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion");
-    } else {
-        loader.gtk_button_set_label(btn, "🧅");
-        std::cout << "[Tor] Circuit toggled: OFF\n";
-    }
-}
-
-static void on_btn_keys_clicked(GtkWidget*, void*) {
-    NavigateInternal(SETTINGS_LOCAL_URL);
-}
-
-static void on_btn_bookmark_clicked(GtkWidget*, void*) {
-    NavigateInternal(BOOKMARKS_LOCAL_URL);
-}
-
-// Menu Callbacks
-static void on_menu_new_tab(GtkWidget*, void*) {
-    NavigateInternal(NEWTAB_LOCAL_URL);
-}
-
-static void on_menu_new_private_window(GtkWidget*, void*) {
-    g_torActive = true;
-    if (g_btnTor) WebKitEngineLoader::Instance().gtk_button_set_label(g_btnTor, "🧅 ON");
-    NavigateInternal("https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion");
-}
-
-static void on_menu_bookmarks(GtkWidget*, void*) {
-    NavigateInternal(BOOKMARKS_LOCAL_URL);
-}
-
-static void on_menu_history(GtkWidget*, void*) {
-    NavigateInternal(HISTORY_LOCAL_URL);
-}
-
-static void on_menu_downloads(GtkWidget*, void*) {
-    NavigateInternal(DOWNLOADS_LOCAL_URL);
-}
-
-static void on_menu_settings(GtkWidget*, void*) {
-    NavigateInternal(SETTINGS_LOCAL_URL);
-}
-
-static void on_btn_menu_clicked(GtkWidget* btn, void*) {
-    auto& loader = WebKitEngineLoader::Instance();
-    GtkWidget* menu = loader.gtk_menu_new();
-
-    GtkWidget* itemNewTab = loader.gtk_menu_item_new_with_label("  ＋  New Tab               Ctrl+T");
-    GtkWidget* itemNewWindow = loader.gtk_menu_item_new_with_label("  🗖  New Window            Ctrl+N");
-    GtkWidget* itemNewPrivate = loader.gtk_menu_item_new_with_label("  🧅  New Private Window    Ctrl+Shift+N");
-    GtkWidget* sep1 = loader.gtk_separator_menu_item_new();
-    GtkWidget* itemBookmarks = loader.gtk_menu_item_new_with_label("  ★  Bookmarks            Ctrl+B");
-    GtkWidget* itemHistory = loader.gtk_menu_item_new_with_label("  📜  History              Ctrl+H");
-    GtkWidget* itemDownloads = loader.gtk_menu_item_new_with_label("  📥  Downloads            Ctrl+J");
-    GtkWidget* sep2 = loader.gtk_separator_menu_item_new();
-    GtkWidget* itemSettings = loader.gtk_menu_item_new_with_label("  ⚙️  Settings             Ctrl+,");
-
-    loader.g_signal_connect_data(itemNewTab, "activate", (void*)on_menu_new_tab, nullptr, nullptr, 0);
-    loader.g_signal_connect_data(itemNewWindow, "activate", (void*)on_menu_new_tab, nullptr, nullptr, 0);
-    loader.g_signal_connect_data(itemNewPrivate, "activate", (void*)on_menu_new_private_window, nullptr, nullptr, 0);
-    loader.g_signal_connect_data(itemBookmarks, "activate", (void*)on_menu_bookmarks, nullptr, nullptr, 0);
-    loader.g_signal_connect_data(itemHistory, "activate", (void*)on_menu_history, nullptr, nullptr, 0);
-    loader.g_signal_connect_data(itemDownloads, "activate", (void*)on_menu_downloads, nullptr, nullptr, 0);
-    loader.g_signal_connect_data(itemSettings, "activate", (void*)on_menu_settings, nullptr, nullptr, 0);
-
-    loader.gtk_menu_shell_append(menu, itemNewTab);
-    loader.gtk_menu_shell_append(menu, itemNewWindow);
-    loader.gtk_menu_shell_append(menu, itemNewPrivate);
-    loader.gtk_menu_shell_append(menu, sep1);
-    loader.gtk_menu_shell_append(menu, itemBookmarks);
-    loader.gtk_menu_shell_append(menu, itemHistory);
-    loader.gtk_menu_shell_append(menu, itemDownloads);
-    loader.gtk_menu_shell_append(menu, sep2);
-    loader.gtk_menu_shell_append(menu, itemSettings);
-
-    loader.gtk_widget_show_all(menu);
-    loader.gtk_menu_popup_at_widget(menu, btn, 2 /* GDK_GRAVITY_SOUTH_EAST */, 1 /* GDK_GRAVITY_NORTH_WEST */, nullptr);
 }
 
 static void on_window_destroy(GtkWidget*, void*) {
     WebKitEngineLoader::Instance().gtk_main_quit();
 }
+
+static void on_script_message_received(void* manager, void* js_result, void* user_data);
 
 void AzokleBrowserWindow::Show() {
     std::cout << "[AzokleBrowserWindow] Launching Senior Redesigned Azokle Desktop UI...\n";
@@ -282,8 +139,8 @@ void AzokleBrowserWindow::Show() {
 
     // 1. Create Main Window
     GtkWidget* window = loader.gtk_window_new(0 /* GTK_WINDOW_TOPLEVEL */);
-    loader.gtk_window_set_title(window, "Azokle Sovereign Browser");
-    loader.gtk_window_set_default_size(window, 1280, 840);
+    loader.gtk_window_set_title(window, "Azokle Browser");
+    loader.gtk_window_set_default_size(window, 1280, 800);
 
     // 2. High-Polish Solid Dark CSS Design System
     GtkCssProvider* provider = loader.gtk_css_provider_new();
@@ -404,93 +261,136 @@ void AzokleBrowserWindow::Show() {
     loader.gtk_css_provider_load_from_data(provider, cssData, -1, nullptr);
     loader.gtk_style_context_add_provider_for_screen(loader.gdk_screen_get_default(), provider, 800);
 
-    // 3. Main Container
-    GtkWidget* mainBox = loader.gtk_box_new(1 /* GTK_ORIENTATION_VERTICAL */, 0);
-    loader.gtk_container_add(window, mainBox);
-
-    // 4. Top Tab Strip
-    g_tabBox = loader.gtk_box_new(0 /* GTK_ORIENTATION_HORIZONTAL */, 4);
-    loader.gtk_widget_set_margin_start(g_tabBox, 8);
-    loader.gtk_widget_set_margin_end(g_tabBox, 8);
-
-    GtkWidget* tabItem1 = loader.gtk_button_new_with_label("  New Tab   ✕  ");
-    GtkWidget* btnAddTab = loader.gtk_button_new_with_label(" ＋ ");
-
-    loader.g_signal_connect_data(tabItem1, "clicked", (void*)on_btn_home_clicked, nullptr, nullptr, 0);
-    loader.g_signal_connect_data(btnAddTab, "clicked", (void*)on_btn_home_clicked, nullptr, nullptr, 0);
-
-    loader.gtk_box_pack_start(g_tabBox, tabItem1, 0, 0, 0);
-    loader.gtk_box_pack_start(g_tabBox, btnAddTab, 0, 0, 0);
-    loader.gtk_box_pack_start(mainBox, g_tabBox, 0, 0, 0);
-
-    // 5. Navigation Toolbar
-    GtkWidget* toolbarBox = loader.gtk_box_new(0 /* GTK_ORIENTATION_HORIZONTAL */, 4);
-    loader.gtk_widget_set_margin_start(toolbarBox, 8);
-    loader.gtk_widget_set_margin_end(toolbarBox, 8);
-    loader.gtk_widget_set_margin_top(toolbarBox, 3);
-    loader.gtk_widget_set_margin_bottom(toolbarBox, 4);
-
-    GtkWidget* btnBack = loader.gtk_button_new_with_label("←");
-    GtkWidget* btnForward = loader.gtk_button_new_with_label("→");
-    GtkWidget* btnReload = loader.gtk_button_new_with_label("↻");
-    GtkWidget* btnHome = loader.gtk_button_new_with_label("⌂");
-
-    loader.g_signal_connect_data(btnBack, "clicked", (void*)on_btn_back_clicked, nullptr, nullptr, 0);
-    loader.g_signal_connect_data(btnForward, "clicked", (void*)on_btn_forward_clicked, nullptr, nullptr, 0);
-    loader.g_signal_connect_data(btnReload, "clicked", (void*)on_btn_reload_clicked, nullptr, nullptr, 0);
-    loader.g_signal_connect_data(btnHome, "clicked", (void*)on_btn_home_clicked, nullptr, nullptr, 0);
-
-    loader.gtk_box_pack_start(toolbarBox, btnBack, 0, 0, 0);
-    loader.gtk_box_pack_start(toolbarBox, btnForward, 0, 0, 0);
-    loader.gtk_box_pack_start(toolbarBox, btnReload, 0, 0, 0);
-    loader.gtk_box_pack_start(toolbarBox, btnHome, 0, 0, 0);
-
-    // Floating Omnibar Address Box
-    g_entryUrl = loader.gtk_entry_new();
-    loader.gtk_entry_set_text(g_entryUrl, "");
-    loader.g_signal_connect_data(g_entryUrl, "activate", (void*)on_entry_activate, nullptr, nullptr, 0);
-    loader.gtk_box_pack_start(toolbarBox, g_entryUrl, 1, 1, 8);
-
-    // Right Action Buttons
-    g_btnShield = loader.gtk_button_new_with_label("🛡️ 42");
-    g_btnTor = loader.gtk_button_new_with_label("🧅");
-    GtkWidget* btnBookmark = loader.gtk_button_new_with_label("★");
-    GtkWidget* btnKeys = loader.gtk_button_new_with_label("🔑");
-    GtkWidget* btnMenu = loader.gtk_button_new_with_label("⋮");
-
-    loader.g_signal_connect_data(g_btnShield, "clicked", (void*)on_btn_shield_clicked, nullptr, nullptr, 0);
-    loader.g_signal_connect_data(g_btnTor, "clicked", (void*)on_btn_tor_clicked, nullptr, nullptr, 0);
-    loader.g_signal_connect_data(btnBookmark, "clicked", (void*)on_btn_bookmark_clicked, nullptr, nullptr, 0);
-    loader.g_signal_connect_data(btnKeys, "clicked", (void*)on_btn_keys_clicked, nullptr, nullptr, 0);
-    loader.g_signal_connect_data(btnMenu, "clicked", (void*)on_btn_menu_clicked, nullptr, nullptr, 0);
-
-    loader.gtk_box_pack_start(toolbarBox, g_btnShield, 0, 0, 2);
-    loader.gtk_box_pack_start(toolbarBox, g_btnTor, 0, 0, 2);
-    loader.gtk_box_pack_start(toolbarBox, btnBookmark, 0, 0, 2);
-    loader.gtk_box_pack_start(toolbarBox, btnKeys, 0, 0, 2);
-    loader.gtk_box_pack_start(toolbarBox, btnMenu, 0, 0, 2);
-
-    loader.gtk_box_pack_start(mainBox, toolbarBox, 0, 0, 0);
-
-    // 6. Live WebKit Viewport
+    // 3. Host Full Sovereign Brave-Grade WebUI Chrome Edge-to-Edge
     g_webView = loader.webkit_web_view_new();
     WebKitSettings* settings = loader.webkit_web_view_get_settings(g_webView);
     if (settings) {
         loader.webkit_settings_set_enable_javascript(settings, 1);
         loader.webkit_settings_set_enable_developer_extras(settings, 1);
-        loader.webkit_settings_set_user_agent(settings, "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0 (Azokle Sovereign)");
+        if (loader.webkit_settings_set_allow_file_access_from_file_urls) {
+            loader.webkit_settings_set_allow_file_access_from_file_urls(settings, 1);
+        }
+        if (loader.webkit_settings_set_allow_universal_access_from_file_urls) {
+            loader.webkit_settings_set_allow_universal_access_from_file_urls(settings, 1);
+        }
+        loader.webkit_settings_set_user_agent(settings, "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0 (Azokle Browser)");
     }
 
-    loader.webkit_web_view_load_uri(g_webView, NEWTAB_LOCAL_URL);
-    loader.gtk_box_pack_start(mainBox, g_webView, 1, 1, 0);
+    // Register Native Desktop IPC Bridge (window.webkit.messageHandlers.azokleNative)
+    void* user_content_manager = loader.webkit_web_view_get_user_content_manager ? loader.webkit_web_view_get_user_content_manager(g_webView) : nullptr;
+    if (user_content_manager && loader.webkit_user_content_manager_register_script_message_handler) {
+        loader.webkit_user_content_manager_register_script_message_handler(user_content_manager, "azokleNative");
+        loader.g_signal_connect_data(user_content_manager, "script-message-received::azokleNative", (void*)on_script_message_received, (void*)this, nullptr, 0);
+        std::cout << "[AzokleBrowserWindow] Registered native IPC message handler: window.webkit.messageHandlers.azokleNative\n";
+    }
+
+    loader.webkit_web_view_load_uri(g_webView, CHROME_DESKTOP_URL);
+    loader.gtk_container_add(window, g_webView);
 
     // Window destroy signal
     loader.g_signal_connect_data(window, "destroy", (void*)on_window_destroy, nullptr, nullptr, 0);
 
     // Show window and enter GTK event loop
     loader.gtk_widget_show_all(window);
-    std::cout << "[AzokleBrowserWindow] Redesigned Linux UI Initialized.\n";
+    std::cout << "[AzokleBrowserWindow] Azokle Browser WebUI Chrome Initialized.\n";
     loader.gtk_main();
+}
+
+static std::string extract_json_str(const std::string& json, const std::string& key) {
+    std::string needle = "\"" + key + "\":";
+    auto pos = json.find(needle);
+    if (pos == std::string::npos) return "";
+    pos += needle.length();
+    while (pos < json.length() && (json[pos] == ' ' || json[pos] == '\t' || json[pos] == '\r' || json[pos] == '\n')) pos++;
+    if (pos < json.length() && json[pos] == '"') {
+        pos++;
+        auto end = json.find('"', pos);
+        if (end != std::string::npos) {
+            return json.substr(pos, end - pos);
+        }
+    }
+    return "";
+}
+
+static void on_script_message_received(void* /*manager*/, void* js_result, void* user_data) {
+    auto& loader = WebKitEngineLoader::Instance();
+    if (!loader.webkit_javascript_result_get_js_value || !loader.jsc_value_to_json) return;
+
+    void* js_val = loader.webkit_javascript_result_get_js_value(js_result);
+    if (!js_val) return;
+
+    char* json_cstr = loader.jsc_value_to_json(js_val, 0);
+    if (!json_cstr) return;
+
+    std::string json(json_cstr);
+    if (loader.g_free) loader.g_free(json_cstr);
+
+    auto* win = static_cast<AzokleBrowserWindow*>(user_data);
+    if (win) {
+        win->HandleNativeIpc(json);
+    }
+}
+
+void AzokleBrowserWindow::HandleNativeIpc(const std::string& json) {
+    std::string reqId = extract_json_str(json, "id");
+    std::string action = extract_json_str(json, "action");
+    if (reqId.empty() || action.empty()) return;
+
+    auto& loader = WebKitEngineLoader::Instance();
+    std::ostringstream ss;
+
+    if (action == "getShieldMetrics") {
+        ss << "{\"id\":\"" << reqId << "\",\"result\":{"
+           << "\"totalBlocked\":0,\"adsBlocked\":0,\"trackersBlocked\":0,\"httpsUpgrades\":0,"
+           << "\"isShieldActive\":" << (m_isShieldActive ? "true" : "false") << ","
+           << "\"fingerprintProtection\":true,\"cookieBlocking\":true}}";
+    } else if (action == "toggleShield") {
+        m_isShieldActive = !m_isShieldActive;
+        ss << "{\"id\":\"" << reqId << "\",\"result\":" << (m_isShieldActive ? "true" : "false") << "}";
+    } else if (action == "navigate") {
+        std::string url = extract_json_str(json, "url");
+        if (!url.empty()) {
+            NavigateInternal(url);
+        }
+        ss << "{\"id\":\"" << reqId << "\",\"result\":true}";
+    } else if (action == "reload") {
+        Reload();
+        ss << "{\"id\":\"" << reqId << "\",\"result\":true}";
+    } else if (action == "goBack") {
+        GoBack();
+        ss << "{\"id\":\"" << reqId << "\",\"result\":true}";
+    } else if (action == "goForward") {
+        GoForward();
+        ss << "{\"id\":\"" << reqId << "\",\"result\":true}";
+    } else if (action == "toggleTor") {
+        m_isTorActive = !m_isTorActive;
+        ss << "{\"id\":\"" << reqId << "\",\"result\":" << (m_isTorActive ? "true" : "false") << "}";
+    } else if (action == "getTorCircuit") {
+        ss << "{\"id\":\"" << reqId << "\",\"result\":{\"isActive\":" << (m_isTorActive ? "true" : "false") << ",\"hops\":[]}}";
+    } else if (action == "getBookmarks") {
+        ss << "{\"id\":\"" << reqId << "\",\"result\":[]}";
+    } else if (action == "getHistory") {
+        ss << "{\"id\":\"" << reqId << "\",\"result\":[]}";
+    } else if (action == "getDownloads") {
+        ss << "{\"id\":\"" << reqId << "\",\"result\":[]}";
+    } else if (action == "createTab") {
+        std::string url = extract_json_str(json, "url");
+        if (url.empty()) url = "azokle://newtab";
+        ss << "{\"id\":\"" << reqId << "\",\"result\":{"
+           << "\"id\":1,\"title\":\"New Tab\",\"url\":\"" << url << "\","
+           << "\"isPrivate\":false,\"isTor\":false,\"isLoading\":false,\"progress\":1.0,"
+           << "\"securityLevel\":\"SECURE\"}}";
+    } else if (action == "closeWindow") {
+        if (loader.gtk_main_quit) loader.gtk_main_quit();
+        return;
+    } else {
+        ss << "{\"id\":\"" << reqId << "\",\"result\":null}";
+    }
+
+    if (g_webView && loader.webkit_web_view_run_javascript) {
+        std::string script = "if (window.__azokleHostDispatch) window.__azokleHostDispatch('response', " + ss.str() + ");";
+        loader.webkit_web_view_run_javascript(g_webView, script.c_str(), nullptr, nullptr, nullptr);
+    }
 }
 
 void AzokleBrowserWindow::Navigate(const std::string& url) {
@@ -519,21 +419,6 @@ void AzokleBrowserWindow::ToggleShield() {
 
 void AzokleBrowserWindow::UpdateUrlBar(const std::string& url) {
     m_currentUrl = url;
-    if (g_entryUrl) {
-        if (url == NEWTAB_LOCAL_URL) {
-            WebKitEngineLoader::Instance().gtk_entry_set_text(g_entryUrl, "");
-        } else if (url == SETTINGS_LOCAL_URL) {
-            WebKitEngineLoader::Instance().gtk_entry_set_text(g_entryUrl, "azokle://settings");
-        } else if (url == HISTORY_LOCAL_URL) {
-            WebKitEngineLoader::Instance().gtk_entry_set_text(g_entryUrl, "azokle://history");
-        } else if (url == DOWNLOADS_LOCAL_URL) {
-            WebKitEngineLoader::Instance().gtk_entry_set_text(g_entryUrl, "azokle://downloads");
-        } else if (url == BOOKMARKS_LOCAL_URL) {
-            WebKitEngineLoader::Instance().gtk_entry_set_text(g_entryUrl, "azokle://bookmarks");
-        } else {
-            WebKitEngineLoader::Instance().gtk_entry_set_text(g_entryUrl, url.c_str());
-        }
-    }
 }
 
 void AzokleBrowserWindow::UpdateTitle(const std::string& title) {

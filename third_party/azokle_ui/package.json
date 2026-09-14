@@ -1,0 +1,8 @@
+{
+  "name": "@azokle/third_party_ui",
+  "version": "2.0.0",
+  "description": "Shared Theme Tokens, CSS Resets, and UI Assets for Azokle Sovereign Browser",
+  "type": "module",
+  "main": "theme.css",
+  "license": "MPL-2.0 OR Apache-2.0"
+}
