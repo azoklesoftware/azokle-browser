@@ -7,9 +7,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.ui.res.painterResource
-import com.azokle.search.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,21 +21,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.azokle.search.R
 import kotlin.math.abs
 
 /**
  * Robust, high-res Favicon Image Loader:
- *  - Primary: Uses tab.faviconUrl if available.
- *  - Secondary: Google S2 Favicon API (64px) -> DuckDuckGo Icon API.
- *  - Fallback: Deterministic Domain Monogram Letter on Vibrant Tinted Circle.
  *  - Tor Isolation: Displays onion icon.
+ *  - Azokle / New Tab: Displays official Azokle Emblem icon.
+ *  - Primary: Uses tab.faviconUrl if available.
+ *  - Secondary: Google S2 Favicon API (128px).
+ *  - Fallback: Deterministic Domain Monogram Letter or Vector Earth/Language Icon.
  */
 @Composable
 fun FaviconImage(
@@ -58,6 +61,29 @@ fun FaviconImage(
         return
     }
 
+    // Check if the tab is an internal Azokle tab, home tab, or new blank tab
+    val isAzokleOrBlank = remember(url) {
+        val u = url.trim().lowercase()
+        u.isEmpty() || u == "about:blank" || u == "about:home" ||
+        u.startsWith("azokle://") || u.contains("search.azokle.com") || u.contains("azokle.com")
+    }
+
+    if (isAzokleOrBlank) {
+        Box(
+            modifier = modifier.size(size),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.ic_engine_azokle),
+                contentDescription = "Azokle",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+            )
+        }
+        return
+    }
+
     val context = LocalContext.current
     val host = remember(url) {
         try {
@@ -74,7 +100,7 @@ fun FaviconImage(
 
     val initialLetter = remember(host) {
         val clean = host.removePrefix("https://").removePrefix("http://").removePrefix("www.").trim()
-        clean.firstOrNull { it.isLetterOrDigit() }?.uppercaseChar()?.toString() ?: "🌐"
+        clean.firstOrNull { it.isLetterOrDigit() }?.uppercaseChar()?.toString() ?: ""
     }
 
     val monogramBgColor = remember(host) {
@@ -138,20 +164,38 @@ fun FaviconImage(
                     .clip(CircleShape)
             )
         } else {
-            // Fallback Domain Monogram Letter
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(CircleShape)
-                    .background(monogramBgColor),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = initialLetter,
-                    fontSize = (size.value * 0.55).sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
+            // Fallback Domain Monogram Letter or Vector Earth Icon
+            val cleanLetter = initialLetter.trim()
+            if (cleanLetter.isNotEmpty() && cleanLetter.first().isLetterOrDigit()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .background(monogramBgColor),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = cleanLetter,
+                        fontSize = (size.value * 0.55).sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .background(monogramBgColor),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Language,
+                        contentDescription = "Earth",
+                        tint = Color.White,
+                        modifier = Modifier.size(size * 0.70f)
+                    )
+                }
             }
         }
     }

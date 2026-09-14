@@ -101,7 +101,14 @@ class AzokleNavigationDelegate(
         }
 
         // 2.5 Azokle Sovereign Player Check for eligible videos (YouTube / Vimeo)
-        if (com.azokle.search.media.AzoklePlayerHelper.isEligibleVideoUrl(uriStr)) {
+        // Guard against intercepting reloads or internal platform navigation when the user is already browsing YouTube / Vimeo.
+        val isReload = isPageReload(uriStr, request)
+        val isInternalPlatformNav = isInternalPlatformNavigation(uriStr, request)
+
+        if (com.azokle.search.media.AzoklePlayerHelper.isEligibleVideoUrl(uriStr) &&
+            !com.azokle.search.media.AzoklePlayerHelper.isSovereignEmbedUrl(uriStr) &&
+            !isReload &&
+            !isInternalPlatformNav) {
             val prefMode = com.azokle.search.common.util.PreferencesManager(context).getAzoklePlayerMode()
             if (prefMode == "always") {
                 val embedUrl = com.azokle.search.media.AzoklePlayerHelper.buildSovereignEmbedUrl(uriStr)
@@ -238,5 +245,63 @@ class AzokleNavigationDelegate(
         }
         onLoadErrorChanged(errorType)
         return null
+    }
+
+    private fun isPageReload(uriStr: String, request: GeckoSession.NavigationDelegate.LoadRequest): Boolean {
+        fun normalize(url: String?): String {
+            if (url.isNullOrBlank()) return ""
+            return url.substringBefore('#').trimEnd('/')
+        }
+
+        val targetNorm = normalize(uriStr)
+        if (targetNorm.isBlank()) return false
+
+        val lastNorm = normalize(lastLoadedUrl)
+        if (lastNorm.isNotBlank() && targetNorm.equals(lastNorm, ignoreCase = true)) {
+            return true
+        }
+
+        val tabUrlNorm = normalize(tabId?.let { TabManager.getTab(it)?.url })
+        if (tabUrlNorm.isNotBlank() && targetNorm.equals(tabUrlNorm, ignoreCase = true)) {
+            return true
+        }
+
+        val triggerNorm = normalize(request.triggerUri)
+        if (triggerNorm.isNotBlank() && targetNorm.equals(triggerNorm, ignoreCase = true)) {
+            return true
+        }
+
+        return false
+    }
+
+    private fun isInternalPlatformNavigation(uriStr: String, request: GeckoSession.NavigationDelegate.LoadRequest): Boolean {
+        fun extractDomain(url: String?): String? {
+            if (url.isNullOrBlank()) return null
+            return try {
+                val host = Uri.parse(url).host?.lowercase() ?: return null
+                host.removePrefix("www.").removePrefix("m.")
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+        val targetDomain = extractDomain(uriStr) ?: return false
+        if (targetDomain != "youtube.com" && targetDomain != "vimeo.com" && targetDomain != "youtu.be") {
+            return false
+        }
+
+        val triggerDomain = extractDomain(request.triggerUri)
+        val lastDomain = extractDomain(lastLoadedUrl)
+        val tabDomain = extractDomain(tabId?.let { TabManager.getTab(it)?.url })
+
+        fun matchesTarget(d: String?): Boolean {
+            if (d == null) return false
+            if (targetDomain == "youtube.com" || targetDomain == "youtu.be") {
+                return d == "youtube.com" || d == "youtu.be"
+            }
+            return d == targetDomain
+        }
+
+        return matchesTarget(triggerDomain) || matchesTarget(lastDomain) || matchesTarget(tabDomain)
     }
 }

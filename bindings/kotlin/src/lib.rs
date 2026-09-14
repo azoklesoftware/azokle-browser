@@ -1555,6 +1555,30 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_protocolDispatch(
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_adblock_json_serialization() {
+        let core = get_core();
+        let rules = "||doubleclick.net^$third-party\n||google-analytics.com^$third-party";
+        core.adblock.load_rules_from_text(rules, BlockCategory::Ad);
+
+        let decision = core.adblock.check_network_request(
+            "https://ad.doubleclick.net/ad.js",
+            Some("https://example.com"),
+            Some("script"),
+            true,
+        );
+        assert!(decision.should_block);
+        let json_str = serde_json::to_string(&decision).unwrap();
+        assert!(json_str.contains("\"should_block\":true"));
+        assert!(json_str.contains("\"category\":1"), "Serialized JSON should have numeric category: {}", json_str);
+    }
+}
+
+
 
 
 

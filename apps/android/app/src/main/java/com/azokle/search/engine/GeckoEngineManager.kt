@@ -193,6 +193,7 @@ object GeckoEngineManager {
                                         put("isException", decision.isException)
                                         put("redirectUrl", decision.redirectUrl)
                                         put("rewrittenUrl", decision.rewrittenUrl)
+                                        put("isReady", decision.isReady)
                                     }
                                 }
                                 "GET_COSMETIC_CSS" -> {
@@ -416,6 +417,17 @@ object GeckoEngineManager {
             extensionPort?.postMessage(payload)
         } catch (e: Exception) {
             android.util.Log.e("GeckoEngineManager", "Failed to push Tor status: ${e.message}")
+        }
+    }
+
+    fun notifyEngineReady() {
+        try {
+            val payload = JSONObject().apply {
+                put("type", "CLEAR_CACHE")
+            }
+            extensionPort?.postMessage(payload)
+        } catch (e: Exception) {
+            android.util.Log.e("GeckoEngineManager", "Failed to push CLEAR_CACHE: ${e.message}")
         }
     }
 

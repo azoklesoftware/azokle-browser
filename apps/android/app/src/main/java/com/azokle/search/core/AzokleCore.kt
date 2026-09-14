@@ -19,7 +19,8 @@ data class FilterDecision(
     val matchedRule: String? = null,
     val isException: Boolean = false,
     val redirectUrl: String? = null,
-    val rewrittenUrl: String? = null
+    val rewrittenUrl: String? = null,
+    val isReady: Boolean = true
 )
 
 data class RustShieldStats(
@@ -40,6 +41,9 @@ object AzokleCore {
     private const val TAG = "AzokleCore"
     private var isNativeLoaded = false
     private var isInitialized = false
+
+    private val _isReady = MutableStateFlow(false)
+    val isReady: StateFlow<Boolean> = _isReady.asStateFlow()
 
     private val _shieldStats = MutableStateFlow(RustShieldStats())
     val shieldStats: StateFlow<RustShieldStats> = _shieldStats.asStateFlow()
@@ -189,7 +193,9 @@ object AzokleCore {
                     }
                 }
 
-                if (!loadedFromCache) {
+                if (loadedFromCache) {
+                    loadSurrogatesAndDynamicRules(context)
+                } else {
                     loadAssetsRules(context)
                     try {
                         val serialized = serializeEngine()
@@ -203,10 +209,51 @@ object AzokleCore {
                     }
                 }
 
+                _isReady.value = true
+                try {
+                    com.azokle.search.engine.GeckoEngineManager.notifyEngineReady()
+                } catch (e: Throwable) {
+                    Log.w(TAG, "Failed to notify GeckoEngineManager: ${e.message}")
+                }
                 refreshShieldStats()
                 Log.i(TAG, "AzokleCore initialized and rules indexed in native memory.")
             } catch (e: Throwable) {
                 Log.e(TAG, "Error initializing adblock engine: ${e.message}")
+            }
+        }
+    }
+
+    private fun loadSurrogatesAndDynamicRules(context: Context) {
+        val assetManager = context.assets
+        val adblockFolder = "adblock"
+
+        // 1. Load CNAME Cloaked Tracker Uncloaking Rules
+        loadAssetFile(assetManager, "$adblockFolder/cname.txt")?.let {
+            loadTrackerList(it)
+        }
+
+        // 2. Load WebExtension Base Cosmetic CSS
+        loadAssetFile(assetManager, "extensions/azokle-shield/cosmetic.css")?.let {
+            loadCosmeticRules(it)
+        }
+
+        // 3. Load Brave Surrogates, Scriptlets & Defusers from resources.json
+        loadAssetFile(assetManager, "$adblockFolder/resources.json")?.let {
+            try {
+                val count = loadResources(it)
+                Log.i(TAG, "Loaded $count Brave surrogates, defusers, and scriptlets into restored adblock engine.")
+            } catch (e: Throwable) {
+                Log.w(TAG, "loadResources not available: ${e.message}")
+            }
+        }
+
+        // 4. Load Brave Bounce Tracking Defense Rules from debounce.json
+        loadAssetFile(assetManager, "$adblockFolder/debounce.json")?.let {
+            try {
+                val count = loadDebounceRules(it)
+                Log.i(TAG, "Loaded $count bounce tracking redirect rules into debounce engine.")
+            } catch (e: Throwable) {
+                Log.w(TAG, "loadDebounceRules not available: ${e.message}")
             }
         }
     }
@@ -262,6 +309,23 @@ object AzokleCore {
         }
     }
 
+    private fun parseCategory(json: JSONObject): Int {
+        val opt = json.opt("category") ?: return 0
+        return when (opt) {
+            is Number -> opt.toInt()
+            is String -> when (opt.lowercase()) {
+                "ad" -> 1
+                "tracker" -> 2
+                "telemetry" -> 3
+                "annoyance" -> 4
+                "fingerprinting" -> 5
+                "cryptominer" -> 6
+                else -> opt.toIntOrNull() ?: 0
+            }
+            else -> 0
+        }
+    }
+
     private fun loadAssetFile(assetManager: android.content.res.AssetManager, path: String): String? {
         val candidatePaths = if (path.startsWith("adblock/")) {
             listOf("data/filters/" + path.removePrefix("adblock/"), path)
@@ -294,7 +358,7 @@ object AzokleCore {
         requestType: String? = null,
         isThirdParty: Boolean = true
     ): FilterDecision {
-        if (!isNativeLoaded || url.isBlank()) return FilterDecision()
+        if (!isNativeLoaded || url.isBlank()) return FilterDecision(isReady = _isReady.value)
         return try {
             if (requestType != null && requestType.isNotBlank()) {
                 val jsonStr = checkNetworkRequest(url, sourceOrigin, requestType, isThirdParty)
@@ -305,11 +369,12 @@ object AzokleCore {
                 }
                 return FilterDecision(
                     shouldBlock = should,
-                    category = json.optInt("category", 0),
+                    category = parseCategory(json),
                     matchedRule = json.optString("matched_rule", "").takeIf { it.isNotBlank() },
                     isException = json.optBoolean("is_exception", false),
                     redirectUrl = json.optString("redirect_url", "").takeIf { it.isNotBlank() },
-                    rewrittenUrl = json.optString("rewritten_url", "").takeIf { it.isNotBlank() }
+                    rewrittenUrl = json.optString("rewritten_url", "").takeIf { it.isNotBlank() },
+                    isReady = _isReady.value
                 )
             }
 
@@ -322,7 +387,7 @@ object AzokleCore {
                 val jsonStr = checkUrl(url, sourceOrigin, isThirdParty)
                 val json = JSONObject(jsonStr)
                 val should = json.optBoolean("should_block", false)
-                val cat = json.optInt("category", 0)
+                val cat = parseCategory(json)
                 val rule = json.optString("matched_rule", "").takeIf { it.isNotBlank() }
                 val isExc = json.optBoolean("is_exception", false)
                 val redir = json.optString("redirect_url", "").takeIf { it.isNotBlank() }
@@ -338,7 +403,8 @@ object AzokleCore {
                     matchedRule = rule,
                     isException = isExc,
                     redirectUrl = redir,
-                    rewrittenUrl = rewrit
+                    rewrittenUrl = rewrit,
+                    isReady = _isReady.value
                 )
             }
 
@@ -356,11 +422,12 @@ object AzokleCore {
                 matchedRule = null,
                 isException = isExc,
                 redirectUrl = null,
-                rewrittenUrl = null
+                rewrittenUrl = null,
+                isReady = _isReady.value
             )
         } catch (e: Throwable) {
             Log.e(TAG, "shouldBlock error: ${e.message}")
-            FilterDecision()
+            FilterDecision(isReady = _isReady.value)
         }
     }
 

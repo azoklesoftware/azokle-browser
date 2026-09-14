@@ -67,26 +67,14 @@ android {
 
     sourceSets {
         getByName("main") {
-            assets.directories.add("${layout.buildDirectory.get()}/generated/shared_assets")
+            assets.directories.add("src/main/assets")
+            assets.directories.add("${layout.buildDirectory.asFile.get()}/generated/shared_assets")
         }
     }
 
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
-}
-
-tasks.register<Exec>("buildRustCore") {
-    workingDir = file("../../../bindings/kotlin")
-    environment("ANDROID_NDK_HOME", "/home/azokledeveloper/Android/Sdk/ndk/28.2.13676358")
-    commandLine(
-        "cargo", "ndk",
-        "-t", "arm64-v8a",
-        "-t", "armeabi-v7a",
-        "-t", "x86_64",
-        "-o", "${projectDir}/src/main/jniLibs",
-        "build", "--release"
-    )
 }
 
 val syncSharedAssets = tasks.register<Sync>("syncSharedAssets") {
@@ -100,6 +88,10 @@ val syncSharedAssets = tasks.register<Sync>("syncSharedAssets") {
         into("extensions")
     }
     into(layout.buildDirectory.dir("generated/shared_assets"))
+}
+
+tasks.matching { it.name.contains("Assets") && it.name != "syncSharedAssets" }.configureEach {
+    dependsOn(syncSharedAssets)
 }
 
 tasks.named("preBuild").configure {

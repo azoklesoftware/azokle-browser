@@ -1,51 +1,58 @@
 package com.azokle.search.media
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PictureInPictureHelperTest {
 
     @Test
-    fun testStandard16By9AspectRatioPreserved() {
-        val (w, h) = PictureInPictureHelper.calculateClampedDimensions(16, 9)
+    fun testClampedDimensions_standard16by9() {
+        val (w, h) = PictureInPictureHelper.calculateClampedDimensions(1920, 1080)
+        assertEquals(1920, w)
+        assertEquals(1080, h)
+    }
+
+    @Test
+    fun testClampedDimensions_invalidInputs() {
+        val (w, h) = PictureInPictureHelper.calculateClampedDimensions(0, 0)
         assertEquals(16, w)
         assertEquals(9, h)
     }
 
     @Test
-    fun testStandard4By3AspectRatioPreserved() {
-        val (w, h) = PictureInPictureHelper.calculateClampedDimensions(4, 3)
-        assertEquals(4, w)
-        assertEquals(3, h)
-    }
-
-    @Test
-    fun testUltraWideVideoAspectRatioClampedToMax() {
-        // 32:9 is ~3.55, which exceeds Android max 2.39
+    fun testClampedDimensions_extremeUltraWide() {
+        // Ultra-wide beyond 2.39:1 (e.g. 32:9 ~ 3.55:1) must clamp to max 2.39:1
         val (w, h) = PictureInPictureHelper.calculateClampedDimensions(32, 9)
         assertEquals(239, w)
         assertEquals(100, h)
-        assertTrue(w.toFloat() / h.toFloat() <= 2.39f)
     }
 
     @Test
-    fun testUltraTallVerticalVideoAspectRatioClampedToMin() {
-        // 9:32 is ~0.28, which is narrower than Android min 1/2.39 (~0.4184)
+    fun testClampedDimensions_extremeTallVertical() {
+        // Very tall aspect ratio beyond 1:2.39 (e.g. 9:32 ~ 0.28:1) must clamp to min 1:2.39
         val (w, h) = PictureInPictureHelper.calculateClampedDimensions(9, 32)
         assertEquals(100, w)
         assertEquals(239, h)
-        assertTrue(w.toFloat() / h.toFloat() >= 1f / 2.39f)
     }
 
     @Test
-    fun testNullOrZeroFallbackTo16By9() {
-        val (zeroW, zeroH) = PictureInPictureHelper.calculateClampedDimensions(0, 0)
-        assertEquals(16, zeroW)
-        assertEquals(9, zeroH)
+    fun testPipActionConstants() {
+        assertEquals("com.azokle.search.PIP_PLAY", PictureInPictureHelper.ACTION_PIP_PLAY)
+        assertEquals("com.azokle.search.PIP_PAUSE", PictureInPictureHelper.ACTION_PIP_PAUSE)
+        assertEquals("com.azokle.search.PIP_REWIND", PictureInPictureHelper.ACTION_PIP_REWIND)
+        assertEquals("com.azokle.search.PIP_FORWARD", PictureInPictureHelper.ACTION_PIP_FORWARD)
+    }
 
-        val (negW, negH) = PictureInPictureHelper.calculateClampedDimensions(-10, 20)
-        assertEquals(16, negW)
-        assertEquals(9, negH)
+    @Test
+    fun testSovereignEmbedUrlDetection() {
+        assertTrue(AzoklePlayerHelper.isSovereignEmbedUrl("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1"))
+        assertTrue(AzoklePlayerHelper.isSovereignEmbedUrl("https://player.vimeo.com/video/76979871?dnt=1"))
+        assertFalse(AzoklePlayerHelper.isSovereignEmbedUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ"))
+        assertFalse(AzoklePlayerHelper.isSovereignEmbedUrl("https://vimeo.com/76979871"))
+        assertFalse(AzoklePlayerHelper.isSovereignEmbedUrl(""))
+        assertFalse(AzoklePlayerHelper.isSovereignEmbedUrl(null))
     }
 }

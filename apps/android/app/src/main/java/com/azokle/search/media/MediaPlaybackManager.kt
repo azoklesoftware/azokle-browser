@@ -66,15 +66,25 @@ object MediaPlaybackManager {
         }
     }
 
+    // PiP Action Broadcast Receiver (Interactive controls in Picture-in-Picture window)
+    private var isPipReceiverRegistered = false
+    private val pipActionReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                PictureInPictureHelper.ACTION_PIP_PLAY -> play()
+                PictureInPictureHelper.ACTION_PIP_PAUSE -> pause()
+                PictureInPictureHelper.ACTION_PIP_REWIND -> rewind()
+                PictureInPictureHelper.ACTION_PIP_FORWARD -> fastForward()
+            }
+        }
+    }
+
     // Audio Focus Change Listener
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         when (focusChange) {
             AudioManager.AUDIOFOCUS_LOSS -> {
-                val allowBg = appContext?.let { com.azokle.search.common.util.PreferencesManager(it).isBackgroundAudioEnabled() } ?: true
-                if (!allowBg) {
-                    isAudioFocusGranted = false
-                    pause()
-                }
+                isAudioFocusGranted = false
+                pause()
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
@@ -138,6 +148,25 @@ object MediaPlaybackManager {
             isActive = true
         }
         mediaSessionCompat = session
+
+        if (!isPipReceiverRegistered) {
+            try {
+                val filter = IntentFilter().apply {
+                    addAction(PictureInPictureHelper.ACTION_PIP_PLAY)
+                    addAction(PictureInPictureHelper.ACTION_PIP_PAUSE)
+                    addAction(PictureInPictureHelper.ACTION_PIP_REWIND)
+                    addAction(PictureInPictureHelper.ACTION_PIP_FORWARD)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    app.registerReceiver(pipActionReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+                } else {
+                    app.registerReceiver(pipActionReceiver, filter)
+                }
+                isPipReceiverRegistered = true
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Failed to register PiP receiver: ${e.message}")
+            }
+        }
     }
 
     fun onSessionActivated(
@@ -203,6 +232,10 @@ object MediaPlaybackManager {
 
     fun updatePlaybackStatus(tabId: String, status: PlaybackStatus) {
         if (activeTabId != tabId) return
+
+        if (status == PlaybackStatus.PLAYING) {
+            isUserExplicitlyPaused = false
+        }
 
         _mediaState.update { it.copy(status = status) }
         updatePlaybackStateCompat(status, currentPositionMs, _mediaState.value.metadata.playbackRate)
@@ -305,6 +338,7 @@ object MediaPlaybackManager {
     ) {
         if (activeTabId != tabId) return
 
+        val durationChanged = durationMs > 0 && currentDurationMs != durationMs
         currentDurationMs = durationMs
         currentPositionMs = positionMs
 
@@ -316,6 +350,11 @@ object MediaPlaybackManager {
                     playbackRate = playbackRate
                 )
             )
+        }
+
+        if (durationChanged) {
+            val meta = _mediaState.value.metadata
+            updateMediaMetadataCompat(meta.title, meta.artist, meta.album, meta.artworkBitmap)
         }
 
         updatePlaybackStateCompat(_mediaState.value.status, positionMs, playbackRate)
@@ -510,6 +549,12 @@ object MediaPlaybackManager {
 
     fun release(context: Context) {
         stop()
+        if (isPipReceiverRegistered) {
+            try {
+                appContext?.unregisterReceiver(pipActionReceiver)
+            } catch (e: Exception) {}
+            isPipReceiverRegistered = false
+        }
         mediaSessionCompat?.release()
         mediaSessionCompat = null
         appContext = null

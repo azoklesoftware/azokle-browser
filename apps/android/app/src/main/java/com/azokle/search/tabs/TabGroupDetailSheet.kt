@@ -1,54 +1,54 @@
 package com.azokle.search.tabs
 
-import com.azokle.search.common.components.FaviconImage
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.Image
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import com.azokle.search.tabs.TabThumbnailCache
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.ui.res.painterResource
-import com.azokle.search.R
-import androidx.compose.ui.graphics.Brush
-import com.azokle.search.common.theme.AudiowideFontFamily
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -61,8 +61,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -74,10 +80,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.azokle.search.tabs.TabGroup
-import com.azokle.search.tabs.TabManager
-import com.azokle.search.tabs.TabSession
-import com.azokle.search.common.theme.AzokleRadius
+import com.azokle.search.R
+import com.azokle.search.common.components.FaviconImage
+import com.azokle.search.common.theme.AudiowideFontFamily
 import com.azokle.search.common.theme.AzokleTheme
 import com.azokle.search.common.theme.adaptiveContentWidth
 
@@ -93,219 +98,315 @@ fun TabGroupDetailSheet(
     onDismiss: () -> Unit
 ) {
     val colors = AzokleTheme.colors
+    val groupColor = Color(group.color)
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showRenameDialog by remember { mutableStateOf(false) }
+    var showOptionsMenu by remember { mutableStateOf(false) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+
+    // Dynamic grid height calculation: eliminates dead empty space while allowing smooth scroll for many tabs
+    val configuration = LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp.dp
+    val maxGridHeight = screenHeight * 0.58f
+
+    val totalItems = tabs.size + 1 // Existing tabs + "New Tab in Group" card
+    val rowCount = (totalItems + 1) / 2
+    val cardHeight = 200.dp
+    val spacing = 12.dp
+    val calculatedGridHeight = (cardHeight * rowCount) + (spacing * (rowCount - 1).coerceAtLeast(0))
+    val gridHeight = minOf(calculatedGridHeight, maxGridHeight)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.modalBg,
         contentColor = colors.textPrimary,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
         dragHandle = {
+            // Frosted Pill Drag Handle centered without status bar padding gap
             Box(
                 modifier = Modifier
-                    .statusBarsPadding()
-                    .padding(top = 10.dp, bottom = 6.dp)
-                    .size(width = 36.dp, height = 4.dp)
+                    .padding(top = 10.dp, bottom = 10.dp)
+                    .size(width = 40.dp, height = 4.dp)
                     .clip(CircleShape)
-                    .background(colors.border)
+                    .background(colors.border.copy(alpha = 0.7f))
             )
         }
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .adaptiveContentWidth(640.dp)
-                .fillMaxHeight(0.75f)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .adaptiveContentWidth(680.dp)
+                .navigationBarsPadding()
         ) {
-            // 1. Group Header Controls
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 12.dp)
             ) {
+                // 1. Group Header Controls
                 Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { showRenameDialog = true }
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Box(
+                    // Group Title & Pill Badge
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .size(14.dp)
-                            .clip(CircleShape)
-                            .background(Color(group.color))
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = group.title,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Rename",
-                        tint = colors.textMuted,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "(${tabs.size})",
-                        fontSize = 13.sp,
-                        color = colors.textSecondary
-                    )
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // "+" Add Tab in Group Button
-                    IconButton(
-                        onClick = {
-                            onAddTabInGroup()
-                            onDismiss()
-                        },
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(colors.surface)
-                            .border(1.dp, colors.border, CircleShape)
+                            .height(36.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(colors.surfaceElevated.copy(alpha = 0.9f))
+                            .border(1.dp, groupColor.copy(alpha = 0.45f), RoundedCornerShape(18.dp))
+                            .clickable { showRenameDialog = true }
+                            .padding(horizontal = 10.dp)
                     ) {
+                        // Halo Color Dot
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .clip(CircleShape)
+                                .background(groupColor)
+                                .border(2.dp, groupColor.copy(alpha = 0.4f), CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(7.dp))
+                        Text(
+                            text = group.title,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "(${tabs.size})",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = groupColor.copy(alpha = 0.9f)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
                         Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Add tab in group",
-                            tint = colors.statusAccent,
-                            modifier = Modifier.size(18.dp)
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Rename group",
+                            tint = colors.textSecondary.copy(alpha = 0.7f),
+                            modifier = Modifier.size(12.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // Close Group / Delete Button
-                    IconButton(
-                        onClick = {
-                            TabManager.closeGroup(group.id)
-                            onDismiss()
-                        },
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(colors.surface)
-                            .border(1.dp, colors.border, CircleShape)
+                    // Action Buttons: Add Tab, Group Options Menu, and Close Sheet (Strictly sized, zero overlap)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteOutline,
-                            contentDescription = "Close entire group",
-                            tint = colors.statusDestructive,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-            }
-
-            // 2. Color Palette Selector
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 14.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TabGroup.GROUP_PALETTE.forEach { colorVal ->
-                    val isSelected = group.color == colorVal
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clip(CircleShape)
-                            .background(Color(colorVal))
-                            .border(
-                                width = if (isSelected) 2.dp else 0.dp,
-                                color = if (isSelected) colors.textPrimary else Color.Transparent,
-                                shape = CircleShape
-                            )
-                            .clickable {
-                                TabManager.renameGroup(group.id, group.title, colorVal)
-                            }
-                    )
-                }
-            }
-
-            // 3. Grid of Group Tabs
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(bottom = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(tabs, key = { it.id }) { tab ->
-                    val isActive = tab.id == activeTabId
-                    GroupTabGridItem(
-                        tab = tab,
-                        isActive = isActive,
-                        groupColor = Color(group.color),
-                        onClick = {
-                            onTabSelected(tab)
-                            onDismiss()
-                        },
-                        onClose = { onCloseTab(tab.id) }
-                    )
-                }
-
-                // Interactive Add Tab Card within Group
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(180.dp)
-                            .clip(AzokleRadius.lg)
-                            .background(colors.surfaceElevated.copy(alpha = 0.5f))
-                            .border(1.dp, colors.border, AzokleRadius.lg)
-                            .clickable {
-                                onAddTabInGroup()
-                                onDismiss()
-                            }
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
+                        // 1. "+" Add Tab in Group Button
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(groupColor.copy(alpha = 0.18f))
+                                .border(1.dp, groupColor.copy(alpha = 0.45f), CircleShape)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = ripple(bounded = true, radius = 17.dp, color = groupColor),
+                                    onClick = {
+                                        onAddTabInGroup()
+                                        onDismiss()
+                                    }
+                                ),
+                            contentAlignment = Alignment.Center
                         ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Add tab in group",
+                                tint = groupColor,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        // 2. More Options (Rename Group / Close Group)
+                        Box(contentAlignment = Alignment.Center) {
                             Box(
                                 modifier = Modifier
-                                    .size(44.dp)
+                                    .size(34.dp)
                                     .clip(CircleShape)
-                                    .background(Color(group.color).copy(alpha = 0.15f))
-                                    .border(1.dp, Color(group.color).copy(alpha = 0.3f), CircleShape),
+                                    .background(colors.surfaceElevated.copy(alpha = 0.85f))
+                                    .border(1.dp, colors.border.copy(alpha = 0.6f), CircleShape)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = ripple(bounded = true, radius = 17.dp, color = colors.textSecondary),
+                                        onClick = { showOptionsMenu = true }
+                                    ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = "Add Tab",
-                                    tint = Color(group.color),
-                                    modifier = Modifier.size(22.dp)
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = "Group options",
+                                    tint = colors.textSecondary,
+                                    modifier = Modifier.size(17.dp)
                                 )
                             }
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text(
-                                text = "New Tab",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = colors.textPrimary
-                            )
-                            Text(
-                                text = "in ${group.title}",
-                                fontSize = 11.sp,
-                                color = colors.textSecondary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+
+                            DropdownMenu(
+                                expanded = showOptionsMenu,
+                                onDismissRequest = { showOptionsMenu = false },
+                                modifier = Modifier.background(colors.surfaceElevated)
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Rename Group", color = colors.textPrimary) },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Edit, contentDescription = null, tint = groupColor, modifier = Modifier.size(18.dp))
+                                    },
+                                    onClick = {
+                                        showOptionsMenu = false
+                                        showRenameDialog = true
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Close Group", color = colors.statusDestructive) },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = colors.statusDestructive, modifier = Modifier.size(18.dp))
+                                    },
+                                    onClick = {
+                                        showOptionsMenu = false
+                                        showDeleteConfirmDialog = true
+                                    }
+                                )
+                            }
+                        }
+
+                        // 3. Close Sheet Button
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(colors.surfaceElevated.copy(alpha = 0.85f))
+                                .border(1.dp, colors.border.copy(alpha = 0.6f), CircleShape)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = ripple(bounded = true, radius = 17.dp, color = colors.textSecondary),
+                                    onClick = onDismiss
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close sheet",
+                                tint = colors.textSecondary,
+                                modifier = Modifier.size(17.dp)
                             )
                         }
+                    }
+                }
+
+                // 2. Animated Color Palette Selector
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp)
+                        .padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TabGroup.GROUP_PALETTE.forEach { colorVal ->
+                        val isSelected = group.color == colorVal
+                        val itemColor = Color(colorVal)
+
+                        val animatedSize by animateDpAsState(
+                            targetValue = if (isSelected) 30.dp else 22.dp,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessLow
+                            ),
+                            label = "colorSwatchSize"
+                        )
+
+                        Box(
+                            modifier = Modifier.size(36.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            // Outer glowing ring for selected state
+                            if (isSelected) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .clip(CircleShape)
+                                        .border(2.dp, itemColor.copy(alpha = 0.6f), CircleShape)
+                                )
+                            }
+
+                            // Color Dot
+                            Box(
+                                modifier = Modifier
+                                    .size(animatedSize)
+                                    .clip(CircleShape)
+                                    .background(itemColor)
+                                    .clickable {
+                                        TabManager.renameGroup(group.id, group.title, colorVal)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isSelected) {
+                                    val iconTint = if (colorVal == 0xFFFBBF24.toLong() || colorVal == 0xFF34D399.toLong()) Color.Black else Color.White
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Selected color",
+                                        tint = iconTint,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Clean subtle theme divider
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(colors.border.copy(alpha = 0.35f))
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 3. Grid of Group Tabs (Cleanly sized without dead space)
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    contentPadding = PaddingValues(bottom = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(gridHeight)
+                ) {
+                    items(tabs, key = { it.id }) { tab ->
+                        val isActive = tab.id == activeTabId
+                        GroupTabGridItem(
+                            tab = tab,
+                            isActive = isActive,
+                            groupColor = groupColor,
+                            onClick = {
+                                onTabSelected(tab)
+                                onDismiss()
+                            },
+                            onClose = { onCloseTab(tab.id) }
+                        )
+                    }
+
+                    // Interactive Add Tab Card within Group
+                    item {
+                        GroupAddTabCard(
+                            groupTitle = group.title,
+                            groupColor = groupColor,
+                            onClick = {
+                                onAddTabInGroup()
+                                onDismiss()
+                            }
+                        )
                     }
                 }
             }
@@ -314,11 +415,51 @@ fun TabGroupDetailSheet(
         if (showRenameDialog) {
             RenameGroupDialog(
                 currentTitle = group.title,
+                groupColor = groupColor,
                 onConfirm = { newTitle ->
                     TabManager.renameGroup(group.id, newTitle)
                     showRenameDialog = false
                 },
                 onDismiss = { showRenameDialog = false }
+            )
+        }
+
+        if (showDeleteConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirmDialog = false },
+                shape = RoundedCornerShape(24.dp),
+                title = {
+                    Text(
+                        text = "Close Group?",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = colors.textPrimary
+                    )
+                },
+                text = {
+                    Text(
+                        text = "This will close all ${tabs.size} tabs in \"${group.title}\".",
+                        fontSize = 14.sp,
+                        color = colors.textSecondary
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDeleteConfirmDialog = false
+                            TabManager.closeGroup(group.id)
+                            onDismiss()
+                        }
+                    ) {
+                        Text("Close Group", fontWeight = FontWeight.Bold, color = colors.statusDestructive)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                        Text("Cancel", color = colors.textSecondary)
+                    }
+                },
+                containerColor = colors.modalBg
             )
         }
     }
@@ -343,20 +484,41 @@ private fun GroupTabGridItem(
         }
     }
 
-    val shape = RoundedCornerShape(16.dp)
+    val cardShape = RoundedCornerShape(18.dp)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val cardScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.965f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "cardPressScale"
+    )
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(210.dp)
-            .clip(shape)
+            .height(200.dp)
+            .graphicsLayer {
+                scaleX = cardScale
+                scaleY = cardScale
+            }
+            .clip(cardShape)
             .background(colors.cardBg)
             .border(
-                width = if (isActive) 2.dp else 1.dp,
-                color = if (isActive) groupColor else colors.border.copy(alpha = 0.7f),
-                shape = shape
+                BorderStroke(
+                    width = if (isActive) 2.dp else 1.dp,
+                    color = if (isActive) groupColor else colors.border.copy(alpha = 0.65f)
+                ),
+                shape = cardShape
             )
-            .clickable(onClick = onClick)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(color = groupColor.copy(alpha = 0.2f)),
+                onClick = onClick
+            )
             .semantics {
                 role = Role.Button
                 contentDescription = "Tab: ${tab.title.ifBlank { if (isHome) "New Tab" else host }}${if (isActive) ", Active" else ""}"
@@ -368,8 +530,8 @@ private fun GroupTabGridItem(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(36.dp)
-                    .background(colors.surfaceElevated)
-                    .padding(start = 8.dp, end = 4.dp),
+                    .background(colors.surfaceElevated.copy(alpha = 0.95f))
+                    .padding(start = 10.dp, end = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -382,35 +544,35 @@ private fun GroupTabGridItem(
                             imageVector = Icons.Default.Home,
                             contentDescription = null,
                             tint = groupColor,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(15.dp)
                         )
                     } else if (tab.isTor) {
                         Image(
                             painter = painterResource(id = R.drawable.ic_tor),
                             contentDescription = "Tor Tab",
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(15.dp)
                         )
                     } else if (tab.isPrivate) {
                         Icon(
                             imageVector = Icons.Default.VisibilityOff,
                             contentDescription = null,
                             tint = Color(0xFFA855F7),
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(15.dp)
                         )
                     } else {
                         FaviconImage(
                             url = tab.url,
                             faviconUrl = tab.faviconUrl,
                             isTor = tab.isTor,
-                            size = 14.dp
+                            size = 15.dp
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(7.dp))
 
                     Text(
                         text = if (isHome) "New Tab" else tab.title.ifBlank { host },
-                        fontSize = 11.5.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = colors.textPrimary,
                         maxLines = 1,
@@ -418,11 +580,12 @@ private fun GroupTabGridItem(
                     )
                 }
 
-                // Close Tab Button
+                // Close Tab Button with comfortable touch area and chip background
                 Box(
                     modifier = Modifier
                         .size(26.dp)
                         .clip(CircleShape)
+                        .background(colors.surface.copy(alpha = 0.55f))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = ripple(bounded = false, radius = 13.dp, color = colors.statusDestructive),
@@ -442,6 +605,14 @@ private fun GroupTabGridItem(
                     )
                 }
             }
+
+            // Hairline separator below card header
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(0.5.dp)
+                    .background(colors.border.copy(alpha = 0.4f))
+            )
 
             // 2. Webpage Live Screenshot or Miniature Wallpaper Home Screen
             Box(
@@ -484,7 +655,7 @@ private fun GroupTabGridItem(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Color(0x40000000))
+                                .background(Color(0x45000000))
                         )
                         Column(
                             modifier = Modifier.fillMaxSize(),
@@ -501,12 +672,12 @@ private fun GroupTabGridItem(
                             Spacer(modifier = Modifier.height(6.dp))
                             Box(
                                 modifier = Modifier
-                                    .width(100.dp)
+                                    .width(108.dp)
                                     .height(24.dp)
                                     .clip(CircleShape)
                                     .background(Color(0x99000000))
                                     .border(0.5.dp, Color(0x66FFFFFF), CircleShape)
-                                    .padding(horizontal = 6.dp),
+                                    .padding(horizontal = 8.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Row(
@@ -518,18 +689,18 @@ private fun GroupTabGridItem(
                                         imageVector = Icons.Default.Search,
                                         contentDescription = null,
                                         tint = Color.White.copy(alpha = 0.8f),
-                                        modifier = Modifier.size(10.dp)
+                                        modifier = Modifier.size(11.dp)
                                     )
                                     Text(
                                         text = "Search",
-                                        fontSize = 8.sp,
+                                        fontSize = 8.5.sp,
                                         color = Color.White.copy(alpha = 0.8f)
                                     )
                                     Icon(
                                         imageVector = Icons.Default.Mic,
                                         contentDescription = null,
                                         tint = Color.White.copy(alpha = 0.8f),
-                                        modifier = Modifier.size(10.dp)
+                                        modifier = Modifier.size(11.dp)
                                     )
                                 }
                             }
@@ -553,32 +724,32 @@ private fun GroupTabGridItem(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(40.dp)
+                                    .size(44.dp)
                                     .clip(CircleShape)
                                     .background(colors.surface)
-                                    .border(1.dp, colors.border, CircleShape),
+                                    .border(1.dp, colors.border.copy(alpha = 0.7f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 FaviconImage(
                                     url = tab.url,
                                     faviconUrl = tab.faviconUrl,
                                     isTor = tab.isTor,
-                                    size = 20.dp
+                                    size = 22.dp
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
 
                             Box(
                                 modifier = Modifier
                                     .clip(CircleShape)
                                     .background(colors.surface)
-                                    .border(0.5.dp, colors.border, CircleShape)
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    .border(0.5.dp, colors.border.copy(alpha = 0.6f), CircleShape)
+                                    .padding(horizontal = 10.dp, vertical = 3.dp)
                             ) {
                                 Text(
                                     text = host,
-                                    fontSize = 10.5.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = colors.textPrimary,
                                     maxLines = 1,
@@ -589,23 +760,34 @@ private fun GroupTabGridItem(
                     }
                 }
 
-                // Active Badge
+                // High-Contrast Active Badge Pill with group-colored background
                 if (isActive) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(6.dp)
+                            .padding(8.dp)
                             .clip(RoundedCornerShape(6.dp))
                             .background(groupColor)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .padding(horizontal = 7.dp, vertical = 3.dp)
                     ) {
-                        Text(
-                            text = "ACTIVE",
-                            fontSize = 8.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                            color = Color.White
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White)
+                            )
+                            Text(
+                                text = "ACTIVE",
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
             }
@@ -614,8 +796,90 @@ private fun GroupTabGridItem(
 }
 
 @Composable
+private fun GroupAddTabCard(
+    groupTitle: String,
+    groupColor: Color,
+    onClick: () -> Unit
+) {
+    val colors = AzokleTheme.colors
+    val cardShape = RoundedCornerShape(18.dp)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val cardScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.965f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "addCardPressScale"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .graphicsLayer {
+                scaleX = cardScale
+                scaleY = cardScale
+            }
+            .clip(cardShape)
+            .background(colors.surfaceElevated.copy(alpha = 0.45f))
+            .border(
+                BorderStroke(1.2.dp, groupColor.copy(alpha = 0.45f)),
+                shape = cardShape
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(color = groupColor.copy(alpha = 0.2f)),
+                onClick = onClick
+            )
+            .padding(16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(groupColor.copy(alpha = 0.15f))
+                    .border(1.5.dp, groupColor.copy(alpha = 0.45f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add Tab",
+                    tint = groupColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "New Tab",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.textPrimary
+            )
+            Spacer(modifier = Modifier.height(3.dp))
+            Text(
+                text = "in $groupTitle",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = groupColor.copy(alpha = 0.85f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
 private fun RenameGroupDialog(
     currentTitle: String,
+    groupColor: Color,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -624,15 +888,48 @@ private fun RenameGroupDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Rename Group", fontWeight = FontWeight.Bold, color = colors.textPrimary) },
+        shape = RoundedCornerShape(24.dp),
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .clip(CircleShape)
+                        .background(groupColor)
+                )
+                Text(
+                    text = "Rename Group",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = colors.textPrimary
+                )
+            }
+        },
         text = {
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text("Group Name") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Column {
+                Text(
+                    text = "Give this tab group a distinct name:",
+                    fontSize = 13.sp,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = groupColor,
+                        unfocusedBorderColor = colors.border,
+                        focusedLabelColor = groupColor,
+                        cursorColor = groupColor
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         },
         confirmButton = {
             TextButton(
@@ -640,7 +937,7 @@ private fun RenameGroupDialog(
                     if (title.isNotBlank()) onConfirm(title.trim())
                 }
             ) {
-                Text("Save", fontWeight = FontWeight.Bold, color = colors.statusAccent)
+                Text("Save", fontWeight = FontWeight.Bold, color = groupColor)
             }
         },
         dismissButton = {

@@ -215,7 +215,7 @@
     // NOTE: Advertising and tracking endpoints are strictly excluded from this graph.
     var entityGroups = [
         // Alphabet / Google (Functional CDNs & Media only)
-        new Set(['google.com', 'google.co.uk', 'gstatic.com', 'recaptcha.net', 'youtube.com', 'ytimg.com']),
+        new Set(['google.com', 'google.co.uk', 'gstatic.com', 'recaptcha.net', 'youtube.com', 'ytimg.com', 'googlevideo.com']),
         // Meta Platforms (Functional CDNs & Media only)
         new Set(['facebook.com', 'facebook.net', 'fbcdn.net', 'instagram.com', 'cdninstagram.com', 'whatsapp.com']),
         // Microsoft (Functional CDNs only)
@@ -225,6 +225,48 @@
         // Apple
         new Set(['apple.com', 'icloud.com', 'mzstatic.com', 'cdn-apple.com'])
     ];
+
+    function isLikelyAdOrTrackerUrl(urlLower, host) {
+        if (!urlLower) return false;
+        var h = (host || '').toLowerCase();
+
+        // High-priority exemption: YouTube media chunks must NEVER be blocked or delayed by tracker heuristics
+        if (h.includes('googlevideo.com') && urlLower.includes('/videoplayback')) {
+            return false;
+        }
+
+        if (h.includes('doubleclick') || h.includes('googleads') || h.includes('adservice') ||
+            h.includes('adsystem') || h.includes('adnxs') || h.includes('advertising') ||
+            h.includes('criteo') || h.includes('taboola') || h.includes('outbrain') ||
+            h.includes('adroll') || h.includes('rubiconproject') || h.includes('pubmatic')) {
+            return true;
+        }
+        if (urlLower.includes('/api/stats/ads') ||
+            urlLower.includes('/pagead/') ||
+            urlLower.includes('/ptracking') ||
+            urlLower.includes('/youtubei/v1/log_event') ||
+            urlLower.includes('/youtubei/v1/att') ||
+            urlLower.includes('/youtubei/v1/ads') ||
+            urlLower.includes('/api/stats/atr') ||
+            urlLower.includes('/api/stats/qoe') ||
+            urlLower.includes('/gampad/') ||
+            urlLower.includes('/ad_') ||
+            urlLower.includes('/ads?') ||
+            urlLower.includes('&ad_') ||
+            urlLower.includes('adformat=') ||
+            urlLower.includes('/gen_204?') ||
+            urlLower.includes('device_204?') ||
+            urlLower.includes('/telemetry') ||
+            urlLower.includes('/analytics') ||
+            urlLower.includes('/beacon') ||
+            urlLower.includes('/tr?') ||
+            urlLower.includes('fbevents.js') ||
+            urlLower.includes('/pixel') ||
+            urlLower.includes('imasdk.googleapis.com')) {
+            return true;
+        }
+        return false;
+    }
 
     function isSameParentEntity(hostA, hostB) {
         if (!hostA || !hostB) return false;
@@ -337,18 +379,15 @@
             var host = extractHostname(url);
             if (!host) return { cancel: false };
 
+            // Fast path 0.5: Top-level document navigations (main_frame) proceed without cancellation
+            if (details.type === 'main_frame') {
+                return { cancel: false };
+            }
+
             var docUrl = details.documentUrl || details.initiator || details.originUrl || '';
             var docHost = extractHostname(docUrl);
 
-            // Fast path 1: First-party subresources (same domain / subdomain)
-            // Unless it is a CNAME-cloaked tracker disguised under first-party domain
             var isSameParty = docHost ? isSameSite(docHost, host) : false;
-            if (isSameParty) {
-                if (!isLikelyCnameTracker(host, docHost)) {
-                    return { cancel: false };
-                }
-            }
-
             var isThirdParty = !isSameParty;
             var urlLower = url.toLowerCase();
 
@@ -363,7 +402,8 @@
             }
 
             // 2. Same Corporate Parent Entity Protection (TDS Graph: e.g. gstatic on google.com)
-            if (docHost && isSameParentEntity(docHost, host)) {
+            // NEVER bypass known ad or tracking endpoints
+            if (docHost && isSameParentEntity(docHost, host) && !isLikelyAdOrTrackerUrl(urlLower, host)) {
                 return { cancel: false };
             }
 
@@ -375,7 +415,7 @@
             // 4. Fast-path Host Cache lookup (instant O(1) synchronous decision for domain-wide rules)
             var cachedHost = getCachedHostDecision(host);
             if (cachedHost !== undefined) {
-                if (cachedHost.shouldBlock) {
+                if (cachedHost.shouldBlock || cachedHost.redirectUrl) {
                     var hostSurrogate = getSurrogateRedirect(urlLower, host);
                     if (hostSurrogate) {
                         reportBlockToApp(host, cachedHost.category);
@@ -395,7 +435,7 @@
             var urlCacheKey = cleanUrlForCacheKey(url) + '|' + (details.type || 'other') + '|' + (isThirdParty ? '3p' : '1p');
             var cachedUrl = getCachedUrlDecision(urlCacheKey);
             if (cachedUrl !== undefined) {
-                if (cachedUrl.shouldBlock) {
+                if (cachedUrl.shouldBlock || cachedUrl.redirectUrl) {
                     var urlSurrogate = getSurrogateRedirect(urlLower, host);
                     if (urlSurrogate) {
                         reportBlockToApp(host, cachedUrl.category);
@@ -433,6 +473,7 @@
                     if (typeof res === 'string') {
                         try { res = JSON.parse(res); } catch(e) { res = {}; }
                     }
+                    var isReady = res && res.isReady !== false;
                     var shouldBlock = !!(res && res.shouldBlock);
                     var category = (res && typeof res.category === 'number') ? res.category : 1;
                     var matchedRule = (res && res.matchedRule) || '';
@@ -445,13 +486,16 @@
                         redirectUrl: redirectUrl
                     };
 
-                    if (isDomainLevel && host) {
-                        setCachedHostDecision(host, decisionRecord);
-                    } else {
-                        setCachedUrlDecision(urlCacheKey, decisionRecord);
+                    // Only cache decisions if the native engine is fully initialized/ready
+                    if (isReady) {
+                        if (isDomainLevel && host) {
+                            setCachedHostDecision(host, decisionRecord);
+                        } else {
+                            setCachedUrlDecision(urlCacheKey, decisionRecord);
+                        }
                     }
 
-                    if (shouldBlock) {
+                    if (shouldBlock || redirectUrl) {
                         var surrogate = getSurrogateRedirect(urlLower, host);
                         if (surrogate) {
                             reportBlockToApp(host, category);
@@ -586,6 +630,8 @@
                     }
                     if (msg.type === 'PUSH_APP_STATUS') {
                         applyAppStatus(msg);
+                        clearAllCaches();
+                    } else if (msg.type === 'CLEAR_CACHE') {
                         clearAllCaches();
                     } else if (msg.type === 'PUSH_TOR_STATUS') {
                         if (typeof msg.isTorEnabled === 'boolean') {

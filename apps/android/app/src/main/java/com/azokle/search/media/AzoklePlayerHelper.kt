@@ -43,6 +43,12 @@ object AzoklePlayerHelper {
         "[?&]v=([a-zA-Z0-9_-]{11})"
     )
 
+    fun isSovereignEmbedUrl(url: String?): Boolean {
+        if (url.isNullOrBlank()) return false
+        return url.contains("youtube-nocookie.com/embed/", ignoreCase = true) ||
+               (url.contains("player.vimeo.com/video/", ignoreCase = true) && url.contains("dnt=1", ignoreCase = true))
+    }
+
     fun isEligibleVideoUrl(url: String?): Boolean {
         if (url.isNullOrBlank()) return false
         return isYouTubeWatchUrl(url) || isVimeoUrl(url)
@@ -87,6 +93,15 @@ object AzoklePlayerHelper {
             "https://player.vimeo.com/video/$videoId?autoplay=1&dnt=1"
         } else {
             "https://www.youtube-nocookie.com/embed/$videoId?autoplay=1&rel=0&playsinline=1&enablejsapi=1"
+        }
+    }
+
+    fun buildPlatformWatchUrl(url: String): String? {
+        val videoId = extractVideoId(url) ?: return null
+        return if (isVimeoUrl(url)) {
+            "https://vimeo.com/$videoId"
+        } else {
+            "https://www.youtube.com/watch?v=$videoId"
         }
     }
 }

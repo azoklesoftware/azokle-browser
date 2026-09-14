@@ -26,8 +26,17 @@ class GeckoMediaSessionBridge(
         val host = uri?.host?.lowercase() ?: return false
         return host == "youtube.com" ||
                host.endsWith(".youtube.com") ||
+               host == "youtube-nocookie.com" ||
+               host.endsWith(".youtube-nocookie.com") ||
+               host == "youtu.be" ||
                host == "spotify.com" ||
-               host.endsWith(".spotify.com")
+               host.endsWith(".spotify.com") ||
+               host == "vimeo.com" ||
+               host.endsWith(".vimeo.com") ||
+               host == "soundcloud.com" ||
+               host.endsWith(".soundcloud.com") ||
+               host == "twitch.tv" ||
+               host.endsWith(".twitch.tv")
     }
 
     override fun onActivated(session: GeckoSession, mediaSession: MediaSession) {
@@ -67,8 +76,9 @@ class GeckoMediaSessionBridge(
         val album = meta.album ?: ""
 
         val artwork = meta.artwork
-        if (artwork != null) {
-            artwork.getBitmap(512)?.then({ bitmap ->
+        val bitmapResult = artwork?.getBitmap(512)
+        if (bitmapResult != null) {
+            bitmapResult.then({ bitmap ->
                 if (bitmap != null && !bitmap.isRecycled) {
                     mainHandler.post {
                         try {

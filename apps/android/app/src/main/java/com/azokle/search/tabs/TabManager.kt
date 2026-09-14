@@ -49,6 +49,8 @@ object TabManager {
     private val loadedUrls = ConcurrentHashMap<String, String>()
     private val scope = CoroutineScope(Dispatchers.IO)
 
+    fun getTab(id: String): TabSession? = _tabs.value.find { it.id == id }
+
     fun isTabLoaded(tabId: String, url: String): Boolean {
         val loaded = loadedUrls[tabId]
         return loaded != null && loaded.equals(url, ignoreCase = true)
@@ -475,9 +477,10 @@ object TabManager {
             }
         }
 
-        // Close GeckoSession
+        // Close GeckoSession & deactivate media session if this tab was playing
         clearTabLoaded(id)
         sessionStateMap.remove(id)
+        com.azokle.search.media.MediaPlaybackManager.onSessionDeactivated(id)
         sessionMap.remove(id)?.let { session ->
             try {
                 session.close()
@@ -581,6 +584,7 @@ object TabManager {
             TabThumbnailCache.remove(id)
             clearTabLoaded(id)
             sessionStateMap.remove(id)
+            com.azokle.search.media.MediaPlaybackManager.onSessionDeactivated(id)
             sessionMap.remove(id)?.let { session ->
                 try {
                     session.close()
@@ -631,6 +635,7 @@ object TabManager {
     }
 
     fun closeAllTabs() {
+        com.azokle.search.media.MediaPlaybackManager.stop()
         for ((_, session) in sessionMap) {
             try {
                 session.close()

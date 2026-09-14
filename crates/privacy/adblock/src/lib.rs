@@ -117,8 +117,12 @@ impl AdBlockEngine {
             let mut res_lock = self.resources.write();
             *res_lock = parsed_resources;
             let lists = self.primary_lists.read();
-            let new_engine = rebuild_brave_engine(&lists, &res_lock);
-            *self.primary_engine.write() = new_engine;
+            if !lists.is_empty() {
+                let new_engine = rebuild_brave_engine(&lists, &res_lock);
+                *self.primary_engine.write() = new_engine;
+            } else {
+                self.primary_engine.write().use_resources(res_lock.iter().cloned());
+            }
         }
 
         Ok(count)
@@ -234,8 +238,8 @@ impl AdBlockEngine {
                 };
             } else if res.redirect.is_some() || res.rewritten_url.is_some() {
                 return FilterDecision {
-                    should_block: false,
-                    category: BlockCategory::None,
+                    should_block: true,
+                    category: BlockCategory::Ad,
                     matched_rule: res.filter.as_ref().and_then(|f| f.raw_line.clone()),
                     is_exception: false,
                     redirect_url: res.redirect,
@@ -261,6 +265,15 @@ impl AdBlockEngine {
                     matched_rule: custom_res.exception.as_ref().and_then(|f| f.raw_line.clone()),
                     is_exception: true,
                     redirect_url: None,
+                    rewritten_url: custom_res.rewritten_url,
+                };
+            } else if custom_res.redirect.is_some() || custom_res.rewritten_url.is_some() {
+                return FilterDecision {
+                    should_block: true,
+                    category: BlockCategory::Ad,
+                    matched_rule: custom_res.filter.as_ref().and_then(|f| f.raw_line.clone()),
+                    is_exception: false,
+                    redirect_url: custom_res.redirect,
                     rewritten_url: custom_res.rewritten_url,
                 };
             }
@@ -436,6 +449,13 @@ mod tests {
 
         let check = restored_engine.check_url("https://ad.doubleclick.net/ad.js", Some("https://test.com"), true);
         assert!(check.should_block, "Restored engine should block doubleclick");
+
+        // Test attaching resources to deserialized engine without wiping rules
+        let resource_json = r#"[{"name":"noopjs","aliases":[],"kind":{"mime":"application/javascript"},"content":"Ly8gbm9vcA=="}]"#;
+        let res_attach = restored_engine.load_resources_json(resource_json);
+        assert!(res_attach.is_ok(), "Attaching resources to restored engine should succeed");
+        let check_after_res = restored_engine.check_url("https://ad.doubleclick.net/ad.js", Some("https://test.com"), true);
+        assert!(check_after_res.should_block, "Engine should STILL block doubleclick after attaching resources");
     }
 
     #[test]

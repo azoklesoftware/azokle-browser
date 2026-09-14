@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum BlockCategory {
     #[default]
     None = 0,
@@ -12,6 +12,70 @@ pub enum BlockCategory {
     Fingerprinting = 5,
     Cryptomining = 6,
     Malware = 7,
+}
+
+impl From<BlockCategory> for u8 {
+    fn from(cat: BlockCategory) -> Self {
+        cat as u8
+    }
+}
+
+impl From<u8> for BlockCategory {
+    fn from(val: u8) -> Self {
+        Self::from_u8(val)
+    }
+}
+
+impl Serialize for BlockCategory {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_u8(*self as u8)
+    }
+}
+
+impl<'de> Deserialize<'de> for BlockCategory {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct Visitor;
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = BlockCategory;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("an integer (0-7) or category string")
+            }
+            fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(BlockCategory::from_u8(v as u8))
+            }
+            fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(BlockCategory::from_u8(v as u8))
+            }
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                match v.to_ascii_lowercase().as_str() {
+                    "ad" => Ok(BlockCategory::Ad),
+                    "tracker" => Ok(BlockCategory::Tracker),
+                    "telemetry" => Ok(BlockCategory::Telemetry),
+                    "annoyance" => Ok(BlockCategory::Annoyance),
+                    "fingerprinting" => Ok(BlockCategory::Fingerprinting),
+                    "cryptomining" => Ok(BlockCategory::Cryptomining),
+                    "malware" => Ok(BlockCategory::Malware),
+                    _ => Ok(BlockCategory::None),
+                }
+            }
+        }
+        deserializer.deserialize_any(Visitor)
+    }
 }
 
 impl BlockCategory {
@@ -32,8 +96,11 @@ impl BlockCategory {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct FilterDecision {
     pub should_block: bool,
+    #[serde(default)]
     pub category: BlockCategory,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub matched_rule: Option<String>,
+    #[serde(default)]
     pub is_exception: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub redirect_url: Option<String>,
@@ -81,5 +148,26 @@ impl SovereignWhitelist {
             || clean.ends_with(".cloudflareinsights.com")
             || clean.ends_with(".hcaptcha.com")
             || clean.ends_with(".recaptcha.net")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_block_category_numeric_serialization() {
+        let decision = FilterDecision::block(BlockCategory::Ad, Some("||doubleclick.net^".to_string()));
+        let json = serde_json::to_string(&decision).unwrap();
+        assert!(json.contains("\"category\":1"), "Expected category:1 in {}", json);
+
+        // Deserializing from numeric
+        let parsed: FilterDecision = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.category, BlockCategory::Ad);
+
+        // Deserializing from string
+        let str_json = r#"{"should_block":true,"category":"Tracker"}"#;
+        let parsed_str: FilterDecision = serde_json::from_str(str_json).unwrap();
+        assert_eq!(parsed_str.category, BlockCategory::Tracker);
     }
 }

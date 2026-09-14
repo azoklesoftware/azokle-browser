@@ -17,9 +17,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -227,7 +227,7 @@ fun AzoklePlayerPromptSheet(
                 shape = AzokleRadius.md
             ) {
                 Icon(
-                    imageVector = Icons.Default.OpenInNew,
+                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                     contentDescription = null,
                     tint = colors.textSecondary,
                     modifier = Modifier.size(16.dp)

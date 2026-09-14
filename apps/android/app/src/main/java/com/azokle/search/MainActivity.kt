@@ -2,6 +2,7 @@ package com.azokle.search
 
 import android.app.Activity
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.speech.RecognizerIntent
 import android.widget.Toast
@@ -311,6 +312,30 @@ class MainActivity : FragmentActivity() {
 
         com.azokle.search.media.MediaPlaybackManager.initialize(this)
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            lifecycleScope.launch {
+                repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                    com.azokle.search.media.MediaPlaybackManager.mediaState.collect { state ->
+                        val isPlaying = state.status == com.azokle.search.media.PlaybackStatus.PLAYING
+                        val hasVideo = state.metadata.hasVideo || state.isFullscreen
+                        if (com.azokle.search.media.PictureInPictureHelper.supportsPictureInPicture(this@MainActivity)) {
+                            try {
+                                val params = com.azokle.search.media.PictureInPictureHelper.buildPipParams(
+                                    activity = this@MainActivity,
+                                    isPlaying = isPlaying && hasVideo,
+                                    isFullscreen = state.isFullscreen,
+                                    aspectRatio = state.metadata.videoAspectRatio
+                                )
+                                setPictureInPictureParams(params)
+                            } catch (e: Exception) {
+                                // Ignore transient PiP params errors safely
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         handleIncomingIntent(intent)
 
         setContent {
@@ -398,6 +423,40 @@ class MainActivity : FragmentActivity() {
         updateSystemBars(isDark)
         com.azokle.search.core.BiometricAuthManager.setCurrentActivity(this)
         com.azokle.search.widget.AzokleSearchWidgetProvider.updateAllWidgets(this)
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        enterPipIfEligible()
+    }
+
+    private fun enterPipIfEligible() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val state = com.azokle.search.media.MediaPlaybackManager.mediaState.value
+            val isPlaying = state.status == com.azokle.search.media.PlaybackStatus.PLAYING
+            val hasVideo = state.metadata.hasVideo || state.isFullscreen
+            if (isPlaying && hasVideo && com.azokle.search.media.PictureInPictureHelper.supportsPictureInPicture(this)) {
+                try {
+                    val params = com.azokle.search.media.PictureInPictureHelper.buildPipParams(
+                        activity = this,
+                        isPlaying = true,
+                        isFullscreen = state.isFullscreen,
+                        aspectRatio = state.metadata.videoAspectRatio
+                    )
+                    enterPictureInPictureMode(params)
+                } catch (e: Exception) {
+                    android.util.Log.e("MainActivity", "enterPictureInPictureMode failed: ${e.message}")
+                }
+            }
+        }
+    }
+
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        viewModel.setPipMode(isInPictureInPictureMode)
     }
 
     override fun onStop() {

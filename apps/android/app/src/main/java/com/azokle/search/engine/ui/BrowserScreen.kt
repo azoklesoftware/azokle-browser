@@ -102,7 +102,6 @@ import com.azokle.search.tabs.TabSession
 import com.azokle.search.vault.EncryptedVaultManager
 import com.azokle.search.search.ChooseSearchEngineSheet
 import com.azokle.search.settings.ChooseLanguageSheet
-import com.azokle.search.common.components.ProUpgradeDialog
 import com.azokle.search.common.components.InfoDialog
 import com.azokle.search.engine.ui.TextSelectionFloatingToolbar
 import com.azokle.search.tabs.ActiveTabsScreen
@@ -335,7 +334,10 @@ fun BrowserScreen(
             return
         }
 
-        if (AzoklePlayerHelper.isEligibleVideoUrl(cleanTargetUrl)) {
+        val isReloadingCurrent = currentUrl.isNotBlank() &&
+            cleanTargetUrl.trimEnd('#', '/').equals(currentUrl.trimEnd('#', '/'), ignoreCase = true)
+
+        if (!isReloadingCurrent && AzoklePlayerHelper.isEligibleVideoUrl(cleanTargetUrl) && !AzoklePlayerHelper.isSovereignEmbedUrl(cleanTargetUrl)) {
             val mode = preferencesManager.getAzoklePlayerMode()
             when (mode) {
                 "always" -> {
@@ -563,8 +565,6 @@ fun BrowserScreen(
             viewModel?.setSearchEngineSheetOpen(false)
         } else if (homeUiState?.isLanguageSheetOpen == true) {
             viewModel?.setLanguageSheetOpen(false)
-        } else if (homeUiState?.isProModalOpen == true) {
-            viewModel?.setProModalOpen(false)
         } else if (homeUiState?.isPrivacyModalOpen == true) {
             viewModel?.setPrivacyModalOpen(false)
         } else if (homeUiState?.isTermsModalOpen == true) {
@@ -1606,7 +1606,6 @@ fun BrowserScreen(
                     forceStartTabsTour = true
                     showTabGridSheet = true
                 },
-                onOpenPro = { viewModel?.setProModalOpen(true) },
                 onOpenPrivacyPolicy = { viewModel?.setPrivacyModalOpen(true) },
                 onOpenTerms = { viewModel?.setTermsModalOpen(true) },
                 onOpenAbout = { viewModel?.setAboutModalOpen(true) },
@@ -1642,12 +1641,6 @@ fun BrowserScreen(
             )
         }
 
-        // Pro Upgrade Dialog
-        if (homeUiState?.isProModalOpen == true) {
-            ProUpgradeDialog(
-                onDismiss = { viewModel?.setProModalOpen(false) }
-            )
-        }
 
         // Privacy Policy Dialog
         if (homeUiState?.isPrivacyModalOpen == true) {

@@ -35,7 +35,6 @@ data class HomeUiState(
     val isSettingsOpen: Boolean = false,
     val isSearchEngineSheetOpen: Boolean = false,
     val isLanguageSheetOpen: Boolean = false,
-    val isProModalOpen: Boolean = false,
     val isPrivacyModalOpen: Boolean = false,
     val isTermsModalOpen: Boolean = false,
     val isAboutModalOpen: Boolean = false,
@@ -259,10 +258,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setSettingsOpen(open: Boolean) {
         _uiState.update { it.copy(isSettingsOpen = open) }
-    }
-
-    fun setProModalOpen(open: Boolean) {
-        _uiState.update { it.copy(isProModalOpen = open) }
     }
 
     fun setPrivacyModalOpen(open: Boolean) {

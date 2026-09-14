@@ -110,7 +110,7 @@
             android:label="@string/app_name"
             android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize"
-            android:supportsPictureInPicture="false"
+            android:supportsPictureInPicture="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize|uiMode"
             android:theme="@style/Theme.AppSplashScreen">
             <intent-filter>

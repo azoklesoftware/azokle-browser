@@ -4,8 +4,6 @@
 (function() {
     'use strict';
 
-    // 1. Strict Top-Level Isolation: Subframes, iframes, and worker contexts never execute content script
-    if (window.self !== window.top) return;
     if (window.__azokleShieldExtLoaded) return;
     window.__azokleShieldExtLoaded = true;
 
@@ -23,6 +21,7 @@
 
     // =========================================================================
     // 2. Declarative Cosmetic CSS Injection (Cached & Non-Blocking)
+    // Injected into both top-level and subframes to annihilate nested ad containers
     // =========================================================================
     var cosmeticApplied = false;
     function applyCosmeticStyles(css) {
@@ -55,6 +54,8 @@
     // =========================================================================
     // 3. W3C Web App Manifest & PWA Scanner (Single Top-Level Dispatch on Load)
     // =========================================================================
+    if (window.self !== window.top) return;
+
     var manifestDispatched = false;
     var scanForManifest = function() {
         if (manifestDispatched) return;

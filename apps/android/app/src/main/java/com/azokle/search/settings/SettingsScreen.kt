@@ -128,7 +128,6 @@ fun SettingsScreen(
     selectedLanguageCode: String = "system",
     onOpenLanguage: () -> Unit = {},
     onDismiss: () -> Unit,
-    onOpenPro: () -> Unit = {},
     onOpenPrivacyPolicy: () -> Unit = {},
     onOpenTerms: () -> Unit = {},
     onOpenAbout: () -> Unit = {},

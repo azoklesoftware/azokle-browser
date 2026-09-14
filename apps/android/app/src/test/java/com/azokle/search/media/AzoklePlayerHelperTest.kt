@@ -71,4 +71,21 @@ class AzoklePlayerHelperTest {
     fun testBuildSovereignEmbedUrl_nonVideoReturnsNull() {
         assertNull(AzoklePlayerHelper.buildSovereignEmbedUrl("https://example.com/article"))
     }
+
+    @Test
+    fun testBuildPlatformWatchUrl_youtubeFromEmbed() {
+        val watchUrl = AzoklePlayerHelper.buildPlatformWatchUrl("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1")
+        assertEquals("https://www.youtube.com/watch?v=dQw4w9WgXcQ", watchUrl)
+    }
+
+    @Test
+    fun testBuildPlatformWatchUrl_vimeoFromEmbed() {
+        val watchUrl = AzoklePlayerHelper.buildPlatformWatchUrl("https://player.vimeo.com/video/76979871?dnt=1")
+        assertEquals("https://vimeo.com/76979871", watchUrl)
+    }
+
+    @Test
+    fun testBuildPlatformWatchUrl_nonVideoReturnsNull() {
+        assertNull(AzoklePlayerHelper.buildPlatformWatchUrl("https://example.com/article"))
+    }
 }
