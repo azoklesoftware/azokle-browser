@@ -25,9 +25,9 @@ User data (bookmarks, history records, saved logins, session snapshots) is encry
 
 ---
 
-## 3. Sovereign Passkey & WebAuthn Subsystem (`crates/crypto/src/passkey.rs`)
+## 3. Passkey & WebAuthn Subsystem (`crates/crypto/src/passkey.rs`)
 
-Azokle implements a native sovereign passkey authenticator compliant with W3C WebAuthn Level 3:
-- **`SovereignPasskey`**: Generates and manages secp256r1 (P-256) key pairs.
+Azokle implements a native passkey authenticator compliant with W3C WebAuthn Level 3:
+- **`PasskeyManager`**: Generates and manages secp256r1 (P-256) key pairs.
 - **Relying Party Scoping**: Private keys are strictly scoped to the relying party origin (eTLD+1), eliminating phishing vectors.
 - **Biometric Binding**: On Android, private key usage requires biometric confirmation via Android KeyStore and `BiometricPrompt`. On desktop, system keyring credentials protect the passkey store.

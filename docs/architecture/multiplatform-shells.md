@@ -24,7 +24,7 @@ Azokle Browser provides native user experiences across five major operating syst
 - Tab management with memory suspension: background tabs automatically surrender heavy texture buffers under OS low-memory signals (`onTrimMemory`).
 
 ### 2. Linux Desktop (`apps/linux`)
-- Sovereign C++20 application with dual Wayland and X11 surface attachment.
+- Native C++20 application with dual Wayland and X11 surface attachment.
 - Uses `azokle_engine` and links against `libazokle_c.a` for instantaneous local adblocking.
 - Integrates FreeDesktop standards: desktop entry files, MIME type associations, dark mode theme detection via D-Bus portal (`org.freedesktop.portal.Settings`).
 
@@ -35,7 +35,7 @@ Azokle Browser provides native user experiences across five major operating syst
 
 ### 4. macOS Desktop (`apps/macos`)
 - Native macOS Cocoa / SwiftUI application packaged via SwiftPM (`Package.swift`).
-- Borderless sovereign chrome toolbar with native Mac keyboard shortcuts (`Cmd+T`, `Cmd+W`, `Cmd+R`, `Cmd+L`).
+- Borderless custom chrome toolbar with native Mac keyboard shortcuts (`Cmd+T`, `Cmd+W`, `Cmd+R`, `Cmd+L`).
 - Integrates `bindings/swift` for memory-safe Rust shield telemetry and adblock filtering.
 
 ### 5. iOS Mobile (`apps/ios`)

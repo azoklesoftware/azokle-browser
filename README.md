@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🛡️ Azokle Sovereign Browser
+# 🛡️ Azokle Browser
 
-### *The High-Performance, Privacy-First, Cross-Platform Sovereign Web Browser*
+### *The High-Performance, Privacy-First, Cross-Platform Web Browser*
 
 [![Rust 1.75+](https://img.shields.io/badge/Rust-1.75%2B-orange.svg?style=for-the-badge&logo=rust)](https://www.rust-lang.org)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg?style=for-the-badge&logo=c%2B%2B)](https://isocpp.org)
@@ -44,7 +44,7 @@
 
 ## 🧭 Executive Summary & Core Principles
 
-**Azokle Browser** is engineered from the ground up to restore user sovereignty, eliminate tracking, and deliver desktop-grade web performance on mobile and desktop platforms. Unlike traditional browsers that bundle third-party telemetry, ad-networks, or fragile JavaScript monkey-patching, Azokle enforces strict browser-engine boundaries:
+**Azokle Browser** is engineered from the ground up to protect user privacy, eliminate tracking, and deliver desktop-grade web performance on mobile and desktop platforms. Unlike traditional browsers that bundle third-party telemetry, ad-networks, or fragile JavaScript monkey-patching, Azokle enforces strict browser-engine boundaries:
 
 1. **Native Engine Boundaries**: Browser responsibilities belong to the browser engine (GeckoView / WebKit). Ad-blocking and privacy filtering operate strictly at the native network/Rust layer before bytes reach the layout renderer.
 2. **Zero Telemetry Guarantee**: No analytics SDKs, no tracking pings, no unique hardware identifiers, and no telemetry pings.
@@ -59,7 +59,7 @@
 ```mermaid
 graph TD
     subgraph ClientApps ["Client Applications Layer (apps/)"]
-        ANDROID["📱 apps/android<br/>• Jetpack Compose & Material 3<br/>• Mozilla GeckoView 134+ Engine<br/>• Anti-Flash Surface Compositor<br/>• Sovereign Tab & Group Manager<br/>• Biometric Keystore Vault"]
+        ANDROID["📱 apps/android<br/>• Jetpack Compose & Material 3<br/>• Mozilla GeckoView 134+ Engine<br/>• Anti-Flash Surface Compositor<br/>• Fast Tab & Group Manager<br/>• Biometric Keystore Vault"]
         LINUX["🐧 apps/linux<br/>• C++20 & GTK 3/4 Chrome<br/>• Embedded WebKitGTK / GeckoEngine<br/>• Internal Pages: azokle://*<br/>• Custom Omnibar & Fast Tabs"]
     end
 
@@ -251,7 +251,7 @@ UniFFI interface definitions for cross-platform expansion (Swift / iOS, Python C
 
 ### 📱 Android Application (`apps/android/`)
 - **GeckoView 134+ Runtime**: Embedded Mozilla Gecko engine with full WebExtension APIs, sandboxed cookie jars, and hardware-accelerated WebGL.
-- **Sovereign Anti-Flash Compositor**:
+- **Anti-Flash Compositor**:
   - `PageLoadingTransitionSurface` completely masks stale framebuffers and viewport reflow jumps during URL navigations and Desktop/Mobile mode toggles.
   - Smooth 180ms crossfade on `onProgressChange >= 20` or `onPageStop`.
 - **Sandboxed Download Vault**:
@@ -268,7 +268,7 @@ UniFFI interface definitions for cross-platform expansion (Swift / iOS, Python C
   - `azokle://newtab`: Local dashboard with live privacy metrics.
   - `azokle://settings`: Comprehensive Shield, Passkey, Search, and Tor controls.
   - `azokle://history`: Instant queryable chronological history timeline.
-  - `azokle://downloads` & `azokle://bookmarks`: Sovereign management surfaces.
+  - `azokle://downloads` & `azokle://bookmarks`: Built-in management surfaces.
 
 ---
 
@@ -453,6 +453,6 @@ Azokle Browser is licensed under the **MIT License** and the **Apache 2.0 Licens
 
 <div align="center">
 
-**Azokle Browser — Built for Uncompromised Digital Sovereignty.**
+**Azokle Browser — Built for Uncompromised Speed and Privacy.**
 
 </div>

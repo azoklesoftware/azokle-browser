@@ -1,6 +1,6 @@
-# Azokle Sovereign Browser: Engineering Documentation
+# Azokle Browser: Engineering Documentation
 
-Welcome to the official technical documentation for the **Azokle Sovereign Browser** project. Azokle is an ultra-private, high-performance, multi-platform web browser engineered with a memory-safe Rust core, a unified C++20 Mozilla Quantum (Gecko / GeckoView / WebRender) rendering layer, universal FFI bindings, and native presentation applications across Linux, Android, Windows, macOS, and iOS.
+Welcome to the official technical documentation for the **Azokle Browser** project. Azokle is an ultra-private, high-performance, multi-platform web browser engineered with a memory-safe Rust core, a unified C++20 Mozilla Quantum (Gecko / GeckoView / WebRender) rendering layer, universal FFI bindings, and native presentation applications across Linux, Android, Windows, macOS, and iOS.
 
 ---
 
@@ -31,7 +31,7 @@ Welcome to the official technical documentation for the **Azokle Sovereign Brows
 - [Mozilla Quantum Internals](deep-dive/gecko-quantum-internals.md): Necko channels, WebRender GPU pipeline, SpiderMonkey JIT realms, and XPCOM messaging.
 - [Shield Filter Compilation & Engine](deep-dive/shield-filter-engine.md): N-gram tokenization, two-tier Bloom filters, CNAME uncloaking, and cosmetic selector compilation.
 - [Tor Onion Routing Mechanics](deep-dive/tor-onion-routing-mechanics.md): Circuit building, ntor key exchange, 512-byte relay cell multiplexing, and v3 hidden service rendezvous.
-- [Sovereign Passkeys & WebAuthn Flow](deep-dive/passkey-webauthn-flow.md): FIDO2/CTAP2 protocols, ECDSA P-256 signatures, CBOR attestation structures, and hardware biometric binding.
+- [Passkeys & WebAuthn Flow](deep-dive/passkey-webauthn-flow.md): FIDO2/CTAP2 protocols, ECDSA P-256 signatures, CBOR attestation structures, and hardware biometric binding.
 - [Storage Encryption Vault & VFS](deep-dive/storage-encryption-vault.md): Page-level SQLite encryption, Argon2id derivation, IV generation without reuse, and ephemeral RAM scrubbing.
 - [Multi-Platform Presentation Internals](deep-dive/multiplatform-internals.md): Windowing models, DirectComposition, Wayland subsurfaces, Metal layers, and low-memory tab suspension.
 
@@ -80,7 +80,7 @@ Welcome to the official technical documentation for the **Azokle Sovereign Brows
                                           |
                                           v
 +-----------------------------------------------------------------------------------+
-|                        AZOKLE SOVEREIGN CORE (RUST WORKSPACE)                     |
+|                        AZOKLE CORE (RUST WORKSPACE)                               |
 |  +-----------------------------------------------------------------------------+  |
 |  |                      crates/core (AzokleEngine / ShieldFacade)              |  |
 |  +-----------------------------------------------------------------------------+  |

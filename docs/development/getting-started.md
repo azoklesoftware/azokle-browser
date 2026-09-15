@@ -1,6 +1,6 @@
 # Getting Started & Developer Prerequisites
 
-This guide outlines the system prerequisites, developer toolchains, and environment configuration required to develop and build the Azokle Sovereign Browser.
+This guide outlines the system prerequisites, developer toolchains, and environment configuration required to develop and build the Azokle Browser.
 
 ---
 

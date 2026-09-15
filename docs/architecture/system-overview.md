@@ -1,7 +1,7 @@
 # System Architecture Overview
 
 The Azokle Browser architecture is designed around four strict foundational principles:
-1. **Core Domain Sovereignty**: All security logic, cryptography, ad/tracker blocking, network proxies, and protocol rules are strictly encapsulated within a pure Rust workspace (`crates/`), completely isolated from UI code.
+1. **Core Domain Isolation**: All security logic, cryptography, ad/tracker blocking, network proxies, and protocol rules are strictly encapsulated within a pure Rust workspace (`crates/`), completely isolated from UI code.
 2. **Engine Abstraction Layer**: The rendering pipeline is decoupled from platform frameworks via a modern C++20 engine contract (`azokle::engine`), enabling Mozilla Quantum (Gecko/GeckoView) embedding across Linux, Android, Windows, macOS, and iOS without leaking engine-specific quirks into the UI.
 3. **Panic-Proof FFI Boundaries**: All foreign function interactions (C-ABI, JNI, UniFFI) enforce unconditional panic-isolation barriers (`std::panic::catch_unwind`), zero-cost bitmask status flags, and deterministic memory ownership.
 4. **Thin Native Presentation**: Client applications in `apps/` maintain zero business or privacy logic; they act strictly as presentation shells rendering the browser surface and forwarding user interactions to the core.
@@ -39,7 +39,7 @@ graph TD
         UNIFFI[bindings/uniffi - Swift / Apple FFI]
     end
 
-    subgraph Rust_Kernel [Azokle Sovereign Rust Workspace]
+    subgraph Rust_Kernel [Azokle Core Rust Workspace]
         CORE[crates/core - AzokleCoreEngine & ShieldFacade]
         PRIVACY[crates/privacy - adblock / tracker-block]
         SECURITY[crates/security - CSP / URL sanitizer / memory zeroize]
@@ -97,4 +97,4 @@ sequenceDiagram
 ### 2. Ephemeral vs Normal Storage Segregation
 The browser maintains two distinct operational profiles:
 - **Normal Profile**: Persistent cookies, cache, local storage, encrypted history, and bookmark databases stored in AES-256-GCM encrypted vaults on disk.
-- **Private / Sovereign Profile**: Strictly memory-backed (RAM disk), zero write activity to persistent storage. Upon tab or window closure, all cryptographic keys, cache blocks, and session histories are zeroized using `zeroize::Zeroize`.
+- **Private / Ephemeral Profile**: Strictly memory-backed (RAM disk), zero write activity to persistent storage. Upon tab or window closure, all cryptographic keys, cache blocks, and session histories are zeroized using `zeroize::Zeroize`.

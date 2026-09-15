@@ -1,6 +1,6 @@
-# Deep Dive: Sovereign Passkey & WebAuthn Implementation
+# Deep Dive: Passkey & WebAuthn Implementation
 
-This document details the cryptographic flow, CBOR encoding, and hardware binding of the **Sovereign Passkey** subsystem in `crates/crypto/src/passkey.rs`.
+This document details the cryptographic flow, CBOR encoding, and hardware binding of the **Passkey** subsystem in `crates/crypto/src/passkey.rs`.
 
 ---
 
@@ -43,7 +43,7 @@ sequenceDiagram
 
 ### CBOR Attestation Structure
 The attestation object is serialized using binary CBOR with the following dictionary keys:
-- `fmt`: `"none"` (sovereign privacy format; prevents device serial tracking).
+- `fmt`: `"none"` (privacy format; prevents device serial tracking).
 - `authData`: Concatenation of:
   - `rpIdHash` (32 bytes): SHA-256 hash of the relying party domain.
   - `flags` (1 byte): User Present (UP=1), User Verified (UV=1), Attested Credential Data (AT=1).

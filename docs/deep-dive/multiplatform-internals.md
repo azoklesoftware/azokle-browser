@@ -8,7 +8,7 @@ This document details the platform-specific threading models, memory constraints
 
 ### Wayland Protocol Integration
 - **Surface Architecture**: Utilizes `wl_compositor` and `xdg_shell` protocol extensions.
-- **Subsurfaces**: Gecko WebRender outputs frames to a dedicated `wl_subsurface` positioned beneath the native sovereign UI chrome.
+- **Subsurfaces**: Gecko WebRender outputs frames to a dedicated `wl_subsurface` positioned beneath the native UI chrome.
 - **Event Loop**: Runs on a GTK4 / GLib main loop. Native Wayland input events (`wl_pointer`, `wl_keyboard`, `wl_touch`) are marshaled into Gecko DOM input events.
 
 ### X11 Fallback Mode
@@ -22,7 +22,7 @@ This document details the platform-specific threading models, memory constraints
 ### Window Architecture
 - **DPI-Awareness**: Registers as `Per-Monitor V2` DPI-aware (`SetProcessDpiAwarenessContext`), ensuring crisp text on 4K multi-monitor mixed-scaling setups.
 - **DirectComposition Tree**:
-  - Root Visual: Contains the top sovereign chrome, address bar, and tab strip.
+  - Root Visual: Contains the top browser chrome, address bar, and tab strip.
   - Content Visual: Hosts the Direct3D 11/12 swapchain created by Gecko.
 - **Message Loop**: Traditional high-performance `PeekMessage` pump processing `WM_PAINT`, `WM_SIZE`, and `WM_KEYDOWN` without message queue latency.
 
@@ -31,7 +31,7 @@ This document details the platform-specific threading models, memory constraints
 ## 3. macOS Presentation Shell (Cocoa / Metal)
 
 ### Window & Rendering Hierarchy
-- **Window**: Borderless `NSWindow` with `fullSizeContentView` style mask, hiding the default macOS titlebar to accommodate custom sovereign tab controls.
+- **Window**: Borderless `NSWindow` with `fullSizeContentView` style mask, hiding the default macOS titlebar to accommodate custom tab controls.
 - **Metal Layer**: Houses a `CAMetalLayer` with `wantsLayer = true`. Gecko WebRender compiles shaders into Metal Shading Language (MSL) bytecodes, rendering 120Hz ProMotion frames on Apple Silicon.
 - **AppKit Menus & Shortcuts**: Native `NSMenu` binding system commands directly to `DesktopBrowserApp` methods via Objective-C++ bridges.
 

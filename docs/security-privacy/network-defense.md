@@ -8,7 +8,7 @@ The Azokle networking subsystem (`crates/networking`) enforces comprehensive tra
 
 Traditional UDP port 53 plaintext DNS queries are vulnerable to ISP eavesdropping, spoofing, and man-in-the-middle tampering. Azokle enforces DoH by default:
 - **Zero Plaintext Fallback**: When enabled, the browser rejects plaintext port 53 queries entirely.
-- **Trusted DoH Resolvers**: Pre-configured with privacy-first sovereign resolvers:
+- **Trusted DoH Resolvers**: Pre-configured with trusted privacy-first resolvers:
   - Quad9 (`https://dns.quad9.net/dns-query`)
   - Cloudflare Privacy (`https://cloudflare-dns.com/dns-query`)
   - Mullvad DoH (`https://doh.mullvad.net/dns-query`)

@@ -13,9 +13,9 @@ The Azokle Rust Core (`crates/`) is structured as a Cargo virtual workspace cont
 | `crates/privacy/tracker-block` | Tracker database, bounce unwrap, query parameter stripper | `TrackerEngine`, `QueryStripper`, `BounceUnwrapper` | Immutable trie structures |
 | `crates/security` | CSP enforcement, memory zeroization, threat assessment | `SecurityEngine`, `ThreatDetector`, `CspEvaluator` | Zero-allocation sanitization |
 | `crates/tor` | Arti-backed Tor client, SOCKS5 listener, `.onion` resolution | `TorController`, `TorCircuitManager`, `OnionResolver` | Async Tokio event loop |
-| `crates/crypto` | AES-256-GCM, ChaCha20, Argon2id, FIDO2 Passkeys | `SovereignPasskey`, `CryptoVault`, `KeyDerivation` | `zeroize::ZeroizeOnDrop` |
+| `crates/crypto` | AES-256-GCM, ChaCha20, Argon2id, FIDO2 Passkeys | `PasskeyManager`, `CryptoVault`, `KeyDerivation` | `zeroize::ZeroizeOnDrop` |
 | `crates/storage` | Encrypted SQLite storage for history, bookmarks, settings | `StorageVault`, `ProfileManager`, `EncryptedDb` | Thread-safe connection pools |
-| `crates/networking` | DoH resolver, SSRF firewall, connection pools | `SovereignNetworkingEngine`, `DohClient`, `SsrfFilter` | Asynchronous Hyper / Reqwest |
+| `crates/networking` | DoH resolver, SSRF firewall, connection pools | `NetworkingEngine`, `DohClient`, `SsrfFilter` | Asynchronous Hyper / Reqwest |
 | `crates/protocol` | Universal cross-platform IPC envelopes (CBOR & JSON) | `ProtocolEnvelope`, `CommandPayload`, `EventPayload` | Zero-copy deserialization |
 | `crates/services/*` | Modular services: tabs, history, bookmarks, downloads, search | `HistoryManager`, `BookmarkManager`, `DownloadManager` | Event-driven notification dispatch |
 | `crates/common` | Common types, error definitions, telemetry blocking | `AzokleError`, `Result<T>`, `TelemetryBlocker` | Pure functional primitives |
@@ -37,7 +37,7 @@ pub struct AzokleCoreEngine {
     pub bookmarks: Arc<BookmarkManager>,
     pub downloads: Arc<DownloadManager>,
     pub settings: Arc<SettingsManager>,
-    pub networking: Arc<SovereignNetworkingEngine>,
+    pub networking: Arc<NetworkingEngine>,
     pub tabs: Arc<TabManager>,
     pub disabled_hosts: Arc<RwLock<HashSet<String>>>,
     pub stats_total: AtomicU64,

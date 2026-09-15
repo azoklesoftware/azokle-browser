@@ -26,7 +26,7 @@ The security model of Azokle Browser adheres to STRIDE threat categorization, me
                      [Panic-Safe FFI Barrier: catch_unwind]
                                       v
 +---------------------------------------------------------------------------------+
-|                                 SOVEREIGN ZONE                                  |
+|                                SECURE CORE ZONE                                 |
 |  - Rust Kernel (crates/core, crates/crypto, crates/storage)                     |
 |  - Encrypted SQLite Vault (AES-256-GCM / Argon2id)                              |
 |  - Tor Controller (Arti Onion SOCKS5 Isolation)                                 |
