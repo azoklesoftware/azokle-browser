@@ -819,22 +819,28 @@ object TabManager {
             kotlinx.coroutines.delay(500L)
             try {
                 val standardTabs = _tabs.value.filter { !it.isPrivate && !it.isTor }
-                val array = JSONArray()
-                for (tab in standardTabs) {
-                    array.put(tab.toJson())
-                }
-
                 val standardGroups = _groups.value.filter { !it.isPrivate && !it.isTor }
-                val groupsArray = JSONArray()
-                for (group in standardGroups) {
-                    groupsArray.put(group.toJson())
-                }
 
                 // Privacy hardened: NEVER write ephemeral Tor or Private Tab IDs to disk!
                 val safeActiveTabId = if (standardTabs.any { it.id == _activeTabId.value }) {
                     _activeTabId.value ?: ""
                 } else {
                     standardTabs.firstOrNull()?.id ?: ""
+                }
+
+                // 1. Persist directly to enterprise SQLite database
+                val db = com.azokle.search.history.AzokleHistoryDatabase.getInstance(context)
+                db.saveTabsSession(standardTabs, standardGroups, safeActiveTabId)
+
+                // 2. Synchronize Atomic JSON backup
+                val array = JSONArray()
+                for (tab in standardTabs) {
+                    array.put(tab.toJson())
+                }
+
+                val groupsArray = JSONArray()
+                for (group in standardGroups) {
+                    groupsArray.put(group.toJson())
                 }
 
                 val root = JSONObject().apply {
@@ -889,6 +895,19 @@ object TabManager {
     private fun loadPersistedTabs(context: Context) {
         scope.launch(Dispatchers.IO) {
             try {
+                val db = com.azokle.search.history.AzokleHistoryDatabase.getInstance(context)
+                val (sqliteTabs, sqliteGroups, sqliteActiveId) = db.loadTabsSession()
+
+                if (sqliteTabs.isNotEmpty()) {
+                    _tabs.value = sqliteTabs
+                    _groups.value = sqliteGroups
+                    val targetId = if (sqliteTabs.any { it.id == sqliteActiveId }) sqliteActiveId else sqliteTabs.first().id
+                    _activeTabId.value = targetId
+                    Log.d(TAG, "Successfully restored ${sqliteTabs.size} tabs and ${sqliteGroups.size} groups from SQLite")
+                    return@launch
+                }
+
+                // Fallback to Atomic JSON file if SQLite has no records yet (e.g. migration)
                 val atomicFile = AtomicFile(File(context.filesDir, TABS_STATE_FILE))
                 if (!atomicFile.baseFile.exists()) return@launch
                 val bytes = atomicFile.readFully()
@@ -912,11 +931,15 @@ object TabManager {
                 }
 
                 val standardPersisted = restoredTabs.filter { !it.isPrivate && !it.isTor }
+                val standardGroups = restoredGroups.filter { !it.isPrivate && !it.isTor }
                 if (standardPersisted.isNotEmpty()) {
                     _tabs.value = standardPersisted
-                    _groups.value = restoredGroups.filter { !it.isPrivate && !it.isTor }
+                    _groups.value = standardGroups
                     val targetId = if (standardPersisted.any { it.id == savedActiveId }) savedActiveId else standardPersisted.first().id
                     _activeTabId.value = targetId
+                    // Seed SQLite from JSON
+                    db.saveTabsSession(standardPersisted, standardGroups, targetId)
+                    Log.d(TAG, "Migrated ${standardPersisted.size} tabs from JSON to SQLite")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load persisted tabs: ${e.message}")

@@ -6,6 +6,8 @@ data class HistoryItem(
     val title: String,
     val timestamp: Long = System.currentTimeMillis(),
     val visitCount: Int = 1,
+    val typedCount: Int = 0,
+    val frecency: Long = 1000L,
     val isSearch: Boolean = false,
     val searchQuery: String? = null
 ) {

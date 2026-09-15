@@ -6,12 +6,12 @@ import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoSession
 
 /**
- * Enterprise History & Navigation Stack Sync Delegate extracted from GeckoBrowserView.
+ * Sovereign History & Navigation Stack Sync Delegate for Azokle Browser.
  * Handles:
- * 1. Filtering redirects (VISIT_REDIRECT_PERMANENT, VISIT_REDIRECT_TEMPORARY) and internal about: schemes
- * 2. Asynchronous visit recording with private/Tor isolation awareness
+ * 1. Strict filtering of HTTP redirects (VISIT_REDIRECT_PERMANENT, VISIT_REDIRECT_TEMPORARY) and unrecoverable errors
+ * 2. Asynchronous visit recording with strict Private & Tor zero-leakage isolation
  * 3. Back/Forward navigation stack state synchronization
- * 4. Session state persistence for tab restoration
+ * 4. Tab session state persistence for instant restoration
  */
 class AzokleHistoryDelegate(
     private val tabId: String?,
@@ -27,13 +27,25 @@ class AzokleHistoryDelegate(
         lastVisitedURL: String?,
         flags: Int
     ): GeckoResult<Boolean>? {
+        // Zero disk or state writes if running in a private tab or Tor circuit session
+        if (isPrivate || isTor) {
+            return GeckoResult.fromValue(true)
+        }
+
         val isRedirect = (flags and GeckoSession.HistoryDelegate.VISIT_REDIRECT_PERMANENT) != 0 ||
                 (flags and GeckoSession.HistoryDelegate.VISIT_REDIRECT_TEMPORARY) != 0
-        if (!isRedirect && url.isNotBlank() && !url.startsWith("about:", ignoreCase = true)) {
+        val isError = (flags and GeckoSession.HistoryDelegate.VISIT_UNRECOVERABLE_ERROR) != 0
+
+        if (!isRedirect && !isError && url.isNotBlank() && !isIgnoredUrl(url)) {
+            val activeTab = TabManager.activeTab
+            if (activeTab != null && (activeTab.isPrivate || activeTab.isTor)) {
+                return GeckoResult.fromValue(true)
+            }
+
             HistoryManager.recordVisit(
                 url = url,
                 title = "",
-                isPrivate = isPrivate || isTor
+                isPrivate = false
             )
         }
         return GeckoResult.fromValue(true)
@@ -48,5 +60,17 @@ class AzokleHistoryDelegate(
         if (tabId != null && historyList is GeckoSession.SessionState) {
             TabManager.updateTabSessionState(tabId, historyList)
         }
+    }
+
+    private fun isIgnoredUrl(url: String): Boolean {
+        val lower = url.lowercase().trim()
+        return lower.startsWith("about:") ||
+                lower.startsWith("chrome:") ||
+                lower.startsWith("javascript:") ||
+                lower.startsWith("data:") ||
+                lower.startsWith("blob:") ||
+                lower.startsWith("file:") ||
+                lower.startsWith("resource:") ||
+                lower.startsWith("intent:")
     }
 }

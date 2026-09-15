@@ -481,6 +481,65 @@ object GeckoEngineManager {
         }
     }
 
+    /**
+     * Clears cookies and site storage for a specific host/domain.
+     */
+    fun clearStorageForHost(
+        host: String,
+        flags: Long = org.mozilla.geckoview.StorageController.ClearFlags.ALL,
+        onComplete: ((Boolean) -> Unit)? = null
+    ) {
+        val r = runtime
+        if (r == null || host.isBlank()) {
+            onComplete?.invoke(false)
+            return
+        }
+
+        try {
+            r.storageController.clearDataFromHost(host, flags).then({ _ ->
+                android.util.Log.i("GeckoEngineManager", "Cleared storage for host: $host")
+                onComplete?.invoke(true)
+                org.mozilla.geckoview.GeckoResult.fromValue(0)
+            }, { throwable: Throwable? ->
+                android.util.Log.e("GeckoEngineManager", "Failed to clear storage for host $host: ${throwable?.message}")
+                onComplete?.invoke(false)
+                org.mozilla.geckoview.GeckoResult.fromValue(0)
+            })
+        } catch (e: Exception) {
+            android.util.Log.e("GeckoEngineManager", "Exception clearing host storage: ${e.message}")
+            onComplete?.invoke(false)
+        }
+    }
+
+    /**
+     * Clears global cookies and web storage.
+     */
+    fun clearAllCookiesAndSiteData(
+        flags: Long = org.mozilla.geckoview.StorageController.ClearFlags.ALL,
+        onComplete: ((Boolean) -> Unit)? = null
+    ) {
+        val r = runtime
+        if (r == null) {
+            onComplete?.invoke(false)
+            return
+        }
+
+        try {
+            r.storageController.clearData(flags).then({ _ ->
+                android.util.Log.i("GeckoEngineManager", "Cleared all cookies and site storage.")
+                onComplete?.invoke(true)
+                org.mozilla.geckoview.GeckoResult.fromValue(null)
+            }, { throwable: Throwable? ->
+                android.util.Log.e("GeckoEngineManager", "Failed to clear storage: ${throwable?.message}")
+                onComplete?.invoke(false)
+                org.mozilla.geckoview.GeckoResult.fromValue(null)
+            })
+        } catch (e: Exception) {
+            android.util.Log.e("GeckoEngineManager", "Exception clearing storage: ${e.message}")
+            onComplete?.invoke(false)
+        }
+    }
+
     fun shutdown() {
         runtime?.shutdown()
         runtime = null

@@ -1,8 +1,34 @@
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use url::Url;
+
+/// Computes the Firefox/Chromium-grade Frecency (Frequency + Recency) score for a history entry.
+///
+/// Formula:
+/// - Recency Multiplier:
+///   - 0..=4 days: 100%
+///   - 5..=14 days: 70%
+///   - 15..=31 days: 50%
+///   - 32..=90 days: 30%
+///   - > 90 days: 10%
+/// - Type Bonus:
+///   - Typed visits: 2,000 points per typed navigation
+///   - Standard visits: 1,000 points per visit
+pub fn compute_frecency(visit_count: u32, typed_count: u32, last_visit_ms: u64, now_ms: u64) -> i64 {
+    let delta_ms = now_ms.saturating_sub(last_visit_ms);
+    let delta_days = delta_ms / (1000 * 60 * 60 * 24);
+    let recency_multiplier: i64 = match delta_days {
+        0..=4 => 100,
+        5..=14 => 70,
+        15..=31 => 50,
+        32..=90 => 30,
+        _ => 10,
+    };
+    let type_bonus = (typed_count as i64 * 2000) + (visit_count.max(1) as i64 * 1000);
+    (type_bonus * recency_multiplier) / 100
+}
 
 /// Record representing a visited web page.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -17,13 +43,34 @@ pub struct HistoryEntry {
     pub visit_time: u64,
     /// Total cumulative number of visits to this URL.
     pub visit_count: u32,
+    /// Total number of times the URL was explicitly typed in the address bar.
+    pub typed_count: u32,
+    /// Computed Frecency score for intelligent ranking & autocompletion.
+    pub frecency: i64,
     /// Hostname / domain component extracted from the URL.
     pub domain: String,
     /// Indicates whether the URL is also marked in the bookmarks collection.
     pub is_bookmarked: bool,
 }
 
-/// Thread-safe manager for browsing history entries, query search, and privacy sanitization.
+/// Aggregated domain statistic for quick filtering.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DomainStat {
+    pub domain: String,
+    pub count: usize,
+}
+
+/// Chronological timeline grouping for UI display.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct GroupedTimeline {
+    pub today: Vec<HistoryEntry>,
+    pub yesterday: Vec<HistoryEntry>,
+    pub last_7_days: Vec<HistoryEntry>,
+    pub last_30_days: Vec<HistoryEntry>,
+    pub older: Vec<HistoryEntry>,
+}
+
+/// Thread-safe manager for browsing history entries, query search, frecency scoring, and privacy sanitization.
 #[derive(Clone)]
 pub struct HistoryManager {
     entries: Arc<RwLock<VecDeque<HistoryEntry>>>,
@@ -53,18 +100,29 @@ impl HistoryManager {
         }
     }
 
-    /// Records a page visit, automatically deduplicating existing entries by updating visit count.
-    ///
-    /// # Privacy Guarantees:
-    /// - Strictly skips visits occurring in private or Tor tabs (`is_private: true`).
-    /// - Ignores pseudo-protocols and internal URLs (`about:`, `javascript:`, `data:`).
+    /// Records a standard page visit.
     pub fn record_visit(&self, title: &str, url_str: &str, is_private: bool) -> Option<HistoryEntry> {
+        self.record_visit_internal(title, url_str, is_private, false)
+    }
+
+    /// Records a typed visit (explicit user omnibox input) with enhanced frecency weight.
+    pub fn record_typed_visit(&self, title: &str, url_str: &str, is_private: bool) -> Option<HistoryEntry> {
+        self.record_visit_internal(title, url_str, is_private, true)
+    }
+
+    fn record_visit_internal(&self, title: &str, url_str: &str, is_private: bool, is_typed: bool) -> Option<HistoryEntry> {
         if is_private || url_str.trim().is_empty() {
             return None;
         }
 
         let clean_url = url_str.trim();
-        if clean_url.starts_with("about:") || clean_url.starts_with("javascript:") || clean_url.starts_with("data:") {
+        if clean_url.starts_with("about:")
+            || clean_url.starts_with("chrome:")
+            || clean_url.starts_with("javascript:")
+            || clean_url.starts_with("data:")
+            || clean_url.starts_with("blob:")
+            || clean_url.starts_with("resource:")
+        {
             return None;
         }
 
@@ -85,21 +143,31 @@ impl HistoryManager {
         };
 
         let mut list = self.entries.write();
-        if let Some(existing) = list.iter_mut().find(|e| e.url == clean_url) {
+        if let Some(pos) = list.iter().position(|e| e.url == clean_url) {
+            let mut existing = list.remove(pos).unwrap();
             existing.visit_count += 1;
+            if is_typed {
+                existing.typed_count += 1;
+            }
             existing.visit_time = now_ms;
             if !title.trim().is_empty() {
                 existing.title = clean_title;
             }
-            Some(existing.clone())
+            existing.frecency = compute_frecency(existing.visit_count, existing.typed_count, existing.visit_time, now_ms);
+            list.push_front(existing.clone());
+            Some(existing)
         } else {
             let id = format!("hist_{}_{}", now_ms, list.len());
+            let typed_count = if is_typed { 1 } else { 0 };
+            let frecency = compute_frecency(1, typed_count, now_ms, now_ms);
             let entry = HistoryEntry {
                 id,
                 title: clean_title,
                 url: clean_url.to_string(),
                 visit_time: now_ms,
                 visit_count: 1,
+                typed_count,
+                frecency,
                 domain,
                 is_bookmarked: false,
             };
@@ -112,6 +180,7 @@ impl HistoryManager {
         }
     }
 
+    /// Searches history entries matching the query in title, URL, or domain.
     pub fn search(&self, query: &str, limit: usize) -> Vec<HistoryEntry> {
         let q = query.trim().to_lowercase();
         if q.is_empty() {
@@ -121,10 +190,91 @@ impl HistoryManager {
         self.entries
             .read()
             .iter()
-            .filter(|e| e.title.to_lowercase().contains(&q) || e.url.to_lowercase().contains(&q) || e.domain.to_lowercase().contains(&q))
+            .filter(|e| {
+                e.title.to_lowercase().contains(&q)
+                    || e.url.to_lowercase().contains(&q)
+                    || e.domain.to_lowercase().contains(&q)
+            })
             .take(limit.max(1))
             .cloned()
             .collect()
+    }
+
+    /// Performs search and ranks matching results by Frecency score descending (ideal for Omnibox autocompletion).
+    pub fn search_frecency(&self, query: &str, limit: usize) -> Vec<HistoryEntry> {
+        let q = query.trim().to_lowercase();
+        let guard = self.entries.read();
+
+        let mut matches: Vec<HistoryEntry> = if q.is_empty() {
+            guard.iter().cloned().collect()
+        } else {
+            guard
+                .iter()
+                .filter(|e| {
+                    e.title.to_lowercase().contains(&q)
+                        || e.url.to_lowercase().contains(&q)
+                        || e.domain.to_lowercase().contains(&q)
+                })
+                .cloned()
+                .collect()
+        };
+
+        matches.sort_by(|a, b| b.frecency.cmp(&a.frecency));
+        matches.into_iter().take(limit.max(1)).collect()
+    }
+
+    /// Returns top destinations sorted by Frecency score for the New Tab Page and Omnibox top sites.
+    pub fn get_top_frecency(&self, limit: usize) -> Vec<HistoryEntry> {
+        let mut list: Vec<HistoryEntry> = self.entries.read().iter().cloned().collect();
+        list.sort_by(|a, b| b.frecency.cmp(&a.frecency));
+        list.into_iter().take(limit.max(1)).collect()
+    }
+
+    /// Returns top visited domains and their frequencies.
+    pub fn get_top_domains(&self, limit: usize) -> Vec<DomainStat> {
+        let mut counts: HashMap<String, usize> = HashMap::new();
+        for entry in self.entries.read().iter() {
+            if !entry.domain.is_empty() {
+                *counts.entry(entry.domain.clone()).or_insert(0) += 1;
+            }
+        }
+
+        let mut stats: Vec<DomainStat> = counts
+            .into_iter()
+            .map(|(domain, count)| DomainStat { domain, count })
+            .collect();
+        stats.sort_by(|a, b| b.count.cmp(&a.count));
+        stats.into_iter().take(limit.max(1)).collect()
+    }
+
+    /// Groups the entire browsing history into distinct chronological timeline buckets.
+    pub fn get_grouped_timeline(&self) -> GroupedTimeline {
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+
+        let day_ms = 86_400_000u64;
+        let today_start = now_ms.saturating_sub(now_ms % day_ms);
+        let yesterday_start = today_start.saturating_sub(day_ms);
+        let last_7_days_start = today_start.saturating_sub(6 * day_ms);
+        let last_30_days_start = today_start.saturating_sub(29 * day_ms);
+
+        let mut timeline = GroupedTimeline::default();
+        for entry in self.entries.read().iter() {
+            if entry.visit_time >= today_start {
+                timeline.today.push(entry.clone());
+            } else if entry.visit_time >= yesterday_start {
+                timeline.yesterday.push(entry.clone());
+            } else if entry.visit_time >= last_7_days_start {
+                timeline.last_7_days.push(entry.clone());
+            } else if entry.visit_time >= last_30_days_start {
+                timeline.last_30_days.push(entry.clone());
+            } else {
+                timeline.older.push(entry.clone());
+            }
+        }
+        timeline
     }
 
     pub fn get_recent(&self, limit: usize, offset: usize) -> Vec<HistoryEntry> {
@@ -201,6 +351,55 @@ impl HistoryManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_frecency_calculation() {
+        let now = 1_000_000_000u64;
+        // Visited today, 1 visit, 0 typed
+        let score_recent = compute_frecency(1, 0, now, now);
+        assert_eq!(score_recent, 1000);
+
+        // Visited today, 1 typed visit
+        let score_typed = compute_frecency(1, 1, now, now);
+        assert_eq!(score_typed, 3000);
+
+        // Visited 10 days ago (multiplier 70%)
+        let ten_days_ago = now - (10 * 86_400_000);
+        let score_old = compute_frecency(1, 0, ten_days_ago, now);
+        assert_eq!(score_old, 700);
+    }
+
+    #[test]
+    fn test_frecency_ranking_and_search() {
+        let history = HistoryManager::new();
+        history.record_visit("Azokle Search", "https://search.azokle.com", false);
+        history.record_typed_visit("Azokle Docs", "https://docs.azokle.com", false);
+
+        let top = history.get_top_frecency(5);
+        assert_eq!(top.len(), 2);
+        // Typed visit must have higher frecency and rank first
+        assert_eq!(top[0].url, "https://docs.azokle.com");
+
+        let search_res = history.search_frecency("azokle", 5);
+        assert_eq!(search_res.len(), 2);
+        assert_eq!(search_res[0].url, "https://docs.azokle.com");
+    }
+
+    #[test]
+    fn test_top_domains_and_grouping() {
+        let history = HistoryManager::new();
+        history.record_visit("Github 1", "https://github.com/azokle/browser", false);
+        history.record_visit("Github 2", "https://github.com/azokle/search", false);
+        history.record_visit("Wikipedia", "https://wikipedia.org/wiki/Rust", false);
+
+        let domains = history.get_top_domains(5);
+        assert_eq!(domains.len(), 2);
+        assert_eq!(domains[0].domain, "github.com");
+        assert_eq!(domains[0].count, 2);
+
+        let timeline = history.get_grouped_timeline();
+        assert_eq!(timeline.today.len(), 3);
+    }
 
     #[test]
     fn test_history_lifecycle() {

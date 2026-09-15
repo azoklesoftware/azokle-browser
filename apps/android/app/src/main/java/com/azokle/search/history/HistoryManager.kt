@@ -8,9 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -18,8 +16,10 @@ import java.util.Calendar
 import java.util.UUID
 
 /**
- * High-Performance Sovereign Browsing History Manager for Azokle Search.
- * Backed by native Rust History Core (crates/history) for cross-platform consistency and zero data leakage.
+ * Sovereign Hybrid (In-Memory + SQLite) History Manager for Azokle Search.
+ * - In-Memory (Rust): Sub-millisecond Frecency ranking, search filtering, and instant StateFlow UI emission
+ * - SQLite (WAL + FTS): Durable ACID storage, Full-Text Search, and forensic secure deletion
+ * - Strict Privacy Guard: Zero-leakage policy for Tor & Private browsing tabs
  */
 object HistoryManager {
     private const val TAG = "AzokleHistoryManager"
@@ -32,19 +32,18 @@ object HistoryManager {
     private val scope = CoroutineScope(Dispatchers.IO)
     private var isInitialized = false
     private var appContext: Context? = null
+    private var database: AzokleHistoryDatabase? = null
 
     fun init(context: Context) {
         if (isInitialized) return
         isInitialized = true
         appContext = context.applicationContext
+        database = AzokleHistoryDatabase.getInstance(context)
         loadHistory(context)
     }
 
     /**
-     * Records a visited web page. Strictly excludes private/Tor browsing, about/blank schemes, and assets.
-     */
-    /**
-     * Records a visited web page. Strictly excludes private/Tor browsing, about/blank schemes, and assets.
+     * Records a standard visited web page in both the In-Memory Rust Engine and SQLite Database.
      */
     fun recordVisit(url: String, title: String = "", isPrivate: Boolean = false) {
         if (isPrivate || url.isBlank() || isIgnoredScheme(url)) return
@@ -53,8 +52,39 @@ object HistoryManager {
         val context = appContext ?: return
 
         scope.launch {
+            // 1. In-Memory Fast Path
             AzokleCore.recordHistoryVisit(title, url, isPrivate)
             refreshFromRust(context)
+
+            // 2. SQLite Persistent Tier
+            database?.recordPlaceVisit(
+                url = url,
+                title = title,
+                isTyped = false
+            )
+        }
+    }
+
+    /**
+     * Records an explicitly typed omnibox visit, granting higher Frecency priority in both memory and SQLite.
+     */
+    fun recordTypedVisit(url: String, title: String = "", isPrivate: Boolean = false) {
+        if (isPrivate || url.isBlank() || isIgnoredScheme(url)) return
+        val active = com.azokle.search.tabs.TabManager.activeTab
+        if (active != null && (active.isPrivate || active.isTor)) return
+        val context = appContext ?: return
+
+        scope.launch {
+            // 1. In-Memory Fast Path
+            AzokleCore.recordHistoryTypedVisit(title, url, isPrivate)
+            refreshFromRust(context)
+
+            // 2. SQLite Persistent Tier
+            database?.recordPlaceVisit(
+                url = url,
+                title = title,
+                isTyped = true
+            )
         }
     }
 
@@ -70,6 +100,7 @@ object HistoryManager {
         scope.launch {
             AzokleCore.recordHistoryVisit(title, url, false)
             refreshFromRust(context)
+            database?.updatePlaceTitle(url, title)
         }
     }
 
@@ -83,13 +114,67 @@ object HistoryManager {
         scope.launch {
             AzokleCore.recordHistoryVisit(query.trim(), searchUrl, isPrivate)
             refreshFromRust(context)
+            database?.recordPlaceVisit(
+                url = searchUrl,
+                title = query.trim(),
+                isTyped = false,
+                isSearch = true,
+                searchQuery = query.trim()
+            )
         }
+    }
+
+    /**
+     * Searches history and ranks results by Frecency score descending.
+     */
+    fun searchFrecency(query: String, limit: Int = 20): List<HistoryItem> {
+        val array = AzokleCore.searchHistoryFrecency(query, limit)
+        val list = mutableListOf<HistoryItem>()
+        for (i in 0 until array.length()) {
+            val obj = array.optJSONObject(i) ?: continue
+            list.add(parseHistoryItem(obj))
+        }
+        if (list.isEmpty()) {
+            return database?.searchFts(query, limit) ?: emptyList()
+        }
+        return list
+    }
+
+    /**
+     * Returns top historical destinations ranked by Frecency score.
+     */
+    fun getTopFrecency(limit: Int = 20): List<HistoryItem> {
+        val array = AzokleCore.getTopFrecencyHistory(limit)
+        val list = mutableListOf<HistoryItem>()
+        for (i in 0 until array.length()) {
+            val obj = array.optJSONObject(i) ?: continue
+            list.add(parseHistoryItem(obj))
+        }
+        return list
+    }
+
+    /**
+     * Returns top visited domains for UI filtering chips.
+     */
+    fun getTopDomains(limit: Int = 10): List<Pair<String, Int>> {
+        val array = AzokleCore.getTopHistoryDomains(limit)
+        val list = mutableListOf<Pair<String, Int>>()
+        for (i in 0 until array.length()) {
+            val obj = array.optJSONObject(i) ?: continue
+            val domain = obj.optString("domain", "")
+            val count = obj.optInt("count", 0)
+            if (domain.isNotBlank()) {
+                list.add(domain to count)
+            }
+        }
+        return list
     }
 
     fun deleteEntry(id: String) {
         val context = appContext ?: return
         scope.launch {
             AzokleCore.deleteHistoryEntry(id)
+            database?.deletePlace(id)
             refreshFromRust(context)
         }
     }
@@ -99,6 +184,7 @@ object HistoryManager {
         scope.launch {
             for (id in ids) {
                 AzokleCore.deleteHistoryEntry(id)
+                database?.deletePlace(id)
             }
             refreshFromRust(context)
         }
@@ -116,6 +202,7 @@ object HistoryManager {
         val now = System.currentTimeMillis()
         scope.launch {
             AzokleCore.clearHistoryRange(startOfToday, now)
+            database?.clearTimeRange(startOfToday, now)
             refreshFromRust(context)
         }
     }
@@ -124,6 +211,7 @@ object HistoryManager {
         val context = appContext ?: return
         scope.launch {
             AzokleCore.clearAllHistory()
+            database?.clearAllSecurely()
             _history.value = emptyList()
             saveToDisk(context)
         }
@@ -142,30 +230,40 @@ object HistoryManager {
                 lower.startsWith("intent:")
     }
 
+    private fun parseHistoryItem(obj: JSONObject): HistoryItem {
+        val url = obj.optString("url", "")
+        val isSearch = url.contains("search.azokle.com") || url.contains("duckduckgo.com")
+        return HistoryItem(
+            id = obj.optString("id", UUID.randomUUID().toString()),
+            url = url,
+            title = obj.optString("title", ""),
+            timestamp = obj.optLong("visit_time", obj.optLong("last_visit_time", obj.optLong("timestamp", System.currentTimeMillis()))),
+            visitCount = obj.optInt("visit_count", obj.optInt("visitCount", 1)),
+            typedCount = obj.optInt("typed_count", 0),
+            frecency = obj.optLong("frecency", 1000L),
+            isSearch = isSearch,
+            searchQuery = if (isSearch) obj.optString("title", "") else null
+        )
+    }
+
     private fun refreshFromRust(context: Context) {
         try {
             val array = AzokleCore.getRecentHistory(MAX_HISTORY_ITEMS, 0)
             val list = mutableListOf<HistoryItem>()
             for (i in 0 until array.length()) {
                 val obj = array.getJSONObject(i)
-                val url = obj.optString("url", "")
-                val isSearch = url.contains("search.azokle.com") || url.contains("duckduckgo.com")
-                list.add(
-                    HistoryItem(
-                        id = obj.optString("id", UUID.randomUUID().toString()),
-                        url = url,
-                        title = obj.optString("title", ""),
-                        timestamp = obj.optLong("last_visit_time", obj.optLong("timestamp", System.currentTimeMillis())),
-                        visitCount = obj.optInt("visit_count", obj.optInt("visitCount", 1)),
-                        isSearch = isSearch,
-                        searchQuery = if (isSearch) obj.optString("title", "") else null
-                    )
-                )
+                list.add(parseHistoryItem(obj))
             }
-            _history.value = list
+            if (list.isNotEmpty()) {
+                _history.value = list
+            } else {
+                // Fallback to SQLite
+                val sqlList = database?.getAllPlaces(MAX_HISTORY_ITEMS) ?: emptyList()
+                _history.value = sqlList
+            }
             saveToDisk(context)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to refresh history from Rust: ${e.message}")
+            Log.e(TAG, "Failed to refresh history: ${e.message}")
         }
     }
 
@@ -188,12 +286,35 @@ object HistoryManager {
     private fun loadHistory(context: Context) {
         scope.launch(Dispatchers.IO) {
             try {
-                val atomicFile = androidx.core.util.AtomicFile(File(context.filesDir, HISTORY_FILE))
-                if (atomicFile.baseFile.exists()) {
-                    val bytes = atomicFile.readFully()
-                    if (bytes.isNotEmpty()) {
-                        val jsonStr = String(bytes, Charsets.UTF_8)
-                        AzokleCore.importHistoryJson(jsonStr)
+                // 1. Check SQLite first
+                val sqliteRecords = database?.getAllPlaces(MAX_HISTORY_ITEMS) ?: emptyList()
+                if (sqliteRecords.isNotEmpty()) {
+                    // Populate Rust in-memory engine from SQLite
+                    for (item in sqliteRecords.reversed()) {
+                        AzokleCore.recordHistoryVisit(item.title, item.url, false)
+                    }
+                } else {
+                    // Migrate from JSON backup if present
+                    val atomicFile = androidx.core.util.AtomicFile(File(context.filesDir, HISTORY_FILE))
+                    if (atomicFile.baseFile.exists()) {
+                        val bytes = atomicFile.readFully()
+                        if (bytes.isNotEmpty()) {
+                            val jsonStr = String(bytes, Charsets.UTF_8)
+                            AzokleCore.importHistoryJson(jsonStr)
+                            val array = JSONArray(jsonStr)
+                            for (i in 0 until array.length()) {
+                                val obj = array.getJSONObject(i)
+                                val item = parseHistoryItem(obj)
+                                database?.recordPlaceVisit(
+                                    url = item.url,
+                                    title = item.title,
+                                    isTyped = item.typedCount > 0,
+                                    isSearch = item.isSearch,
+                                    searchQuery = item.searchQuery,
+                                    timestamp = item.timestamp
+                                )
+                            }
+                        }
                     }
                 }
                 refreshFromRust(context)

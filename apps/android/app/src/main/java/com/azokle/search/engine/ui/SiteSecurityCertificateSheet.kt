@@ -133,6 +133,9 @@ fun SiteSecurityCertificateSheet(
     val permManager = remember { SitePermissionsManager.getInstance(context) }
     val permUpdateTick by permManager.updatesFlow.collectAsState()
     val sitePerms = remember(host, permUpdateTick) { permManager.getHostPermissions(host) }
+    val auditLog = remember(host, permUpdateTick) {
+        com.azokle.search.history.AzokleHistoryDatabase.getInstance(context).getPermissionAuditForOrigin(host)
+    }
 
     val cert = securityInfo?.certificate as? X509Certificate
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
@@ -523,13 +526,74 @@ fun SiteSecurityCertificateSheet(
                     subtitle = "Purge local cache, storage & cookies for $host",
                     onClick = {
                         GeckoEngineManager.clearHostData(context, host)
-                        ToastManager.showSuccess("Site data cleared for $host")
+                        GeckoEngineManager.clearStorageForHost(host)
+                        ToastManager.showSuccess("Site data & cookies cleared for $host")
                         onReload()
                     },
                     contentDesc = "Clear cookies and site data for $host",
                     showChevron = false,
                     colors = colors
                 )
+            }
+
+            // Permission Access History Audit Card (if any permissions were requested)
+            if (auditLog.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(18.dp))
+                SectionLabel(title = "PERMISSION ACCESS AUDIT LOG")
+
+                CleanGroupCard(colors = colors) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        auditLog.take(4).forEach { auditItem ->
+                            val isAllowed = auditItem.state.equals("ALLOW", ignoreCase = true) || auditItem.state.equals("GRANTED", ignoreCase = true)
+                            val statusColor = if (isAllowed) colors.statusSuccess else colors.statusDestructive
+                            val timeStr = remember(auditItem.timestamp) {
+                                SimpleDateFormat("hh:mm a, MMM dd", Locale.getDefault()).format(auditItem.timestamp)
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(statusColor)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = auditItem.permissionType.lowercase().replaceFirstChar { it.uppercase() },
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = colors.textPrimary
+                                    )
+                                }
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = if (isAllowed) "Allowed" else "Blocked",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = statusColor
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = timeStr,
+                                        fontSize = 11.sp,
+                                        color = colors.textMuted
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(18.dp))

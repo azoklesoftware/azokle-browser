@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
@@ -418,13 +419,13 @@ fun BrowserMenuSheet(
                     }
                 )
 
-                // Desktop Mode Toggle
+                // Desktop / Mobile Mode Toggle
                 MenuActionPill(
-                    icon = Icons.Default.Devices,
-                    label = "Desktop",
-                    tint = if (isDesktopMode) colors.actionPrimaryBg else colors.textPrimary,
+                    icon = if (isDesktopMode) Icons.Default.PhoneAndroid else Icons.Default.Devices,
+                    label = if (isDesktopMode) "Mobile" else "Desktop",
+                    tint = if (isDesktopMode) colors.statusSuccess else (if (isWebpage) colors.textPrimary else null),
                     isActive = isDesktopMode && isWebpage,
-                    activeBorderColor = colors.actionPrimaryBg.copy(alpha = 0.5f),
+                    activeBorderColor = colors.statusSuccess.copy(alpha = 0.5f),
                     enabled = isWebpage,
                     modifier = Modifier.weight(1f),
                     onClick = {

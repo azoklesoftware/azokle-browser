@@ -892,6 +892,72 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permImportJson(
     get_core().permissions.import_persistent_json(&data) as jint
 }
 
+#[no_mangle]
+pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permRecordAudit(
+    mut env: JNIEnv,
+    _class: JClass,
+    origin: JString,
+    perm_type_str: JString,
+    state_str: JString,
+    is_private: jboolean,
+) -> jstring {
+    let o = match env.get_string(&origin) {
+        Ok(s) => String::from(s.to_str().unwrap_or("")),
+        Err(_) => String::new(),
+    };
+    let pt = match env.get_string(&perm_type_str) {
+        Ok(s) => String::from(s.to_str().unwrap_or("")),
+        Err(_) => String::new(),
+    };
+    let st = match env.get_string(&state_str) {
+        Ok(s) => String::from(s.to_str().unwrap_or("")),
+        Err(_) => String::new(),
+    };
+
+    if let Some(perm) = azokle_core::PermissionType::from_str_name(&pt) {
+        let state = azokle_core::PermissionState::from_str_name(&st);
+        let record = get_core().permissions.record_audit(&o, perm, state, is_private == JNI_TRUE);
+        let json = serde_json::to_string(&record).unwrap_or_else(|_| "null".to_string());
+        return safe_jstring(&mut env, &json);
+    }
+    safe_jstring(&mut env, "null")
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permGetAuditHistory(
+    mut env: JNIEnv,
+    _class: JClass,
+    limit: jint,
+    offset: jint,
+) -> jstring {
+    let list = get_core().permissions.get_audit_history(limit as usize, offset as usize);
+    let json = serde_json::to_string(&list).unwrap_or_else(|_| "[]".to_string());
+    safe_jstring(&mut env, &json)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permGetAuditHistoryForOrigin(
+    mut env: JNIEnv,
+    _class: JClass,
+    origin: JString,
+) -> jstring {
+    let o = match env.get_string(&origin) {
+        Ok(s) => String::from(s.to_str().unwrap_or("")),
+        Err(_) => String::new(),
+    };
+    let list = get_core().permissions.get_audit_history_for_origin(&o);
+    let json = serde_json::to_string(&list).unwrap_or_else(|_| "[]".to_string());
+    safe_jstring(&mut env, &json)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permClearAuditHistory(
+    _env: JNIEnv,
+    _class: JClass,
+) {
+    get_core().permissions.clear_audit_history();
+}
+
 // -----------------------------------------------------------------------------
 // Browsing History JNI Entry Points
 // -----------------------------------------------------------------------------
@@ -919,6 +985,28 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyRecordVisit
 }
 
 #[no_mangle]
+pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyRecordTypedVisit(
+    mut env: JNIEnv,
+    _class: JClass,
+    title: JString,
+    url: JString,
+    is_private: jboolean,
+) -> jstring {
+    let t = match env.get_string(&title) {
+        Ok(s) => String::from(s.to_str().unwrap_or("")),
+        Err(_) => String::new(),
+    };
+    let u = match env.get_string(&url) {
+        Ok(s) => String::from(s.to_str().unwrap_or("")),
+        Err(_) => String::new(),
+    };
+
+    let entry = get_core().history.record_typed_visit(&t, &u, is_private == JNI_TRUE);
+    let json = serde_json::to_string(&entry).unwrap_or_else(|_| "null".to_string());
+    safe_jstring(&mut env, &json)
+}
+
+#[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historySearch(
     mut env: JNIEnv,
     _class: JClass,
@@ -931,6 +1019,54 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historySearch(
     };
     let results = get_core().history.search(&q, limit as usize);
     let json = serde_json::to_string(&results).unwrap_or_else(|_| "[]".to_string());
+    safe_jstring(&mut env, &json)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historySearchFrecency(
+    mut env: JNIEnv,
+    _class: JClass,
+    query: JString,
+    limit: jint,
+) -> jstring {
+    let q = match env.get_string(&query) {
+        Ok(s) => String::from(s.to_str().unwrap_or("")),
+        Err(_) => String::new(),
+    };
+    let results = get_core().history.search_frecency(&q, limit as usize);
+    let json = serde_json::to_string(&results).unwrap_or_else(|_| "[]".to_string());
+    safe_jstring(&mut env, &json)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyGetTopFrecency(
+    mut env: JNIEnv,
+    _class: JClass,
+    limit: jint,
+) -> jstring {
+    let results = get_core().history.get_top_frecency(limit as usize);
+    let json = serde_json::to_string(&results).unwrap_or_else(|_| "[]".to_string());
+    safe_jstring(&mut env, &json)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyGetTopDomains(
+    mut env: JNIEnv,
+    _class: JClass,
+    limit: jint,
+) -> jstring {
+    let results = get_core().history.get_top_domains(limit as usize);
+    let json = serde_json::to_string(&results).unwrap_or_else(|_| "[]".to_string());
+    safe_jstring(&mut env, &json)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyGetGroupedTimeline(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jstring {
+    let results = get_core().history.get_grouped_timeline();
+    let json = serde_json::to_string(&results).unwrap_or_else(|_| "{}".to_string());
     safe_jstring(&mut env, &json)
 }
 

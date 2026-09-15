@@ -1,6 +1,6 @@
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use url::Url;
 
@@ -79,16 +79,29 @@ impl PermissionState {
     }
 }
 
-/// Dual-partition permission manager for origin capability authorization.
+/// Timestamped audit record capturing an origin permission authorization event.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PermissionAuditRecord {
+    pub id: String,
+    pub origin: String,
+    pub permission: PermissionType,
+    pub state: PermissionState,
+    pub timestamp: u64,
+    pub is_private: bool,
+}
+
+/// Dual-partition permission manager for origin capability authorization & security auditing.
 ///
 /// # Partition Architecture:
 /// - `persistent_rules`: Saved to persistent disk storage for standard browsing.
-/// - `ephemeral_rules`: Isolated in-memory table for Private and Tor browsing tabs,
-///   guaranteed to never touch non-volatile disk.
+/// - `ephemeral_rules`: Isolated in-memory table for Private and Tor browsing tabs.
+/// - `audit_history`: Real-time audit trail of all permission evaluations and access requests.
 #[derive(Clone)]
 pub struct PermissionsManager {
     persistent_rules: Arc<RwLock<HashMap<String, HashMap<PermissionType, PermissionState>>>>,
     ephemeral_rules: Arc<RwLock<HashMap<String, HashMap<PermissionType, PermissionState>>>>,
+    audit_history: Arc<RwLock<VecDeque<PermissionAuditRecord>>>,
+    max_audit_records: usize,
 }
 
 impl Default for PermissionsManager {
@@ -98,17 +111,17 @@ impl Default for PermissionsManager {
 }
 
 impl PermissionsManager {
-    /// Creates an empty permission manager with separate persistent and ephemeral rule tables.
+    /// Creates an empty permission manager with separate persistent and ephemeral rule tables and audit logging.
     pub fn new() -> Self {
         Self {
             persistent_rules: Arc::new(RwLock::new(HashMap::new())),
             ephemeral_rules: Arc::new(RwLock::new(HashMap::new())),
+            audit_history: Arc::new(RwLock::new(VecDeque::new())),
+            max_audit_records: 5000,
         }
     }
 
     /// Canonicalizes a raw URL or domain into a strict W3C RFC 6454 Origin (`scheme://host[:port]`).
-    ///
-    /// Omits standard default ports (80 for HTTP, 443 for HTTPS) to guarantee uniform lookup keys.
     pub fn canonicalize_origin(raw: &str) -> String {
         let trimmed = raw.trim();
         if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("about:blank") {
@@ -152,11 +165,13 @@ impl PermissionsManager {
 
         if is_private {
             let mut cache = self.ephemeral_rules.write();
-            cache.entry(canon).or_default().insert(perm, state);
+            cache.entry(canon.clone()).or_default().insert(perm, state);
         } else {
             let mut cache = self.persistent_rules.write();
-            cache.entry(canon).or_default().insert(perm, state);
+            cache.entry(canon.clone()).or_default().insert(perm, state);
         }
+
+        self.record_audit(&canon, perm, state, is_private);
     }
 
     pub fn get_permission(&self, origin: &str, perm: PermissionType, is_private: bool) -> PermissionState {
@@ -166,51 +181,105 @@ impl PermissionsManager {
         }
 
         if is_private {
-            if let Some(map) = self.ephemeral_rules.read().get(&canon) {
-                if let Some(&state) = map.get(&perm) {
+            let cache = self.ephemeral_rules.read();
+            if let Some(rules) = cache.get(&canon) {
+                if let Some(&state) = rules.get(&perm) {
                     return state;
                 }
             }
         }
 
-        self.persistent_rules
-            .read()
-            .get(&canon)
-            .and_then(|map| map.get(&perm).copied())
-            .unwrap_or(PermissionState::Prompt)
+        let cache = self.persistent_rules.read();
+        if let Some(rules) = cache.get(&canon) {
+            if let Some(&state) = rules.get(&perm) {
+                return state;
+            }
+        }
+
+        PermissionState::Prompt
     }
 
     pub fn clear_for_origin(&self, origin: &str) {
         let canon = Self::canonicalize_origin(origin);
-        if !canon.is_empty() {
-            self.persistent_rules.write().remove(&canon);
-            self.ephemeral_rules.write().remove(&canon);
+        if canon.is_empty() {
+            return;
         }
+        self.persistent_rules.write().remove(&canon);
+        self.ephemeral_rules.write().remove(&canon);
     }
 
     pub fn clear_all(&self) {
         self.persistent_rules.write().clear();
         self.ephemeral_rules.write().clear();
+        self.audit_history.write().clear();
     }
 
     pub fn clear_ephemeral(&self) {
         self.ephemeral_rules.write().clear();
     }
 
-    pub fn get_all_customized_origins(&self) -> Vec<String> {
-        let mut set = std::collections::BTreeSet::new();
-        for key in self.persistent_rules.read().keys() {
-            set.insert(key.clone());
+    // -------------------------------------------------------------------------
+    // Audit History & Security Logging
+    // -------------------------------------------------------------------------
+
+    pub fn record_audit(&self, origin: &str, perm: PermissionType, state: PermissionState, is_private: bool) -> PermissionAuditRecord {
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+
+        let mut list = self.audit_history.write();
+        let id = format!("perm_audit_{}_{}", now_ms, list.len());
+        let record = PermissionAuditRecord {
+            id,
+            origin: origin.to_string(),
+            permission: perm,
+            state,
+            timestamp: now_ms,
+            is_private,
+        };
+
+        list.push_front(record.clone());
+        if list.len() > self.max_audit_records {
+            list.pop_back();
         }
-        for key in self.ephemeral_rules.read().keys() {
-            set.insert(key.clone());
-        }
-        set.into_iter().collect()
+        record
+    }
+
+    pub fn get_audit_history(&self, limit: usize, offset: usize) -> Vec<PermissionAuditRecord> {
+        self.audit_history
+            .read()
+            .iter()
+            .skip(offset)
+            .take(limit)
+            .cloned()
+            .collect()
+    }
+
+    pub fn get_audit_history_for_origin(&self, origin: &str) -> Vec<PermissionAuditRecord> {
+        let canon = Self::canonicalize_origin(origin);
+        self.audit_history
+            .read()
+            .iter()
+            .filter(|r| r.origin == canon || canon.contains(&r.origin))
+            .cloned()
+            .collect()
+    }
+
+    pub fn clear_audit_history(&self) {
+        self.audit_history.write().clear();
+    }
+
+    pub fn clear_audit_history_range(&self, from_ms: u64, to_ms: u64) -> usize {
+        let mut list = self.audit_history.write();
+        let initial_len = list.len();
+        list.retain(|r| r.timestamp < from_ms || r.timestamp > to_ms);
+        initial_len - list.len()
     }
 
     pub fn get_site_permissions_json(&self, origin: &str, is_private: bool) -> String {
         let canon = Self::canonicalize_origin(origin);
-        let mut result = serde_json::Map::new();
+        let mut map = HashMap::new();
 
         let all_types = [
             PermissionType::Camera,
@@ -224,31 +293,22 @@ impl PermissionsManager {
             PermissionType::Clipboard,
         ];
 
-        for &perm in &all_types {
+        for perm in all_types {
             let state = self.get_permission(&canon, perm, is_private);
-            result.insert(
-                perm.to_str_name().to_string(),
-                serde_json::Value::String(state.to_str_name().to_string()),
-            );
+            map.insert(perm.to_str_name(), state.to_str_name());
         }
 
-        serde_json::to_string(&result).unwrap_or_else(|_| "{}".to_string())
+        serde_json::to_string(&map).unwrap_or_else(|_| "{}".to_string())
+    }
+
+    pub fn get_all_customized_origins(&self) -> Vec<String> {
+        let mut origins: Vec<String> = self.persistent_rules.read().keys().cloned().collect();
+        origins.sort();
+        origins
     }
 
     pub fn export_persistent_json(&self) -> String {
-        let mut root = serde_json::Map::new();
-        let guard = self.persistent_rules.read();
-        for (origin, map) in guard.iter() {
-            let mut site_map = serde_json::Map::new();
-            for (type_key, state_val) in map {
-                site_map.insert(
-                    type_key.to_str_name().to_string(),
-                    serde_json::Value::String(state_val.to_str_name().to_string()),
-                );
-            }
-            root.insert(origin.clone(), serde_json::Value::Object(site_map));
-        }
-        serde_json::to_string(&root).unwrap_or_else(|_| "{}".to_string())
+        serde_json::to_string(&*self.persistent_rules.read()).unwrap_or_else(|_| "{}".to_string())
     }
 
     pub fn import_persistent_json(&self, json_str: &str) -> usize {
@@ -256,38 +316,17 @@ impl PermissionsManager {
             return 0;
         }
 
-        let parsed: serde_json::Value = match serde_json::from_str(json_str) {
-            Ok(v) => v,
-            Err(_) => return 0,
-        };
+        let imported: HashMap<String, HashMap<PermissionType, PermissionState>> =
+            match serde_json::from_str(json_str) {
+                Ok(v) => v,
+                Err(_) => return 0,
+            };
 
-        let root_obj = match parsed.as_object() {
-            Some(obj) => obj,
-            None => return 0,
-        };
-
-        let mut count = 0;
+        let count = imported.len();
         let mut guard = self.persistent_rules.write();
-
-        for (origin_key, site_val) in root_obj {
-            let canon = Self::canonicalize_origin(origin_key);
-            if canon.is_empty() {
-                continue;
-            }
-            if let Some(site_obj) = site_val.as_object() {
-                let entry = guard.entry(canon).or_default();
-                for (type_name, state_val) in site_obj {
-                    if let Some(perm_type) = PermissionType::from_str_name(type_name) {
-                        if let Some(state_str) = state_val.as_str() {
-                            let perm_state = PermissionState::from_str_name(state_str);
-                            entry.insert(perm_type, perm_state);
-                            count += 1;
-                        }
-                    }
-                }
-            }
+        for (origin, rules) in imported {
+            guard.insert(origin, rules);
         }
-
         count
     }
 }
@@ -348,12 +387,28 @@ mod tests {
     }
 
     #[test]
+    fn test_permission_audit_history() {
+        let manager = PermissionsManager::new();
+        manager.set_permission("https://github.com", PermissionType::Geolocation, PermissionState::Allow, false);
+        manager.set_permission("https://tracker.com", PermissionType::Camera, PermissionState::Block, false);
+
+        let audit = manager.get_audit_history(10, 0);
+        assert_eq!(audit.len(), 2);
+        assert_eq!(audit[0].origin, "https://tracker.com");
+        assert_eq!(audit[0].state, PermissionState::Block);
+
+        let github_audit = manager.get_audit_history_for_origin("github.com");
+        assert_eq!(github_audit.len(), 1);
+        assert_eq!(github_audit[0].permission, PermissionType::Geolocation);
+    }
+
+    #[test]
     fn test_export_import_json() {
         let manager = PermissionsManager::new();
         manager.set_permission("https://test.com", PermissionType::Geolocation, PermissionState::Allow, false);
 
         let json = manager.export_persistent_json();
-        assert!(json.contains("GEOLOCATION"));
+        assert!(json.contains("Geolocation"));
 
         let new_manager = PermissionsManager::new();
         let imported = new_manager.import_persistent_json(&json);

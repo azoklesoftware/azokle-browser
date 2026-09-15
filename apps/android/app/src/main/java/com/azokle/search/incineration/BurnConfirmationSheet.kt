@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Cookie
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocalFireDepartment
@@ -156,9 +157,14 @@ fun BurnConfirmationSheet(
                     text = "Erase browsing history & web cache"
                 )
                 BurnItemRow(
+                    icon = Icons.Default.Download,
+                    iconTint = Color(0xFF10B981),
+                    text = "Clear download records & site permissions"
+                )
+                BurnItemRow(
                     icon = Icons.Default.DeleteSweep,
                     iconTint = Color(0xFFEF4444),
-                    text = "Clear search suggestions & recent queries"
+                    text = "Wipe search suggestions & secure SQLite vacuum"
                 )
             }
 

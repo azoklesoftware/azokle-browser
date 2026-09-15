@@ -1292,6 +1292,13 @@ fun BrowserScreen(
                     } else {
                         UrlHelper.resolveSearchOrUrl(context, trimmed)
                     }
+                    if (!isCurrentTabPrivate && !isCurrentTabTor && !resolved.startsWith("about:", ignoreCase = true) && !resolved.startsWith("azokle://", ignoreCase = true)) {
+                        com.azokle.search.history.HistoryManager.recordTypedVisit(
+                            url = resolved,
+                            title = "",
+                            isPrivate = false
+                        )
+                    }
                     navigateToUrl(resolved, "")
                 },
                 onDismiss = { showUrlEditSheet = false },
@@ -1828,6 +1835,9 @@ fun BrowserScreen(
                     TabManager.closeAllTabs()
                     com.azokle.search.engine.GeckoEngineManager.clearAllData(context)
                     com.azokle.search.history.HistoryManager.clearAll()
+                    com.azokle.search.downloads.DownloadManager.clearAllHistory(context)
+                    com.azokle.search.permissions.SitePermissionsManager.getInstance(context).clearAllPermissions()
+                    com.azokle.search.history.AzokleHistoryDatabase.getInstance(context).clearAllSecurely()
                     com.azokle.search.common.util.PreferencesManager(context).clearRecentSearches()
                     com.azokle.search.adblock.AdBlockStats.resetForPage("", "", true)
 

@@ -385,6 +385,7 @@ object DownloadManager {
             val file = File(item.filePath)
             if (file.exists()) file.delete()
         }
+        com.azokle.search.history.AzokleHistoryDatabase.getInstance(context).deleteDownload(id)
         _downloads.update { list -> list.filterNot { it.id == id } }
         saveHistory(context)
     }
@@ -393,6 +394,7 @@ object DownloadManager {
         activeJobs.values.forEach { it.cancel() }
         activeJobs.clear()
         _downloads.value = emptyList()
+        com.azokle.search.history.AzokleHistoryDatabase.getInstance(context).clearDownloads()
         saveHistory(context)
     }
 
@@ -537,8 +539,17 @@ object DownloadManager {
     private fun saveHistory(context: Context) {
         scope.launch {
             try {
+                val db = com.azokle.search.history.AzokleHistoryDatabase.getInstance(context)
+                val standardList = _downloads.value.take(200).filter { !it.isPrivate && !it.isTor }
+
+                // 1. Sync directly to SQLite
+                for (item in standardList) {
+                    db.recordOrUpdateDownload(item)
+                }
+
+                // 2. Synchronize Atomic JSON file backup
                 val array = JSONArray()
-                _downloads.value.take(200).filter { !it.isPrivate && !it.isTor }.forEach { item ->
+                standardList.forEach { item ->
                     val obj = JSONObject().apply {
                         put("id", item.id)
                         put("url", item.url)
@@ -572,6 +583,16 @@ object DownloadManager {
     private fun loadHistory(context: Context) {
         scope.launch(Dispatchers.IO) {
             try {
+                val db = com.azokle.search.history.AzokleHistoryDatabase.getInstance(context)
+                val sqliteDownloads = db.getAllDownloads()
+
+                if (sqliteDownloads.isNotEmpty()) {
+                    _downloads.value = sqliteDownloads
+                    Log.d(TAG, "Restored ${sqliteDownloads.size} download records from SQLite")
+                    return@launch
+                }
+
+                // Fallback to JSON file backup and back-populate SQLite
                 val atomicFile = androidx.core.util.AtomicFile(File(context.filesDir, DOWNLOADS_FILE))
                 if (!atomicFile.baseFile.exists()) return@launch
                 val bytes = atomicFile.readFully()
@@ -589,22 +610,23 @@ object DownloadManager {
                         try { DownloadStatus.valueOf(rawStatus) } catch (e: Exception) { DownloadStatus.COMPLETED }
                     }
 
-                    list.add(
-                        DownloadItem(
-                            id = obj.getString("id"),
-                            url = obj.getString("url"),
-                            filename = obj.getString("filename"),
-                            filePath = obj.getString("filePath"),
-                            mimeType = obj.getString("mimeType"),
-                            totalBytes = obj.optLong("totalBytes", 0L),
-                            downloadedBytes = obj.optLong("downloadedBytes", 0L),
-                            status = status,
-                            timestamp = obj.optLong("timestamp", System.currentTimeMillis()),
-                            errorMessage = obj.optString("errorMessage", "").takeIf { it.isNotBlank() }
-                        )
+                    val dlItem = DownloadItem(
+                        id = obj.getString("id"),
+                        url = obj.getString("url"),
+                        filename = obj.getString("filename"),
+                        filePath = obj.getString("filePath"),
+                        mimeType = obj.getString("mimeType"),
+                        totalBytes = obj.optLong("totalBytes", 0L),
+                        downloadedBytes = obj.optLong("downloadedBytes", 0L),
+                        status = status,
+                        timestamp = obj.optLong("timestamp", System.currentTimeMillis()),
+                        errorMessage = obj.optString("errorMessage", "").takeIf { it.isNotBlank() }
                     )
+                    list.add(dlItem)
+                    db.recordOrUpdateDownload(dlItem)
                 }
                 _downloads.value = list
+                Log.d(TAG, "Migrated ${list.size} downloads from JSON to SQLite")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load downloads: ${e.message}")
             }

@@ -105,10 +105,19 @@ object AzokleCore {
     private external fun permGetAllCustomizedOrigins(): String
     private external fun permExportJson(): String
     private external fun permImportJson(jsonData: String): Int
+    private external fun permRecordAudit(origin: String, permType: String, state: String, isPrivate: Boolean): String
+    private external fun permGetAuditHistory(limit: Int, offset: Int): String
+    private external fun permGetAuditHistoryForOrigin(origin: String): String
+    private external fun permClearAuditHistory()
 
     // Browsing History JNI Declarations
     private external fun historyRecordVisit(title: String, url: String, isPrivate: Boolean): String
+    private external fun historyRecordTypedVisit(title: String, url: String, isPrivate: Boolean): String
     private external fun historySearch(query: String, limit: Int): String
+    private external fun historySearchFrecency(query: String, limit: Int): String
+    private external fun historyGetTopFrecency(limit: Int): String
+    private external fun historyGetTopDomains(limit: Int): String
+    private external fun historyGetGroupedTimeline(): String
     private external fun historyGetRecent(limit: Int, offset: Int): String
     private external fun historyDeleteEntry(id: String): Boolean
     private external fun historyDeleteUrl(url: String): Boolean
@@ -703,6 +712,41 @@ object AzokleCore {
         }
     }
 
+    fun recordPermissionAudit(origin: String, permType: String, state: String, isPrivate: Boolean = false): JSONObject? {
+        if (!isNativeLoaded || origin.isBlank()) return null
+        return try {
+            val res = permRecordAudit(origin, permType, state, isPrivate)
+            if (res != "null") JSONObject(res) else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun getPermissionAuditHistory(limit: Int = 50, offset: Int = 0): org.json.JSONArray {
+        if (!isNativeLoaded) return org.json.JSONArray()
+        return try {
+            org.json.JSONArray(permGetAuditHistory(limit, offset))
+        } catch (e: Exception) {
+            org.json.JSONArray()
+        }
+    }
+
+    fun getPermissionAuditHistoryForOrigin(origin: String): org.json.JSONArray {
+        if (!isNativeLoaded || origin.isBlank()) return org.json.JSONArray()
+        return try {
+            org.json.JSONArray(permGetAuditHistoryForOrigin(origin))
+        } catch (e: Exception) {
+            org.json.JSONArray()
+        }
+    }
+
+    fun clearPermissionAuditHistory() {
+        if (!isNativeLoaded) return
+        try {
+            permClearAuditHistory()
+        } catch (e: Exception) {}
+    }
+
     // -------------------------------------------------------------------------
     // Browsing History Subsystem API
     // -------------------------------------------------------------------------
@@ -717,12 +761,58 @@ object AzokleCore {
         }
     }
 
+    fun recordHistoryTypedVisit(title: String, url: String, isPrivate: Boolean = false): JSONObject? {
+        if (!isNativeLoaded || url.isBlank() || isPrivate) return null
+        return try {
+            val res = historyRecordTypedVisit(title, url, isPrivate)
+            if (res != "null") JSONObject(res) else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun searchHistory(query: String, limit: Int = 20): org.json.JSONArray {
         if (!isNativeLoaded) return org.json.JSONArray()
         return try {
             org.json.JSONArray(historySearch(query, limit))
         } catch (e: Exception) {
             org.json.JSONArray()
+        }
+    }
+
+    fun searchHistoryFrecency(query: String, limit: Int = 20): org.json.JSONArray {
+        if (!isNativeLoaded) return org.json.JSONArray()
+        return try {
+            org.json.JSONArray(historySearchFrecency(query, limit))
+        } catch (e: Exception) {
+            org.json.JSONArray()
+        }
+    }
+
+    fun getTopFrecencyHistory(limit: Int = 20): org.json.JSONArray {
+        if (!isNativeLoaded) return org.json.JSONArray()
+        return try {
+            org.json.JSONArray(historyGetTopFrecency(limit))
+        } catch (e: Exception) {
+            org.json.JSONArray()
+        }
+    }
+
+    fun getTopHistoryDomains(limit: Int = 10): org.json.JSONArray {
+        if (!isNativeLoaded) return org.json.JSONArray()
+        return try {
+            org.json.JSONArray(historyGetTopDomains(limit))
+        } catch (e: Exception) {
+            org.json.JSONArray()
+        }
+    }
+
+    fun getGroupedHistoryTimeline(): JSONObject {
+        if (!isNativeLoaded) return JSONObject()
+        return try {
+            JSONObject(historyGetGroupedTimeline())
+        } catch (e: Exception) {
+            JSONObject()
         }
     }
 

@@ -87,6 +87,8 @@ import com.azokle.search.common.theme.AzokleRadius
 import com.azokle.search.common.theme.AzokleTheme
 import com.azokle.search.common.theme.adaptiveContentWidth
 import com.azokle.search.common.util.UrlHelper
+import com.azokle.search.history.HistoryItem
+import com.azokle.search.history.HistoryManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -143,6 +145,8 @@ fun BrowserUrlEditSheet(
     val isUrl = remember(textValue.text) { UrlHelper.isDirectUrl(textValue.text) }
 
     var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
+    var historySuggestions by remember { mutableStateOf<List<HistoryItem>>(emptyList()) }
+    var topFrecencySites by remember { mutableStateOf<List<HistoryItem>>(emptyList()) }
     var isLoadingSuggestions by remember { mutableStateOf(false) }
     var debounceJob by remember { mutableStateOf<Job?>(null) }
     var showVoiceModal by remember { mutableStateOf(false) }
@@ -156,6 +160,7 @@ fun BrowserUrlEditSheet(
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
         try {
+            topFrecencySites = HistoryManager.getTopFrecency(4)
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
             val clip = clipboard?.primaryClip?.getItemAt(0)?.text?.toString()?.trim()
             if (!clip.isNullOrBlank() && UrlHelper.isDirectUrl(clip) && !clip.equals(initialText.trim(), ignoreCase = true)) {
@@ -227,8 +232,10 @@ fun BrowserUrlEditSheet(
                             val query = it.text.trim()
                             if (query.length < 2 || UrlHelper.isDirectUrl(query)) {
                                 suggestions = emptyList()
+                                historySuggestions = if (query.isNotBlank()) HistoryManager.searchFrecency(query, 3) else emptyList()
                                 isLoadingSuggestions = false
                             } else {
+                                historySuggestions = HistoryManager.searchFrecency(query, 3)
                                 debounceJob = scope.launch {
                                     delay(140)
                                     isLoadingSuggestions = true
@@ -419,6 +426,25 @@ fun BrowserUrlEditSheet(
                         )
                     }
 
+                    // Sovereign Frecency History Matches
+                    if (historySuggestions.isNotEmpty()) {
+                        items(historySuggestions) { hist ->
+                            UrlSuggestionCard(
+                                icon = Icons.Default.History,
+                                title = hist.displayTitle,
+                                subtitle = hist.url,
+                                colors = colors,
+                                categoryBadge = "History",
+                                onClick = {
+                                    onNavigate(hist.url)
+                                },
+                                onFill = {
+                                    textValue = TextFieldValue(hist.url, selection = TextRange(hist.url.length))
+                                }
+                            )
+                        }
+                    }
+
                     // Live autosuggestions
                     items(suggestions) { suggestion ->
                         UrlSuggestionCard(
@@ -463,6 +489,32 @@ fun BrowserUrlEditSheet(
                         }
                     }
                 } else {
+                    // Top Visited Frecency Sites
+                    if (topFrecencySites.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "TOP SITES",
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.textMuted,
+                                letterSpacing = 1.sp,
+                                modifier = Modifier.padding(start = 4.dp, top = 14.dp, bottom = 8.dp)
+                            )
+                        }
+
+                        items(topFrecencySites) { topSite ->
+                            UrlSuggestionCard(
+                                icon = Icons.Default.Language,
+                                title = topSite.displayTitle,
+                                subtitle = topSite.cleanHost,
+                                colors = colors,
+                                categoryBadge = "Top Site",
+                                onClick = { onNavigate(topSite.url) }
+                            )
+                        }
+                    }
+
                     // Recent Searches
                     if (recentSearches.isNotEmpty()) {
                         item {
