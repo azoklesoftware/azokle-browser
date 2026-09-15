@@ -423,6 +423,7 @@ class MainActivity : FragmentActivity() {
         updateSystemBars(isDark)
         com.azokle.search.core.BiometricAuthManager.setCurrentActivity(this)
         com.azokle.search.widget.AzokleSearchWidgetProvider.updateAllWidgets(this)
+        com.azokle.search.widget.AzokleTorSearchWidgetProvider.updateAllWidgets(this)
     }
 
     override fun onUserLeaveHint() {

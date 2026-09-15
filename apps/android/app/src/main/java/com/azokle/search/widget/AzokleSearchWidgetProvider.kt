@@ -71,7 +71,6 @@ class AzokleSearchWidgetProvider : AppWidgetProvider() {
             val bgRes = if (isDark) R.drawable.widget_bg_dark else R.drawable.widget_bg_light
             val emblemBgRes = if (isDark) R.drawable.widget_emblem_bg_dark else R.drawable.widget_emblem_bg_light
             val iconBgRes = if (isDark) R.drawable.widget_icon_bg_dark else R.drawable.widget_icon_bg_light
-            val torChipBgRes = if (isDark) R.drawable.widget_tor_chip_bg_dark else R.drawable.widget_tor_chip_bg_light
 
             val primaryTextColor = if (isDark) android.graphics.Color.parseColor("#F1F5F9") else android.graphics.Color.parseColor("#0F172A")
             val searchIconTint = if (isDark) android.graphics.Color.parseColor("#FF38BDF8") else android.graphics.Color.parseColor("#FF0284C7")
@@ -86,11 +85,6 @@ class AzokleSearchWidgetProvider : AppWidgetProvider() {
 
             views.setInt(R.id.widget_btn_voice, "setBackgroundResource", iconBgRes)
             views.setInt(R.id.widget_voice_icon, "setColorFilter", actionIconTint)
-
-            views.setInt(R.id.widget_btn_tor, "setBackgroundResource", torChipBgRes)
-
-            views.setInt(R.id.widget_btn_qr, "setBackgroundResource", iconBgRes)
-            views.setInt(R.id.widget_qr_icon, "setColorFilter", actionIconTint)
 
             // Universal clean search prompt text
             views.setTextViewText(R.id.widget_search_text, "Search with Azokle")
@@ -122,34 +116,6 @@ class AzokleSearchWidgetProvider : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             views.setOnClickPendingIntent(R.id.widget_btn_voice, voicePendingIntent)
-
-            // 3. QR Scanner Action Click -> Opens Camera Scanner
-            val qrIntent = Intent(context, MainActivity::class.java).apply {
-                action = Intent.ACTION_MAIN
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra(EXTRA_SCAN_QR, true)
-            }
-            val qrPendingIntent = PendingIntent.getActivity(
-                context,
-                2,
-                qrIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            views.setOnClickPendingIntent(R.id.widget_btn_qr, qrPendingIntent)
-
-            // 4. Tor Onion Search Action Click -> Opens Instant Anonymous Tor Tab
-            val torIntent = Intent(context, MainActivity::class.java).apply {
-                action = Intent.ACTION_MAIN
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra(EXTRA_OPEN_TOR, true)
-            }
-            val torPendingIntent = PendingIntent.getActivity(
-                context,
-                3,
-                torIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            views.setOnClickPendingIntent(R.id.widget_btn_tor, torPendingIntent)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }

@@ -69,39 +69,4 @@
             android:tint="#F1F5F9" />
     </FrameLayout>
 
-    <!-- Tor Onion Anonymous Tab Action Button -->
-    <FrameLayout
-        android:id="@+id/widget_btn_tor"
-        android:layout_width="34dp"
-        android:layout_height="34dp"
-        android:layout_marginStart="5dp"
-        android:background="@drawable/widget_tor_chip_bg_dark">
-
-        <ImageView
-            android:id="@+id/widget_tor_icon"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:layout_gravity="center"
-            android:contentDescription="Tor Private Tab"
-            android:src="@drawable/ic_tor" />
-    </FrameLayout>
-
-    <!-- QR Code / Camera Scanner Action Button -->
-    <FrameLayout
-        android:id="@+id/widget_btn_qr"
-        android:layout_width="34dp"
-        android:layout_height="34dp"
-        android:layout_marginStart="5dp"
-        android:background="@drawable/widget_icon_bg_dark">
-
-        <ImageView
-            android:id="@+id/widget_qr_icon"
-            android:layout_width="16dp"
-            android:layout_height="16dp"
-            android:layout_gravity="center"
-            android:contentDescription="QR Scanner"
-            android:src="@drawable/ic_widget_qr"
-            android:tint="#F1F5F9" />
-    </FrameLayout>
-
 </LinearLayout>
