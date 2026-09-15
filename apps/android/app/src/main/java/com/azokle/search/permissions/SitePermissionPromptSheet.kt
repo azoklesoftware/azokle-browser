@@ -22,12 +22,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.ripple
@@ -42,20 +43,22 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.azokle.search.permissions.SitePermissionRequest
-import com.azokle.search.permissions.SitePermissionType
 import com.azokle.search.common.theme.AzokleRadius
 import com.azokle.search.common.theme.AzokleTheme
 import com.azokle.search.common.theme.adaptiveContentWidth
 
+/**
+ * Premium, clean, and smooth Site Permission Request Bottom Sheet.
+ * Displays domain identity, requested sensor/hardware capabilities, and explicit scope controls.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SitePermissionPromptSheet(
@@ -71,6 +74,19 @@ fun SitePermissionPromptSheet(
 
     val cleanHost = request.host.removePrefix("www.").ifBlank { "This website" }
     val isHttps = request.uri.startsWith("https://", ignoreCase = true)
+    val isTor = request.isPrivate || request.uri.contains(".onion", ignoreCase = true)
+
+    val primaryPerm = request.requestedTypes.firstOrNull() ?: SitePermissionType.AUTOPLAY
+    val isAutoplayOnly = request.requestedTypes.size == 1 && primaryPerm == SitePermissionType.AUTOPLAY
+
+    val heroAccentColor = when (primaryPerm) {
+        SitePermissionType.CAMERA -> Color(0xFF38BDF8) // Electric Cyan
+        SitePermissionType.MICROPHONE -> Color(0xFFA855F7) // Purple
+        SitePermissionType.GEOLOCATION -> Color(0xFFF59E0B) // Amber
+        SitePermissionType.NOTIFICATIONS -> Color(0xFF06B6D4) // Teal
+        SitePermissionType.AUTOPLAY -> colors.statusSuccess
+        else -> colors.statusSuccess
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -78,78 +94,37 @@ fun SitePermissionPromptSheet(
         containerColor = colors.background,
         contentColor = colors.textPrimary,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        dragHandle = null
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .statusBarsPadding()
+                    .padding(top = 12.dp, bottom = 8.dp)
+                    .size(width = 36.dp, height = 4.dp)
+                    .clip(CircleShape)
+                    .background(colors.border.copy(alpha = 0.8f))
+            )
+        }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .adaptiveContentWidth(560.dp)
-                .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 20.dp),
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Drag Indicator
-            Box(
-                modifier = Modifier
-                    .size(width = 36.dp, height = 4.dp)
-                    .clip(CircleShape)
-                    .background(colors.border)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Website Identity Header
+            // 1. Top Close Button Row
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(AzokleRadius.md)
-                    .background(colors.surfaceElevated)
-                    .border(1.dp, colors.border, AzokleRadius.md)
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
             ) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(if (isHttps) colors.statusSuccess.copy(alpha = 0.15f) else colors.statusDestructive.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (isHttps) Icons.Default.Lock else Icons.Default.Security,
-                        contentDescription = null,
-                        tint = if (isHttps) colors.statusSuccess else colors.statusDestructive,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = cleanHost,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = if (isHttps) "Secure HTTPS Origin" else "Insecure Connection",
-                        fontSize = 11.sp,
-                        color = if (isHttps) colors.statusSuccess else colors.statusDestructive,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-
-                // 48dp Close Target
-                Box(
-                    modifier = Modifier
-                        .sizeIn(minWidth = 38.dp, minHeight = 44.dp)
+                        .sizeIn(minWidth = 40.dp, minHeight = 40.dp)
                         .clip(CircleShape)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(bounded = false, radius = 16.dp, color = colors.textSecondary),
+                            indication = ripple(bounded = false, radius = 18.dp, color = colors.textSecondary),
                             onClick = onDismiss
                         )
                         .semantics {
@@ -158,34 +133,97 @@ fun SitePermissionPromptSheet(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = null,
-                        tint = colors.textSecondary,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(CircleShape)
+                            .background(colors.surfaceElevated)
+                            .border(1.dp, colors.borderSubtle, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = null,
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
                 }
             }
 
-            val isAutoplayOnly = request.requestedTypes.size == 1 && request.requestedTypes.first() == SitePermissionType.AUTOPLAY
+            // 2. Hero Icon Badge Emblem
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(heroAccentColor.copy(alpha = 0.14f))
+                    .border(1.5.dp, heroAccentColor.copy(alpha = 0.35f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = primaryPerm.icon,
+                    contentDescription = null,
+                    tint = heroAccentColor,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
+            // 3. Website Origin & Permission Title
             Text(
-                text = if (isAutoplayOnly) "Autoplay Permission" else "Permission Request",
+                text = cleanHost,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = colors.textPrimary,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.semantics { heading() }
             )
 
             Spacer(modifier = Modifier.height(4.dp))
 
+            // Security Origin Badge
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(colors.surfaceElevated)
+                    .border(0.8.dp, colors.borderSubtle, RoundedCornerShape(6.dp))
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            ) {
+                Icon(
+                    imageVector = when {
+                        isTor -> Icons.Default.Security
+                        isHttps -> Icons.Default.Lock
+                        else -> Icons.Default.Security
+                    },
+                    contentDescription = null,
+                    tint = if (isHttps) colors.statusSuccess else colors.textMuted,
+                    modifier = Modifier.size(11.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = when {
+                        isTor -> "Tor Onion Isolated"
+                        isHttps -> "Secure HTTPS Origin"
+                        else -> "Standard Web Origin"
+                    },
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (isHttps) colors.statusSuccess else colors.textSecondary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             Text(
                 text = if (isAutoplayOnly) {
-                    "This website wants to automatically play audio or video."
+                    "Wants permission to automatically play media"
                 } else {
-                    "$cleanHost wants to access your device capabilities:"
+                    "Requests access to the following device capabilities:"
                 },
                 fontSize = 13.sp,
                 color = colors.textSecondary,
@@ -194,22 +232,22 @@ fun SitePermissionPromptSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Requested Permission Items
+            // 4. Requested Capabilities List Card
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(AzokleRadius.lg)
-                    .background(colors.cardBg)
-                    .border(1.dp, colors.border, AzokleRadius.lg)
-                    .padding(12.dp),
+                    .background(colors.surfaceElevated)
+                    .border(1.dp, colors.borderSubtle, AzokleRadius.lg)
+                    .padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 request.requestedTypes.forEachIndexed { index, perm ->
                     val permColor = when (perm) {
-                        SitePermissionType.CAMERA -> colors.statusAccent
-                        SitePermissionType.MICROPHONE -> colors.statusTor
-                        SitePermissionType.GEOLOCATION -> colors.statusWarning
-                        SitePermissionType.NOTIFICATIONS -> colors.statusAccent
+                        SitePermissionType.CAMERA -> Color(0xFF38BDF8)
+                        SitePermissionType.MICROPHONE -> Color(0xFFA855F7)
+                        SitePermissionType.GEOLOCATION -> Color(0xFFF59E0B)
+                        SitePermissionType.NOTIFICATIONS -> Color(0xFF06B6D4)
                         SitePermissionType.AUTOPLAY -> colors.statusSuccess
                         else -> colors.statusSuccess
                     }
@@ -221,8 +259,9 @@ fun SitePermissionPromptSheet(
                         Box(
                             modifier = Modifier
                                 .size(38.dp)
-                                .clip(AzokleRadius.sm)
-                                .background(permColor.copy(alpha = 0.15f)),
+                                .clip(AzokleRadius.md)
+                                .background(permColor.copy(alpha = 0.14f))
+                                .border(1.dp, permColor.copy(alpha = 0.25f), AzokleRadius.md),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -239,21 +278,22 @@ fun SitePermissionPromptSheet(
                             Text(
                                 text = perm.displayName,
                                 fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
+                                fontWeight = FontWeight.Bold,
                                 color = colors.textPrimary
                             )
                             Text(
                                 text = perm.description,
-                                fontSize = 11.sp,
-                                color = colors.textSecondary
+                                fontSize = 11.5.sp,
+                                color = colors.textSecondary,
+                                lineHeight = 15.sp
                             )
                         }
                     }
 
                     if (index < request.requestedTypes.size - 1) {
                         HorizontalDivider(
-                            modifier = Modifier.padding(vertical = 2.dp),
-                            color = colors.border.copy(alpha = 0.5f)
+                            modifier = Modifier.padding(vertical = 4.dp),
+                            color = colors.borderSubtle
                         )
                     }
                 }
@@ -261,45 +301,71 @@ fun SitePermissionPromptSheet(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Remember Choice Checkbox
+            // 5. Remember Choice Pill Card (With Emerald Green Switch)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(AzokleRadius.sm)
+                    .clip(AzokleRadius.md)
+                    .background(colors.surfaceElevated)
+                    .border(1.dp, colors.borderSubtle, AzokleRadius.md)
                     .clickable { rememberDecision = !rememberDecision }
-                    .padding(horizontal = 4.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Checkbox(
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Shield,
+                        contentDescription = null,
+                        tint = if (rememberDecision) colors.statusSuccess else colors.textMuted,
+                        modifier = Modifier.size(17.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Remember for this website",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = colors.textPrimary
+                        )
+                        Text(
+                            text = if (rememberDecision) "Choice saved permanently for $cleanHost" else "Permission expires when tab closes",
+                            fontSize = 11.sp,
+                            color = colors.textMuted
+                        )
+                    }
+                }
+
+                Switch(
                     checked = rememberDecision,
                     onCheckedChange = { rememberDecision = it },
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = colors.actionPrimaryBg,
-                        checkmarkColor = colors.actionPrimaryText
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = colors.statusSuccess,
+                        checkedBorderColor = Color.Transparent,
+                        uncheckedThumbColor = colors.textMuted,
+                        uncheckedTrackColor = colors.cardBg,
+                        uncheckedBorderColor = colors.borderSubtle
                     )
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = if (isAutoplayOnly) "Remember decision for $cleanHost" else "Remember my decision for this website",
-                    fontSize = 12.sp,
-                    color = colors.textSecondary,
-                    fontWeight = FontWeight.Medium
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // Action Buttons
+            // 6. Action Buttons (3-Tier Visual Hierarchy)
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // 1. Allow
+                // Tier 1: Allow / While Visiting (Primary Emphasis)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
-                        .clip(AzokleRadius.md)
+                        .height(50.dp)
+                        .clip(AzokleRadius.lg)
                         .background(colors.actionPrimaryBg)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
@@ -319,21 +385,50 @@ fun SitePermissionPromptSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (isAutoplayOnly) "Allow" else if (rememberDecision) "Allow While Visiting" else "Allow",
-                        fontSize = 14.sp,
+                        text = if (isAutoplayOnly) "Allow Autoplay" else if (rememberDecision) "Allow While Visiting" else "Allow",
+                        fontSize = 14.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = colors.actionPrimaryText
                     )
                 }
 
-                // 2. Block / Don't Allow
+                // Tier 2: Allow This Time Only (Ephemeral 1-time grant)
+                if (!isAutoplayOnly) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(46.dp)
+                            .clip(AzokleRadius.lg)
+                            .background(colors.surfaceElevated)
+                            .border(1.dp, colors.borderSubtle, AzokleRadius.lg)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = true, color = colors.textPrimary.copy(alpha = 0.1f)),
+                                onClick = onAllowOnce
+                            )
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = "Allow this time only"
+                            },
+                    contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Allow This Time Only",
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.textPrimary
+                        )
+                    }
+                }
+
+                // Tier 3: Don't Allow (Block / Reject)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(46.dp)
-                        .clip(AzokleRadius.md)
-                        .background(colors.statusDestructive.copy(alpha = 0.12f))
-                        .border(1.dp, colors.statusDestructive.copy(alpha = 0.3f), AzokleRadius.md)
+                        .clip(AzokleRadius.lg)
+                        .background(colors.statusDestructive.copy(alpha = 0.10f))
+                        .border(1.dp, colors.statusDestructive.copy(alpha = 0.28f), AzokleRadius.lg)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = ripple(bounded = true, color = colors.statusDestructive.copy(alpha = 0.2f)),
@@ -346,42 +441,13 @@ fun SitePermissionPromptSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (isAutoplayOnly) "Block" else "Don't Allow",
-                        fontSize = 13.sp,
+                        text = if (isAutoplayOnly) "Block Autoplay" else "Don't Allow",
+                        fontSize = 13.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = colors.statusDestructive
                     )
                 }
-
-                // 3. Ask Every Time / Allow This Time Only
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(46.dp)
-                        .clip(AzokleRadius.md)
-                        .background(colors.surfaceElevated)
-                        .border(1.dp, colors.border, AzokleRadius.md)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(bounded = true, color = colors.textPrimary.copy(alpha = 0.1f)),
-                            onClick = onAllowOnce
-                        )
-                        .semantics {
-                            role = Role.Button
-                            contentDescription = if (isAutoplayOnly) "Ask every time" else "Allow this time only"
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (isAutoplayOnly) "Ask Every Time" else "Allow This Time Only",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colors.textPrimary
-                    )
-                }
             }
-
-            Spacer(modifier = Modifier.height(10.dp))
         }
     }
 }
