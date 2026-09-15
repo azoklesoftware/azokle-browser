@@ -290,24 +290,56 @@ object GeckoEngineManager {
     const val MODERN_DESKTOP_UA =
         "Mozilla/5.0 (X11; Linux x86_64; rv:154.0) Gecko/20100101 Firefox/154.0"
 
+    fun applyDesktopMode(session: GeckoSession, enabled: Boolean) {
+        try {
+            val targetUaMode = if (enabled) {
+                GeckoSessionSettings.USER_AGENT_MODE_DESKTOP
+            } else {
+                GeckoSessionSettings.USER_AGENT_MODE_MOBILE
+            }
+            val targetViewportMode = if (enabled) {
+                GeckoSessionSettings.VIEWPORT_MODE_DESKTOP
+            } else {
+                GeckoSessionSettings.VIEWPORT_MODE_MOBILE
+            }
+            val targetUaOverride = if (enabled) MODERN_DESKTOP_UA else null
+
+            if (session.settings.userAgentMode != targetUaMode) {
+                session.settings.userAgentMode = targetUaMode
+            }
+            if (session.settings.viewportMode != targetViewportMode) {
+                session.settings.viewportMode = targetViewportMode
+            }
+            if (session.settings.userAgentOverride != targetUaOverride) {
+                session.settings.userAgentOverride = targetUaOverride
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("GeckoEngineManager", "Failed to apply desktop mode: ${e.message}")
+        }
+    }
+
     fun createSession(
         context: Context? = null,
         isPrivate: Boolean = false,
-        isTor: Boolean = false
+        isTor: Boolean = false,
+        isDesktopMode: Boolean = false
     ): GeckoSession {
         val allowBackgroundAudio = context?.let {
             com.azokle.search.common.util.PreferencesManager(it).isBackgroundAudioEnabled()
         } ?: true
 
-        val sessionSettings = GeckoSessionSettings.Builder()
+        val builder = GeckoSessionSettings.Builder()
             .usePrivateMode(isPrivate || isTor)
             .useTrackingProtection(true)
-            .userAgentMode(GeckoSessionSettings.USER_AGENT_MODE_MOBILE)
-            .viewportMode(GeckoSessionSettings.VIEWPORT_MODE_MOBILE)
+            .userAgentMode(if (isDesktopMode) GeckoSessionSettings.USER_AGENT_MODE_DESKTOP else GeckoSessionSettings.USER_AGENT_MODE_MOBILE)
+            .viewportMode(if (isDesktopMode) GeckoSessionSettings.VIEWPORT_MODE_DESKTOP else GeckoSessionSettings.VIEWPORT_MODE_MOBILE)
             .suspendMediaWhenInactive(!allowBackgroundAudio)
-            .build()
 
-        return GeckoSession(sessionSettings)
+        if (isDesktopMode) {
+            builder.userAgentOverride(MODERN_DESKTOP_UA)
+        }
+
+        return GeckoSession(builder.build())
     }
 
     fun clearAllData(context: Context) {

@@ -134,7 +134,14 @@ object TabManager {
             reclaimInactiveTabMemory(MAX_WARM_SESSIONS - 1)
         }
         return sessionMap.getOrPut(id) {
-            val s = com.azokle.search.engine.GeckoEngineManager.createSession(context, isPrivate, isTor)
+            val tab = _tabs.value.find { it.id == id }
+            val isDesktop = tab?.isDesktopMode ?: false
+            val s = com.azokle.search.engine.GeckoEngineManager.createSession(
+                context = context,
+                isPrivate = isPrivate,
+                isTor = isTor,
+                isDesktopMode = isDesktop
+            )
             val isActive = id == _activeTabId.value
             try {
                 s.setActive(isActive)
@@ -436,6 +443,10 @@ object TabManager {
                     tab
                 }
             }
+        }
+        // Immediately sync GeckoSession settings for this tab
+        sessionMap[targetId]?.let { session ->
+            com.azokle.search.engine.GeckoEngineManager.applyDesktopMode(session, newMode)
         }
         persistTabs()
         return newMode

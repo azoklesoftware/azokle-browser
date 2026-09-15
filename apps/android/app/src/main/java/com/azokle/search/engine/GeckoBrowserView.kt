@@ -92,29 +92,8 @@ fun GeckoBrowserView(
     var isCrashed by remember { androidx.compose.runtime.mutableStateOf(false) }
     var isOomKill by remember { androidx.compose.runtime.mutableStateOf(false) }
 
-    var isFirstDesktopEffect by remember { androidx.compose.runtime.mutableStateOf(true) }
-    LaunchedEffect(isDesktopMode) {
-        if (isFirstDesktopEffect) {
-            isFirstDesktopEffect = false
-            if (isDesktopMode) {
-                session.settings.userAgentMode = GeckoSessionSettings.USER_AGENT_MODE_DESKTOP
-                session.settings.viewportMode = GeckoSessionSettings.VIEWPORT_MODE_DESKTOP
-                session.settings.userAgentOverride = GeckoEngineManager.MODERN_DESKTOP_UA
-            }
-            return@LaunchedEffect
-        }
-        if (isDesktopMode) {
-            session.settings.userAgentMode = GeckoSessionSettings.USER_AGENT_MODE_DESKTOP
-            session.settings.viewportMode = GeckoSessionSettings.VIEWPORT_MODE_DESKTOP
-            session.settings.userAgentOverride = GeckoEngineManager.MODERN_DESKTOP_UA
-        } else {
-            session.settings.userAgentMode = GeckoSessionSettings.USER_AGENT_MODE_MOBILE
-            session.settings.viewportMode = GeckoSessionSettings.VIEWPORT_MODE_MOBILE
-            session.settings.userAgentOverride = null
-        }
-        if (session.isOpen) {
-            session.reload()
-        }
+    LaunchedEffect(session, isDesktopMode) {
+        GeckoEngineManager.applyDesktopMode(session, isDesktopMode)
     }
 
     var swipeRefreshRef by remember { androidx.compose.runtime.mutableStateOf<GeckoSwipeRefreshLayout?>(null) }

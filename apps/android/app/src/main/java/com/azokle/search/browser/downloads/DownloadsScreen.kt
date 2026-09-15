@@ -591,10 +591,16 @@ private fun DownloadGroupedRow(
                     )
                 }
                 DownloadStatus.COMPLETED -> {
+                    val privacyPrefix = when {
+                        item.isTor -> "TOR • "
+                        item.isPrivate -> "PRIVATE • "
+                        else -> ""
+                    }
                     Text(
-                        text = "${item.formattedSize} • ${dateFormatter.format(Date(item.timestamp))}",
+                        text = "$privacyPrefix${item.formattedSize} • ${dateFormatter.format(Date(item.timestamp))}",
                         fontSize = 11.sp,
-                        color = colors.textMuted
+                        color = if (item.isTor) colors.statusAccent else (if (item.isPrivate) colors.statusSuccess else colors.textMuted),
+                        fontWeight = if (item.isTor || item.isPrivate) FontWeight.Medium else FontWeight.Normal
                     )
                 }
                 DownloadStatus.FAILED -> {

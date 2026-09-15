@@ -116,11 +116,20 @@ fun BrowserUrlEditSheet(
         mutableStateOf(initialSearchEngine ?: preferences.getSearchEngine())
     }
 
+    val cleanInitialText = remember(initialText) {
+        if (initialText.startsWith("about:", ignoreCase = true) ||
+            initialText.startsWith("azokle://", ignoreCase = true)) {
+            ""
+        } else {
+            initialText
+        }
+    }
+
     var textValue by remember {
         mutableStateOf(
             TextFieldValue(
-                text = initialText,
-                selection = TextRange(0, initialText.length)
+                text = cleanInitialText,
+                selection = TextRange(0, cleanInitialText.length)
             )
         )
     }
@@ -158,16 +167,26 @@ fun BrowserUrlEditSheet(
     }
 
     LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
+        try {
+            kotlinx.coroutines.delay(100)
+            focusRequester.requestFocus()
+        } catch (e: Exception) {
+            // Ignore focus request errors if node is not attached yet
+        }
         try {
             topFrecencySites = HistoryManager.getTopFrecency(4)
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-            val clip = clipboard?.primaryClip?.getItemAt(0)?.text?.toString()?.trim()
-            if (!clip.isNullOrBlank() && UrlHelper.isDirectUrl(clip) && !clip.equals(initialText.trim(), ignoreCase = true)) {
-                clipboardUrl = clip
+            if (clipboard != null && clipboard.hasPrimaryClip()) {
+                val primaryClip = clipboard.primaryClip
+                if (primaryClip != null && primaryClip.itemCount > 0) {
+                    val clip = primaryClip.getItemAt(0)?.text?.toString()?.trim()
+                    if (!clip.isNullOrBlank() && UrlHelper.isDirectUrl(clip) && !clip.equals(cleanInitialText.trim(), ignoreCase = true)) {
+                        clipboardUrl = clip
+                    }
+                }
             }
         } catch (e: Exception) {
-            // Ignore
+            // Ignore clipboard or frecency errors
         }
     }
 

@@ -83,4 +83,21 @@ class DownloadSecurityTest {
             tempDir.deleteRecursively()
         }
     }
+
+    @Test
+    fun testDangerousExecutableDetection() {
+        assertTrue(DownloadManager.isDangerousExecutable("malicious.apk"))
+        assertTrue(DownloadManager.isDangerousExecutable("script.sh"))
+        assertTrue(DownloadManager.isDangerousExecutable("payload.dex"))
+        assertTrue(DownloadManager.isDangerousExecutable("trojan.exe"))
+        assertTrue(DownloadManager.isDangerousExecutable("batch.bat"))
+        assertTrue(DownloadManager.isDangerousExecutable("package.bin"))
+        assertTrue(DownloadManager.isDangerousExecutable("generic_file", "application/vnd.android.package-archive"))
+        assertTrue(DownloadManager.isDangerousExecutable("generic_file", "application/x-executable"))
+
+        assertFalse(DownloadManager.isDangerousExecutable("photo.jpg", "image/jpeg"))
+        assertFalse(DownloadManager.isDangerousExecutable("document.pdf", "application/pdf"))
+        assertFalse(DownloadManager.isDangerousExecutable("archive.zip", "application/zip"))
+        assertFalse(DownloadManager.isDangerousExecutable("music.mp3", "audio/mpeg"))
+    }
 }

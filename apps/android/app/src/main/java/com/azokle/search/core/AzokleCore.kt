@@ -784,7 +784,7 @@ object AzokleCore {
         if (!isNativeLoaded) return org.json.JSONArray()
         return try {
             org.json.JSONArray(historySearchFrecency(query, limit))
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             org.json.JSONArray()
         }
     }
@@ -793,7 +793,7 @@ object AzokleCore {
         if (!isNativeLoaded) return org.json.JSONArray()
         return try {
             org.json.JSONArray(historyGetTopFrecency(limit))
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             org.json.JSONArray()
         }
     }
@@ -802,7 +802,7 @@ object AzokleCore {
         if (!isNativeLoaded) return org.json.JSONArray()
         return try {
             org.json.JSONArray(historyGetTopDomains(limit))
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             org.json.JSONArray()
         }
     }
@@ -811,7 +811,7 @@ object AzokleCore {
         if (!isNativeLoaded) return JSONObject()
         return try {
             JSONObject(historyGetGroupedTimeline())
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             JSONObject()
         }
     }

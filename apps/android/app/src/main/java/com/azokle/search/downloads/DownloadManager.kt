@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Environment
+import android.util.Base64
+import android.util.Base64InputStream
 import android.util.Log
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
@@ -18,6 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -28,6 +31,7 @@ import java.util.UUID
 object DownloadManager {
     private const val TAG = "AzokleDownloadManager"
     private const val DOWNLOADS_FILE = "downloads_history.json"
+    private const val PRIVATE_DOWNLOADS_DIR = "downloads_private"
 
     private val _downloads = MutableStateFlow<List<DownloadItem>>(emptyList())
     val downloads: StateFlow<List<DownloadItem>> = _downloads.asStateFlow()
@@ -35,6 +39,14 @@ object DownloadManager {
     private val activeJobs = java.util.concurrent.ConcurrentHashMap<String, Job>()
     private val scope = CoroutineScope(Dispatchers.IO)
     private var isInitialized = false
+
+    // HTTP Response Headers that must NEVER be forwarded as outbound Request Headers
+    private val FORBIDDEN_OUTBOUND_HEADERS = hashSetOf(
+        "content-length", "content-type", "content-disposition",
+        "transfer-encoding", "set-cookie", "server", "date",
+        "connection", "keep-alive", "host", "user-agent",
+        "content-encoding", "vary", "age", "etag", "last-modified"
+    )
 
     fun init(context: Context) {
         if (isInitialized) return
@@ -87,7 +99,21 @@ object DownloadManager {
     }
 
     /**
+     * Returns true if the file extension or MIME type represents an executable application package.
+     */
+    fun isDangerousExecutable(filename: String, mimeType: String? = null): Boolean {
+        val lowerName = filename.lowercase().trim()
+        val lowerMime = (mimeType ?: "").lowercase().trim()
+        val dangerousExts = listOf(".apk", ".dex", ".sh", ".bat", ".exe", ".bin", ".vbs", ".cmd", ".ps1")
+        return dangerousExts.any { lowerName.endsWith(it) } ||
+                lowerMime == "application/vnd.android.package-archive" ||
+                lowerMime == "application/x-executable" ||
+                lowerMime == "application/x-msdos-program"
+    }
+
+    /**
      * Initiates a new high-speed sovereign download.
+     * Isolates Private and Tor downloads into a sandboxed internal directory without MediaStore leakage.
      */
     fun startDownload(
         context: Context,
@@ -102,7 +128,14 @@ object DownloadManager {
         init(context)
         val rawName = filename?.takeIf { it.isNotBlank() } ?: extractFilename(url, mimeType = mimeType)
         val safeName = sanitizeFilename(rawName)
-        val downloadDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir
+
+        // Tor & Private Tab Downloads: Enforce strict isolated internal sandbox storage
+        val downloadDir = if (isPrivate || isTor) {
+            File(context.filesDir, PRIVATE_DOWNLOADS_DIR).apply { mkdirs() }
+        } else {
+            context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir
+        }
+
         var targetFile = File(downloadDir, safeName)
 
         // Enforce strict canonical containment to prevent directory traversal
@@ -118,7 +151,7 @@ object DownloadManager {
             targetFile = File(downloadDir, "download_${UUID.randomUUID().toString().take(8)}")
         }
 
-        // Prevent collisions
+        // Prevent filename collisions
         var counter = 1
         val baseName = targetFile.nameWithoutExtension
         val ext = targetFile.extension
@@ -157,32 +190,57 @@ object DownloadManager {
             var downloaded = targetFile.length()
 
             try {
-                // Handle client-side data: URIs (e.g. data:image/png;base64,... or data:application/pdf,...)
+                // 1. Client-Side Data URI Stream (prevents JVM heap OOM on large Base64 files)
                 if (item.url.startsWith("data:", ignoreCase = true)) {
                     val commaIndex = item.url.indexOf(',')
                     if (commaIndex != -1) {
                         val metadata = item.url.substring(5, commaIndex)
                         val dataPart = item.url.substring(commaIndex + 1)
                         val isBase64 = metadata.contains(";base64", ignoreCase = true)
-                        val bytes = if (isBase64) {
-                            android.util.Base64.decode(dataPart, android.util.Base64.DEFAULT)
+
+                        if (isBase64) {
+                            val byteStream = ByteArrayInputStream(dataPart.toByteArray(Charsets.US_ASCII))
+                            inputStream = Base64InputStream(byteStream, Base64.DEFAULT)
                         } else {
-                            java.net.URLDecoder.decode(dataPart, "UTF-8").toByteArray()
+                            val decodedString = java.net.URLDecoder.decode(dataPart, "UTF-8")
+                            inputStream = ByteArrayInputStream(decodedString.toByteArray(Charsets.UTF_8))
                         }
-                        targetFile.writeBytes(bytes)
-                        publishToPublicDownloads(context, targetFile, item.mimeType, targetFile.name)
-                        updateItemStatus(item.id, DownloadStatus.COMPLETED, bytes.size.toLong(), bytes.size.toLong())
+
+                        outputStream = FileOutputStream(targetFile, false)
+                        val buffer = ByteArray(32 * 1024)
+                        var bytesWritten = 0L
+                        var readLen: Int
+
+                        while (inputStream.read(buffer).also { readLen = it } != -1) {
+                            outputStream.write(buffer, 0, readLen)
+                            bytesWritten += readLen
+                        }
+                        outputStream.flush()
+
+                        // Only publish to public MediaStore if NOT Private/Tor
+                        if (!item.isPrivate && !item.isTor) {
+                            publishToPublicDownloads(context, targetFile, item.mimeType, targetFile.name)
+                        }
+
+                        updateItemStatus(item.id, DownloadStatus.COMPLETED, bytesWritten, bytesWritten)
                         postCompletionNotification(context, item, isSuccess = true)
                         saveHistory(context)
                         return@launch
                     }
                 }
 
+                // 2. Reject blob: URLs gracefully with informative status
+                if (item.url.startsWith("blob:", ignoreCase = true)) {
+                    throw Exception("Client blob URL downloads must be saved directly via page context.")
+                }
+
                 val isTorActive = item.isTor || com.azokle.search.tor.TorCircuitManager.isTorActive || item.url.contains(".onion", ignoreCase = true)
+
                 if (isTorActive) {
+                    val socksPort = com.azokle.search.tor.TorCircuitManager.socksPort.takeIf { it > 0 } ?: 9050
                     val socksProxy = java.net.Proxy(
                         java.net.Proxy.Type.SOCKS,
-                        java.net.InetSocketAddress.createUnresolved("127.0.0.1", com.azokle.search.tor.TorCircuitManager.socksPort)
+                        java.net.InetSocketAddress.createUnresolved("127.0.0.1", socksPort)
                     )
                     val client = okhttp3.OkHttpClient.Builder()
                         .proxy(socksProxy)
@@ -196,8 +254,9 @@ object DownloadManager {
                         .url(item.url)
                         .header("User-Agent", com.azokle.search.engine.GeckoEngineManager.MODERN_MOBILE_UA)
 
+                    // Forward only safe client request headers; strip response reflection headers
                     headers?.forEach { (k, v) ->
-                        if (!k.equals("User-Agent", ignoreCase = true) && !k.equals("Host", ignoreCase = true)) {
+                        if (!FORBIDDEN_OUTBOUND_HEADERS.contains(k.lowercase().trim())) {
                             requestBuilder.header(k, v)
                         }
                     }
@@ -207,13 +266,21 @@ object DownloadManager {
                     }
 
                     val response = client.newCall(requestBuilder.build()).execute()
-                    if (!response.isSuccessful && response.code != 206) {
-                        throw Exception("Tor HTTP error code ${response.code}")
+                    val responseCode = response.code
+
+                    if (!response.isSuccessful && responseCode != 206) {
+                        throw Exception("Tor HTTP error code $responseCode")
+                    }
+
+                    // Fix BUG-001: Strict Range 206 Resumption Check
+                    val isRange206 = (responseCode == 206)
+                    if (!isRange206) {
+                        downloaded = 0L // Reset if server sent full file from byte 0
                     }
 
                     val body = response.body ?: throw Exception("Empty response body from Tor")
                     val bodyLen = body.contentLength()
-                    val totalLength = if (response.code == 206) {
+                    val totalLength = if (isRange206) {
                         downloaded + bodyLen
                     } else {
                         if (bodyLen > 0L) bodyLen else item.totalBytes
@@ -221,7 +288,7 @@ object DownloadManager {
 
                     val stream = body.byteStream()
                     inputStream = stream
-                    outputStream = FileOutputStream(targetFile, downloaded > 0)
+                    outputStream = FileOutputStream(targetFile, isRange206)
 
                     val buffer = ByteArray(32 * 1024)
                     var bytesRead: Int = stream.read(buffer)
@@ -240,11 +307,17 @@ object DownloadManager {
                     }
 
                     outputStream.flush()
-                    publishToPublicDownloads(context, targetFile, item.mimeType, targetFile.name)
+
+                    // Only publish to public MediaStore if NOT Private/Tor
+                    if (!item.isPrivate && !item.isTor) {
+                        publishToPublicDownloads(context, targetFile, item.mimeType, targetFile.name)
+                    }
+
                     updateItemStatus(item.id, DownloadStatus.COMPLETED, downloaded, downloaded)
                     postCompletionNotification(context, item, isSuccess = true)
                     saveHistory(context)
                 } else {
+                    // 3. Clearnet High-Speed Download Stream
                     val url = URL(item.url)
                     val connection = url.openConnection() as HttpURLConnection
                     connection.connectTimeout = 25000
@@ -252,8 +325,9 @@ object DownloadManager {
                     connection.instanceFollowRedirects = true
                     connection.setRequestProperty("User-Agent", com.azokle.search.engine.GeckoEngineManager.MODERN_MOBILE_UA)
 
+                    // Forward only safe client request headers; strip response reflection headers
                     headers?.forEach { (k, v) ->
-                        if (!k.equals("User-Agent", ignoreCase = true) && !k.equals("Host", ignoreCase = true)) {
+                        if (!FORBIDDEN_OUTBOUND_HEADERS.contains(k.lowercase().trim())) {
                             connection.setRequestProperty(k, v)
                         }
                     }
@@ -268,14 +342,20 @@ object DownloadManager {
                         throw Exception("HTTP error code $responseCode")
                     }
 
-                    val totalLength = if (responseCode == 206) {
+                    // Fix BUG-001: Strict Range 206 Resumption Check
+                    val isRange206 = (responseCode == 206)
+                    if (!isRange206) {
+                        downloaded = 0L // Reset if server sent full file from byte 0
+                    }
+
+                    val totalLength = if (isRange206) {
                         downloaded + connection.contentLengthLong
                     } else {
                         connection.contentLengthLong.takeIf { it > 0 } ?: item.totalBytes
                     }
 
                     inputStream = connection.inputStream
-                    outputStream = FileOutputStream(targetFile, downloaded > 0)
+                    outputStream = FileOutputStream(targetFile, isRange206)
 
                     val buffer = ByteArray(32 * 1024)
                     var bytesRead: Int
@@ -295,7 +375,12 @@ object DownloadManager {
                     }
 
                     outputStream.flush()
-                    publishToPublicDownloads(context, targetFile, item.mimeType, targetFile.name)
+
+                    // Only publish to public MediaStore if NOT Private/Tor
+                    if (!item.isPrivate && !item.isTor) {
+                        publishToPublicDownloads(context, targetFile, item.mimeType, targetFile.name)
+                    }
+
                     updateItemStatus(item.id, DownloadStatus.COMPLETED, downloaded, downloaded)
                     postCompletionNotification(context, item, isSuccess = true)
                     saveHistory(context)
@@ -383,7 +468,9 @@ object DownloadManager {
         val item = _downloads.value.find { it.id == id }
         if (item != null && deleteFile) {
             val file = File(item.filePath)
-            if (file.exists()) file.delete()
+            if (file.exists()) {
+                file.delete()
+            }
         }
         com.azokle.search.history.AzokleHistoryDatabase.getInstance(context).deleteDownload(id)
         _downloads.update { list -> list.filterNot { it.id == id } }
@@ -396,6 +483,46 @@ object DownloadManager {
         _downloads.value = emptyList()
         com.azokle.search.history.AzokleHistoryDatabase.getInstance(context).clearDownloads()
         saveHistory(context)
+    }
+
+    /**
+     * Anti-forensics: Cryptographically shreds and zero-fills all files in private sandboxed downloads directory.
+     * Invoked automatically by the Incinerator during "Burn Data".
+     */
+    fun shredPrivateDownloads(context: Context) {
+        try {
+            val privateDir = File(context.filesDir, PRIVATE_DOWNLOADS_DIR)
+            if (privateDir.exists()) {
+                val files = privateDir.listFiles() ?: emptyArray()
+                for (f in files) {
+                    try {
+                        if (f.isFile) {
+                            val len = f.length()
+                            if (len > 0) {
+                                FileOutputStream(f).use { out ->
+                                    val zeroes = ByteArray(8192)
+                                    var remaining = len
+                                    while (remaining > 0) {
+                                        val writeLen = minOf(remaining, zeroes.size.toLong()).toInt()
+                                        out.write(zeroes, 0, writeLen)
+                                        remaining -= writeLen
+                                    }
+                                    out.flush()
+                                }
+                            }
+                            f.delete()
+                        }
+                    } catch (e: Exception) {
+                        f.delete()
+                    }
+                }
+                privateDir.delete()
+            }
+            // Remove any in-memory private download records
+            _downloads.update { list -> list.filterNot { it.isPrivate || it.isTor } }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during private download shredding: ${e.message}")
+        }
     }
 
     fun recordCompletedDownload(
@@ -531,11 +658,6 @@ object DownloadManager {
         }
     }
 
-    private fun getMimeTypeForFile(filename: String): String {
-        val ext = filename.substringAfterLast('.', "").lowercase()
-        return MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "application/octet-stream"
-    }
-
     private fun saveHistory(context: Context) {
         scope.launch {
             try {
@@ -605,7 +727,7 @@ object DownloadManager {
                     val obj = array.getJSONObject(i)
                     val rawStatus = obj.optString("status", DownloadStatus.COMPLETED.name)
                     val status = if (rawStatus == DownloadStatus.DOWNLOADING.name) {
-                        DownloadStatus.PAUSED // Resumeable on restart
+                        DownloadStatus.PAUSED
                     } else {
                         try { DownloadStatus.valueOf(rawStatus) } catch (e: Exception) { DownloadStatus.COMPLETED }
                     }

@@ -58,6 +58,8 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.ui.text.font.FontFamily
@@ -1349,10 +1351,15 @@ fun BrowserScreen(
                 },
                 onToggleDesktopMode = {
                     showMenuSheet = false
+                    val activeUrl = currentUrl.takeIf { it.isNotBlank() } ?: currentActiveTab?.url ?: ""
+                    if (activeUrl.isNotBlank() && activeUrl != "about:blank" && activeUrl != "about:home") {
+                        targetLoadingUrl = activeUrl
+                        isPageTransitioning = true
+                    }
                     val newMode = TabManager.toggleDesktopMode(activeTabId)
                     isDesktopMode = newMode
                     currentError = null
-                    geckoSession?.reload()
+                    geckoSession?.reload(org.mozilla.geckoview.GeckoSession.LOAD_FLAGS_BYPASS_CACHE)
                     com.azokle.search.common.components.ToastManager.show(
                         if (newMode) "Desktop site enabled" else "Mobile site enabled"
                     )
@@ -1711,6 +1718,14 @@ fun BrowserScreen(
                     currentError = null
                     com.azokle.search.common.components.ToastManager.show("Opened in new tab")
                 },
+                onOpenInBackgroundTab = { url, title ->
+                    // Opens in background without switching active tab
+                    val parentTab = openTabs.find { it.id == activeTabId }
+                    val isPriv = parentTab?.isPrivate ?: isCurrentTabPrivate
+                    val isTor = parentTab?.isTor ?: isCurrentTabTor
+                    TabManager.openTab(url, title, isPrivate = isPriv, isTor = isTor)
+                    com.azokle.search.common.components.ToastManager.show("Tab opened in background")
+                },
                 onOpenInPrivateTab = { url, title ->
                     // Standalone private tab with NO group
                     val newId = TabManager.openTab(url, title, isPrivate = true)
@@ -1836,6 +1851,7 @@ fun BrowserScreen(
                     com.azokle.search.engine.GeckoEngineManager.clearAllData(context)
                     com.azokle.search.history.HistoryManager.clearAll()
                     com.azokle.search.downloads.DownloadManager.clearAllHistory(context)
+                    com.azokle.search.downloads.DownloadManager.shredPrivateDownloads(context)
                     com.azokle.search.permissions.SitePermissionsManager.getInstance(context).clearAllPermissions()
                     com.azokle.search.history.AzokleHistoryDatabase.getInstance(context).clearAllSecurely()
                     com.azokle.search.common.util.PreferencesManager(context).clearRecentSearches()
@@ -1976,22 +1992,53 @@ fun BrowserScreen(
             )
         }
 
-        // 📥 Sovereign Download Authorization Modal (Fix SEC-002)
+        // 📥 Sovereign Download Authorization Modal (Fix SEC-002 & Executable Warnings)
         pendingDownloadPayload?.let { payload ->
+            val isExecutable = com.azokle.search.downloads.DownloadManager.isDangerousExecutable(payload.filename, payload.mimeType)
             androidx.compose.material3.AlertDialog(
                 onDismissRequest = { pendingDownloadPayload = null },
                 title = {
-                    androidx.compose.material3.Text(
-                        text = "Download File?",
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                        fontSize = 17.sp
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.material3.Icon(
+                            imageVector = if (isExecutable) Icons.Default.Warning else Icons.Default.Download,
+                            contentDescription = null,
+                            tint = if (isExecutable) colors.statusDestructive else colors.textPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        androidx.compose.material3.Text(
+                            text = if (isExecutable) "Download Executable?" else "Download File?",
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            fontSize = 17.sp,
+                            color = if (isExecutable) colors.statusDestructive else colors.textPrimary
+                        )
+                    }
                 },
                 text = {
                     androidx.compose.foundation.layout.Column {
+                        if (isExecutable) {
+                            androidx.compose.foundation.layout.Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(com.azokle.search.common.theme.AzokleRadius.md)
+                                    .background(colors.statusDestructive.copy(alpha = 0.12f))
+                                    .border(1.dp, colors.statusDestructive.copy(alpha = 0.35f), com.azokle.search.common.theme.AzokleRadius.md)
+                                    .padding(8.dp)
+                            ) {
+                                androidx.compose.material3.Text(
+                                    text = "⚠️ Warning: This file is an application package or executable. Only install if you trust the source.",
+                                    fontSize = 12.sp,
+                                    color = colors.statusDestructive,
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                        }
+
                         androidx.compose.material3.Text(
                             text = "Do you want to download '${payload.filename}'?",
-                            fontSize = 14.sp
+                            fontSize = 14.sp,
+                            color = colors.textPrimary
                         )
                         if (payload.contentLength > 0) {
                             val sizeMb = String.format(java.util.Locale.US, "%.2f MB", payload.contentLength / (1024.0 * 1024.0))
@@ -2008,6 +2055,23 @@ fun BrowserScreen(
                             fontSize = 12.sp,
                             color = colors.textMuted
                         )
+                        if (payload.isTor) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            androidx.compose.material3.Text(
+                                text = "Shield: Routing via Tor Onion Circuit",
+                                fontSize = 11.5.sp,
+                                color = colors.statusAccent,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                            )
+                        } else if (payload.isPrivate) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            androidx.compose.material3.Text(
+                                text = "Privacy: Stored in isolated sandbox vault",
+                                fontSize = 11.5.sp,
+                                color = colors.statusSuccess,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                            )
+                        }
                     }
                 },
                 confirmButton = {
@@ -2025,10 +2089,14 @@ fun BrowserScreen(
                                 isPrivate = activePayload.isPrivate,
                                 isTor = activePayload.isTor
                             )
-                            android.widget.Toast.makeText(context, "Downloading ${activePayload.filename}...", android.widget.Toast.LENGTH_SHORT).show()
+                            com.azokle.search.common.components.ToastManager.show("Downloading ${activePayload.filename}...")
                         }
                     ) {
-                        androidx.compose.material3.Text(text = "Download", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                        androidx.compose.material3.Text(
+                            text = if (isExecutable) "Download Anyway" else "Download",
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            color = if (isExecutable) colors.statusDestructive else colors.actionPrimaryBg
+                        )
                     }
                 },
                 dismissButton = {
