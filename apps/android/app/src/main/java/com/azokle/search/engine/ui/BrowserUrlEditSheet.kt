@@ -40,9 +40,11 @@ import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.NorthWest
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
+import com.azokle.search.qr.QrScannerScreen
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -159,6 +161,7 @@ fun BrowserUrlEditSheet(
     var isLoadingSuggestions by remember { mutableStateOf(false) }
     var debounceJob by remember { mutableStateOf<Job?>(null) }
     var showVoiceModal by remember { mutableStateOf(false) }
+    var showQrScanner by remember { mutableStateOf(false) }
 
     var clipboardUrl by remember { mutableStateOf<String?>(null) }
 
@@ -334,6 +337,33 @@ fun BrowserUrlEditSheet(
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
+                        }
+
+                        // QR Code Scanner Action (Before Mic)
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = ripple(bounded = false, radius = 18.dp, color = colors.textSecondary),
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        showQrScanner = true
+                                    }
+                                )
+                                .semantics {
+                                    role = Role.Button
+                                    contentDescription = "Scan QR code"
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.QrCodeScanner,
+                                contentDescription = null,
+                                tint = colors.textSecondary,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
 
                         // Voice Search Mic Action (matching Home Screen Omnibar)
@@ -628,6 +658,21 @@ fun BrowserUrlEditSheet(
                     }
                 },
                 onDismiss = { showVoiceModal = false }
+            )
+        }
+
+        // QR Code Scanner Modal
+        if (showQrScanner) {
+            QrScannerScreen(
+                onScanResult = { qrResult ->
+                    showQrScanner = false
+                    if (qrResult.isNotBlank()) {
+                        val target = resolveTarget(qrResult)
+                        preferences.saveRecentSearch(qrResult.trim())
+                        onNavigate(target)
+                    }
+                },
+                onDismiss = { showQrScanner = false }
             )
         }
     }

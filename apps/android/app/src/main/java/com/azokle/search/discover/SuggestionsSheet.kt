@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.NorthWest
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
@@ -75,6 +76,7 @@ fun SuggestionsSheet(
     onQueryChange: (String) -> Unit,
     onSearch: (String) -> Unit,
     onCategorySelected: (SearchCategory) -> Unit,
+    onQrClick: () -> Unit = {},
     onVoiceClick: () -> Unit,
     onClearRecent: () -> Unit,
     onDismiss: () -> Unit
@@ -192,6 +194,22 @@ fun SuggestionsSheet(
                                 modifier = Modifier.size(17.dp)
                             )
                         }
+                    }
+
+                    // QR Code Scanner Button
+                    Box(
+                        modifier = Modifier
+                            .sizeIn(minWidth = 38.dp, minHeight = 38.dp)
+                            .clip(CircleShape)
+                            .clickable(onClick = onQrClick),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.QrCodeScanner,
+                            contentDescription = "Scan QR code",
+                            tint = colors.textPrimary,
+                            modifier = Modifier.size(19.dp)
+                        )
                     }
 
                     // Microphone Button (40dp Touch Target)

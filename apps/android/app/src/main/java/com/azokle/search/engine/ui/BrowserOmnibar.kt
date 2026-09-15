@@ -32,6 +32,7 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -79,6 +80,7 @@ fun BrowserOmnibar(
     onShieldClick: () -> Unit = {},
     onReaderModeClick: () -> Unit = {},
     onMenuClick: () -> Unit = {},
+    onQrClick: () -> Unit = {},
     onVoiceClick: () -> Unit = {},
     onUrlBarClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -315,8 +317,38 @@ fun BrowserOmnibar(
                     }
                 }
 
-                // Voice Search Trigger in Omnibar (when on home/blank tab)
+                // QR Scanner & Voice Search Triggers in Omnibar (when on home/blank tab)
                 if (isInternal || cleanHost.isBlank()) {
+                    // QR Code Scanner Trigger (Before Mic)
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = false, radius = 18.dp, color = colors.statusAccent),
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onQrClick()
+                                }
+                            )
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = "Scan QR code"
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.QrCodeScanner,
+                            contentDescription = null,
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(2.dp))
+
+                    // Voice Search Trigger
                     Box(
                         modifier = Modifier
                             .size(36.dp)

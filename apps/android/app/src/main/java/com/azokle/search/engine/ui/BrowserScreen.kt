@@ -39,6 +39,7 @@ import com.azokle.search.common.theme.AzokleWhite
 import com.azokle.search.common.theme.adaptiveContentWidth
 import com.azokle.search.search.SearchBarCapsule
 import com.azokle.search.search.VoiceSearchModal
+import com.azokle.search.qr.QrScannerScreen
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.TextStyle
@@ -171,6 +172,7 @@ fun BrowserScreen(
     var showTabGridSheet by remember { mutableStateOf(false) }
     var showUrlEditSheet by remember { mutableStateOf(false) }
     var showVoiceModal by remember { mutableStateOf(false) }
+    var showQrScanner by remember { mutableStateOf(false) }
     var showMenuSheet by remember { mutableStateOf(false) }
     var showSecurityCertSheet by remember { mutableStateOf(false) }
     var showTorCircuitSheet by remember { mutableStateOf(false) }
@@ -559,6 +561,8 @@ fun BrowserScreen(
             showShieldSheet = false
         } else if (showUrlEditSheet) {
             showUrlEditSheet = false
+        } else if (showQrScanner) {
+            showQrScanner = false
         } else if (showVoiceModal) {
             showVoiceModal = false
         } else if (showTabGridSheet) {
@@ -844,6 +848,7 @@ fun BrowserScreen(
                                     }
                                 },
                                 onMenuClick = { showMenuSheet = true },
+                                onQrClick = { showQrScanner = true },
                                 onVoiceClick = { showVoiceModal = true },
                                 onUrlBarClick = { showUrlEditSheet = true },
                                 includeStatusBarPadding = false,
@@ -2121,6 +2126,26 @@ fun BrowserScreen(
                     navigateToUrl(targetUrl, recognizedQuery)
                 },
                 onDismiss = { showVoiceModal = false }
+            )
+        }
+
+        // QR Code Scanner Modal in Browser Screen
+        if (showQrScanner) {
+            QrScannerScreen(
+                onScanResult = { rawData ->
+                    showQrScanner = false
+                    val trimmed = rawData.trim()
+                    if (trimmed.isNotBlank()) {
+                        val searchEngineConfig = com.azokle.search.common.util.SEARCH_ENGINE_PROVIDERS.find { it.id == viewModel?.uiState?.value?.selectedSearchEngine }
+                            ?: com.azokle.search.common.util.SEARCH_ENGINE_PROVIDERS[0]
+                        val targetUrl = com.azokle.search.common.util.UrlHelper.resolveSearchOrUrl(
+                            input = trimmed,
+                            searchEngineQueryUrl = searchEngineConfig.queryUrl
+                        )
+                        navigateToUrl(targetUrl, trimmed)
+                    }
+                },
+                onDismiss = { showQrScanner = false }
             )
         }
 

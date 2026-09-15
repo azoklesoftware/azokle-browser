@@ -29,7 +29,6 @@ import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FindInPage
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.PhoneAndroid
@@ -99,7 +98,6 @@ fun BrowserMenuSheet(
     onOpenShield: () -> Unit = {},
     onOpenTorWindow: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
-    onOpenAbout: () -> Unit = {},
     pwaEligibility: com.azokle.search.pwa.PwaInstallEligibility? = null,
     onInstallPwa: () -> Unit = {},
     onBurnData: () -> Unit,
@@ -236,14 +234,6 @@ fun BrowserMenuSheet(
                     onClick = {
                         onDismiss()
                         onOpenSettings()
-                    }
-                ),
-                MenuActionItem(
-                    label = "About",
-                    icon = Icons.Default.Info,
-                    onClick = {
-                        onDismiss()
-                        onOpenAbout()
                     }
                 ),
                 MenuActionItem(
