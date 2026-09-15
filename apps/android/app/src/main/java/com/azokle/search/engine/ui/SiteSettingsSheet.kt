@@ -268,7 +268,8 @@ fun SiteSettingsSheet(
                                     },
                                     colors = SwitchDefaults.colors(
                                         checkedThumbColor = Color.White,
-                                        checkedTrackColor = colors.statusAccent,
+                                        checkedTrackColor = colors.statusSuccess,
+                                        checkedBorderColor = Color.Transparent,
                                         uncheckedThumbColor = colors.textSecondary,
                                         uncheckedTrackColor = colors.surfaceElevated
                                     )

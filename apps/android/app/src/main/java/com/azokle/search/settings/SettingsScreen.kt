@@ -759,7 +759,8 @@ fun SettingsScreen(
                                     },
                                     colors = SwitchDefaults.colors(
                                         checkedThumbColor = Color.White,
-                                        checkedTrackColor = colors.actionPrimaryBg,
+                                        checkedTrackColor = colors.statusSuccess,
+                                        checkedBorderColor = Color.Transparent,
                                         uncheckedThumbColor = colors.textMuted,
                                         uncheckedTrackColor = colors.surfaceElevated,
                                         uncheckedBorderColor = colors.borderSubtle
