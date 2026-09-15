@@ -904,7 +904,8 @@ private fun SitePermissionsEditorDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val sitePerms = permManager.getHostPermissions(host)
+    val updateTick by permManager.updatesFlow.collectAsState()
+    val sitePerms = remember(host, updateTick) { permManager.getHostPermissions(host) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -936,6 +937,9 @@ private fun SitePermissionsEditorDialog(
                     SitePermissionType.AUTOPLAY
                 ).forEach { type ->
                     val state = sitePerms[type] ?: permManager.getGlobalDefault(type)
+                    val isAllow = state == SitePermissionState.ALLOW
+                    val isBlock = state == SitePermissionState.BLOCK
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -948,7 +952,11 @@ private fun SitePermissionsEditorDialog(
                             Icon(
                                 imageVector = type.icon,
                                 contentDescription = null,
-                                tint = colors.textPrimary,
+                                tint = when {
+                                    isAllow -> colors.statusSuccess
+                                    isBlock -> colors.statusDestructive
+                                    else -> colors.textPrimary
+                                },
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -964,17 +972,22 @@ private fun SitePermissionsEditorDialog(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(if (state == SitePermissionState.ALLOW) colors.statusSuccess.copy(alpha = 0.2f) else colors.surfaceElevated)
+                                    .background(if (isAllow) colors.statusSuccess.copy(alpha = 0.22f) else colors.surfaceElevated)
+                                    .border(
+                                        1.dp,
+                                        if (isAllow) colors.statusSuccess.copy(alpha = 0.6f) else colors.borderSubtle,
+                                        RoundedCornerShape(6.dp)
+                                    )
                                     .clickable {
                                         permManager.setPermission(host, type, SitePermissionState.ALLOW)
                                     }
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    .padding(horizontal = 10.dp, vertical = 5.dp)
                             ) {
                                 Text(
                                     text = "Allow",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (state == SitePermissionState.ALLOW) colors.statusSuccess else colors.textSecondary
+                                    fontSize = 11.5.sp,
+                                    fontWeight = if (isAllow) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isAllow) colors.statusSuccess else colors.textSecondary
                                 )
                             }
                             Spacer(modifier = Modifier.width(6.dp))
@@ -982,17 +995,22 @@ private fun SitePermissionsEditorDialog(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(if (state == SitePermissionState.BLOCK) colors.statusDestructive.copy(alpha = 0.2f) else colors.surfaceElevated)
+                                    .background(if (isBlock) colors.statusDestructive.copy(alpha = 0.22f) else colors.surfaceElevated)
+                                    .border(
+                                        1.dp,
+                                        if (isBlock) colors.statusDestructive.copy(alpha = 0.6f) else colors.borderSubtle,
+                                        RoundedCornerShape(6.dp)
+                                    )
                                     .clickable {
                                         permManager.setPermission(host, type, SitePermissionState.BLOCK)
                                     }
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    .padding(horizontal = 10.dp, vertical = 5.dp)
                             ) {
                                 Text(
                                     text = "Block",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (state == SitePermissionState.BLOCK) colors.statusDestructive else colors.textSecondary
+                                    fontSize = 11.5.sp,
+                                    fontWeight = if (isBlock) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isBlock) colors.statusDestructive else colors.textSecondary
                                 )
                             }
                         }
