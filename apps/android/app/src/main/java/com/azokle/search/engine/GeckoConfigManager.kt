@@ -114,6 +114,11 @@ object GeckoConfigManager {
             appendLine("  media.peerconnection.ice.obfuscate_host_addresses: true")
             appendLine("  media.peerconnection.ice.obfuscate_host_addresses.sync: true")
             appendLine("  media.peerconnection.ice.link_local_ips: false")
+
+            // 8. Privacy & Engine-Level Hardware Uniformity
+            appendLine("  dom.maxHardwareConcurrency: 4")
+            appendLine("  privacy.reduceTimerPrecision: true")
+            appendLine("  privacy.reduceTimerPrecision.microseconds: 2000")
         }
     }
 }

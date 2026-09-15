@@ -162,8 +162,7 @@ class AzokleNavigationDelegate(
     override fun onNewSession(session: GeckoSession, uri: String): GeckoResult<GeckoSession>? {
         if (uri.isNotBlank()) {
             val scheme = UrlHelper.extractScheme(uri)?.lowercase()
-            val dangerousSchemes = setOf("file", "content", "chrome", "resource", "javascript")
-            if (scheme != null && scheme in dangerousSchemes) {
+            if (scheme != null && NavigationSecurity.isForbiddenWebScheme(scheme)) {
                 return null
             }
         }

@@ -76,6 +76,7 @@ import com.azokle.search.permissions.SitePermissionsManager
 import com.azokle.search.permissions.SitePermissionPromptSheet
 import com.azokle.search.common.util.PreferencesManager
 import com.azokle.search.common.theme.AzokleSearchTheme
+import com.azokle.search.engine.delegates.AzoklePermissionDelegate
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
@@ -410,57 +411,14 @@ fun PwaContainerScreen(
                             }
                         }
 
-                        session.permissionDelegate = object : GeckoSession.PermissionDelegate {
-                            override fun onContentPermissionRequest(
-                                session: GeckoSession,
-                                permRequest: GeckoSession.PermissionDelegate.ContentPermission
-                            ): GeckoResult<Int>? {
-                                val uriStr = permRequest.uri
-                                val origin = permissionsManager.canonicalizeOrigin(uriStr)
-                                val host = Uri.parse(uriStr).host ?: origin
-
-                                val mappedType = when (permRequest.permission) {
-                                    GeckoSession.PermissionDelegate.PERMISSION_GEOLOCATION -> SitePermissionType.GEOLOCATION
-                                    GeckoSession.PermissionDelegate.PERMISSION_DESKTOP_NOTIFICATION -> SitePermissionType.NOTIFICATIONS
-                                    GeckoSession.PermissionDelegate.PERMISSION_MEDIA_KEY_SYSTEM_ACCESS -> SitePermissionType.MEDIA_KEY_SYSTEM
-                                    GeckoSession.PermissionDelegate.PERMISSION_PERSISTENT_STORAGE -> SitePermissionType.PERSISTENT_STORAGE
-                                    GeckoSession.PermissionDelegate.PERMISSION_AUTOPLAY_AUDIBLE -> SitePermissionType.AUTOPLAY
-                                    else -> null
-                                }
-
-                                if (mappedType == SitePermissionType.MEDIA_KEY_SYSTEM) {
-                                    return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
-                                }
-
-                                if (mappedType == null) {
-                                    return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
-                                }
-
-                                val siteState = permissionsManager.getPermission(origin, mappedType, isPrivate = false)
-                                if (siteState == SitePermissionState.BLOCK) {
-                                    return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
-                                }
-                                if (siteState == SitePermissionState.ALLOW) {
-                                    return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
-                                }
-
-                                val geckoResult = GeckoResult<Int>()
-                                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                                    val requestPayload = SitePermissionRequest(
-                                        host = host,
-                                        origin = origin,
-                                        uri = uriStr,
-                                        isPrivate = false,
-                                        requestedTypes = listOf(mappedType),
-                                        contentCallback = { grantResult ->
-                                            geckoResult.complete(grantResult)
-                                        }
-                                    )
-                                    activePermissionRequest = requestPayload
-                                }
-                                return geckoResult
+                        session.permissionDelegate = AzoklePermissionDelegate(
+                            context = ctx,
+                            isPrivate = false,
+                            isTor = false,
+                            onPermissionPromptRequested = { req ->
+                                activePermissionRequest = req
                             }
-                        }
+                        )
 
                         session.promptDelegate = com.azokle.search.engine.GeckoPromptDelegateImpl(
                             context = ctx,

@@ -10,6 +10,8 @@ object IntentParser {
 
     private val PACKAGE_NAME_REGEX = Regex("""^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$""")
 
+    private val SCHEME_REGEX = Regex("""^[a-zA-Z][a-zA-Z0-9+.-]*$""")
+
     data class ParsedIntent(
         val uri: Uri?,
         val action: String = Intent.ACTION_VIEW,
@@ -40,8 +42,9 @@ object IntentParser {
         val pkg = extractPackageFromFragment(uriStr)
         val rawFallback = extractFallbackFromFragment(uriStr)
         val safeFallback = sanitizeFallbackUrl(rawFallback)
-        val scheme = extractSchemeFromFragment(uriStr)
+        val rawScheme = extractSchemeFromFragment(uriStr)
             ?: UriClassifier.extractScheme(uriStr)
+        val scheme = rawScheme?.takeIf { isValidScheme(it) && !NavigationSecurity.isForbiddenWebScheme(it) }
 
         val cleanIntent = try {
             val intent = Intent.parseUri(uriStr, Intent.URI_INTENT_SCHEME)
@@ -55,7 +58,7 @@ object IntentParser {
                 selector = null
                 clipData = null
                 val dataScheme = data?.scheme?.lowercase()
-                if (dataScheme != null && NavigationSecurity.isForbiddenWebScheme(dataScheme)) {
+                if (dataScheme != null && (NavigationSecurity.isForbiddenWebScheme(dataScheme) || !isValidScheme(dataScheme))) {
                     data = null
                 }
             }
@@ -77,7 +80,11 @@ object IntentParser {
     }
 
     private fun parseStandardUri(uriStr: String): ParsedIntent? {
-        val scheme = UriClassifier.extractScheme(uriStr) ?: return null
+        val scheme = UriClassifier.extractScheme(uriStr)?.takeIf { isValidScheme(it) } ?: return null
+
+        if (NavigationSecurity.isForbiddenWebScheme(scheme)) {
+            return null
+        }
 
         val action = when (scheme) {
             "tel", "telprompt", "callto" -> Intent.ACTION_DIAL
@@ -113,6 +120,12 @@ object IntentParser {
         if (pkg.isNullOrBlank()) return false
         if (pkg.length > 256) return false
         return PACKAGE_NAME_REGEX.matches(pkg)
+    }
+
+    fun isValidScheme(scheme: String?): Boolean {
+        if (scheme.isNullOrBlank()) return false
+        if (scheme.length > 64) return false
+        return SCHEME_REGEX.matches(scheme)
     }
 
     fun sanitizeFallbackUrl(url: String?): String? {
@@ -163,8 +176,8 @@ object IntentParser {
         if (idx == -1) return null
         val start = idx + marker.length
         val end = uriStr.indexOf(';', start).takeIf { it != -1 } ?: uriStr.length
-        val raw = uriStr.substring(start, end).trim()
-        return raw.lowercase().takeIf { UriClassifier.isCustomAppScheme(it) }
+        val raw = uriStr.substring(start, end).trim().lowercase()
+        return raw.takeIf { isValidScheme(it) && UriClassifier.isCustomAppScheme(it) }
     }
 
     private fun decodeUriComponent(raw: String): String {

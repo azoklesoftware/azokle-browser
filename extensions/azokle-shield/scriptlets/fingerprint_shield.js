@@ -8,16 +8,21 @@
     if (window.__azokle_fp_shield_active) return;
     window.__azokle_fp_shield_active = true;
 
-    // 1. Hardware Concurrency & Memory Uniformity
+    // 1. Hardware Concurrency & Memory Uniformity (applied to prototype to preserve descriptor fidelity)
     try {
-        Object.defineProperty(navigator, 'hardwareConcurrency', {
-            get: function() { return 4; },
-            configurable: true
-        });
-        Object.defineProperty(navigator, 'deviceMemory', {
-            get: function() { return 8; },
-            configurable: true
-        });
+        var proto = Object.getPrototypeOf(navigator) || Navigator.prototype;
+        if (proto) {
+            Object.defineProperty(proto, 'hardwareConcurrency', {
+                get: function() { return 4; },
+                configurable: true,
+                enumerable: true
+            });
+            Object.defineProperty(proto, 'deviceMemory', {
+                get: function() { return 8; },
+                configurable: true,
+                enumerable: true
+            });
+        }
     } catch (e) {}
 
     // 2. Battery API Shield (Prevent battery level tracking)

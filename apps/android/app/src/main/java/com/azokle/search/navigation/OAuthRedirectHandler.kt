@@ -20,22 +20,53 @@ object OAuthRedirectHandler {
         val trimmed = uriStr.trim()
         val scheme = UriClassifier.extractScheme(trimmed) ?: return false
 
-        // Internal browser schemes cannot be external OAuth callbacks
+        // Internal and dangerous schemes cannot be external OAuth callbacks
         if (scheme in UriClassifier.INTERNAL_SCHEMES || scheme in UriClassifier.DANGEROUS_SCHEMES) {
             return false
         }
 
-        val queryIdx = trimmed.indexOf('?')
-        val query = if (queryIdx != -1) trimmed.substring(queryIdx + 1).lowercase() else ""
-        val path = (if (queryIdx != -1) trimmed.substring(0, queryIdx) else trimmed).lowercase()
-
-        val hasOAuthParam = OAUTH_PARAMS.any { param ->
-            query.contains("$param=") || query.startsWith("$param&") || query.endsWith("&$param")
+        // Must be a valid custom application scheme
+        if (!UriClassifier.isCustomAppScheme(scheme)) {
+            return false
         }
 
-        val isAuthPath = path.contains("oauth") || path.contains("callback") || path.contains("auth")
+        val queryIdx = trimmed.indexOf('?')
+        val hashIdx = trimmed.indexOf('#')
 
-        return hasOAuthParam || isAuthPath
+        val query = if (queryIdx != -1) {
+            val end = if (hashIdx != -1 && hashIdx > queryIdx) hashIdx else trimmed.length
+            trimmed.substring(queryIdx + 1, end).lowercase()
+        } else ""
+
+        val fragment = if (hashIdx != -1) {
+            trimmed.substring(hashIdx + 1).lowercase()
+        } else ""
+
+        val path = if (queryIdx != -1) {
+            trimmed.substring(0, queryIdx).lowercase()
+        } else if (hashIdx != -1) {
+            trimmed.substring(0, hashIdx).lowercase()
+        } else {
+            trimmed.lowercase()
+        }
+
+        // Check query parameters and fragment parameters (for implicit OAuth / PKCE flows)
+        val hasCoreOAuthParam = listOf("code=", "access_token=", "id_token=").any {
+            query.contains(it) || fragment.contains(it)
+        }
+
+        val isExplicitOAuthPath = path.endsWith("/oauth2callback") ||
+                path.endsWith("/oauth2redirect") ||
+                path.endsWith("/oauth-callback") ||
+                path.endsWith("/oauth/callback") ||
+                path.endsWith("/auth/callback") ||
+                path.endsWith("/callback") ||
+                path.endsWith("/oauth")
+
+        val hasStateOrError = (query.contains("state=") || fragment.contains("state=")) ||
+                (query.contains("error=") || fragment.contains("error="))
+
+        return hasCoreOAuthParam || (isExplicitOAuthPath && hasStateOrError)
     }
 
     /**

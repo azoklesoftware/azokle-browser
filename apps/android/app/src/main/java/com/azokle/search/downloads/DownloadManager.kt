@@ -583,14 +583,15 @@ object DownloadManager {
                 try {
                     val publicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
                     if (publicDir.exists() || publicDir.mkdirs()) {
-                        val publicFile = File(publicDir, displayName)
-                        sourceFile.copyTo(publicFile, overwrite = true)
+                        val publicFile = generateUniqueFile(publicDir, displayName)
+                        sourceFile.copyTo(publicFile, overwrite = false)
                         android.media.MediaScannerConnection.scanFile(
                             context,
                             arrayOf(publicFile.absolutePath),
                             arrayOf(mimeType),
                             null
                         )
+                        return publicFile.absolutePath
                     }
                 } catch (e: Exception) {
                     android.media.MediaScannerConnection.scanFile(
@@ -605,6 +606,22 @@ object DownloadManager {
             Log.e(TAG, "Failed to publish to MediaStore: ${e.message}")
         }
         return sourceFile.absolutePath
+    }
+
+    private fun generateUniqueFile(directory: File, fileName: String): File {
+        var target = File(directory, fileName)
+        if (!target.exists()) return target
+
+        val dotIdx = fileName.lastIndexOf('.')
+        val baseName = if (dotIdx != -1) fileName.substring(0, dotIdx) else fileName
+        val ext = if (dotIdx != -1) fileName.substring(dotIdx) else ""
+
+        var count = 1
+        while (target.exists() && count < 10000) {
+            target = File(directory, "$baseName ($count)$ext")
+            count++
+        }
+        return target
     }
 
     /**

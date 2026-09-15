@@ -454,8 +454,7 @@ class GeckoPromptDelegateImpl(
 
         if (targetUri.isNotBlank()) {
             val scheme = com.azokle.search.common.util.UrlHelper.extractScheme(targetUri)?.lowercase()
-            val dangerousSchemes = setOf("file", "content", "chrome", "resource", "javascript")
-            if (scheme != null && scheme in dangerousSchemes) {
+            if (scheme != null && com.azokle.search.navigation.NavigationSecurity.isForbiddenWebScheme(scheme)) {
                 return GeckoResult.fromValue(prompt.dismiss())
             }
         }
