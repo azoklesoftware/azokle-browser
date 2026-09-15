@@ -24,6 +24,8 @@ class AzokleShieldsWidgetProvider : AppWidgetProvider() {
 
     companion object {
         const val EXTRA_OPEN_TOR = "com.azokle.search.EXTRA_OPEN_TOR"
+        const val EXTRA_FOCUS_SEARCH = "com.azokle.search.EXTRA_FOCUS_SEARCH"
+        const val EXTRA_START_VOICE = "com.azokle.search.EXTRA_START_VOICE"
 
         fun updateAllWidgets(context: Context) {
             try {
@@ -84,20 +86,48 @@ class AzokleShieldsWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(R.id.widget_metric_bandwidth, formatBandwidth(total))
             views.setTextViewText(R.id.widget_metric_time, formatTimeSaved(total))
 
-            // Main Widget Click -> Opens Browser
+            // 1. Root / Header Click -> Opens Browser Home
             val mainIntent = Intent(context, MainActivity::class.java).apply {
                 action = Intent.ACTION_MAIN
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
             val mainPendingIntent = PendingIntent.getActivity(
                 context,
-                10,
+                20,
                 mainIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             views.setOnClickPendingIntent(R.id.widget_shields_root, mainPendingIntent)
 
-            // Open Private Tab Click
+            // 2. Search Pill Click -> Focus Search Bar with Keyboard
+            val searchIntent = Intent(context, MainActivity::class.java).apply {
+                action = Intent.ACTION_MAIN
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra(EXTRA_FOCUS_SEARCH, true)
+            }
+            val searchPendingIntent = PendingIntent.getActivity(
+                context,
+                21,
+                searchIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            views.setOnClickPendingIntent(R.id.widget_search_pill, searchPendingIntent)
+
+            // 3. Voice Button Click -> Trigger Voice Search
+            val voiceIntent = Intent(context, MainActivity::class.java).apply {
+                action = Intent.ACTION_MAIN
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra(EXTRA_START_VOICE, true)
+            }
+            val voicePendingIntent = PendingIntent.getActivity(
+                context,
+                22,
+                voiceIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            views.setOnClickPendingIntent(R.id.widget_btn_voice, voicePendingIntent)
+
+            // 4. Tor Onion Button Click -> Open New Private Tor Tab
             val privateIntent = Intent(context, MainActivity::class.java).apply {
                 action = Intent.ACTION_MAIN
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -105,11 +135,11 @@ class AzokleShieldsWidgetProvider : AppWidgetProvider() {
             }
             val privatePendingIntent = PendingIntent.getActivity(
                 context,
-                11,
+                23,
                 privateIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            views.setOnClickPendingIntent(R.id.widget_btn_new_private_tab, privatePendingIntent)
+            views.setOnClickPendingIntent(R.id.widget_btn_tor, privatePendingIntent)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
