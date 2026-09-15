@@ -58,31 +58,31 @@
 
 ```mermaid
 graph TD
-    subgraph Client Apps Layer [/apps]
+    subgraph ClientApps ["Client Applications Layer (apps/)"]
         ANDROID["📱 apps/android<br/>• Jetpack Compose & Material 3<br/>• Mozilla GeckoView 134+ Engine<br/>• Anti-Flash Surface Compositor<br/>• Sovereign Tab & Group Manager<br/>• Biometric Keystore Vault"]
         LINUX["🐧 apps/linux<br/>• C++20 & GTK 3/4 Chrome<br/>• Embedded WebKitGTK / GeckoEngine<br/>• Internal Pages: azokle://*<br/>• Custom Omnibar & Fast Tabs"]
     end
 
-    subgraph Engine Abstraction Layer [/engine]
+    subgraph EngineLayer ["Engine Abstraction Layer (engine/)"]
         ENG["⚙️ engine/include/azokle/engine<br/>• IBrowserEngine / IGeckoEngine<br/>• IGeckoSession & IGeckoDelegate<br/>• Platform Web Engine Bridges"]
     end
 
-    subgraph Bindings Layer [/bindings]
+    subgraph BindingsLayer ["Bindings Layer (bindings/)"]
         JNI["☕ bindings/kotlin (azokle-jni)<br/>• JNI Native Bridge (libazokle_core.so)<br/>• Targets: arm64-v8a, armeabi-v7a, x86_64, x86<br/>• Safe Throwable Exception Boundaries"]
         CABI["🔌 bindings/c (azokle-c-bridge)<br/>• Stable C-ABI Headers (azokle.h)<br/>• Static Library (libazokle_c.a)"]
         UNIF["🌐 bindings/uniffi (azokle-uniffi)<br/>• Multi-language FFI (Swift/iOS, Python, C#)"]
     end
 
-    subgraph Rust Core Workspace [/crates]
+    subgraph RustCore ["Rust Core Workspace (crates/)"]
         CORE["🛡️ crates/core (azokle-core facade)<br/>Central Orchestrator Singleton"]
         
-        subgraph Privacy Subsystem
+        subgraph PrivacySubsystem ["Privacy & Shield Subsystem"]
             AD["privacy/adblock<br/>• Flatbuffers Binary Filter Cache<br/>• Brave Surrogates & Defusers"]
             ADR["privacy/adblock-rust<br/>• uBlock & Brave syntax parser"]
             TB["privacy/tracker-block<br/>• Bounce Tracking Redirect Defuser<br/>• URL Query Tracker Stripper"]
         end
 
-        subgraph Core Services
+        subgraph CoreServices ["Core Browser Services"]
             HIST["services/history<br/>• Mozilla Frecency Engine<br/>• Chronological Grouped Timeline<br/>• SQLite FTS Search"]
             PERM["services/permissions<br/>• Per-Origin Permission Controller"]
             DOWN["services/downloads<br/>• Resumable Range-206 Engine<br/>• Sandboxed Private/Tor Vault"]
@@ -92,7 +92,7 @@ graph TD
             SRCH["services/search<br/>• Bangs (!g, !yt, !w) & Suggest"]
         end
 
-        subgraph Security & Cryptography
+        subgraph SecurityCrypto ["Security & Cryptography"]
             CRYP["crypto<br/>• FIDO2 / WebAuthn P-256 Passkeys<br/>• ChaCha20-Poly1305 & Argon2id"]
             SEC["security<br/>• TLS Cert Inspector & Host Sanitizer"]
             STOR["storage<br/>• Encrypted SQLite & Atomic JSON Engine"]
@@ -102,10 +102,29 @@ graph TD
         end
     end
 
-    AD & ADR & TB & HIST & PERM & DOWN & TABS & BOOK & SYNC & SRCH & CRYP & SEC & STOR & TOR & NET & PROT --> CORE
-    CORE --> JNI & CABI & UNIF
+    AD --> CORE
+    ADR --> CORE
+    TB --> CORE
+    HIST --> CORE
+    PERM --> CORE
+    DOWN --> CORE
+    TABS --> CORE
+    BOOK --> CORE
+    SYNC --> CORE
+    SRCH --> CORE
+    CRYP --> CORE
+    SEC --> CORE
+    STOR --> CORE
+    TOR --> CORE
+    NET --> CORE
+    PROT --> CORE
+
+    CORE --> JNI
+    CORE --> CABI
+    CORE --> UNIF
     JNI --> ANDROID
-    CABI --> ENG --> LINUX
+    CABI --> ENG
+    ENG --> LINUX
 ```
 
 ---
