@@ -69,22 +69,28 @@ class AzokleSearchWidgetProvider : AppWidgetProvider() {
             // Dynamic Theme Styling (System / Dark / Light)
             val isDark = isWidgetDark(context)
             val bgRes = if (isDark) R.drawable.widget_bg_dark else R.drawable.widget_bg_light
+            val emblemBgRes = if (isDark) R.drawable.widget_emblem_bg_dark else R.drawable.widget_emblem_bg_light
             val iconBgRes = if (isDark) R.drawable.widget_icon_bg_dark else R.drawable.widget_icon_bg_light
-            val primaryTextColor = if (isDark) android.graphics.Color.parseColor("#E6FFFFFF") else android.graphics.Color.parseColor("#DE000000")
-            val iconTintColor = if (isDark) android.graphics.Color.WHITE else android.graphics.Color.BLACK
+            val torChipBgRes = if (isDark) R.drawable.widget_tor_chip_bg_dark else R.drawable.widget_tor_chip_bg_light
+
+            val primaryTextColor = if (isDark) android.graphics.Color.parseColor("#F1F5F9") else android.graphics.Color.parseColor("#0F172A")
+            val searchIconTint = if (isDark) android.graphics.Color.parseColor("#FF38BDF8") else android.graphics.Color.parseColor("#FF0284C7")
+            val actionIconTint = if (isDark) android.graphics.Color.parseColor("#F1F5F9") else android.graphics.Color.parseColor("#334155")
+            val dividerColor = if (isDark) android.graphics.Color.parseColor("#2438BDF8") else android.graphics.Color.parseColor("#1A0F172A")
 
             views.setInt(R.id.widget_root, "setBackgroundResource", bgRes)
+            views.setInt(R.id.widget_brand_container, "setBackgroundResource", emblemBgRes)
+            views.setInt(R.id.widget_search_icon, "setColorFilter", searchIconTint)
             views.setTextColor(R.id.widget_search_text, primaryTextColor)
-            views.setInt(R.id.widget_search_icon, "setColorFilter", iconTintColor)
+            views.setInt(R.id.widget_divider, "setBackgroundColor", dividerColor)
 
             views.setInt(R.id.widget_btn_voice, "setBackgroundResource", iconBgRes)
-            views.setInt(R.id.widget_voice_icon, "setColorFilter", iconTintColor)
+            views.setInt(R.id.widget_voice_icon, "setColorFilter", actionIconTint)
+
+            views.setInt(R.id.widget_btn_tor, "setBackgroundResource", torChipBgRes)
 
             views.setInt(R.id.widget_btn_qr, "setBackgroundResource", iconBgRes)
-            views.setInt(R.id.widget_qr_icon, "setColorFilter", iconTintColor)
-
-            views.setInt(R.id.widget_btn_tor, "setBackgroundResource", iconBgRes)
-            views.setInt(R.id.widget_tor_icon, "setColorFilter", iconTintColor)
+            views.setInt(R.id.widget_qr_icon, "setColorFilter", actionIconTint)
 
             // Universal clean search prompt text
             views.setTextViewText(R.id.widget_search_text, "Search with Azokle")
