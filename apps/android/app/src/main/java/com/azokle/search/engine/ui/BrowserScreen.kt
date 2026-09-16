@@ -628,6 +628,7 @@ fun BrowserScreen(
     }
 
     val colors = com.azokle.search.common.theme.AzokleTheme.colors
+    val windowSize = com.azokle.search.common.theme.rememberWindowSize()
 
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     var lastOrientation by remember { mutableIntStateOf(configuration.orientation) }
@@ -851,6 +852,51 @@ fun BrowserScreen(
                                 onQrClick = { showQrScanner = true },
                                 onVoiceClick = { showVoiceModal = true },
                                 onUrlBarClick = { showUrlEditSheet = true },
+                                showOverflowMenu = windowSize.showOmnibarOverflowMenu,
+                                openTabsCount = openTabs.size,
+                                onHomeClick = {
+                                    barVisibilityStateMachine.forceShow()
+                                    showDiscoverScreen = false
+                                    showTabGridSheet = false
+                                    isPageTransitioning = false
+                                    targetLoadingUrl = ""
+                                    com.azokle.search.adblock.AdBlockStats.resetForPage("", "", true)
+                                    try {
+                                        geckoView?.visibility = android.view.View.INVISIBLE
+                                        geckoView?.alpha = 0f
+                                    } catch (e: Exception) {}
+                                    if (currentUrl.isNotBlank() && currentUrl != "about:home" && currentUrl != "about:blank") {
+                                        currentUrl = ""
+                                        currentTitle = "New Tab"
+                                        currentError = null
+                                        activeTabId?.let { id -> TabManager.clearTabLoaded(id) }
+                                        TabManager.updateActiveTab("", "New Tab")
+                                        try {
+                                            geckoSession?.stop()
+                                            geckoSession?.loadUri("about:blank")
+                                        } catch (e: Exception) {}
+                                    } else {
+                                        val next = com.azokle.search.settings.WallpaperManager.rotateWallpaper()
+                                        activeTabId?.let { id ->
+                                            TabManager.updateTabWallpaper(id, next)
+                                        }
+                                    }
+                                },
+                                onDiscoverClick = {
+                                    barVisibilityStateMachine.forceShow()
+                                    showDiscoverScreen = true
+                                },
+                                onTabsClick = {
+                                    barVisibilityStateMachine.forceShow()
+                                    showTabGridSheet = true
+                                },
+                                onBurnDataClick = {
+                                    showBurnConfirmationSheet = true
+                                },
+                                onSettingsClick = {
+                                    barVisibilityStateMachine.forceShow()
+                                    showSettingsSheet = true
+                                },
                                 includeStatusBarPadding = false,
                                 selectedSearchEngine = viewModel?.uiState?.collectAsState()?.value?.selectedSearchEngine ?: "azokle",
                                 onSelectSearchEngine = { engineId ->
@@ -1107,7 +1153,7 @@ fun BrowserScreen(
 
              // 3. Tab Group Bottom Strip + Docked Bottom Action Toolbar
               if (!isFullScreenMode && !isInPipMode) {
-                  val shouldShowBottomControls = isBottomBarVisible || showDiscoverScreen || (currentUrl.isBlank() || currentUrl == "about:home")
+                  val shouldShowBottomControls = !windowSize.shouldHideBottomBar && (isBottomBarVisible || showDiscoverScreen || (currentUrl.isBlank() || currentUrl == "about:home"))
 
                   androidx.compose.animation.AnimatedVisibility(
                       visible = shouldShowBottomControls,

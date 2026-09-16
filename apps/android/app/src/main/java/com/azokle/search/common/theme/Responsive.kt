@@ -1,5 +1,6 @@
 package com.azokle.search.common.theme
 
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.widthIn
@@ -39,7 +40,19 @@ data class AzokleWindowSize(
     val heightDp: Int,
     val isLandscape: Boolean,
     val isTabletOrExpanded: Boolean
-)
+) {
+    /**
+     * Determines whether the bottom navigation bar should be hidden due to horizontal rotation or tablet screen size.
+     */
+    val shouldHideBottomBar: Boolean
+        get() = isLandscape || isTabletOrExpanded
+
+    /**
+     * Determines whether the Omnibar 3-dot overflow menu should be visible to replace the bottom navigation bar.
+     */
+    val showOmnibarOverflowMenu: Boolean
+        get() = shouldHideBottomBar
+}
 
 @Composable
 fun rememberWindowSize(): AzokleWindowSize {
@@ -59,8 +72,8 @@ fun rememberWindowSize(): AzokleWindowSize {
         else -> WindowHeightSize.EXPANDED
     }
 
-    val isLandscape = screenWidth > screenHeight
-    val isTabletOrExpanded = screenWidth >= 600
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || screenWidth > screenHeight
+    val isTabletOrExpanded = configuration.smallestScreenWidthDp >= 600 || screenWidth >= 600
 
     return AzokleWindowSize(
         width = widthSize,

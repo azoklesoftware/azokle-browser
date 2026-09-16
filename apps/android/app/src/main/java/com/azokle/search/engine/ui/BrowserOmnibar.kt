@@ -30,14 +30,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -45,7 +51,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -83,6 +91,13 @@ fun BrowserOmnibar(
     onQrClick: () -> Unit = {},
     onVoiceClick: () -> Unit = {},
     onUrlBarClick: () -> Unit,
+    showOverflowMenu: Boolean = false,
+    openTabsCount: Int = 1,
+    onHomeClick: () -> Unit = {},
+    onDiscoverClick: () -> Unit = {},
+    onTabsClick: () -> Unit = {},
+    onBurnDataClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     includeStatusBarPadding: Boolean = true,
     selectedSearchEngine: String = "azokle",
@@ -372,6 +387,206 @@ fun BrowserOmnibar(
                             contentDescription = null,
                             tint = colors.textSecondary,
                             modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+            }
+
+            // Responsive 3-Dot Overflow Menu (Shown when Bottom Bar is hidden in Landscape / Tablet mode)
+            if (showOverflowMenu) {
+                var overflowMenuExpanded by remember { mutableStateOf(false) }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Box {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(colors.surfaceElevated)
+                            .border(1.dp, colors.border, CircleShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = false, radius = 21.dp, color = colors.actionPrimaryBg),
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    overflowMenuExpanded = true
+                                }
+                            )
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = "Navigation Menu"
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = null,
+                            tint = colors.textPrimary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    // Luxury Glassmorphic Dropdown Menu
+                    DropdownMenu(
+                        expanded = overflowMenuExpanded,
+                        onDismissRequest = { overflowMenuExpanded = false },
+                        modifier = Modifier
+                            .background(colors.cardBg)
+                            .border(1.dp, colors.border, AzokleRadius.md)
+                    ) {
+                        // 1. Home
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = "Home",
+                                    color = colors.textPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Home,
+                                    contentDescription = null,
+                                    tint = colors.textPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            onClick = {
+                                overflowMenuExpanded = false
+                                onHomeClick()
+                            }
+                        )
+
+                        // 2. Discover
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = "Discover",
+                                    color = colors.textPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Explore,
+                                    contentDescription = null,
+                                    tint = colors.textPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            onClick = {
+                                overflowMenuExpanded = false
+                                onDiscoverClick()
+                            }
+                        )
+
+                        // 3. Tabs (with active count badge)
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Tabs",
+                                        color = colors.textPrimary,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    if (openTabsCount > 0) {
+                                        Box(
+                                            modifier = Modifier
+                                                .padding(start = 12.dp)
+                                                .background(colors.actionPrimaryBg, RoundedCornerShape(6.dp))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = "$openTabsCount",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = colors.actionPrimaryText
+                                            )
+                                        }
+                                    }
+                                }
+                            },
+                            leadingIcon = {
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(RoundedCornerShape(5.dp))
+                                        .border(1.5.dp, colors.textPrimary, RoundedCornerShape(5.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = if (openTabsCount > 99) "99+" else "$openTabsCount",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.textPrimary
+                                    )
+                                }
+                            },
+                            onClick = {
+                                overflowMenuExpanded = false
+                                onTabsClick()
+                            }
+                        )
+
+                        // 4. Fire Burn
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = "Fire Burn",
+                                    color = colors.statusDestructive,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.LocalFireDepartment,
+                                    contentDescription = null,
+                                    tint = colors.statusDestructive,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            onClick = {
+                                overflowMenuExpanded = false
+                                onBurnDataClick()
+                            }
+                        )
+
+                        HorizontalDivider(
+                            thickness = 0.5.dp,
+                            color = colors.border
+                        )
+
+                        // 5. Settings
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = "Settings",
+                                    color = colors.textPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = null,
+                                    tint = colors.textPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            onClick = {
+                                overflowMenuExpanded = false
+                                onSettingsClick()
+                            }
                         )
                     }
                 }
