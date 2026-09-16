@@ -27,11 +27,14 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
@@ -43,7 +46,6 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -57,6 +59,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -431,28 +435,21 @@ fun BrowserOmnibar(
                     DropdownMenu(
                         expanded = overflowMenuExpanded,
                         onDismissRequest = { overflowMenuExpanded = false },
+                        shape = RoundedCornerShape(18.dp),
+                        containerColor = colors.cardBg,
+                        tonalElevation = 6.dp,
+                        shadowElevation = 16.dp,
+                        border = BorderStroke(1.dp, colors.border),
                         modifier = Modifier
-                            .background(colors.cardBg)
-                            .border(1.dp, colors.border, AzokleRadius.md)
+                            .widthIn(min = 210.dp, max = 240.dp)
+                            .padding(vertical = 4.dp)
                     ) {
                         // 1. Home
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = "Home",
-                                    color = colors.textPrimary,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Home,
-                                    contentDescription = null,
-                                    tint = colors.textPrimary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            },
+                        OmnibarDropdownActionItem(
+                            title = "Home",
+                            icon = Icons.Default.Home,
+                            iconBgColor = colors.surfaceElevated,
+                            iconTint = colors.textPrimary,
                             onClick = {
                                 overflowMenuExpanded = false
                                 onHomeClick()
@@ -460,23 +457,11 @@ fun BrowserOmnibar(
                         )
 
                         // 2. Discover
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = "Discover",
-                                    color = colors.textPrimary,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Explore,
-                                    contentDescription = null,
-                                    tint = colors.textPrimary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            },
+                        OmnibarDropdownActionItem(
+                            title = "Discover",
+                            icon = Icons.Default.Explore,
+                            iconBgColor = colors.surfaceElevated,
+                            iconTint = colors.textPrimary,
                             onClick = {
                                 overflowMenuExpanded = false
                                 onDiscoverClick()
@@ -484,52 +469,12 @@ fun BrowserOmnibar(
                         )
 
                         // 3. Tabs (with active count badge)
-                        DropdownMenuItem(
-                            text = {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "Tabs",
-                                        color = colors.textPrimary,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    if (openTabsCount > 0) {
-                                        Box(
-                                            modifier = Modifier
-                                                .padding(start = 12.dp)
-                                                .background(colors.actionPrimaryBg, RoundedCornerShape(6.dp))
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                                        ) {
-                                            Text(
-                                                text = "$openTabsCount",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = colors.actionPrimaryText
-                                            )
-                                        }
-                                    }
-                                }
-                            },
-                            leadingIcon = {
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(RoundedCornerShape(5.dp))
-                                        .border(1.5.dp, colors.textPrimary, RoundedCornerShape(5.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = if (openTabsCount > 99) "99+" else "$openTabsCount",
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.textPrimary
-                                    )
-                                }
-                            },
+                        OmnibarDropdownActionItem(
+                            title = "Tabs",
+                            icon = Icons.Default.Layers,
+                            iconBgColor = colors.surfaceElevated,
+                            iconTint = colors.textPrimary,
+                            badgeCount = openTabsCount,
                             onClick = {
                                 overflowMenuExpanded = false
                                 onTabsClick()
@@ -537,23 +482,12 @@ fun BrowserOmnibar(
                         )
 
                         // 4. Fire Burn
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = "Fire Burn",
-                                    color = colors.statusDestructive,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.LocalFireDepartment,
-                                    contentDescription = null,
-                                    tint = colors.statusDestructive,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            },
+                        OmnibarDropdownActionItem(
+                            title = "Fire Burn",
+                            icon = Icons.Default.LocalFireDepartment,
+                            iconBgColor = colors.statusDestructive.copy(alpha = 0.12f),
+                            iconTint = colors.statusDestructive,
+                            textColor = colors.statusDestructive,
                             onClick = {
                                 overflowMenuExpanded = false
                                 onBurnDataClick()
@@ -562,27 +496,16 @@ fun BrowserOmnibar(
 
                         HorizontalDivider(
                             thickness = 0.5.dp,
-                            color = colors.border
+                            color = colors.border.copy(alpha = 0.6f),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                         )
 
                         // 5. Settings
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = "Settings",
-                                    color = colors.textPrimary,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Settings,
-                                    contentDescription = null,
-                                    tint = colors.textPrimary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            },
+                        OmnibarDropdownActionItem(
+                            title = "Settings",
+                            icon = Icons.Default.Settings,
+                            iconBgColor = colors.surfaceElevated,
+                            iconTint = colors.textPrimary,
                             onClick = {
                                 overflowMenuExpanded = false
                                 onSettingsClick()
@@ -614,6 +537,88 @@ fun BrowserOmnibar(
                 thickness = 0.5.dp,
                 color = colors.border
             )
+        }
+    }
+}
+
+/**
+ * Premium Luxury Action Item for Responsive Omnibar Dropdown Menu:
+ * Features a frosted squircle icon badge, crisp typography, live badge counter, and tactile haptic feedback.
+ */
+@Composable
+private fun OmnibarDropdownActionItem(
+    title: String,
+    icon: ImageVector,
+    iconTint: Color = AzokleTheme.colors.textPrimary,
+    iconBgColor: Color = AzokleTheme.colors.surface,
+    textColor: Color = AzokleTheme.colors.textPrimary,
+    badgeCount: Int? = null,
+    onClick: () -> Unit
+) {
+    val colors = AzokleTheme.colors
+    val haptic = LocalHapticFeedback.current
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(color = colors.actionPrimaryBg.copy(alpha = 0.12f)),
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onClick()
+                }
+            )
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Frosted Squircle Icon Badge
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(iconBgColor)
+                .border(0.5.dp, colors.border.copy(alpha = 0.5f), RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // Action Label
+        Text(
+            text = title,
+            color = textColor,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.weight(1f)
+        )
+
+        // Pill Badge (for active tabs count)
+        if (badgeCount != null && badgeCount > 0) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(colors.actionPrimaryBg)
+                    .padding(horizontal = 7.dp, vertical = 2.5.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (badgeCount > 99) "99+" else "$badgeCount",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    color = colors.actionPrimaryText
+                )
+            }
         }
     }
 }
