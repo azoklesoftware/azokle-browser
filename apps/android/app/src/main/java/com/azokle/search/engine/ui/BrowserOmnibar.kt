@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -500,15 +501,15 @@ fun BrowserOmnibar(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                         )
 
-                        // 5. Settings
+                        // 5. Browser Menu Sheet
                         OmnibarDropdownActionItem(
-                            title = "Settings",
-                            icon = Icons.Default.Settings,
+                            title = "Menu",
+                            icon = Icons.Default.Menu,
                             iconBgColor = colors.surfaceElevated,
                             iconTint = colors.textPrimary,
                             onClick = {
                                 overflowMenuExpanded = false
-                                onSettingsClick()
+                                onMenuClick()
                             }
                         )
                     }
