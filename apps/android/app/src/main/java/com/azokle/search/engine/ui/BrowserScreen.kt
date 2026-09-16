@@ -12,6 +12,8 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +29,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsTopHeight
+import androidx.compose.ui.unit.Dp
 import com.azokle.search.engine.DownloadConfirmationPayload
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -2218,6 +2221,67 @@ private fun BrowserHomeScreenContent(
     shortcutsModifier: Modifier = Modifier
 ) {
     val colors = com.azokle.search.common.theme.AzokleTheme.colors
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp
+    val screenHeightDp = configuration.screenHeightDp
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE || screenWidthDp > screenHeightDp
+
+    // Dynamic Responsive Typography & Spacing based on viewport dimensions
+    val logoFontSize = when {
+        isLandscape -> 34.sp
+        screenHeightDp < 620 || screenWidthDp < 360 -> 38.sp
+        screenHeightDp < 760 -> 46.sp
+        else -> 52.sp
+    }
+
+    val topSpacerHeight = when {
+        isLandscape -> 8.dp
+        screenHeightDp < 620 -> 12.dp
+        screenHeightDp < 760 -> 18.dp
+        else -> 24.dp
+    }
+
+    val midSpacerHeight = when {
+        isLandscape -> 10.dp
+        screenHeightDp < 620 -> 14.dp
+        screenHeightDp < 760 -> 20.dp
+        else -> 28.dp
+    }
+
+    val itemsPerRow = when {
+        screenWidthDp >= 720 || (isLandscape && screenWidthDp >= 640) -> 8
+        screenWidthDp >= 520 -> 6
+        else -> 4
+    }
+
+    val shortcutTileSize = when {
+        isLandscape || screenHeightDp < 600 || screenWidthDp < 360 -> 48.dp
+        screenHeightDp >= 840 || screenWidthDp >= 600 -> 58.dp
+        else -> 54.dp
+    }
+
+    val shortcutIconSize = when {
+        isLandscape || screenHeightDp < 600 || screenWidthDp < 360 -> 26.dp
+        screenHeightDp >= 840 || screenWidthDp >= 600 -> 32.dp
+        else -> 30.dp
+    }
+
+    val shortcutRowSpacing = when {
+        isLandscape || screenHeightDp < 620 -> 10.dp
+        else -> 16.dp
+    }
+
+    val contentHorizontalPadding = when {
+        screenWidthDp < 360 -> 12.dp
+        screenWidthDp < 480 -> 18.dp
+        else -> 24.dp
+    }
+
+    val contentVerticalPadding = when {
+        isLandscape -> 12.dp
+        screenHeightDp < 620 -> 16.dp
+        else -> 24.dp
+    }
 
     Box(
         modifier = modifier
@@ -2273,94 +2337,103 @@ private fun BrowserHomeScreenContent(
                 )
         )
 
-        // Center Content Stack: Logo, Search Capsule, Quick Shortcuts
-        Column(
+        // Scrollable Responsive Center Content Stack (Guarantees zero clipping on any phone screen height)
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .adaptiveContentWidth(640.dp)
-                .padding(horizontal = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            contentAlignment = Alignment.Center
         ) {
-            // Audiowide Brand Logo in Lowercase (Exact match to Home Page)
-            Text(
-                text = "azokle",
-                color = AzokleWhite,
-                fontFamily = AudiowideFontFamily,
-                fontSize = 52.sp,
-                fontWeight = FontWeight.Normal,
-                letterSpacing = (-1.0).sp,
-                textAlign = TextAlign.Center
-            )
-
-            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(24.dp))
-
-            // Exact Home Page Search Bar Capsule
-            SearchBarCapsule(
-                query = "",
-                placeholderText = stringResource(R.string.search_placeholder),
-                onQueryChange = {},
-                onSearch = { onNavigate(it) },
-                onVoiceClick = onVoiceClick,
-                onCapsuleClick = onOpenSearchSheet,
-                isReadOnly = true,
-                selectedEngineId = selectedSearchEngine,
-                onEngineSelected = onSelectSearchEngine,
-                modifier = searchBarModifier,
-                searchEngineModifier = searchEngineModifier
-            )
-
-            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(28.dp))
-
-            // Quick Speed Dial Shortcuts (Wikipedia, YouTube, Amazon, Trip, Reddit, Flipkart, Kick, Azokle)
-            val shortcuts = remember {
-                listOf(
-                    BrowserShortcut("Wikipedia", "https://www.wikipedia.org", "https://www.google.com/s2/favicons?domain=wikipedia.org&sz=128"),
-                    BrowserShortcut("YouTube", "https://www.youtube.com", "https://www.google.com/s2/favicons?domain=youtube.com&sz=128"),
-                    BrowserShortcut(
-                        label = "Amazon",
-                        url = "https://amzn.to/4qTBnWI",
-                        faviconUrl = "https://www.google.com/s2/favicons?domain=amazon.in&sz=128",
-                        isSponsored = true
-                    ),
-                    BrowserShortcut(
-                        label = "Trip",
-                        url = "https://www.trip.com/?Allianceid=10452016&SID=330440797&trip_sub1=&trip_sub3=D19702202",
-                        faviconUrl = "https://www.google.com/s2/favicons?domain=trip.com&sz=128",
-                        isSponsored = true
-                    ),
-                    BrowserShortcut("Reddit", "https://www.reddit.com", "https://www.google.com/s2/favicons?domain=reddit.com&sz=128"),
-                    BrowserShortcut(
-                        label = "Azokle Auth",
-                        url = "https://azokle.com/authenticator",
-                        iconResId = com.azokle.search.R.drawable.ic_azokle_auth
-                    ),
-                    BrowserShortcut("Kick", "https://kick.com", "https://www.google.com/s2/favicons?domain=kick.com&sz=128"),
-                    BrowserShortcut("Azokle", "https://azokle.com", "https://azokle.com/favicon.ico")
-                )
-            }
-
-            val chunkedShortcuts = remember(shortcuts) { shortcuts.chunked(4) }
-
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .then(shortcutsModifier)
-                    .padding(horizontal = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .adaptiveContentWidth(680.dp)
+                    .padding(horizontal = contentHorizontalPadding, vertical = contentVerticalPadding),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                chunkedShortcuts.forEach { rowItems ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        rowItems.forEach { item ->
-                            ShortcutTile(
-                                item = item,
-                                onNavigate = onNavigate,
-                                modifier = Modifier.weight(1f)
-                            )
+                // Audiowide Brand Logo in Lowercase (Exact match to Home Page)
+                Text(
+                    text = "azokle",
+                    color = AzokleWhite,
+                    fontFamily = AudiowideFontFamily,
+                    fontSize = logoFontSize,
+                    fontWeight = FontWeight.Normal,
+                    letterSpacing = (-1.0).sp,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(topSpacerHeight))
+
+                // Exact Home Page Search Bar Capsule
+                SearchBarCapsule(
+                    query = "",
+                    placeholderText = stringResource(R.string.search_placeholder),
+                    onQueryChange = {},
+                    onSearch = { onNavigate(it) },
+                    onVoiceClick = onVoiceClick,
+                    onCapsuleClick = onOpenSearchSheet,
+                    isReadOnly = true,
+                    selectedEngineId = selectedSearchEngine,
+                    onEngineSelected = onSelectSearchEngine,
+                    modifier = searchBarModifier,
+                    searchEngineModifier = searchEngineModifier
+                )
+
+                Spacer(modifier = Modifier.height(midSpacerHeight))
+
+                // Quick Speed Dial Shortcuts (Wikipedia, YouTube, Amazon, Trip, Reddit, Azokle Auth, Kick, Azokle)
+                val shortcuts = remember {
+                    listOf(
+                        BrowserShortcut("Wikipedia", "https://www.wikipedia.org", "https://www.google.com/s2/favicons?domain=wikipedia.org&sz=128"),
+                        BrowserShortcut("YouTube", "https://www.youtube.com", "https://www.google.com/s2/favicons?domain=youtube.com&sz=128"),
+                        BrowserShortcut(
+                            label = "Amazon",
+                            url = "https://amzn.to/4qTBnWI",
+                            faviconUrl = "https://www.google.com/s2/favicons?domain=amazon.in&sz=128",
+                            isSponsored = true
+                        ),
+                        BrowserShortcut(
+                            label = "Trip",
+                            url = "https://www.trip.com/?Allianceid=10452016&SID=330440797&trip_sub1=&trip_sub3=D19702202",
+                            faviconUrl = "https://www.google.com/s2/favicons?domain=trip.com&sz=128",
+                            isSponsored = true
+                        ),
+                        BrowserShortcut("Reddit", "https://www.reddit.com", "https://www.google.com/s2/favicons?domain=reddit.com&sz=128"),
+                        BrowserShortcut(
+                            label = "Azokle Auth",
+                            url = "https://azokle.com/authenticator",
+                            iconResId = com.azokle.search.R.drawable.ic_azokle_auth
+                        ),
+                        BrowserShortcut("Kick", "https://kick.com", "https://www.google.com/s2/favicons?domain=kick.com&sz=128"),
+                        BrowserShortcut("Azokle", "https://azokle.com", "https://azokle.com/favicon.ico")
+                    )
+                }
+
+                val chunkedShortcuts = remember(shortcuts, itemsPerRow) { shortcuts.chunked(itemsPerRow) }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(shortcutsModifier)
+                        .padding(horizontal = 2.dp),
+                    verticalArrangement = Arrangement.spacedBy(shortcutRowSpacing)
+                ) {
+                    chunkedShortcuts.forEach { rowItems ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            rowItems.forEach { item ->
+                                ShortcutTile(
+                                    item = item,
+                                    onNavigate = onNavigate,
+                                    tileSize = shortcutTileSize,
+                                    iconSize = shortcutIconSize,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     }
                 }
@@ -2373,6 +2446,8 @@ private fun BrowserHomeScreenContent(
 private fun ShortcutTile(
     item: BrowserShortcut,
     onNavigate: (String) -> Unit,
+    tileSize: Dp = 54.dp,
+    iconSize: Dp = 30.dp,
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
@@ -2398,7 +2473,7 @@ private fun ShortcutTile(
         // Frosted Glassmorphic Squircle Tile
         Box(
             modifier = Modifier
-                .size(54.dp)
+                .size(tileSize)
                 .shadow(
                     elevation = 6.dp,
                     shape = RoundedCornerShape(16.dp),
@@ -2430,13 +2505,13 @@ private fun ShortcutTile(
                 androidx.compose.foundation.Image(
                     painter = androidx.compose.ui.res.painterResource(id = item.iconResId),
                     contentDescription = item.label,
-                    modifier = Modifier.size(30.dp)
+                    modifier = Modifier.size(iconSize)
                 )
             } else {
                 FaviconImage(
                     url = item.url,
                     faviconUrl = item.faviconUrl,
-                    size = 30.dp
+                    size = iconSize
                 )
             }
 
@@ -2462,11 +2537,11 @@ private fun ShortcutTile(
             }
         }
 
-        Spacer(modifier = Modifier.height(7.dp))
+        Spacer(modifier = Modifier.height(5.dp))
 
         Text(
             text = item.label,
-            fontSize = 12.sp,
+            fontSize = if (tileSize < 50.dp) 11.sp else 12.sp,
             fontWeight = FontWeight.Medium,
             color = Color.White,
             maxLines = 1,
