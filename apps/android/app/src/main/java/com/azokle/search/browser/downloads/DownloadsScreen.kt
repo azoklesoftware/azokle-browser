@@ -1,5 +1,16 @@
 package com.azokle.search.downloads
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,6 +38,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Download
@@ -40,6 +52,9 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -56,6 +71,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -68,6 +84,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -75,6 +92,7 @@ import com.azokle.search.common.theme.AzokleRadius
 import com.azokle.search.common.theme.AzokleTheme
 import com.azokle.search.common.theme.adaptiveContentWidth
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -105,6 +123,10 @@ fun DownloadsScreen(
         }
     }
 
+    val activeCount = remember(downloadsList) {
+        downloadsList.count { it.status == DownloadStatus.DOWNLOADING || it.status == DownloadStatus.PAUSED }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -116,10 +138,12 @@ fun DownloadsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .adaptiveContentWidth(680.dp),
+                .adaptiveContentWidth(640.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 1. Clean Top Header Bar
+            // ==========================================
+            // 1. SLEEK TOP APP BAR
+            // ==========================================
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -127,15 +151,18 @@ fun DownloadsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Back Button (48dp Touch Target)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
+                    // Back Navigation Action
                     Box(
                         modifier = Modifier
                             .sizeIn(minWidth = 44.dp, minHeight = 44.dp)
                             .clip(CircleShape)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(bounded = false, radius = 18.dp, color = colors.textPrimary),
+                                indication = ripple(bounded = false, radius = 20.dp, color = colors.textPrimary),
                                 onClick = onDismiss
                             )
                             .semantics {
@@ -146,95 +173,119 @@ fun DownloadsScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(38.dp)
                                 .clip(CircleShape)
-                                .background(colors.surfaceElevated)
-                                .border(1.dp, colors.border, CircleShape),
+                                .background(colors.surfaceElevated.copy(alpha = 0.8f))
+                                .border(1.dp, colors.borderSubtle, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = null,
                                 tint = colors.textPrimary,
-                                modifier = Modifier.size(17.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
 
                     Spacer(modifier = Modifier.width(12.dp))
 
-                    Text(
-                        text = "Downloads",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textPrimary,
-                        modifier = Modifier.semantics { heading() }
-                    )
-
-                    if (downloadsList.isNotEmpty()) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Box(
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .background(colors.surfaceElevated)
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                        ) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "${downloadsList.size}",
-                                fontSize = 11.sp,
+                                text = "Downloads",
+                                fontSize = 19.sp,
                                 fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace,
-                                color = colors.textMuted
+                                color = colors.textPrimary,
+                                modifier = Modifier.semantics { heading() }
+                            )
+
+                            if (downloadsList.isNotEmpty()) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(colors.surfaceElevated)
+                                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                                ) {
+                                    AnimatedContent(
+                                        targetState = downloadsList.size,
+                                        transitionSpec = {
+                                            (slideInVertically { height -> height / 2 } + fadeIn(tween(180)))
+                                                .togetherWith(slideOutVertically { height -> -height / 2 } + fadeOut(tween(140)))
+                                        },
+                                        label = "DownloadsCountBadge"
+                                    ) { count ->
+                                        Text(
+                                            text = "$count",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace,
+                                            color = colors.textSecondary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        if (activeCount > 0) {
+                            Text(
+                                text = "$activeCount active transfer${if (activeCount > 1) "s" else ""}",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = colors.statusSuccess
                             )
                         }
                     }
                 }
 
                 if (downloadsList.isNotEmpty()) {
-                    // Clear All Action (48dp Touch Target)
+                    // Clear History Action Button
                     Box(
                         modifier = Modifier
                             .sizeIn(minWidth = 44.dp, minHeight = 44.dp)
                             .clip(CircleShape)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(bounded = false, radius = 18.dp, color = colors.statusDestructive),
+                                indication = ripple(bounded = false, radius = 20.dp, color = colors.statusDestructive),
                                 onClick = { showClearConfirmDialog = true }
                             )
                             .semantics {
                                 role = Role.Button
-                                contentDescription = "Clear all downloads"
+                                contentDescription = "Clear download records"
                             },
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(38.dp)
                                 .clip(CircleShape)
-                                .background(colors.surfaceElevated)
-                                .border(1.dp, colors.border, CircleShape),
+                                .background(colors.surfaceElevated.copy(alpha = 0.8f))
+                                .border(1.dp, colors.borderSubtle, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.DeleteOutline,
                                 contentDescription = null,
                                 tint = colors.textMuted,
-                                modifier = Modifier.size(17.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
                 }
             }
 
-            // 2. Search Input Bar
+            // ==========================================
+            // 2. SEARCH INPUT FIELD
+            // ==========================================
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 4.dp)
                     .clip(AzokleRadius.md)
-                    .background(colors.surfaceElevated)
-                    .border(1.dp, colors.border, AzokleRadius.md)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .background(colors.surfaceElevated.copy(alpha = 0.7f))
+                    .border(1.dp, colors.borderSubtle, AzokleRadius.md)
+                    .padding(horizontal = 14.dp, vertical = 9.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -246,7 +297,7 @@ fun DownloadsScreen(
                         tint = colors.textMuted,
                         modifier = Modifier.size(17.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     BasicTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
@@ -260,9 +311,9 @@ fun DownloadsScreen(
                         decorationBox = { innerTextField ->
                             if (searchQuery.isEmpty()) {
                                 Text(
-                                    text = "Search downloaded files...",
+                                    text = "Search downloads by file name or URL...",
                                     color = colors.textMuted,
-                                    fontSize = 13.5.sp
+                                    fontSize = 13.sp
                                 )
                             }
                             innerTextField()
@@ -278,7 +329,7 @@ fun DownloadsScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Clear search query",
+                                contentDescription = "Clear search",
                                 tint = colors.textMuted,
                                 modifier = Modifier.size(15.dp)
                             )
@@ -287,7 +338,9 @@ fun DownloadsScreen(
                 }
             }
 
-            // 3. Category Filter Chips (Segmented Style)
+            // ==========================================
+            // 3. HORIZONTAL CATEGORY FILTER PILLS
+            // ==========================================
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -297,36 +350,80 @@ fun DownloadsScreen(
                 item { Spacer(modifier = Modifier.width(8.dp)) }
                 items(FileCategory.values()) { category ->
                     val isSelected = selectedCategory == category
+                    val chipBg by animateColorAsState(
+                        targetValue = if (isSelected) colors.actionPrimaryBg else colors.surfaceElevated.copy(alpha = 0.6f),
+                        animationSpec = tween(durationMillis = 200),
+                        label = "CategoryChipBg"
+                    )
+                    val chipTextColor by animateColorAsState(
+                        targetValue = if (isSelected) colors.actionPrimaryText else colors.textSecondary,
+                        animationSpec = tween(durationMillis = 200),
+                        label = "CategoryChipText"
+                    )
+
+                    val categoryCount = remember(downloadsList, category) {
+                        when (category) {
+                            FileCategory.ALL -> downloadsList.size
+                            else -> downloadsList.count { it.category == category }
+                        }
+                    }
+
                     val chipShape = AzokleRadius.full
                     Box(
                         modifier = Modifier
                             .clip(chipShape)
-                            .background(if (isSelected) colors.actionPrimaryBg else colors.surfaceElevated)
-                            .border(1.dp, if (isSelected) Color.Transparent else colors.border, chipShape)
+                            .background(chipBg)
+                            .border(
+                                1.dp,
+                                if (isSelected) Color.Transparent else colors.borderSubtle,
+                                chipShape
+                            )
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = ripple(bounded = true, color = colors.textPrimary.copy(alpha = 0.15f)),
                                 onClick = { selectedCategory = category }
                             )
-                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                            .padding(horizontal = 14.dp, vertical = 6.5.dp)
                             .semantics {
                                 role = Role.Tab
-                                contentDescription = "${category.name} filter"
+                                contentDescription = "${category.name} filter, $categoryCount items"
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = category.name.lowercase().replaceFirstChar { it.uppercase() },
-                            color = if (isSelected) colors.actionPrimaryText else colors.textSecondary,
-                            fontSize = 12.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = when (category) {
+                                    FileCategory.ALL -> "All"
+                                    FileCategory.ACTIVE -> "Active"
+                                    FileCategory.IMAGES -> "Images"
+                                    FileCategory.MEDIA -> "Media"
+                                    FileCategory.DOCUMENTS -> "Documents"
+                                    FileCategory.OTHER -> "Other"
+                                },
+                                color = chipTextColor,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            )
+
+                            if (categoryCount > 0) {
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = "$categoryCount",
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) chipTextColor.copy(alpha = 0.8f) else colors.textMuted
+                                )
+                            }
+                        }
                     }
                 }
                 item { Spacer(modifier = Modifier.width(8.dp)) }
             }
 
-            // 4. Downloads Content Area
+            // ==========================================
+            // 4. DOWNLOADS CONTENT AREA / LIST
+            // ==========================================
             if (filteredDownloads.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -336,35 +433,52 @@ fun DownloadsScreen(
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(32.dp)
+                        modifier = Modifier.padding(horizontal = 32.dp, vertical = 24.dp)
                     ) {
+                        // Ambient Glowing Icon Badge
                         Box(
                             modifier = Modifier
-                                .size(60.dp)
+                                .size(64.dp)
                                 .clip(CircleShape)
-                                .background(colors.surfaceElevated)
-                                .border(1.dp, colors.border, CircleShape),
+                                .background(
+                                    Brush.radialGradient(
+                                        listOf(
+                                            colors.surfaceElevated,
+                                            colors.surfaceElevated.copy(alpha = 0.4f)
+                                        )
+                                    )
+                                )
+                                .border(1.dp, colors.borderSubtle, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Download,
+                                imageVector = if (searchQuery.isNotBlank()) Icons.Default.Search else Icons.Outlined.FileDownload,
                                 contentDescription = null,
                                 tint = colors.textMuted,
-                                modifier = Modifier.size(26.dp)
+                                modifier = Modifier.size(28.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
                         Text(
-                            text = if (searchQuery.isNotBlank()) "No matching downloads" else "No downloads yet",
-                            fontSize = 15.sp,
+                            text = if (searchQuery.isNotBlank()) "No Matching Downloads" else "No Downloads Yet",
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
                         Text(
-                            text = if (searchQuery.isNotBlank()) "Try another search term" else "Files you download will securely appear here",
+                            text = if (searchQuery.isNotBlank())
+                                "Try searching with a different filename keyword."
+                            else
+                                "Files downloaded via standard, private, or Tor sessions appear here securely.",
                             fontSize = 12.5.sp,
-                            color = colors.textMuted
+                            color = colors.textMuted,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 17.sp
                         )
                     }
                 }
@@ -374,19 +488,42 @@ fun DownloadsScreen(
                         .fillMaxWidth()
                         .weight(1f)
                         .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     item {
                         Column(modifier = Modifier.fillMaxWidth()) {
-                            Text(
-                                text = "FILES (${filteredDownloads.size})",
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold,
-                                color = colors.textMuted,
-                                letterSpacing = 0.8.sp,
-                                modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 4.dp, bottom = 6.dp, end = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "TRANSFERS & FILES (${filteredDownloads.size})",
+                                    fontSize = 10.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.textMuted,
+                                    letterSpacing = 0.8.sp
+                                )
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Security,
+                                        contentDescription = null,
+                                        tint = colors.textMuted.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Isolated Storage",
+                                        fontSize = 10.5.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = colors.textMuted
+                                    )
+                                }
+                            }
 
                             // Grouped Card Container
                             val groupShape = AzokleRadius.lg
@@ -395,10 +532,10 @@ fun DownloadsScreen(
                                     .fillMaxWidth()
                                     .clip(groupShape)
                                     .background(colors.cardBg)
-                                    .border(1.dp, colors.border, groupShape)
+                                    .border(1.dp, colors.borderSubtle, groupShape)
                             ) {
                                 filteredDownloads.forEachIndexed { index, item ->
-                                    DownloadGroupedRow(
+                                    DownloadItemRow(
                                         item = item,
                                         colors = colors,
                                         onOpen = { DownloadManager.openFile(context, item) },
@@ -412,27 +549,27 @@ fun DownloadsScreen(
 
                                     if (index < filteredDownloads.size - 1) {
                                         HorizontalDivider(
-                                            color = colors.border.copy(alpha = 0.5f),
-                                            thickness = 0.5.dp,
-                                            modifier = Modifier.padding(start = 56.dp)
+                                            color = colors.borderSubtle.copy(alpha = 0.5f),
+                                            thickness = 0.6.dp,
+                                            modifier = Modifier.padding(start = 58.dp)
                                         )
                                     }
                                 }
                             }
                         }
                     }
-                    item { Spacer(modifier = Modifier.height(32.dp)) }
+                    item { Spacer(modifier = Modifier.height(28.dp)) }
                 }
             }
         }
     }
 
-    // Confirmation Dialog for Clearing All History
+    // Confirmation Dialog: Clear All History
     if (showClearConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showClearConfirmDialog = false },
-            title = { Text(text = "Clear All Downloads?", fontWeight = FontWeight.Bold, fontSize = 17.sp) },
-            text = { Text(text = "This will remove all download records from Azokle. Downloaded files on your device will remain intact.", fontSize = 13.5.sp) },
+            title = { Text(text = "Clear Download History?", fontWeight = FontWeight.Bold, fontSize = 17.sp) },
+            text = { Text(text = "This removes all download records from the Azokle browser history. Downloaded files stored on your device will not be deleted.", fontSize = 13.5.sp) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -445,19 +582,19 @@ fun DownloadsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showClearConfirmDialog = false }) {
-                    Text(text = "Cancel")
+                    Text(text = "Cancel", color = colors.textSecondary)
                 }
             }
         )
     }
 
-    // Confirmation Dialog for Single Item Delete
+    // Confirmation Dialog: Single Item Delete
     if (itemToDelete != null) {
         val target = itemToDelete!!
         AlertDialog(
             onDismissRequest = { itemToDelete = null },
-            title = { Text(text = "Delete Download?", fontWeight = FontWeight.Bold, fontSize = 17.sp) },
-            text = { Text(text = "Do you want to delete '${target.filename}' from your device storage or just remove the record?", fontSize = 13.5.sp) },
+            title = { Text(text = "Delete Download Record?", fontWeight = FontWeight.Bold, fontSize = 17.sp) },
+            text = { Text(text = "Do you want to delete '${target.filename}' from your device storage or remove only the record?", fontSize = 13.5.sp) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -465,7 +602,7 @@ fun DownloadsScreen(
                         itemToDelete = null
                     }
                 ) {
-                    Text(text = "Delete File", color = colors.statusDestructive, fontWeight = FontWeight.Bold)
+                    Text(text = "Delete File & Record", color = colors.statusDestructive, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -475,7 +612,7 @@ fun DownloadsScreen(
                         itemToDelete = null
                     }
                 ) {
-                    Text(text = "Remove Record Only")
+                    Text(text = "Record Only", color = colors.textSecondary)
                 }
             }
         )
@@ -483,7 +620,7 @@ fun DownloadsScreen(
 }
 
 @Composable
-private fun DownloadGroupedRow(
+private fun DownloadItemRow(
     item: DownloadItem,
     colors: com.azokle.search.common.theme.AzokleThemeColors,
     onOpen: () -> Unit,
@@ -494,55 +631,68 @@ private fun DownloadGroupedRow(
     onRetry: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val icon = remember(item.mimeType, item.filename) {
+    // Determine Color-coded Category Medallion & Icon
+    val (icon, iconTint, badgeBg) = remember(item.mimeType, item.filename) {
         val lower = item.filename.lowercase()
         val mime = item.mimeType.lowercase()
         when {
-            mime.startsWith("image/") || lower.endsWith(".jpg") || lower.endsWith(".png") || lower.endsWith(".webp") -> Icons.Default.Image
-            mime.startsWith("video/") || lower.endsWith(".mp4") || lower.endsWith(".mkv") -> Icons.Default.Movie
-            mime.startsWith("audio/") || lower.endsWith(".mp3") || lower.endsWith(".wav") -> Icons.Default.MusicNote
-            mime.contains("pdf") || lower.endsWith(".pdf") -> Icons.Default.PictureAsPdf
-            mime.contains("zip") || mime.contains("tar") || lower.endsWith(".zip") || lower.endsWith(".apk") -> Icons.Default.FolderZip
-            else -> Icons.AutoMirrored.Filled.InsertDriveFile
+            mime.startsWith("image/") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".webp") || lower.endsWith(".gif") || lower.endsWith(".svg") ->
+                Triple(Icons.Default.Image, Color(0xFFEC4899), Color(0xFFEC4899).copy(alpha = 0.12f))
+            mime.startsWith("video/") || lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".webm") ->
+                Triple(Icons.Default.Movie, Color(0xFF8B5CF6), Color(0xFF8B5CF6).copy(alpha = 0.12f))
+            mime.startsWith("audio/") || lower.endsWith(".mp3") || lower.endsWith(".wav") || lower.endsWith(".m4a") ->
+                Triple(Icons.Default.MusicNote, Color(0xFF06B6D4), Color(0xFF06B6D4).copy(alpha = 0.12f))
+            mime.contains("pdf") || lower.endsWith(".pdf") ->
+                Triple(Icons.Default.PictureAsPdf, Color(0xFFEF4444), Color(0xFFEF4444).copy(alpha = 0.12f))
+            lower.endsWith(".apk") ->
+                Triple(Icons.Default.Android, Color(0xFF22C55E), Color(0xFF22C55E).copy(alpha = 0.12f))
+            mime.contains("zip") || mime.contains("tar") || lower.endsWith(".zip") || lower.endsWith(".rar") || lower.endsWith(".7z") ->
+                Triple(Icons.Default.FolderZip, Color(0xFFF59E0B), Color(0xFFF59E0B).copy(alpha = 0.12f))
+            else ->
+                Triple(Icons.AutoMirrored.Filled.InsertDriveFile, colors.textPrimary, colors.surfaceElevated)
         }
     }
 
-    val dateFormatter = remember { SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()) }
+    val animatedProgress by animateFloatAsState(
+        targetValue = item.progress,
+        animationSpec = spring(stiffness = 500f),
+        label = "DownloadProgress"
+    )
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .sizeIn(minHeight = 56.dp)
+            .sizeIn(minHeight = 60.dp)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = ripple(color = colors.textPrimary.copy(alpha = 0.06f)),
+                indication = ripple(color = colors.textPrimary.copy(alpha = 0.05f)),
                 onClick = {
                     if (item.status == DownloadStatus.COMPLETED) {
                         onOpen()
                     }
                 }
             )
-            .padding(horizontal = 14.dp, vertical = 10.dp)
+            .padding(horizontal = 14.dp, vertical = 11.dp)
             .semantics {
                 role = Role.Button
                 contentDescription = "${item.filename}, Status: ${item.status.name}"
             },
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // File Type Icon Medallion
+        // File Type Medallion
         Box(
             modifier = Modifier
-                .size(34.dp)
+                .size(38.dp)
                 .clip(CircleShape)
-                .background(colors.surfaceElevated)
-                .border(1.dp, colors.border, CircleShape),
+                .background(badgeBg)
+                .border(1.dp, iconTint.copy(alpha = 0.20f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = colors.textPrimary,
-                modifier = Modifier.size(17.dp)
+                tint = iconTint,
+                modifier = Modifier.size(18.dp)
             )
         }
 
@@ -553,23 +703,23 @@ private fun DownloadGroupedRow(
             Text(
                 text = item.filename,
                 fontSize = 13.5.sp,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.SemiBold,
                 color = colors.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(2.5.dp))
 
             when (item.status) {
                 DownloadStatus.DOWNLOADING -> {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         LinearProgressIndicator(
-                            progress = { item.progress },
+                            progress = { animatedProgress },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(3.dp)
-                                .clip(RoundedCornerShape(1.5.dp)),
+                                .height(3.5.dp)
+                                .clip(RoundedCornerShape(2.dp)),
                             color = colors.actionPrimaryBg,
                             trackColor = colors.surfaceElevated
                         )
@@ -578,37 +728,103 @@ private fun DownloadGroupedRow(
                             text = item.formattedProgress,
                             fontSize = 10.5.sp,
                             color = colors.actionPrimaryBg,
-                            fontFamily = FontFamily.Monospace
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
                 DownloadStatus.PAUSED -> {
-                    Text(
-                        text = "Paused • ${item.formattedSize}",
-                        fontSize = 11.sp,
-                        color = colors.statusWarning,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(colors.statusWarning.copy(alpha = 0.12f))
+                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = "PAUSED",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace,
+                                color = colors.statusWarning
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = item.formattedSize,
+                            fontSize = 11.sp,
+                            color = colors.textMuted
+                        )
+                    }
                 }
                 DownloadStatus.COMPLETED -> {
-                    val privacyPrefix = when {
-                        item.isTor -> "TOR • "
-                        item.isPrivate -> "PRIVATE • "
-                        else -> ""
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (item.isTor) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(colors.statusTor.copy(alpha = 0.12f))
+                                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                            ) {
+                                Text(
+                                    text = "TOR",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = colors.statusTor
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                        } else if (item.isPrivate) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(colors.statusSuccess.copy(alpha = 0.12f))
+                                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                            ) {
+                                Text(
+                                    text = "PRIVATE",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = colors.statusSuccess
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+
+                        Text(
+                            text = "${item.formattedSize} • ${formatHumanTimestamp(item.timestamp)}",
+                            fontSize = 11.sp,
+                            color = colors.textMuted
+                        )
                     }
-                    Text(
-                        text = "$privacyPrefix${item.formattedSize} • ${dateFormatter.format(Date(item.timestamp))}",
-                        fontSize = 11.sp,
-                        color = if (item.isTor) colors.statusAccent else (if (item.isPrivate) colors.statusSuccess else colors.textMuted),
-                        fontWeight = if (item.isTor || item.isPrivate) FontWeight.Medium else FontWeight.Normal
-                    )
                 }
                 DownloadStatus.FAILED -> {
-                    Text(
-                        text = "Failed: ${item.errorMessage ?: "Network error"}",
-                        fontSize = 11.sp,
-                        color = colors.statusDestructive
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(colors.statusDestructive.copy(alpha = 0.12f))
+                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = "FAILED",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace,
+                                color = colors.statusDestructive
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = item.errorMessage ?: "Network error",
+                            fontSize = 11.sp,
+                            color = colors.statusDestructive,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
                 DownloadStatus.CANCELLED -> {
                     Text(
@@ -628,94 +844,119 @@ private fun DownloadGroupedRow(
                 DownloadStatus.DOWNLOADING -> {
                     Box(
                         modifier = Modifier
-                            .sizeIn(minWidth = 32.dp, minHeight = 36.dp)
+                            .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
                             .clip(CircleShape)
                             .clickable(onClick = onPause)
                             .semantics { role = Role.Button; contentDescription = "Pause download" },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Pause, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Pause, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(17.dp))
                     }
                     Box(
                         modifier = Modifier
-                            .sizeIn(minWidth = 32.dp, minHeight = 36.dp)
+                            .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
                             .clip(CircleShape)
                             .clickable(onClick = onCancel)
                             .semantics { role = Role.Button; contentDescription = "Cancel download" },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = null, tint = colors.statusDestructive, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Close, contentDescription = null, tint = colors.statusDestructive, modifier = Modifier.size(17.dp))
                     }
                 }
                 DownloadStatus.PAUSED -> {
                     Box(
                         modifier = Modifier
-                            .sizeIn(minWidth = 32.dp, minHeight = 36.dp)
+                            .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
                             .clip(CircleShape)
                             .clickable(onClick = onResume)
                             .semantics { role = Role.Button; contentDescription = "Resume download" },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = colors.actionPrimaryBg, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = colors.actionPrimaryBg, modifier = Modifier.size(17.dp))
                     }
                     Box(
                         modifier = Modifier
-                            .sizeIn(minWidth = 32.dp, minHeight = 36.dp)
+                            .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
                             .clip(CircleShape)
                             .clickable(onClick = onCancel)
                             .semantics { role = Role.Button; contentDescription = "Cancel download" },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = null, tint = colors.statusDestructive, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Close, contentDescription = null, tint = colors.statusDestructive, modifier = Modifier.size(17.dp))
                     }
                 }
                 DownloadStatus.FAILED -> {
                     Box(
                         modifier = Modifier
-                            .sizeIn(minWidth = 32.dp, minHeight = 36.dp)
+                            .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
                             .clip(CircleShape)
                             .clickable(onClick = onRetry)
                             .semantics { role = Role.Button; contentDescription = "Retry download" },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null, tint = colors.actionPrimaryBg, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Refresh, contentDescription = null, tint = colors.actionPrimaryBg, modifier = Modifier.size(17.dp))
                     }
                     Box(
                         modifier = Modifier
-                            .sizeIn(minWidth = 32.dp, minHeight = 36.dp)
+                            .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
                             .clip(CircleShape)
                             .clickable(onClick = onDelete)
                             .semantics { role = Role.Button; contentDescription = "Delete download record" },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = colors.textMuted.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = colors.textMuted.copy(alpha = 0.7f), modifier = Modifier.size(17.dp))
                     }
                 }
                 DownloadStatus.COMPLETED, DownloadStatus.CANCELLED -> {
                     if (item.status == DownloadStatus.COMPLETED) {
                         Box(
                             modifier = Modifier
-                                .sizeIn(minWidth = 32.dp, minHeight = 36.dp)
+                                .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
                                 .clip(CircleShape)
                                 .clickable(onClick = onShare)
                                 .semantics { role = Role.Button; contentDescription = "Share file" },
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.Share, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(15.dp))
+                            Icon(Icons.Default.Share, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(16.dp))
                         }
                     }
                     Box(
                         modifier = Modifier
-                            .sizeIn(minWidth = 32.dp, minHeight = 36.dp)
+                            .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
                             .clip(CircleShape)
                             .clickable(onClick = onDelete)
                             .semantics { role = Role.Button; contentDescription = "Delete download" },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = colors.textMuted.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = colors.textMuted.copy(alpha = 0.7f), modifier = Modifier.size(17.dp))
                     }
                 }
             }
+        }
+    }
+}
+
+private fun formatHumanTimestamp(timestamp: Long): String {
+    val now = System.currentTimeMillis()
+    val diff = now - timestamp
+    val calNow = Calendar.getInstance()
+    val calTime = Calendar.getInstance().apply { timeInMillis = timestamp }
+
+    return when {
+        diff < 60_000L -> "Just now"
+        calNow.get(Calendar.YEAR) == calTime.get(Calendar.YEAR) &&
+                calNow.get(Calendar.DAY_OF_YEAR) == calTime.get(Calendar.DAY_OF_YEAR) -> {
+            val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
+            "Today, ${timeFormat.format(Date(timestamp))}"
+        }
+        calNow.get(Calendar.YEAR) == calTime.get(Calendar.YEAR) &&
+                calNow.get(Calendar.DAY_OF_YEAR) - calTime.get(Calendar.DAY_OF_YEAR) == 1 -> {
+            val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
+            "Yesterday, ${timeFormat.format(Date(timestamp))}"
+        }
+        else -> {
+            val fullFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+            fullFormat.format(Date(timestamp))
         }
     }
 }

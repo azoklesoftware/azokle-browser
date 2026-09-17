@@ -3,7 +3,9 @@ package com.azokle.search.adblock
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -31,8 +33,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Block
@@ -45,6 +49,8 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.ShieldMoon
+import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -63,12 +69,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -78,6 +84,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.azokle.search.adblock.AdBlockEngine
 import com.azokle.search.adblock.AdBlockStats
+import com.azokle.search.common.components.ToastManager
 import com.azokle.search.common.theme.AzokleRadius
 import com.azokle.search.common.theme.AzokleTheme
 import com.azokle.search.common.theme.adaptiveContentWidth
@@ -95,22 +102,22 @@ fun PrivacyShieldSheet(
 
     val animatedPageAds by animateIntAsState(
         targetValue = stats.adsBlockedCount,
-        animationSpec = tween(durationMillis = 350),
+        animationSpec = spring(stiffness = 400f),
         label = "AnimatedPageAds"
     )
     val animatedPageTrackers by animateIntAsState(
         targetValue = stats.trackersBlockedCount,
-        animationSpec = tween(durationMillis = 350),
+        animationSpec = spring(stiffness = 400f),
         label = "AnimatedPageTrackers"
     )
     val animatedLifetimeAds by animateIntAsState(
         targetValue = lifetimeStats.totalAdsBlocked.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-        animationSpec = tween(durationMillis = 350),
+        animationSpec = spring(stiffness = 400f),
         label = "AnimatedLifetimeAds"
     )
     val animatedLifetimeTrackers by animateIntAsState(
         targetValue = lifetimeStats.trackersBlocked.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-        animationSpec = tween(durationMillis = 350),
+        animationSpec = spring(stiffness = 400f),
         label = "AnimatedLifetimeTrackers"
     )
 
@@ -119,9 +126,20 @@ fun PrivacyShieldSheet(
     val isShieldActive = stats.isShieldEnabled
     val statusColor by animateColorAsState(
         targetValue = if (isShieldActive) colors.statusSuccess else colors.textMuted,
-        animationSpec = tween(durationMillis = 250),
+        animationSpec = tween(durationMillis = 280),
         label = "ShieldStatusColor"
     )
+    val shieldScale by animateFloatAsState(
+        targetValue = if (isShieldActive) 1f else 0.94f,
+        animationSpec = spring(dampingRatio = 0.6f),
+        label = "ShieldScale"
+    )
+
+    val currentShieldState = remember(isShieldActive, stats.host) {
+        if (stats.host.isNotBlank()) AdBlockEngine.instance.getShieldState(stats.host) else ShieldHostState.Enabled
+    }
+
+    val scrollState = rememberScrollState()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -133,71 +151,131 @@ fun PrivacyShieldSheet(
             Box(
                 modifier = Modifier
                     .statusBarsPadding()
-                    .padding(top = 10.dp, bottom = 6.dp)
-                    .size(width = 36.dp, height = 4.dp)
+                    .padding(top = 12.dp, bottom = 8.dp)
+                    .size(width = 38.dp, height = 4.5.dp)
                     .clip(CircleShape)
-                    .background(colors.borderSubtle)
+                    .background(colors.borderSubtle.copy(alpha = 0.8f))
             )
         }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .adaptiveContentWidth(560.dp)
+                .adaptiveContentWidth(500.dp)
                 .navigationBarsPadding()
+                .verticalScroll(scrollState)
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // ==========================================
-            // 1. HEADER: BRAND, HOST & TOGGLE SWITCH
+            // 1. HERO HEADER: BADGE, DOMAIN & MASTER TOGGLE
             // ==========================================
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp),
+                    .padding(top = 4.dp, bottom = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f, fill = false)
                 ) {
+                    // Glowing Halo Badge
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
+                            .size(46.dp)
+                            .scale(shieldScale)
                             .clip(CircleShape)
-                            .background(statusColor.copy(alpha = if (isShieldActive) 0.12f else 0.08f)),
+                            .background(
+                                Brush.radialGradient(
+                                    listOf(
+                                        statusColor.copy(alpha = if (isShieldActive) 0.22f else 0.10f),
+                                        statusColor.copy(alpha = 0.04f)
+                                    )
+                                )
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = statusColor.copy(alpha = if (isShieldActive) 0.35f else 0.15f),
+                                shape = CircleShape
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = if (isShieldActive) Icons.Default.Shield else Icons.Default.ShieldMoon,
-                            contentDescription = null,
+                            contentDescription = "Shield Status Icon",
                             tint = statusColor,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
 
                     Spacer(modifier = Modifier.width(12.dp))
 
-                    Column(modifier = Modifier.weight(1f, fill = false)) {
-                        Text(
-                            text = "Azokle Shield",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.textPrimary,
-                            modifier = Modifier.semantics { heading() }
-                        )
-                        Text(
-                            text = if (stats.host.isNotBlank()) stats.host else "Active Page Protection",
-                            fontSize = 12.sp,
-                            color = colors.textSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Azokle Shield",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.textPrimary,
+                                modifier = Modifier.semantics { heading() }
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(
+                                        if (isShieldActive) colors.statusSuccess.copy(alpha = 0.12f)
+                                        else colors.surfaceElevated
+                                    )
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = if (isShieldActive) "ACTIVE" else "PAUSED",
+                                    fontSize = 9.5.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontFamily = FontFamily.Monospace,
+                                    letterSpacing = 0.6.sp,
+                                    color = if (isShieldActive) colors.statusSuccess else colors.textMuted
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        // Verified Host Pill
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clip(AzokleRadius.sm)
+                                .background(colors.surfaceElevated.copy(alpha = 0.6f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isShieldActive) Icons.Default.Lock else Icons.Outlined.Public,
+                                contentDescription = null,
+                                tint = if (isShieldActive) colors.statusSuccess.copy(alpha = 0.85f) else colors.textMuted,
+                                modifier = Modifier.size(11.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (stats.host.isNotBlank()) stats.host else "Active Page Protection",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                fontFamily = FontFamily.Monospace,
+                                color = colors.textSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
 
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // High-Quality Switch
                 Switch(
                     checked = isShieldActive,
                     onCheckedChange = { isChecked ->
@@ -217,26 +295,23 @@ fun PrivacyShieldSheet(
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
-
             // ==========================================
-            // 2. PRIMARY PROTECTION STATUS BANNER
+            // 2. CONTEXTUAL STATUS BANNER
             // ==========================================
-            val currentShieldState = remember(isShieldActive, stats.host) {
-                if (stats.host.isNotBlank()) AdBlockEngine.instance.getShieldState(stats.host) else ShieldHostState.Enabled
-            }
-
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(AzokleRadius.md)
-                    .background(if (isShieldActive) colors.statusSuccess.copy(alpha = 0.08f) else colors.surfaceElevated)
-                    .border(
-                        1.dp,
-                        if (isShieldActive) colors.statusSuccess.copy(alpha = 0.22f) else colors.borderSubtle,
-                        AzokleRadius.md
+                    .background(
+                        if (isShieldActive) colors.statusSuccess.copy(alpha = 0.07f)
+                        else colors.surfaceElevated
                     )
-                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                    .border(
+                        width = 1.dp,
+                        color = if (isShieldActive) colors.statusSuccess.copy(alpha = 0.18f) else colors.borderSubtle,
+                        shape = AzokleRadius.md
+                    )
+                    .padding(horizontal = 14.dp, vertical = 9.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -245,22 +320,22 @@ fun PrivacyShieldSheet(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(9.dp),
                         modifier = Modifier.weight(1f, fill = false)
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(8.dp)
+                                .size(7.5.dp)
                                 .clip(CircleShape)
                                 .background(if (isShieldActive) colors.statusSuccess else colors.statusDestructive)
                         )
                         Text(
                             text = when (currentShieldState) {
-                                ShieldHostState.Enabled -> "Shield active for this site"
+                                ShieldHostState.Enabled -> "Sovereign shielding enabled for this site"
                                 ShieldHostState.DisabledUntilRelaunch -> "Shield paused until app relaunch"
                                 ShieldHostState.DisabledPermanently -> "Shield permanently disabled for site"
                             },
-                            fontSize = 12.5.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = if (isShieldActive) colors.textPrimary else colors.textMuted,
                             maxLines = 1,
@@ -270,11 +345,12 @@ fun PrivacyShieldSheet(
 
                     if (!isShieldActive && stats.host.isNotBlank()) {
                         Text(
-                            text = if (currentShieldState == ShieldHostState.DisabledUntilRelaunch) "Permanent?" else "Session only?",
+                            text = if (currentShieldState == ShieldHostState.DisabledUntilRelaunch) "Make Permanent" else "Session Only",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = colors.statusAccent,
                             modifier = Modifier
+                                .clip(AzokleRadius.sm)
                                 .clickable {
                                     if (currentShieldState == ShieldHostState.DisabledUntilRelaunch) {
                                         AdBlockEngine.instance.disableShieldPermanently(stats.host)
@@ -292,315 +368,144 @@ fun PrivacyShieldSheet(
             Spacer(modifier = Modifier.height(14.dp))
 
             // ==========================================
-            // 3. CORE METRICS: THIS SITE & ALL-TIME TOTAL
+            // 3. UNIFIED METRIC MATRIX (PAGE + LIFETIME)
             // ==========================================
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(AzokleRadius.lg)
-                    .background(colors.surfaceElevated)
+                    .background(colors.surfaceElevated.copy(alpha = 0.7f))
                     .border(1.dp, colors.borderSubtle, AzokleRadius.lg)
                     .padding(horizontal = 14.dp, vertical = 12.dp)
             ) {
-                // Section 1 Header: ON THIS SITE
+                // Metric Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "ON THIS SITE",
-                        fontSize = 10.5.sp,
+                        text = "PROTECTION TELEMETRY",
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace,
                         color = colors.textMuted,
-                        letterSpacing = 0.8.sp
+                        letterSpacing = 0.9.sp
                     )
-                    if (stats.host.isNotBlank()) {
-                        Text(
-                            text = stats.host,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = colors.textSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    Text(
+                        text = "LIVE DEFENSES",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = FontFamily.Monospace,
+                        color = if (isShieldActive) colors.statusSuccess else colors.textMuted
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // Current Site Stats Row
+                // Current Page Counter Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Site Ads Blocked
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .weight(1f)
-                            .semantics(mergeDescendants = true) {
-                                contentDescription = "Ads blocked on this site: ${stats.adsBlockedCount}"
-                            }
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(7.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        if (isShieldActive && animatedPageAds > 0)
-                                            colors.statusSuccess.copy(alpha = 0.12f)
-                                        else
-                                            colors.cardBg
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Block,
-                                    contentDescription = null,
-                                    tint = if (isShieldActive && animatedPageAds > 0) colors.statusSuccess else colors.textMuted,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                            }
+                    // Page Ads Counter
+                    MetricCounterItem(
+                        icon = Icons.Default.Block,
+                        iconTint = if (isShieldActive && animatedPageAds > 0) colors.statusSuccess else colors.textMuted,
+                        badgeBg = if (isShieldActive && animatedPageAds > 0) colors.statusSuccess.copy(alpha = 0.12f) else colors.cardBg,
+                        count = animatedPageAds,
+                        label = "Ads Blocked",
+                        sublabel = "This Page",
+                        colors = colors,
+                        modifier = Modifier.weight(1f)
+                    )
 
-                            AnimatedContent(
-                                targetState = animatedPageAds,
-                                transitionSpec = {
-                                    (slideInVertically { height -> height / 2 } + fadeIn(tween(180)))
-                                        .togetherWith(slideOutVertically { height -> -height / 2 } + fadeOut(tween(140)))
-                                },
-                                label = "SiteAdsCountText"
-                            ) { count ->
-                                Text(
-                                    text = "$count",
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = if (isShieldActive && animatedPageAds > 0) colors.textPrimary else colors.textMuted,
-                                    maxLines = 1
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(2.dp))
-
-                        Text(
-                            text = "Ads Blocked",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = colors.textSecondary
-                        )
-                    }
-
-                    // Vertical Separator
+                    // Vertical Divider
                     Box(
                         modifier = Modifier
                             .width(1.dp)
-                            .height(30.dp)
-                            .background(colors.borderSubtle)
+                            .height(38.dp)
+                            .background(colors.borderSubtle.copy(alpha = 0.6f))
                     )
 
-                    // Site Trackers Blocked
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .weight(1f)
-                            .semantics(mergeDescendants = true) {
-                                contentDescription = "Trackers blocked on this site: ${stats.trackersBlockedCount}"
-                            }
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(7.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        if (isShieldActive && animatedPageTrackers > 0)
-                                            colors.statusTor.copy(alpha = 0.12f)
-                                        else
-                                            colors.cardBg
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Fingerprint,
-                                    contentDescription = null,
-                                    tint = if (isShieldActive && animatedPageTrackers > 0) colors.statusTor else colors.textMuted,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                            }
-
-                            AnimatedContent(
-                                targetState = animatedPageTrackers,
-                                transitionSpec = {
-                                    (slideInVertically { height -> height / 2 } + fadeIn(tween(180)))
-                                        .togetherWith(slideOutVertically { height -> -height / 2 } + fadeOut(tween(140)))
-                                },
-                                label = "SiteTrackersCountText"
-                            ) { count ->
-                                Text(
-                                    text = "$count",
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = if (isShieldActive && animatedPageTrackers > 0) colors.textPrimary else colors.textMuted,
-                                    maxLines = 1
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(2.dp))
-
-                        Text(
-                            text = "Trackers Blocked",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = colors.textSecondary
-                        )
-                    }
+                    // Page Trackers Counter
+                    MetricCounterItem(
+                        icon = Icons.Default.Fingerprint,
+                        iconTint = if (isShieldActive && animatedPageTrackers > 0) colors.statusTor else colors.textMuted,
+                        badgeBg = if (isShieldActive && animatedPageTrackers > 0) colors.statusTor.copy(alpha = 0.12f) else colors.cardBg,
+                        count = animatedPageTrackers,
+                        label = "Trackers Defused",
+                        sublabel = "This Page",
+                        colors = colors,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // Subtle divider separating site stats from all-time totals
                 HorizontalDivider(
-                    color = colors.borderSubtle.copy(alpha = 0.6f),
+                    color = colors.borderSubtle.copy(alpha = 0.5f),
                     thickness = 0.8.dp,
                     modifier = Modifier.padding(horizontal = 4.dp)
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // Section 2 Header: ALL-TIME TOTAL
+                // Lifetime Footnote Counters
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "ALL-TIME PROTECTION",
-                        fontSize = 10.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        color = colors.textMuted,
-                        letterSpacing = 0.8.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Lifetime Stats Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Total Ads Blocked
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .weight(1f)
-                            .semantics(mergeDescendants = true) {
-                                contentDescription = "Total Ads Blocked: ${lifetimeStats.totalAdsBlocked}"
-                            }
-                    ) {
-                        AnimatedContent(
-                            targetState = formatCompactNumber(animatedLifetimeAds.toLong()),
-                            transitionSpec = {
-                                (slideInVertically { height -> height / 2 } + fadeIn(tween(180)))
-                                    .togetherWith(slideOutVertically { height -> -height / 2 } + fadeOut(tween(140)))
-                            },
-                            label = "LifetimeAdsCountText"
-                        ) { formattedCount ->
-                            Text(
-                                text = formattedCount,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace,
-                                color = if (isShieldActive && animatedLifetimeAds > 0) colors.textPrimary else colors.textMuted,
-                                maxLines = 1
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(1.dp))
-
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "Total Ads Blocked",
+                            text = "All-Time Savings: ",
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Normal,
-                            color = colors.textSecondary,
-                            textAlign = TextAlign.Center
+                            fontWeight = FontWeight.Medium,
+                            color = colors.textMuted
+                        )
+                        Text(
+                            text = "${formatCompactNumber(animatedLifetimeAds.toLong())} ads",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            color = colors.textSecondary
+                        )
+                        Text(
+                            text = " • ",
+                            fontSize = 11.sp,
+                            color = colors.textMuted
+                        )
+                        Text(
+                            text = "${formatCompactNumber(animatedLifetimeTrackers.toLong())} trackers",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            color = colors.textSecondary
                         )
                     }
 
-                    // Vertical Separator
-                    Box(
-                        modifier = Modifier
-                            .width(1.dp)
-                            .height(24.dp)
-                            .background(colors.borderSubtle)
+                    Icon(
+                        imageVector = Icons.Outlined.Security,
+                        contentDescription = null,
+                        tint = colors.textMuted.copy(alpha = 0.6f),
+                        modifier = Modifier.size(13.dp)
                     )
-
-                    // Total Trackers Blocked
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .weight(1f)
-                            .semantics(mergeDescendants = true) {
-                                contentDescription = "Total Trackers Blocked: ${lifetimeStats.trackersBlocked}"
-                            }
-                    ) {
-                        AnimatedContent(
-                            targetState = formatCompactNumber(animatedLifetimeTrackers.toLong()),
-                            transitionSpec = {
-                                (slideInVertically { height -> height / 2 } + fadeIn(tween(180)))
-                                    .togetherWith(slideOutVertically { height -> -height / 2 } + fadeOut(tween(140)))
-                            },
-                            label = "LifetimeTrackersCountText"
-                        ) { formattedCount ->
-                            Text(
-                                text = formattedCount,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace,
-                                color = if (isShieldActive && animatedLifetimeTrackers > 0) colors.textPrimary else colors.textMuted,
-                                maxLines = 1
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(1.dp))
-
-                        Text(
-                            text = "Total Trackers Blocked",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Normal,
-                            color = colors.textSecondary,
-                            textAlign = TextAlign.Center
-                        )
-                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // ==========================================
-            // 4. ACTIVE PRIVACY PROTECTIONS
+            // 4. INTEGRATED PRIVACY PILLARS
             // ==========================================
             Column(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "ACTIVE PROTECTIONS",
-                    fontSize = 11.sp,
+                    text = "ACTIVE DEFENSE PILLARS",
+                    fontSize = 10.5.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
                     color = colors.textMuted,
@@ -612,42 +517,56 @@ fun PrivacyShieldSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(AzokleRadius.lg)
-                        .background(colors.surfaceElevated)
+                        .background(colors.surfaceElevated.copy(alpha = 0.7f))
                         .border(1.dp, colors.borderSubtle, AzokleRadius.lg)
-                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                        .padding(horizontal = 14.dp, vertical = 4.dp)
                 ) {
-                    ProtectionFeatureItem(
+                    ProtectionPillarItem(
+                        icon = Icons.Default.Block,
+                        title = "Ad & Tracker Scriptlet Defusal",
+                        desc = "Anti-fingerprinting, surrogates & network filters",
+                        isActive = isShieldActive,
+                        colors = colors
+                    )
+
+                    HorizontalDivider(
+                        color = colors.borderSubtle.copy(alpha = 0.6f),
+                        thickness = 0.5.dp,
+                        modifier = Modifier.padding(start = 36.dp)
+                    )
+
+                    ProtectionPillarItem(
                         icon = Icons.Default.Lock,
-                        title = "HTTPS Enforcement",
-                        desc = "Encrypted transport forced on all requests",
+                        title = "Strict HTTPS Upgrade",
+                        desc = "Forced secure encryption on all transports",
                         isActive = isShieldActive,
                         colors = colors
                     )
 
                     HorizontalDivider(
-                        color = colors.borderSubtle,
+                        color = colors.borderSubtle.copy(alpha = 0.6f),
                         thickness = 0.5.dp,
-                        modifier = Modifier.padding(start = 38.dp)
+                        modifier = Modifier.padding(start = 36.dp)
                     )
 
-                    ProtectionFeatureItem(
+                    ProtectionPillarItem(
                         icon = Icons.Default.Cookie,
-                        title = "3rd-Party Cookie Isolation",
-                        desc = "Cross-site advertising cookies dropped",
+                        title = "Cross-Site Cookie Isolation",
+                        desc = "Partitioned storage prevents user profiling",
                         isActive = isShieldActive,
                         colors = colors
                     )
 
                     HorizontalDivider(
-                        color = colors.borderSubtle,
+                        color = colors.borderSubtle.copy(alpha = 0.6f),
                         thickness = 0.5.dp,
-                        modifier = Modifier.padding(start = 38.dp)
+                        modifier = Modifier.padding(start = 36.dp)
                     )
 
-                    ProtectionFeatureItem(
+                    ProtectionPillarItem(
                         icon = Icons.Default.AutoAwesome,
                         title = "Global Privacy Control (GPC)",
-                        desc = "Do-Not-Track & opt-out signals broadcasted",
+                        desc = "Broadcasts Do-Not-Track & opt-out headers",
                         isActive = isShieldActive,
                         colors = colors
                     )
@@ -655,46 +574,47 @@ fun PrivacyShieldSheet(
             }
 
             // ==========================================
-            // 5. BLOCKED DOMAINS BREAKDOWN
+            // 5. BLOCKED REQUESTS ACCORDION
             // ==========================================
             val blockedList = stats.blockedDomainsList
             if (blockedList.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(AzokleRadius.sm)
+                            .clip(AzokleRadius.md)
+                            .background(colors.surfaceElevated.copy(alpha = 0.5f))
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = ripple(bounded = true, color = colors.textPrimary.copy(alpha = 0.08f))
                             ) {
                                 isBlockedListExpanded = !isBlockedListExpanded
                             }
-                            .padding(vertical = 4.dp, horizontal = 4.dp),
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = "BLOCKED REQUESTS",
-                                fontSize = 11.sp,
+                                fontSize = 10.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace,
                                 color = colors.textMuted,
                                 letterSpacing = 0.8.sp
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Box(
                                 modifier = Modifier
                                     .clip(CircleShape)
-                                    .background(colors.surfaceElevated)
+                                    .background(colors.cardBg)
                                     .padding(horizontal = 7.dp, vertical = 1.dp)
                             ) {
                                 Text(
                                     text = "${blockedList.size}",
-                                    fontSize = 10.5.sp,
+                                    fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.Monospace,
                                     color = colors.textPrimary
@@ -710,17 +630,16 @@ fun PrivacyShieldSheet(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
-
                     AnimatedVisibility(
                         visible = isBlockedListExpanded,
-                        enter = expandVertically() + fadeIn(),
-                        exit = shrinkVertically() + fadeOut()
+                        enter = expandVertically(animationSpec = spring()) + fadeIn(),
+                        exit = shrinkVertically(animationSpec = spring()) + fadeOut()
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 240.dp)
+                                .heightIn(max = 220.dp)
+                                .padding(top = 6.dp)
                                 .clip(AzokleRadius.md)
                                 .background(colors.surfaceElevated)
                                 .border(1.dp, colors.borderSubtle, AzokleRadius.md)
@@ -734,7 +653,7 @@ fun PrivacyShieldSheet(
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(horizontal = 12.dp, vertical = 7.dp),
+                                                .padding(horizontal = 12.dp, vertical = 6.dp),
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.SpaceBetween
                                         ) {
@@ -745,10 +664,10 @@ fun PrivacyShieldSheet(
                                                 Icon(
                                                     imageVector = Icons.Default.Block,
                                                     contentDescription = null,
-                                                    tint = colors.statusDestructive.copy(alpha = 0.8f),
-                                                    modifier = Modifier.size(13.dp)
+                                                    tint = colors.statusDestructive.copy(alpha = 0.85f),
+                                                    modifier = Modifier.size(12.dp)
                                                 )
-                                                Spacer(modifier = Modifier.width(10.dp))
+                                                Spacer(modifier = Modifier.width(9.dp))
                                                 Column {
                                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                                         Text(
@@ -802,19 +721,19 @@ fun PrivacyShieldSheet(
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(horizontal = 12.dp, vertical = 7.dp),
+                                                .padding(horizontal = 12.dp, vertical = 6.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Block,
                                                 contentDescription = null,
-                                                tint = colors.statusDestructive.copy(alpha = 0.8f),
-                                                modifier = Modifier.size(13.dp)
+                                                tint = colors.statusDestructive.copy(alpha = 0.85f),
+                                                modifier = Modifier.size(12.dp)
                                             )
-                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Spacer(modifier = Modifier.width(9.dp))
                                             Text(
                                                 text = domain,
-                                                fontSize = 12.sp,
+                                                fontSize = 11.5.sp,
                                                 fontFamily = FontFamily.Monospace,
                                                 color = colors.textSecondary,
                                                 maxLines = 1,
@@ -828,57 +747,61 @@ fun PrivacyShieldSheet(
                     }
                 }
             } else if (isShieldActive) {
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = "No invasive trackers or ads detected yet on this page.",
                     fontSize = 11.5.sp,
                     color = colors.textMuted,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
                 )
             }
 
+            // ==========================================
+            // 6. SITE COMPATIBILITY / QUICK ACTION CARD
+            // ==========================================
             if (stats.host.isNotBlank()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(color = colors.borderSubtle, thickness = 1.dp)
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(AzokleRadius.md)
-                        .background(colors.surfaceElevated.copy(alpha = 0.5f))
+                        .background(colors.surfaceElevated.copy(alpha = 0.45f))
+                        .border(1.dp, colors.borderSubtle.copy(alpha = 0.7f), AzokleRadius.md)
                         .clickable {
                             if (isShieldActive) {
                                 AdBlockEngine.instance.pauseShieldUntilRelaunch(stats.host)
                                 onShieldToggled()
-                                com.azokle.search.common.components.ToastManager.show("Protections paused for this session")
+                                ToastManager.show("Protections paused for this session")
                             } else {
                                 AdBlockEngine.instance.enableShield(stats.host)
                                 onShieldToggled()
-                                com.azokle.search.common.components.ToastManager.show("Protections re-enabled")
+                                ToastManager.show("Protections re-enabled")
                             }
                         }
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (isShieldActive) "Website not working properly?" else "Protections paused for this session",
+                            text = if (isShieldActive) "Website not working properly?" else "Protections paused for session",
                             fontSize = 12.5.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = colors.textPrimary
                         )
                         Text(
-                            text = if (isShieldActive) "Tap to pause protections for this session and reload" else "Tap to re-enable Azokle Shield",
+                            text = if (isShieldActive) "Tap to pause protections and reload cleanly" else "Tap to re-enable Azokle Shield",
                             fontSize = 11.sp,
                             color = colors.textMuted
                         )
                     }
                     Icon(
                         imageVector = Icons.Default.Refresh,
-                        contentDescription = "Fix Site",
+                        contentDescription = "Reload / Toggle",
                         tint = if (isShieldActive) colors.statusWarning else colors.statusSuccess,
                         modifier = Modifier.size(16.dp)
                     )
@@ -889,7 +812,79 @@ fun PrivacyShieldSheet(
 }
 
 @Composable
-private fun ProtectionFeatureItem(
+private fun MetricCounterItem(
+    icon: ImageVector,
+    iconTint: Color,
+    badgeBg: Color,
+    count: Int,
+    label: String,
+    sublabel: String,
+    colors: com.azokle.search.common.theme.AzokleThemeColors,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier.semantics(mergeDescendants = true) {
+            contentDescription = "$label: $count"
+        }
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .background(badgeBg),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+
+            AnimatedContent(
+                targetState = count,
+                transitionSpec = {
+                    (slideInVertically { height -> height / 2 } + fadeIn(tween(180)))
+                        .togetherWith(slideOutVertically { height -> -height / 2 } + fadeOut(tween(140)))
+                },
+                label = "MetricCountText"
+            ) { value ->
+                Text(
+                    text = "$value",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    color = if (value > 0) colors.textPrimary else colors.textMuted,
+                    maxLines = 1
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(3.dp))
+
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.textPrimary
+        )
+
+        Text(
+            text = sublabel,
+            fontSize = 10.5.sp,
+            color = colors.textMuted
+        )
+    }
+}
+
+@Composable
+private fun ProtectionPillarItem(
     icon: ImageVector,
     title: String,
     desc: String,
@@ -899,7 +894,7 @@ private fun ProtectionFeatureItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 9.dp),
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -922,15 +917,15 @@ private fun ProtectionFeatureItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                fontSize = 13.sp,
+                fontSize = 12.5.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = colors.textPrimary
+                color = if (isActive) colors.textPrimary else colors.textMuted
             )
             Text(
                 text = desc,
-                fontSize = 11.sp,
+                fontSize = 10.5.sp,
                 color = colors.textMuted,
-                lineHeight = 14.sp
+                lineHeight = 13.5.sp
             )
         }
     }
