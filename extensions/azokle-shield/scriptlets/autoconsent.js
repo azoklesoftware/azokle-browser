@@ -103,7 +103,7 @@
         } catch(e) {}
     }
 
-    // Polling loop to catch delayed CMP injections without impacting battery
+    // Polling loop to catch immediate CMP injections
     var interval = setInterval(function() {
         attempts++;
         var handled = findAndClickRejectButton();
@@ -112,15 +112,29 @@
         }
     }, 400);
 
-    // Also listen for DOM mutation
-    if (document.body) {
-        var observer = new MutationObserver(function(mutations, obs) {
-            if (findAndClickRejectButton()) {
-                obs.disconnect();
-                clearInterval(interval);
+    // Event-driven MutationObserver to catch late-injected CMPs on SPAs without polling battery drain
+    var initConsentObserver = function() {
+        var root = document.documentElement || document.body;
+        if (!root) return;
+        var debounceTimer = null;
+        var observer = new MutationObserver(function() {
+            if (!debounceTimer) {
+                debounceTimer = setTimeout(function() {
+                    debounceTimer = null;
+                    if (findAndClickRejectButton()) {
+                        observer.disconnect();
+                        clearInterval(interval);
+                    }
+                }, 150);
             }
         });
-        observer.observe(document.body, { childList: true, subtree: true });
-        setTimeout(function() { observer.disconnect(); }, 8000);
+        observer.observe(root, { childList: true, subtree: true });
+        setTimeout(function() { observer.disconnect(); }, 30000);
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initConsentObserver, { once: true });
+    } else {
+        initConsentObserver();
     }
 })();

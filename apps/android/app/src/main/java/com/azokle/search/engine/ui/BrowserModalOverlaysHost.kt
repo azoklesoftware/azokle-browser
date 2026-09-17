@@ -58,7 +58,6 @@ import com.azokle.search.engine.TextSelectionPayload
 import com.azokle.search.history.HistoryScreen
 import com.azokle.search.incineration.BurnConfirmationSheet
 import com.azokle.search.incineration.FireIncinerationOverlay
-import com.azokle.search.media.AzoklePlayerPromptSheet
 import com.azokle.search.permissions.SitePermissionPromptSheet
 import com.azokle.search.permissions.SitePermissionRequest
 import com.azokle.search.pwa.PwaInstallBottomSheet
@@ -191,10 +190,6 @@ fun BrowserModalOverlaysHost(
     onAllowAlwaysPermission: (SitePermissionRequest) -> Unit,
     onAllowOncePermission: (SitePermissionRequest) -> Unit,
     onDenyPermission: (SitePermissionRequest, Boolean) -> Unit,
-    pendingAzoklePlayerVideoUrl: String?,
-    onWatchInAzoklePlayer: (Boolean) -> Unit,
-    onWatchOnPlatform: (Boolean) -> Unit,
-    onDismissAzoklePlayerPrompt: () -> Unit,
     pendingThreatAssessment: ThreatAssessment?,
     onReturnToSafetyThreat: () -> Unit,
     onProceedUnsafeThreat: (ThreatAssessment) -> Unit,
@@ -472,16 +467,6 @@ fun BrowserModalOverlaysHost(
             onAllowOnce = { onAllowOncePermission(request) },
             onDeny = { rememberChoice -> onDenyPermission(request, rememberChoice) },
             onDismiss = { onDenyPermission(request, false) }
-        )
-    }
-
-    // 🎬 Azokle Sovereign Player Prompt Modal (Inspired by Duck Player)
-    pendingAzoklePlayerVideoUrl?.let { videoUrl ->
-        AzoklePlayerPromptSheet(
-            videoUrl = videoUrl,
-            onWatchInAzoklePlayer = onWatchInAzoklePlayer,
-            onWatchOnPlatform = onWatchOnPlatform,
-            onDismiss = onDismissAzoklePlayerPrompt
         )
     }
 

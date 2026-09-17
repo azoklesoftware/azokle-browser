@@ -45,14 +45,5 @@ class PictureInPictureHelperTest {
         assertEquals("com.azokle.search.PIP_REWIND", PictureInPictureHelper.ACTION_PIP_REWIND)
         assertEquals("com.azokle.search.PIP_FORWARD", PictureInPictureHelper.ACTION_PIP_FORWARD)
     }
-
-    @Test
-    fun testSovereignEmbedUrlDetection() {
-        assertTrue(AzoklePlayerHelper.isSovereignEmbedUrl("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1"))
-        assertTrue(AzoklePlayerHelper.isSovereignEmbedUrl("https://player.vimeo.com/video/76979871?dnt=1"))
-        assertFalse(AzoklePlayerHelper.isSovereignEmbedUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ"))
-        assertFalse(AzoklePlayerHelper.isSovereignEmbedUrl("https://vimeo.com/76979871"))
-        assertFalse(AzoklePlayerHelper.isSovereignEmbedUrl(""))
-        assertFalse(AzoklePlayerHelper.isSovereignEmbedUrl(null))
-    }
 }
+

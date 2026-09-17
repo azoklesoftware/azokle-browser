@@ -150,13 +150,11 @@ fun SettingsScreen(
     var showSafeSearchDialog by remember { mutableStateOf(false) }
     var showLocationDialog by remember { mutableStateOf(false) }
     var showClearCacheDialog by remember { mutableStateOf(false) }
-    var showAzoklePlayerDialog by remember { mutableStateOf(false) }
 
     // Dynamic preferences states
     var currentSafeSearch by remember { mutableStateOf(prefsManager.getSafeSearch()) }
     var currentLocation by remember { mutableStateOf(prefsManager.getLocation()) }
     var isBackgroundAudio by remember { mutableStateOf(prefsManager.isBackgroundAudioEnabled()) }
-    var currentAzoklePlayerMode by remember { mutableStateOf(prefsManager.getAzoklePlayerMode()) }
 
     // Hardware & system back button handler
     BackHandler(enabled = true) {
@@ -170,8 +168,6 @@ fun SettingsScreen(
             showLocationDialog = false
         } else if (showClearCacheDialog) {
             showClearCacheDialog = false
-        } else if (showAzoklePlayerDialog) {
-            showAzoklePlayerDialog = false
         } else {
             onDismiss()
         }
@@ -648,28 +644,6 @@ fun SettingsScreen(
 
                         ItemDivider()
 
-                        // Azokle Sovereign Player
-                        SettingsRow(
-                            icon = Icons.Default.PlayArrow,
-                            title = "Azokle Sovereign Player",
-                            subtitle = when (currentAzoklePlayerMode) {
-                                "always" -> "Always open in sovereign ad-free player"
-                                "disabled" -> "Open on standard site (disabled)"
-                                else -> "Always ask before playing"
-                            },
-                            trailingContent = {
-                                Icon(
-                                    imageVector = Icons.Default.ChevronRight,
-                                    contentDescription = null,
-                                    tint = colors.textMuted,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            },
-                            onClick = { showAzoklePlayerDialog = true }
-                        )
-
-                        ItemDivider()
-
                         // Clear Search History
                         SettingsRow(
                             icon = Icons.Default.DeleteSweep,
@@ -954,76 +928,6 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showSafeSearchDialog = false }) {
-                    Text("Done", color = colors.statusAccent, fontWeight = FontWeight.SemiBold)
-                }
-            },
-            containerColor = colors.surface,
-            shape = AzokleRadius.xl
-        )
-    }
-
-    // Azokle Sovereign Player Selection Dialog
-    if (showAzoklePlayerDialog) {
-        val options = listOf(
-            Triple("ask", "Always Ask", "Prompt each time a YouTube or video link is opened"),
-            Triple("always", "Always in Azokle Player", "Automatically load zero-cookie, ad-free player"),
-            Triple("disabled", "Standard Platform", "Open directly on standard YouTube / platform site")
-        )
-        AlertDialog(
-            onDismissRequest = { showAzoklePlayerDialog = false },
-            title = {
-                Text(
-                    text = "Azokle Sovereign Player",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.textPrimary
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    options.forEach { (id, title, desc) ->
-                        val isSelected = currentAzoklePlayerMode == id
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) colors.surfaceElevated else Color.Transparent)
-                                .clickable {
-                                    currentAzoklePlayerMode = id
-                                    prefsManager.setAzoklePlayerMode(id)
-                                    showAzoklePlayerDialog = false
-                                }
-                                .padding(horizontal = 12.dp, vertical = 9.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = title,
-                                    color = colors.textPrimary,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    fontSize = 13.5.sp
-                                )
-                                Text(
-                                    text = desc,
-                                    color = colors.textMuted,
-                                    fontSize = 11.sp
-                                )
-                            }
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Selected",
-                                    tint = colors.statusSuccess,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showAzoklePlayerDialog = false }) {
                     Text("Done", color = colors.statusAccent, fontWeight = FontWeight.SemiBold)
                 }
             },

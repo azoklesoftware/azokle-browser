@@ -207,14 +207,6 @@ class PreferencesManager(private val context: Context) {
         prefs.edit().putBoolean("pref_background_audio", enabled).apply()
     }
 
-    fun getAzoklePlayerMode(): String {
-        return prefs.getString("azokle_player_mode", "ask") ?: "ask"
-    }
-
-    fun setAzoklePlayerMode(mode: String) {
-        prefs.edit().putString("azokle_player_mode", mode.lowercase()).apply()
-    }
-
     fun hasCompletedTour(): Boolean {
         return hasCompletedHomeTour()
     }

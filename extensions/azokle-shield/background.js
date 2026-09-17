@@ -176,6 +176,37 @@
                 return (h.includes('matomo') || h.includes('piwik')) && (u.includes('matomo.js') || u.includes('piwik.js'));
             },
             file: 'surrogates/matomo.js'
+        },
+        {
+            matcher: function(u, h) {
+                return (h.includes('googletagservices.com') && u.includes('/gpt.js')) ||
+                       (h.includes('securepubads.g.doubleclick.net') && u.includes('/gpt.js'));
+            },
+            file: 'surrogates/gpt.js'
+        },
+        {
+            matcher: function(u, h) {
+                return u.includes('prebid.js') || (h.includes('prebid') && u.includes('.js'));
+            },
+            file: 'surrogates/prebid.js'
+        },
+        {
+            matcher: function(u, h) {
+                return h.includes('imasdk.googleapis.com') && u.includes('/ima3.js');
+            },
+            file: 'surrogates/imasdk.js'
+        },
+        {
+            matcher: function(u, h) {
+                return h.includes('chartbeat.com') && u.includes('chartbeat.js');
+            },
+            file: 'surrogates/chartbeat.js'
+        },
+        {
+            matcher: function(u, h) {
+                return h.includes('hotjar.com') && (u.includes('/hotjar-') || u.includes('/hotjar.js'));
+            },
+            file: 'surrogates/hotjar.js'
         }
     ];
 
@@ -195,7 +226,8 @@
 
     // Subdomain prefixes commonly used to disguise CNAME trackers under first-party domains
     var cnameTrackerSubdomains = [
-        'metrics.', 'analytics.', 'telemetry.', 'track.', 'tracker.', 'data.', 'log.', 'stats.', 'collector.', 'events.'
+        'metrics.', 'analytics.', 'telemetry.', 'track.', 'tracker.', 'data.', 'log.', 'stats.', 'collector.', 'events.',
+        'tr.', 'tag.', 'tags.', 'beacon.', 'pixel.', 'trk.'
     ];
 
     function isLikelyCnameTracker(host, docHost) {
@@ -402,8 +434,9 @@
             }
 
             // 2. Same Corporate Parent Entity Protection (TDS Graph: e.g. gstatic on google.com)
-            // NEVER bypass known ad or tracking endpoints
-            if (docHost && isSameParentEntity(docHost, host) && !isLikelyAdOrTrackerUrl(urlLower, host)) {
+            // Strictly limited to static media/fonts/stylesheets. Scripts and trackers are always evaluated.
+            var isStaticAsset = details.type === 'image' || details.type === 'stylesheet' || details.type === 'font' || details.type === 'media';
+            if (docHost && isSameParentEntity(docHost, host) && isStaticAsset && !isLikelyAdOrTrackerUrl(urlLower, host)) {
                 return { cancel: false };
             }
 
@@ -412,8 +445,9 @@
                 return { cancel: false };
             }
 
-            // 4. Fast-path Host Cache lookup (instant O(1) synchronous decision for domain-wide rules)
-            var cachedHost = getCachedHostDecision(host);
+            // 4. Fast-path Host Cache lookup (Partitioned by 1st/3rd party and request type to prevent cross-context bleeding)
+            var hostCacheKey = host + '|' + (isThirdParty ? '3p' : '1p') + '|' + (details.type || 'other');
+            var cachedHost = getCachedHostDecision(hostCacheKey);
             if (cachedHost !== undefined) {
                 if (cachedHost.shouldBlock || cachedHost.redirectUrl) {
                     var hostSurrogate = getSurrogateRedirect(urlLower, host);
@@ -489,7 +523,7 @@
                     // Only cache decisions if the native engine is fully initialized/ready
                     if (isReady) {
                         if (isDomainLevel && host) {
-                            setCachedHostDecision(host, decisionRecord);
+                            setCachedHostDecision(hostCacheKey, decisionRecord);
                         } else {
                             setCachedUrlDecision(urlCacheKey, decisionRecord);
                         }
@@ -554,6 +588,22 @@
                     return true; // Async response
                 } else {
                     if (sendResponse) sendResponse({ css: '' });
+                }
+            } else if (message.type === 'GET_SCRIPTLETS') {
+                // Fetch tailored defuser scriptlets for the requested domain from native Rust engine
+                var domain = message.domain || (sender && sender.tab && sender.tab.url ? extractHostname(sender.tab.url) : '');
+                if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendNativeMessage) {
+                    browser.runtime.sendNativeMessage('nativeApp', {
+                        type: 'GET_SCRIPTLETS',
+                        domain: domain
+                    }).then(function(res) {
+                        if (sendResponse) sendResponse(res);
+                    }).catch(function() {
+                        if (sendResponse) sendResponse({ scriptlet: '' });
+                    });
+                    return true; // Async response
+                } else {
+                    if (sendResponse) sendResponse({ scriptlet: '' });
                 }
             } else if (message.type === 'PWA_MANIFEST_DISCOVERED') {
                 if (sender && sender.frameId === 0 && typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendNativeMessage) {

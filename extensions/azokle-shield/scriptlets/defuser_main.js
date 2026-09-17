@@ -8,12 +8,40 @@
     if (window.__azokle_main_world_initialized) return;
     window.__azokle_main_world_initialized = true;
 
+    // 0. Native Function Stub Engine (prevents anti-adblock detection via Function.prototype.toString)
+    try {
+        var nativeToString = Function.prototype.toString;
+        var customNativeFns = new WeakSet();
+        var makeNativeFn = function(fn, name) {
+            if (typeof fn !== 'function') return fn;
+            customNativeFns.add(fn);
+            if (name) {
+                try {
+                    Object.defineProperty(fn, 'name', { value: name, configurable: true });
+                } catch(e) {}
+            }
+            return fn;
+        };
+
+        var patchedToString = function toString() {
+            if (customNativeFns.has(this)) {
+                return 'function ' + (this.name || '') + '() { [native code] }';
+            }
+            return nativeToString.apply(this, arguments);
+        };
+        customNativeFns.add(patchedToString);
+        Function.prototype.toString = patchedToString;
+    } catch(e) {
+        var makeNativeFn = function(fn) { return fn; };
+    }
+
     // 1. Neutralize Anti-Adblock Honeypots & Trap Globals
     try {
-        var dummyFn = function() {};
+        var dummyFn = makeNativeFn(function() {}, '');
         window.canRunAds = true;
         window.isAdBlockActive = false;
         window.adblocker = false;
+        window._adblock = false;
         if (!window.google_ad_client) window.google_ad_client = 'ca-pub-0000000000000000';
 
         var babStub = function() {
@@ -30,6 +58,7 @@
                 }
             };
         };
+        makeNativeFn(babStub, 'BlockAdBlock');
         if (typeof window.BlockAdBlock === 'undefined') {
             window.BlockAdBlock = babStub;
             window.blockAdBlock = new babStub();
@@ -143,7 +172,7 @@
             // Hook window.fetch in MAIN world
             if (window.fetch) {
                 var origFetch = window.fetch;
-                window.fetch = function() {
+                window.fetch = makeNativeFn(function() {
                     var args = arguments;
                     var url = (typeof args[0] === 'string') ? args[0] : (args[0] && args[0].url ? args[0].url : '');
                     var isPlayerApi = url && (
@@ -193,18 +222,18 @@
                             return response;
                         });
                     });
-                };
+                }, 'fetch');
             }
 
             // Hook window.XMLHttpRequest in MAIN world
             if (window.XMLHttpRequest) {
                 var origOpen = XMLHttpRequest.prototype.open;
                 var origSend = XMLHttpRequest.prototype.send;
-                XMLHttpRequest.prototype.open = function(method, url) {
+                XMLHttpRequest.prototype.open = makeNativeFn(function(method, url) {
                     this._azokleUrl = url;
                     return origOpen.apply(this, arguments);
-                };
-                XMLHttpRequest.prototype.send = function() {
+                }, 'open');
+                XMLHttpRequest.prototype.send = makeNativeFn(function() {
                     var url = this._azokleUrl;
                     if (url && typeof url === 'string' &&
                         (url.indexOf('/youtubei/v1/player') !== -1 ||
@@ -257,7 +286,7 @@
                         } catch(e) {}
                     }
                     return origSend.apply(this, arguments);
-                };
+                }, 'send');
             }
         }
     } catch(e) {}

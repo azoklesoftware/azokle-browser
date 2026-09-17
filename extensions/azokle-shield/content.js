@@ -20,6 +20,54 @@
     }
 
     // =========================================================================
+    // 1. Compiled Scriptlets & Procedural Defusers Injection (GET_SCRIPTLETS)
+    // Injected directly into the Main Realm at document_start
+    // =========================================================================
+    function injectScriptletIntoPage(code) {
+        if (!code || typeof code !== 'string' || code.trim().length === 0) return;
+        try {
+            var script = document.createElement('script');
+            script.textContent = code;
+
+            // Inherit CSP nonce from existing script if present
+            var nonceHolder = document.querySelector('script[nonce]');
+            if (nonceHolder) {
+                var n = nonceHolder.nonce || nonceHolder.getAttribute('nonce');
+                if (n) script.setAttribute('nonce', n);
+            }
+
+            var target = document.head || document.documentElement || document;
+            if (target) {
+                target.appendChild(script);
+                script.remove();
+            } else {
+                var obs = new MutationObserver(function() {
+                    var t = document.head || document.documentElement || document;
+                    if (t) {
+                        obs.disconnect();
+                        t.appendChild(script);
+                        script.remove();
+                    }
+                });
+                obs.observe(document, { childList: true, subtree: true });
+            }
+        } catch(e) {}
+    }
+
+    try {
+        if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendMessage) {
+            browser.runtime.sendMessage({
+                type: 'GET_SCRIPTLETS',
+                domain: hostName
+            }).then(function(res) {
+                if (res && res.scriptlet) {
+                    injectScriptletIntoPage(res.scriptlet);
+                }
+            }).catch(function() {});
+        }
+    } catch(e) {}
+
+    // =========================================================================
     // 2. Declarative Cosmetic CSS Injection (Cached & Non-Blocking)
     // Injected into both top-level and subframes to annihilate nested ad containers
     // =========================================================================

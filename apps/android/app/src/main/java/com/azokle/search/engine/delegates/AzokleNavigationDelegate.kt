@@ -100,27 +100,6 @@ class AzokleNavigationDelegate(
             }
         }
 
-        // 2.5 Azokle Sovereign Player Check for eligible videos (YouTube / Vimeo)
-        // Guard against intercepting reloads or internal platform navigation when the user is already browsing YouTube / Vimeo.
-        val isReload = isPageReload(uriStr, request)
-        val isInternalPlatformNav = isInternalPlatformNavigation(uriStr, request)
-
-        if (com.azokle.search.media.AzoklePlayerHelper.isEligibleVideoUrl(uriStr) &&
-            !com.azokle.search.media.AzoklePlayerHelper.isSovereignEmbedUrl(uriStr) &&
-            !isReload &&
-            !isInternalPlatformNav) {
-            val prefMode = com.azokle.search.common.util.PreferencesManager(context).getAzoklePlayerMode()
-            if (prefMode == "always") {
-                val embedUrl = com.azokle.search.media.AzoklePlayerHelper.buildSovereignEmbedUrl(uriStr)
-                if (embedUrl != null && embedUrl != uriStr) {
-                    Handler(Looper.getMainLooper()).post {
-                        session.loadUri(embedUrl)
-                    }
-                    return GeckoResult.fromValue(AllowOrDeny.DENY)
-                }
-            }
-        }
-
         // 3. Android AppLinks for HTTP/HTTPS with explicit user click/tap (e.g. YouTube, Play Store, Reddit)
         if ((scheme == "http" || scheme == "https") && request.hasUserGesture && !isTor && !isPrivate) {
             val targetUri = try { Uri.parse(uriStr) } catch (e: Exception) { null }

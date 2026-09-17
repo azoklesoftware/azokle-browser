@@ -68,7 +68,6 @@ import com.azokle.search.engine.GeckoEngineManager
 import com.azokle.search.engine.TextSelectionPayload
 import com.azokle.search.history.AzokleHistoryDatabase
 import com.azokle.search.history.HistoryManager
-import com.azokle.search.media.AzoklePlayerHelper
 import com.azokle.search.media.MediaPlaybackManager
 import com.azokle.search.media.PlaybackStatus
 import com.azokle.search.navigation.ExternalSchemeHandler
@@ -205,7 +204,6 @@ fun BrowserScreen(
     var activeLinkContextTarget: LinkContextTarget? by remember { mutableStateOf(null) }
     var activeTextSelection: TextSelectionPayload? by remember { mutableStateOf(null) }
     var pendingDownloadPayload by remember { mutableStateOf<DownloadConfirmationPayload?>(null) }
-    var pendingAzoklePlayerVideoUrl by remember { mutableStateOf<String?>(null) }
     var pendingThreatAssessment by remember { mutableStateOf<ThreatAssessment?>(null) }
 
     // Website Permissions Engine Integration
@@ -295,30 +293,6 @@ fun BrowserScreen(
         if (threatAssessment.isThreat) {
             pendingThreatAssessment = threatAssessment
             return
-        }
-
-        val isReloadingCurrent = currentUrl.isNotBlank() &&
-            cleanTargetUrl.trimEnd('#', '/').equals(currentUrl.trimEnd('#', '/'), ignoreCase = true)
-
-        if (!isReloadingCurrent && AzoklePlayerHelper.isEligibleVideoUrl(cleanTargetUrl) && !AzoklePlayerHelper.isSovereignEmbedUrl(cleanTargetUrl)) {
-            val mode = preferencesManager.getAzoklePlayerMode()
-            when (mode) {
-                "always" -> {
-                    val embedUrl = AzoklePlayerHelper.buildSovereignEmbedUrl(cleanTargetUrl) ?: cleanTargetUrl
-                    targetLoadingUrl = embedUrl
-                    isPageTransitioning = true
-                    currentUrl = embedUrl
-                    currentTitle = title.ifBlank { "Azokle Player" }
-                    currentError = null
-                    TabManager.updateActiveTab(embedUrl, currentTitle)
-                    geckoSession?.loadUri(embedUrl)
-                    return
-                }
-                "ask" -> {
-                    pendingAzoklePlayerVideoUrl = cleanTargetUrl
-                    return
-                }
-            }
         }
 
         val finalLoadUrl = if (cleanTargetUrl.startsWith("azokle://", ignoreCase = true)) {
@@ -1789,40 +1763,6 @@ fun BrowserScreen(
             onAllowAlwaysPermission = { req -> handleAllowPermission(req, true) },
             onAllowOncePermission = { req -> handleAllowPermission(req, false) },
             onDenyPermission = { req, rem -> handleDenyPermission(req, rem) },
-            pendingAzoklePlayerVideoUrl = pendingAzoklePlayerVideoUrl,
-            onWatchInAzoklePlayer = { rememberChoice ->
-                if (rememberChoice) {
-                    preferencesManager.setAzoklePlayerMode("always")
-                }
-                val videoUrl = pendingAzoklePlayerVideoUrl
-                pendingAzoklePlayerVideoUrl = null
-                if (videoUrl != null) {
-                    val embedUrl = AzoklePlayerHelper.buildSovereignEmbedUrl(videoUrl) ?: videoUrl
-                    targetLoadingUrl = embedUrl
-                    isPageTransitioning = true
-                    currentUrl = embedUrl
-                    currentTitle = "Azokle Player"
-                    currentError = null
-                    TabManager.updateActiveTab(embedUrl, currentTitle)
-                    geckoSession?.loadUri(embedUrl)
-                }
-            },
-            onWatchOnPlatform = { rememberChoice ->
-                if (rememberChoice) {
-                    preferencesManager.setAzoklePlayerMode("disabled")
-                }
-                val videoUrl = pendingAzoklePlayerVideoUrl
-                pendingAzoklePlayerVideoUrl = null
-                if (videoUrl != null) {
-                    targetLoadingUrl = videoUrl
-                    isPageTransitioning = true
-                    currentUrl = videoUrl
-                    currentError = null
-                    TabManager.updateActiveTab(videoUrl, "")
-                    geckoSession?.loadUri(videoUrl)
-                }
-            },
-            onDismissAzoklePlayerPrompt = { pendingAzoklePlayerVideoUrl = null },
             pendingThreatAssessment = pendingThreatAssessment,
             onReturnToSafetyThreat = {
                 pendingThreatAssessment = null
