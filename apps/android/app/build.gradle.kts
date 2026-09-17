@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -7,6 +10,10 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
     compilerOptions {
         freeCompilerArgs.add("-Xskip-metadata-version-check")
     }
+}
+
+kotlin {
+    jvmToolchain(17)
 }
 
 android {
@@ -23,15 +30,48 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    val keystorePropertiesFile = rootProject.file("key.properties")
+    val keystoreProperties = Properties()
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+    }
+
+    signingConfigs {
+        create("release") {
+            val storeFilePath = System.getenv("KEYSTORE_PATH")
+                ?: keystoreProperties.getProperty("storeFile")
+                ?: "/home/azokledeveloper/.android/keystore/azokle-search.jks"
+            val storePass = System.getenv("KEYSTORE_PASSWORD")
+                ?: keystoreProperties.getProperty("storePassword")
+            val keyUserAlias = System.getenv("KEY_ALIAS")
+                ?: keystoreProperties.getProperty("keyAlias")
+            val keyPass = System.getenv("KEY_PASSWORD")
+                ?: keystoreProperties.getProperty("keyPassword")
+
+            if (file(storeFilePath).exists() && !storePass.isNullOrBlank()) {
+                storeFile = file(storeFilePath)
+                storePassword = storePass
+                keyAlias = keyUserAlias ?: "azokle-search"
+                keyPassword = keyPass ?: storePass
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            signingConfig = signingConfigs.getByName("debug")
+            val releaseSigning = signingConfigs.findByName("release")
+            if (releaseSigning != null && releaseSigning.storeFile != null) {
+                signingConfig = releaseSigning
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        debug {
+            isDebuggable = true
         }
     }
 
@@ -61,7 +101,7 @@ android {
     }
 
     lint {
-        checkReleaseBuilds = false
+        checkReleaseBuilds = true
         abortOnError = false
     }
 
@@ -98,32 +138,21 @@ tasks.named("preBuild").configure {
     dependsOn(syncSharedAssets)
 }
 
-configurations.all {
-    resolutionStrategy.eachDependency {
-        if (requested.group == "androidx.lifecycle") {
-            useVersion("2.8.7")
-        }
-        if (requested.group == "androidx.core" && (requested.name == "core" || requested.name == "core-ktx")) {
-            useVersion("1.13.1")
-        }
-        if (requested.group == "androidx.activity") {
-            useVersion("1.9.3")
-        }
-        if (requested.group == "androidx.appcompat") {
-            useVersion("1.7.0")
-        }
-    }
-}
-
+// GeckoView 154 omni specifies min_compile_sdk=37.1 in its AAR metadata.
+// While compiling against stable Android 16 (API 36), bypass AarMetadata check to permit native compilation.
 tasks.matching { it.name.contains("AarMetadata") }.configureEach {
     enabled = false
 }
 
 dependencies {
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
-    implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation(libs.androidx.swiperefreshlayout)
+    implementation(libs.androidx.security.crypto)
+    implementation(libs.androidx.biometric)
+    implementation(libs.androidx.media)
 
     // Jetpack Compose & Material 3
     val composeBom = platform(libs.androidx.compose.bom)
@@ -141,39 +170,32 @@ dependencies {
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 
-    // Networking & Async
+    // Networking, Async & Images
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.okhttp)
-    implementation("com.squareup.okhttp3:okhttp-dnsoverhttps:4.12.0")
-    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
-    implementation("androidx.security:security-crypto:1.1.0-alpha06")
-    implementation("androidx.biometric:biometric:1.2.0-alpha05")
-    implementation("io.coil-kt:coil-compose:2.6.0")
-    implementation("io.coil-kt:coil-gif:2.6.0")
-    implementation("io.coil-kt:coil-svg:2.6.0")
+    implementation(libs.okhttp.dnsoverhttps)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.gif)
+    implementation(libs.coil.svg)
 
     // Mozilla GeckoView (Quantum Web Rendering Engine with 16 KB Page-Size Support)
-    implementation("org.mozilla.geckoview:geckoview-omni:154.0.20260824154132")
-
-    // AndroidX Media Framework (MediaSessionCompat, MediaStyle Notification)
-    implementation("androidx.media:media:1.7.0")
+    implementation(libs.geckoview.omni)
 
     // Standalone Embedded Tor Daemon & Onion Network Engine
-    implementation("info.guardianproject:tor-android:0.4.9.6")
+    implementation(libs.tor.android)
 
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
 
     // CameraX & Barcode Scanner Engine (Privacy-First Offline ZXing)
-    val cameraxVersion = "1.4.1"
-    implementation("androidx.camera:camera-core:$cameraxVersion")
-    implementation("androidx.camera:camera-camera2:$cameraxVersion")
-    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
-    implementation("androidx.camera:camera-view:$cameraxVersion")
-    implementation("com.google.zxing:core:3.5.3")
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.zxing.core)
 
     testImplementation(libs.junit)
-    testImplementation("org.json:json:20240303")
+    testImplementation(libs.json)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }

@@ -21,6 +21,9 @@ Makefile
 # Android build artifacts
 .gradle/
 local.properties
+key.properties
+*.jks
+*.keystore
 .idea/
 *.iml
 .DS_Store
