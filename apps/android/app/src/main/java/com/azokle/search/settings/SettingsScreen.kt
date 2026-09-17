@@ -716,6 +716,7 @@ fun SettingsScreen(
                             onClick = {
                                 try {
                                     val intent = Intent().apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                                             action = Settings.ACTION_APP_NOTIFICATION_SETTINGS
                                             putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
@@ -726,11 +727,16 @@ fun SettingsScreen(
                                         }
                                     }
                                     context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    val fallbackIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                        data = Uri.fromParts("package", context.packageName, null)
+                                } catch (_: Exception) {
+                                    try {
+                                        val fallbackIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            data = Uri.fromParts("package", context.packageName, null)
+                                        }
+                                        context.startActivity(fallbackIntent)
+                                    } catch (_: Exception) {
+                                        // Ignore if system settings activity is unavailable
                                     }
-                                    context.startActivity(fallbackIntent)
                                 }
                             }
                         )
