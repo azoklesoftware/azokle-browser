@@ -397,11 +397,51 @@ fun BrowserOmnibar(
                 }
             }
 
-            // Responsive 3-Dot Overflow Menu (Shown when Bottom Bar is hidden in Landscape / Tablet mode)
+            // Responsive Tabs Button & 3-Dot Overflow Menu (Shown when Bottom Bar is hidden in Landscape / Tablet mode)
             if (showOverflowMenu) {
-                var overflowMenuExpanded by remember { mutableStateOf(false) }
+                // 1. Dedicated Tabs Counter Button in Omnibar (Before 3-Dot Overflow Menu)
+                Spacer(modifier = Modifier.width(6.dp))
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple(bounded = false, radius = 21.dp, color = colors.actionPrimaryBg),
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onTabsClick()
+                            }
+                        )
+                        .semantics {
+                            role = Role.Button
+                            contentDescription = "Active Tabs, $openTabsCount open"
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(colors.surfaceElevated)
+                            .border(1.dp, colors.border, RoundedCornerShape(9.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (openTabsCount > 99) "99+" else "$openTabsCount",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            color = colors.textPrimary
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                // 2. Responsive 3-Dot Overflow Menu (Home, Discover, Fire Burn, Menu)
+                var overflowMenuExpanded by remember { mutableStateOf(false) }
 
                 Box {
                     Box(
@@ -469,20 +509,7 @@ fun BrowserOmnibar(
                             }
                         )
 
-                        // 3. Tabs (with active count badge)
-                        OmnibarDropdownActionItem(
-                            title = "Tabs",
-                            icon = Icons.Default.Layers,
-                            iconBgColor = colors.surfaceElevated,
-                            iconTint = colors.textPrimary,
-                            badgeCount = openTabsCount,
-                            onClick = {
-                                overflowMenuExpanded = false
-                                onTabsClick()
-                            }
-                        )
-
-                        // 4. Fire Burn
+                        // 3. Fire Burn
                         OmnibarDropdownActionItem(
                             title = "Fire Burn",
                             icon = Icons.Default.LocalFireDepartment,
@@ -501,7 +528,7 @@ fun BrowserOmnibar(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                         )
 
-                        // 5. Browser Menu Sheet
+                        // 4. Browser Menu Sheet
                         OmnibarDropdownActionItem(
                             title = "Menu",
                             icon = Icons.Default.Menu,
