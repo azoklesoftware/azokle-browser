@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Explore
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
@@ -51,6 +53,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,6 +63,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -118,6 +123,7 @@ fun BrowserMenuDropup(
     modifier: Modifier = Modifier
 ) {
     val colors = AzokleTheme.colors
+    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val configuration = LocalConfiguration.current
     // Expansive height reaching up to just below the top Omnibar
@@ -455,13 +461,46 @@ fun BrowserMenuDropup(
                     }
                 )
 
-                if (pwaEligibility != null) {
+                val installedPwas by com.azokle.search.pwa.PwaStorageManager.getInstance(context).installedPwasFlow.collectAsState()
+                val installedPwa = remember(url, installedPwas) {
+                    if (url.isNotBlank()) {
+                        com.azokle.search.pwa.PwaStorageManager.getInstance(context).findPwaForUrl(url)
+                    } else null
+                }
+
+                if (installedPwa != null) {
                     DropupMenuItemRow(
-                        title = "Add to Home screen",
+                        title = "Open in ${installedPwa.title}",
+                        icon = Icons.Default.OpenInBrowser,
+                        iconTint = colors.statusSuccess,
+                        iconBg = colors.statusSuccess.copy(alpha = 0.12f),
+                        badge = "PWA",
+                        badgeColor = colors.statusSuccess,
+                        onClick = {
+                            onDismissRequest()
+                            com.azokle.search.pwa.PwaShortcutManager.launchPwa(context, installedPwa)
+                        }
+                    )
+                    DropupMenuItemRow(
+                        title = "Uninstall ${installedPwa.title}",
+                        icon = Icons.Default.DeleteOutline,
+                        iconTint = colors.statusDestructive,
+                        iconBg = colors.statusDestructive.copy(alpha = 0.12f),
+                        badge = "Remove",
+                        badgeColor = colors.statusDestructive,
+                        onClick = {
+                            onDismissRequest()
+                            com.azokle.search.pwa.PwaStorageManager.getInstance(context).uninstallPwa(installedPwa.id)
+                            android.widget.Toast.makeText(context, "${installedPwa.title} uninstalled", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                } else if (pwaEligibility != null) {
+                    DropupMenuItemRow(
+                        title = if (pwaEligibility.isInstallablePwa) "Install Web App" else "Add to Home screen",
                         icon = Icons.Default.InstallMobile,
                         iconTint = colors.actionPrimaryBg,
                         iconBg = colors.actionPrimaryBg.copy(alpha = 0.12f),
-                        badge = "App",
+                        badge = if (pwaEligibility.isInstallablePwa) "App" else null,
                         badgeColor = colors.actionPrimaryBg,
                         onClick = {
                             onDismissRequest()

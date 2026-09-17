@@ -51,37 +51,17 @@ object PwaShortcutManager {
             val displayMode = eligibility.displayMode
             val isStandalone = displayMode == DisplayMode.STANDALONE || displayMode == DisplayMode.FULLSCREEN || displayMode == DisplayMode.MINIMAL_UI
 
-            // Construct Target Intent
-            val targetIntent = if (isStandalone) {
-                Intent(context, PwaActivity::class.java).apply {
-                    action = Intent.ACTION_VIEW
-                    data = Uri.parse(eligibility.startUrl)
-                    addCategory(Intent.CATEGORY_DEFAULT)
-                    addCategory(Intent.CATEGORY_BROWSABLE)
-                    putExtra(EXTRA_PWA_ID, pwaId)
-                    putExtra(EXTRA_PWA_START_URL, eligibility.startUrl)
-                    putExtra(EXTRA_PWA_SCOPE, eligibility.scope)
-                    putExtra(EXTRA_PWA_DISPLAY_MODE, displayMode.name)
-                    putExtra(EXTRA_PWA_NAME, title)
-                    if (eligibility.themeColor != null) {
-                        putExtra(EXTRA_PWA_THEME_COLOR, eligibility.themeColor)
-                    }
-                    if (eligibility.backgroundColor != null) {
-                        putExtra(EXTRA_PWA_BG_COLOR, eligibility.backgroundColor)
-                    }
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                            Intent.FLAG_ACTIVITY_NEW_DOCUMENT or
-                            Intent.FLAG_ACTIVITY_MULTIPLE_TASK
-                }
-            } else {
-                Intent(context, com.azokle.search.MainActivity::class.java).apply {
-                    action = Intent.ACTION_VIEW
-                    data = Uri.parse(eligibility.startUrl)
-                    addCategory(Intent.CATEGORY_DEFAULT)
-                    addCategory(Intent.CATEGORY_BROWSABLE)
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-            }
+            // Construct Dedicated Target Intent
+            val targetIntent = createPwaLaunchIntent(
+                context = context,
+                pwaId = pwaId,
+                startUrl = eligibility.startUrl,
+                scope = eligibility.scope,
+                displayMode = displayMode,
+                title = title,
+                themeColor = eligibility.themeColor,
+                backgroundColor = eligibility.backgroundColor
+            )
 
             val iconCompat = IconCompat.createWithBitmap(iconBitmap)
 
@@ -95,7 +75,7 @@ object PwaShortcutManager {
             val success = ShortcutManagerCompat.requestPinShortcut(context, shortcutInfo, null)
 
             // Record to persistent storage
-            val iconBase64 = PwaStorageManager.bitmapToBase64(iconBitmap)
+            val iconPath = PwaStorageManager.getInstance(context).saveIconToFile(pwaId, iconBitmap)
             val installedPwa = InstalledPwa(
                 id = pwaId,
                 title = title,
@@ -104,7 +84,8 @@ object PwaShortcutManager {
                 displayMode = displayMode,
                 themeColor = eligibility.themeColor,
                 backgroundColor = eligibility.backgroundColor,
-                iconBase64 = iconBase64
+                iconBase64 = null,
+                iconPath = iconPath
             )
             PwaStorageManager.getInstance(context).recordInstalled(installedPwa)
 
@@ -124,6 +105,15 @@ object PwaShortcutManager {
     ): Bitmap = withContext(Dispatchers.IO) {
         val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
         val targetSize = Math.max(am?.launcherLargeIconSize ?: 192, 192)
+
+        val isTor = com.azokle.search.tor.TorCircuitManager.isTorActive ||
+                pageUrl.contains(".onion", ignoreCase = true) ||
+                (iconUrl?.contains(".onion", ignoreCase = true) == true)
+
+        // If Tor is active or on onion service, avoid unproxied clearnet Coil requests to prevent IP/DNS leaks
+        if (isTor) {
+            return@withContext generateFallbackIcon(title, targetSize, themeColor)
+        }
 
         val imageLoader = ImageLoader.Builder(context)
             .components {
@@ -205,6 +195,65 @@ object PwaShortcutManager {
 
         canvas.drawBitmap(source, null, RectF(left, top, left + scaledW, top + scaledH), paint)
         return output
+    }
+
+    fun createPwaLaunchIntent(
+        context: Context,
+        pwaId: String,
+        startUrl: String,
+        scope: String,
+        displayMode: DisplayMode,
+        title: String,
+        themeColor: Int?,
+        backgroundColor: Int?
+    ): Intent {
+        val isStandalone = displayMode == DisplayMode.STANDALONE || displayMode == DisplayMode.FULLSCREEN || displayMode == DisplayMode.MINIMAL_UI
+        return if (isStandalone) {
+            Intent(context, PwaActivity::class.java).apply {
+                action = Intent.ACTION_VIEW
+                // Unique data URI per PWA id prevents task-merging collisions in Android Recents
+                data = Uri.parse("azokle-pwa://$pwaId?url=${Uri.encode(startUrl)}")
+                setComponent(android.content.ComponentName(context, PwaActivity::class.java))
+                addCategory(Intent.CATEGORY_DEFAULT)
+                addCategory(Intent.CATEGORY_BROWSABLE)
+                putExtra(EXTRA_PWA_ID, pwaId)
+                putExtra(EXTRA_PWA_START_URL, startUrl)
+                putExtra(EXTRA_PWA_SCOPE, scope)
+                putExtra(EXTRA_PWA_DISPLAY_MODE, displayMode.name)
+                putExtra(EXTRA_PWA_NAME, title)
+                if (themeColor != null) {
+                    putExtra(EXTRA_PWA_THEME_COLOR, themeColor)
+                }
+                if (backgroundColor != null) {
+                    putExtra(EXTRA_PWA_BG_COLOR, backgroundColor)
+                }
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_NEW_DOCUMENT or
+                        Intent.FLAG_ACTIVITY_MULTIPLE_TASK
+            }
+        } else {
+            Intent(context, com.azokle.search.MainActivity::class.java).apply {
+                action = Intent.ACTION_VIEW
+                data = Uri.parse(startUrl)
+                addCategory(Intent.CATEGORY_DEFAULT)
+                addCategory(Intent.CATEGORY_BROWSABLE)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+        }
+    }
+
+    fun launchPwa(context: Context, installedPwa: InstalledPwa) {
+        val intent = createPwaLaunchIntent(
+            context = context,
+            pwaId = installedPwa.id,
+            startUrl = installedPwa.startUrl,
+            scope = installedPwa.scope,
+            displayMode = installedPwa.displayMode,
+            title = installedPwa.title,
+            themeColor = installedPwa.themeColor,
+            backgroundColor = installedPwa.backgroundColor
+        )
+        context.startActivity(intent)
     }
 
     private fun generateFallbackIcon(title: String, targetSize: Int, themeColor: Int?): Bitmap {

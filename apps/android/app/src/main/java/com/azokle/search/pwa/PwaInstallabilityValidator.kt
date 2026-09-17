@@ -30,14 +30,30 @@ object PwaInstallabilityValidator {
         return false
     }
 
+    fun isSameOrigin(url1: String, url2: String): Boolean {
+        if (url1.isBlank() || url2.isBlank()) return false
+        val uri1 = try { URI(url1) } catch (e: Exception) { return false }
+        val uri2 = try { URI(url2) } catch (e: Exception) { return false }
+
+        val scheme1 = uri1.scheme?.lowercase() ?: return false
+        val scheme2 = uri2.scheme?.lowercase() ?: return false
+        if (scheme1 != scheme2) return false
+
+        val host1 = uri1.host?.lowercase() ?: return false
+        val host2 = uri2.host?.lowercase() ?: return false
+        if (host1 != host2) return false
+
+        val port1 = if (uri1.port != -1) uri1.port else (if (scheme1 == "https") 443 else 80)
+        val port2 = if (uri2.port != -1) uri2.port else (if (scheme2 == "https") 443 else 80)
+        return port1 == port2
+    }
+
     fun isUrlInScope(url: String, scope: String): Boolean {
         if (url.isBlank() || scope.isBlank()) return false
+        if (!isSameOrigin(url, scope)) return false
+
         val targetUri = try { URI(url) } catch (e: Exception) { return false }
         val scopeUri = try { URI(scope) } catch (e: Exception) { return false }
-
-        // Must match scheme and host
-        if (targetUri.scheme?.lowercase() != scopeUri.scheme?.lowercase()) return false
-        if (targetUri.host?.lowercase() != scopeUri.host?.lowercase()) return false
 
         val scopePath = scopeUri.path ?: "/"
         val targetPath = targetUri.path ?: "/"
@@ -78,16 +94,26 @@ object PwaInstallabilityValidator {
             )
         }
 
-        val verifiedOrigin = if (uri != null) "${uri.scheme}://${uri.authority ?: uri.host}" else host
+        val verifiedOrigin = if (uri != null) {
+            val portPart = if (uri.port != -1 && !((scheme == "https" && uri.port == 443) || (scheme == "http" && uri.port == 80))) ":${uri.port}" else ""
+            "${uri.scheme}://${uri.host}$portPart"
+        } else host
 
         if (manifest != null && isHttps) {
             val bestIcon = manifest.getBestIconUrl() ?: fallbackFaviconUrl
             val title = if (manifest.name.isNotBlank()) manifest.name else (if (manifest.shortName.isNotBlank()) manifest.shortName else pageTitle.ifBlank { host })
-            val startUrl = manifest.startUrl.ifBlank { currentUrl }
-            val scope = manifest.scope.ifBlank { verifiedOrigin }
+            
+            // W3C Same-Origin Enforcement: manifest scope must be same-origin as the document
+            val rawScope = manifest.scope.ifBlank { verifiedOrigin }
+            val scope = if (isSameOrigin(rawScope, currentUrl)) rawScope else verifiedOrigin
 
-            // Ensure start_url is within scope / origin
-            val validStartUrl = if (isUrlInScope(startUrl, scope)) startUrl else currentUrl
+            // Ensure start_url is same-origin and within scope
+            val rawStartUrl = manifest.startUrl.ifBlank { currentUrl }
+            val validStartUrl = if (isSameOrigin(rawStartUrl, currentUrl) && isUrlInScope(rawStartUrl, scope)) {
+                rawStartUrl
+            } else {
+                currentUrl
+            }
 
             return PwaInstallEligibility(
                 isInstallablePwa = true,

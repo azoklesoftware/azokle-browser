@@ -2,15 +2,20 @@ package com.azokle.search.pwa
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.pm.ShortcutManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.Build
 import android.util.Base64
+import androidx.core.content.pm.ShortcutManagerCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -23,19 +28,35 @@ data class InstalledPwa(
     val themeColor: Int? = null,
     val backgroundColor: Int? = null,
     val iconBase64: String? = null,
+    val iconPath: String? = null,
     val installedAt: Long = System.currentTimeMillis()
 ) {
     fun getIconBitmap(reqWidth: Int = 192, reqHeight: Int = 192): Bitmap? {
+        if (!iconPath.isNullOrBlank()) {
+            try {
+                val file = File(iconPath)
+                if (file.exists()) {
+                    val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeFile(file.absolutePath, options)
+                    options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight)
+                    options.inJustDecodeBounds = false
+                    options.inPreferredConfig = Bitmap.Config.ARGB_8888
+                    val bmp = BitmapFactory.decodeFile(file.absolutePath, options)
+                    if (bmp != null) return bmp
+                }
+            } catch (e: Exception) {
+                // Fallback to Base64 if file read fails
+            }
+        }
+
         if (iconBase64.isNullOrBlank()) return null
         return try {
             val bytes = Base64.decode(iconBase64, Base64.DEFAULT)
-            // First decode with inJustDecodeBounds=true to check dimensions without allocating memory
             val options = BitmapFactory.Options().apply {
                 inJustDecodeBounds = true
             }
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
 
-            // Calculate inSampleSize to downsample large bitmaps and prevent memory exhaustion
             options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight)
             options.inJustDecodeBounds = false
             options.inPreferredConfig = Bitmap.Config.ARGB_8888
@@ -56,6 +77,7 @@ data class InstalledPwa(
             if (themeColor != null) put("themeColor", themeColor)
             if (backgroundColor != null) put("backgroundColor", backgroundColor)
             if (iconBase64 != null) put("iconBase64", iconBase64)
+            if (iconPath != null) put("iconPath", iconPath)
             put("installedAt", installedAt)
         }
     }
@@ -71,6 +93,7 @@ data class InstalledPwa(
                 themeColor = if (json.has("themeColor")) json.getInt("themeColor") else null,
                 backgroundColor = if (json.has("backgroundColor")) json.getInt("backgroundColor") else null,
                 iconBase64 = json.optString("iconBase64", "").takeIf { it.isNotBlank() },
+                iconPath = json.optString("iconPath", "").takeIf { it.isNotBlank() },
                 installedAt = json.optLong("installedAt", System.currentTimeMillis())
             )
         }
@@ -92,7 +115,7 @@ data class InstalledPwa(
     }
 }
 
-class PwaStorageManager private constructor(context: Context) {
+class PwaStorageManager private constructor(private val context: Context) {
     private val prefs: SharedPreferences = context.applicationContext.getSharedPreferences(
         PREFS_NAME,
         Context.MODE_PRIVATE
@@ -106,6 +129,38 @@ class PwaStorageManager private constructor(context: Context) {
         loadFromDisk()
     }
 
+    fun syncWithSystemShortcuts() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                val shortcutManager = context.getSystemService(ShortcutManager::class.java)
+                if (shortcutManager != null && shortcutManager.isRequestPinShortcutSupported) {
+                    val pinnedShortcuts = shortcutManager.pinnedShortcuts
+                    val pinnedIds = pinnedShortcuts.map { it.id }.toSet()
+                    val now = System.currentTimeMillis()
+                    var changed = false
+                    val iterator = pwaMap.entries.iterator()
+                    while (iterator.hasNext()) {
+                        val entry = iterator.next()
+                        val pwa = entry.value
+                        // Allow 15 seconds grace period for newly initiated pin requests
+                        if (now - pwa.installedAt > 15_000L && pwa.id !in pinnedIds) {
+                            iterator.remove()
+                            pwa.iconPath?.let { path ->
+                                try { File(path).delete() } catch (e: Exception) {}
+                            }
+                            changed = true
+                        }
+                    }
+                    if (changed) {
+                        saveToDisk()
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w(TAG, "Failed to sync pinned shortcuts: ${e.message}")
+            }
+        }
+    }
+
     private fun loadFromDisk() {
         try {
             val jsonStr = prefs.getString(KEY_PWAS, null) ?: return
@@ -116,6 +171,7 @@ class PwaStorageManager private constructor(context: Context) {
                 val item = InstalledPwa.fromJson(obj)
                 pwaMap[item.id] = item
             }
+            syncWithSystemShortcuts()
             _installedPwasFlow.value = pwaMap.values.toList().sortedByDescending { it.installedAt }
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error loading installed PWAs: ${e.message}")
@@ -136,22 +192,64 @@ class PwaStorageManager private constructor(context: Context) {
         }
     }
 
+    fun saveIconToFile(pwaId: String, bitmap: Bitmap): String? {
+        return try {
+            val dir = File(context.applicationContext.filesDir, "pwa_icons").apply { if (!exists()) mkdirs() }
+            val file = File(dir, "${pwaId}.png")
+            FileOutputStream(file).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 90, out)
+            }
+            file.absolutePath
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Failed to save icon file: ${e.message}")
+            null
+        }
+    }
+
     fun recordInstalled(item: InstalledPwa) {
         pwaMap[item.id] = item
         saveToDisk()
     }
 
-    fun getPwaById(id: String): InstalledPwa? = pwaMap[id]
+    fun getPwaById(id: String): InstalledPwa? {
+        syncWithSystemShortcuts()
+        return pwaMap[id]
+    }
 
     fun findPwaForUrl(url: String): InstalledPwa? {
         if (url.isBlank()) return null
+        syncWithSystemShortcuts()
         return pwaMap.values.find { pwa ->
             PwaInstallabilityValidator.isUrlInScope(url, pwa.scope)
         }
     }
 
+    fun uninstallPwa(id: String, clearSiteData: Boolean = true) {
+        val pwa = pwaMap[id]
+        if (pwa != null && clearSiteData) {
+            try {
+                val host = android.net.Uri.parse(pwa.startUrl).host
+                if (!host.isNullOrBlank()) {
+                    com.azokle.search.engine.GeckoEngineManager.clearHostData(context, host)
+                }
+            } catch (e: Exception) {
+                android.util.Log.w(TAG, "Failed to clear host data on uninstall: ${e.message}")
+            }
+        }
+        try {
+            ShortcutManagerCompat.disableShortcuts(context, listOf(id), "Web app uninstalled")
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Failed to disable shortcut: ${e.message}")
+        }
+        removePwa(id)
+    }
+
     fun removePwa(id: String) {
-        if (pwaMap.remove(id) != null) {
+        val removed = pwaMap.remove(id)
+        if (removed != null) {
+            removed.iconPath?.let { path ->
+                try { File(path).delete() } catch (e: Exception) {}
+            }
             saveToDisk()
         }
     }
@@ -166,15 +264,8 @@ class PwaStorageManager private constructor(context: Context) {
 
         fun getInstance(context: Context): PwaStorageManager {
             return INSTANCE ?: synchronized(this) {
-                INSTANCE ?: PwaStorageManager(context).also { INSTANCE = it }
+                INSTANCE ?: PwaStorageManager(context.applicationContext).also { INSTANCE = it }
             }
-        }
-
-        fun bitmapToBase64(bitmap: Bitmap): String {
-            val stream = ByteArrayOutputStream()
-            bitmap.compress(Bitmap.CompressFormat.PNG, 90, stream)
-            val byteArray = stream.toByteArray()
-            return Base64.encodeToString(byteArray, Base64.NO_WRAP)
         }
     }
 }

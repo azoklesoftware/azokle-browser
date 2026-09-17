@@ -146,6 +146,7 @@ class PwaLogicTest {
             displayMode = DisplayMode.STANDALONE,
             themeColor = 0xFF00FF,
             backgroundColor = 0x000000,
+            iconPath = "/data/user/0/com.azokle.search/files/pwa_icons/test.png",
             installedAt = 1700000000000L
         )
 
@@ -159,6 +160,7 @@ class PwaLogicTest {
         assertEquals(item.displayMode, parsed.displayMode)
         assertEquals(item.themeColor, parsed.themeColor)
         assertEquals(item.backgroundColor, parsed.backgroundColor)
+        assertEquals(item.iconPath, parsed.iconPath)
         assertEquals(item.installedAt, parsed.installedAt)
     }
 }

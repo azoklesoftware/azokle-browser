@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -21,6 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -32,6 +36,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,9 +54,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.azokle.search.pwa.DisplayMode
-import com.azokle.search.pwa.PwaInstallEligibility
-import com.azokle.search.pwa.PwaShortcutManager
 import com.azokle.search.common.theme.AzokleRadius
 import com.azokle.search.common.theme.AzokleTheme
 import com.azokle.search.common.theme.adaptiveContentWidth
@@ -77,25 +79,27 @@ fun PwaInstallBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = colors.background,
+        containerColor = colors.cardBg,
         contentColor = colors.textPrimary,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         dragHandle = {
             Box(
                 modifier = Modifier
                     .statusBarsPadding()
-                    .padding(top = 10.dp, bottom = 4.dp)
-                    .size(width = 36.dp, height = 4.dp)
+                    .padding(top = 12.dp, bottom = 8.dp)
+                    .size(width = 38.dp, height = 4.5.dp)
                     .clip(CircleShape)
-                    .background(colors.border)
+                    .background(colors.borderSubtle.copy(alpha = 0.8f))
             )
         }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .adaptiveContentWidth(560.dp)
-                .padding(horizontal = 24.dp, vertical = 8.dp),
+                .adaptiveContentWidth(520.dp)
+                .navigationBarsPadding()
+                .padding(horizontal = 22.dp)
+                .padding(bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Header Title
@@ -105,6 +109,13 @@ fun PwaInstallBottomSheet(
                 fontWeight = FontWeight.Bold,
                 color = colors.textPrimary
             )
+            Text(
+                text = "Runs as a dedicated standalone app on your device",
+                fontSize = 12.sp,
+                color = colors.textMuted,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+
             Spacer(modifier = Modifier.height(16.dp))
 
             // App Icon & Domain Card Preview
@@ -112,18 +123,18 @@ fun PwaInstallBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(AzokleRadius.lg)
-                    .background(colors.cardBg)
-                    .border(1.dp, colors.border, AzokleRadius.lg)
-                    .padding(16.dp),
+                    .background(colors.surfaceElevated.copy(alpha = 0.7f))
+                    .border(1.dp, colors.borderSubtle, AzokleRadius.lg)
+                    .padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // App Icon
                 Box(
                     modifier = Modifier
                         .size(56.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(colors.surface)
-                        .border(1.dp, colors.border, RoundedCornerShape(14.dp)),
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(colors.cardBg)
+                        .border(1.dp, colors.borderSubtle, RoundedCornerShape(16.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     if (!eligibility.iconUrl.isNullOrBlank()) {
@@ -134,20 +145,20 @@ fun PwaInstallBottomSheet(
                                 .build(),
                             contentDescription = eligibility.title,
                             modifier = Modifier
-                                .size(48.dp)
+                                .size(46.dp)
                                 .clip(RoundedCornerShape(12.dp))
                         )
                     } else {
                         Text(
                             text = eligibility.title.take(1).uppercase(),
-                            fontSize = 22.sp,
+                            fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(14.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -157,7 +168,7 @@ fun PwaInstallBottomSheet(
                         color = colors.textPrimary,
                         maxLines = 1
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (eligibility.isHttps) {
                             Icon(
@@ -170,7 +181,7 @@ fun PwaInstallBottomSheet(
                         }
                         Text(
                             text = eligibility.verifiedOrigin,
-                            fontSize = 12.sp,
+                            fontSize = 11.5.sp,
                             fontFamily = FontFamily.Monospace,
                             color = colors.textSecondary,
                             maxLines = 1
@@ -180,14 +191,19 @@ fun PwaInstallBottomSheet(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(if (isPwa) colors.actionPrimaryBg.copy(alpha = 0.15f) else colors.surface)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .background(
+                                if (isPwa) colors.statusSuccess.copy(alpha = 0.12f)
+                                else colors.surfaceElevated
+                            )
+                            .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = if (isPwa) "STANDALONE PWA" else "WEB SHORTCUT",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isPwa) colors.actionPrimaryBg else colors.textMuted
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontFamily = FontFamily.Monospace,
+                            letterSpacing = 0.5.sp,
+                            color = if (isPwa) colors.statusSuccess else colors.textMuted
                         )
                     }
                 }
@@ -205,15 +221,15 @@ fun PwaInstallBottomSheet(
                 shape = AzokleRadius.md,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = colors.actionPrimaryBg,
-                    unfocusedBorderColor = colors.border,
+                    unfocusedBorderColor = colors.borderSubtle,
                     focusedTextColor = colors.textPrimary,
                     unfocusedTextColor = colors.textPrimary,
-                    focusedContainerColor = colors.cardBg,
-                    unfocusedContainerColor = colors.cardBg
+                    focusedContainerColor = colors.surfaceElevated.copy(alpha = 0.5f),
+                    unfocusedContainerColor = colors.surfaceElevated.copy(alpha = 0.5f)
                 )
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Action Buttons
             Row(
@@ -224,7 +240,7 @@ fun PwaInstallBottomSheet(
                     onClick = onDismiss,
                     modifier = Modifier
                         .weight(1f)
-                        .height(48.dp),
+                        .height(46.dp),
                     shape = AzokleRadius.md
                 ) {
                     Text(
@@ -245,7 +261,7 @@ fun PwaInstallBottomSheet(
                             )
                             isInstalling = false
                             if (success) {
-                                Toast.makeText(context, "Adding to Home Screen...", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Added '$appTitle' to Home Screen", Toast.LENGTH_SHORT).show()
                                 onDismiss()
                             } else {
                                 Toast.makeText(context, "Failed to create home screen shortcut", Toast.LENGTH_SHORT).show()
@@ -254,11 +270,11 @@ fun PwaInstallBottomSheet(
                     },
                     modifier = Modifier
                         .weight(1.5f)
-                        .height(48.dp),
+                        .height(46.dp),
                     shape = AzokleRadius.md,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = colors.actionPrimaryBg,
-                        contentColor = Color.Black
+                        contentColor = colors.actionPrimaryText
                     ),
                     enabled = !isInstalling
                 ) {
@@ -266,7 +282,7 @@ fun PwaInstallBottomSheet(
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp,
-                            color = Color.Black
+                            color = colors.actionPrimaryText
                         )
                     } else {
                         Icon(
@@ -278,13 +294,11 @@ fun PwaInstallBottomSheet(
                         Text(
                             text = actionButtonText,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
+                            fontSize = 13.5.sp
                         )
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(28.dp))
         }
     }
 }

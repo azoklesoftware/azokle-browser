@@ -140,12 +140,26 @@
 
         <activity
             android:name=".pwa.PwaActivity"
-            android:exported="false"
-            android:launchMode="singleTask"
+            android:exported="true"
+            android:launchMode="standard"
             android:documentLaunchMode="always"
+            android:maxRecents="20"
+            android:autoRemoveFromRecents="false"
             android:windowSoftInputMode="adjustResize"
+            android:supportsPictureInPicture="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize|uiMode"
-            android:theme="@style/Theme.AzokleSearch" />
+            android:theme="@style/Theme.AzokleSearch">
+            <intent-filter>
+                <action android:name="com.azokle.search.action.OPEN_PWA" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="azokle-pwa" />
+            </intent-filter>
+        </activity>
 
         <service
             android:name=".media.MediaPlaybackService"
