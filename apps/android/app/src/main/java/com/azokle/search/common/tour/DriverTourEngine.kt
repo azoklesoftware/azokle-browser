@@ -1,11 +1,21 @@
 package com.azokle.search.common.tour
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,6 +32,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,6 +41,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,6 +56,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
@@ -50,6 +64,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType
@@ -58,18 +73,22 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.azokle.search.common.theme.AzokleBreakpoints
 import com.azokle.search.common.theme.AzokleRadius
 import com.azokle.search.common.theme.AzokleTheme
+import com.azokle.search.common.theme.adaptiveContentWidth
 import kotlin.math.roundToInt
 
 enum class TourShape {
@@ -172,7 +191,7 @@ fun Modifier.tourTarget(
 /**
  * Driver.js-grade interactive Spotlight Tour Overlay in Jetpack Compose.
  * Renders an animated cutout spotlight over targeted UI components with
- * an anchored popover card guiding the user through the app on first install.
+ * an anchored popover card guiding the user through the app.
  */
 @Composable
 fun DriverTourOverlay(
@@ -207,26 +226,40 @@ fun DriverTourOverlay(
     // Smooth physics-based animation between target element positions
     val animLeft by animateFloatAsState(
         targetValue = targetRect.left,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium),
         label = "tourSpotlightLeft"
     )
     val animTop by animateFloatAsState(
         targetValue = targetRect.top,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium),
         label = "tourSpotlightTop"
     )
     val animRight by animateFloatAsState(
         targetValue = targetRect.right,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium),
         label = "tourSpotlightRight"
     )
     val animBottom by animateFloatAsState(
         targetValue = targetRect.bottom,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium),
         label = "tourSpotlightBottom"
     )
 
     val animatedSpotlightRect = Rect(animLeft, animTop, animRight, animBottom)
+
+    // Pulse Halo animation around spotlight
+    val infiniteTransition = rememberInfiniteTransition(label = "spotlight_halo")
+    val haloAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 0.55f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1100, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "halo_alpha"
+    )
+
+    val accentColor = colors.statusAccent
 
     Box(
         modifier = modifier
@@ -262,55 +295,84 @@ fun DriverTourOverlay(
             }
 
             // Dark semi-transparent scrim
-            drawPath(path = screenPath, color = Color.Black.copy(alpha = 0.80f))
+            drawPath(path = screenPath, color = Color.Black.copy(alpha = 0.76f))
 
-            // Glowing accent stroke around spotlight
+            // Multi-Layered Glowing Accent Rings around spotlight
             if (animatedSpotlightRect.width > 0 && animatedSpotlightRect.height > 0) {
                 if (currentStep.shape == TourShape.CIRCLE) {
                     val radius = (maxOf(animatedSpotlightRect.width, animatedSpotlightRect.height) / 2f)
                     val center = animatedSpotlightRect.center
+
+                    // Outer soft halo
                     drawCircle(
-                        color = Color(0xFF38BDF8),
+                        color = accentColor.copy(alpha = haloAlpha),
+                        radius = radius + 3.dp.toPx(),
+                        center = center,
+                        style = Stroke(width = 3.dp.toPx())
+                    )
+
+                    // Inner crisp accent ring
+                    drawCircle(
+                        color = accentColor,
                         radius = radius,
                         center = center,
-                        style = Stroke(width = 2.5.dp.toPx())
+                        style = Stroke(width = 2.dp.toPx())
                     )
                 } else {
+                    // Outer soft halo
                     drawRoundRect(
-                        color = Color(0xFF38BDF8),
+                        color = accentColor.copy(alpha = haloAlpha),
+                        topLeft = Offset(animatedSpotlightRect.left - 2.dp.toPx(), animatedSpotlightRect.top - 2.dp.toPx()),
+                        size = Size(animatedSpotlightRect.width + 4.dp.toPx(), animatedSpotlightRect.height + 4.dp.toPx()),
+                        cornerRadius = CornerRadius(cornerRadiusPx + 2.dp.toPx(), cornerRadiusPx + 2.dp.toPx()),
+                        style = Stroke(width = 3.dp.toPx())
+                    )
+
+                    // Inner crisp accent ring
+                    drawRoundRect(
+                        color = accentColor,
                         topLeft = animatedSpotlightRect.topLeft,
                         size = animatedSpotlightRect.size,
                         cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx),
-                        style = Stroke(width = 2.5.dp.toPx())
+                        style = Stroke(width = 2.dp.toPx())
                     )
                 }
             }
         }
 
         // 2. Interactive Step Popover Card
-        val screenHeight = with(density) { androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp.toPx() }
-        val placeAbove = animatedSpotlightRect.bottom > (screenHeight * 0.55f)
+        val configuration = LocalConfiguration.current
+        val screenHeight = with(density) { configuration.screenHeightDp.dp.toPx() }
+        val placeAbove = animatedSpotlightRect.bottom > (screenHeight * 0.52f)
 
         val popoverYOffset = if (placeAbove) {
-            (animatedSpotlightRect.top - with(density) { 200.dp.toPx() }).coerceAtLeast(with(density) { 50.dp.toPx() })
+            (animatedSpotlightRect.top - with(density) { 190.dp.toPx() }).coerceAtLeast(with(density) { 48.dp.toPx() })
         } else {
-            (animatedSpotlightRect.bottom + with(density) { 14.dp.toPx() }).coerceAtMost(screenHeight - with(density) { 240.dp.toPx() })
+            (animatedSpotlightRect.bottom + with(density) { 14.dp.toPx() }).coerceAtMost(screenHeight - with(density) { 230.dp.toPx() })
         }
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(x = 0, y = popoverYOffset.roundToInt()) }
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.Center
         ) {
+            val cardShape = AzokleRadius.xl
+
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .shadow(16.dp, AzokleRadius.xl, ambientColor = Color.Black.copy(alpha = 0.5f), spotColor = Color(0xFF38BDF8).copy(alpha = 0.35f))
-                    .clip(AzokleRadius.xl)
-                    .background(colors.modalBg)
-                    .border(1.2.dp, colors.border, AzokleRadius.xl)
-                    .padding(20.dp)
+                    .adaptiveContentWidth(AzokleBreakpoints.MaxSheetWidth)
+                    .shadow(
+                        elevation = 20.dp,
+                        shape = cardShape,
+                        spotColor = accentColor.copy(alpha = 0.28f),
+                        ambientColor = Color.Black.copy(alpha = 0.5f)
+                    )
+                    .clip(cardShape)
+                    .background(colors.cardBg)
+                    .border(1.dp, accentColor.copy(alpha = 0.2f), cardShape)
+                    .padding(horizontal = 18.dp, vertical = 18.dp)
             ) {
                 // Popover Header: Step Counter Pill & Close Action
                 Row(
@@ -322,71 +384,99 @@ fun DriverTourOverlay(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .clip(AzokleRadius.full)
-                            .background(Color(0xFF38BDF8).copy(alpha = 0.15f))
-                            .border(0.8.dp, Color(0xFF38BDF8).copy(alpha = 0.35f), AzokleRadius.full)
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                            .background(accentColor.copy(alpha = 0.12f))
+                            .border(0.8.dp, accentColor.copy(alpha = 0.35f), AzokleRadius.full)
+                            .padding(horizontal = 9.dp, vertical = 3.5.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.AutoAwesome,
                             contentDescription = null,
-                            tint = Color(0xFF38BDF8),
+                            tint = accentColor,
                             modifier = Modifier.size(12.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(5.dp))
                         Text(
-                            text = "Step ${tourState.currentStepIndex + 1} of ${tourState.totalSteps}",
-                            fontSize = 11.sp,
+                            text = "TOUR • ${tourState.currentStepIndex + 1} / ${tourState.totalSteps}",
+                            fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF38BDF8)
+                            fontFamily = FontFamily.Monospace,
+                            letterSpacing = 0.6.sp,
+                            color = accentColor
                         )
                     }
 
+                    // Accessible Close Tour Action
                     Box(
                         modifier = Modifier
-                            .size(28.dp)
+                            .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
                             .clip(CircleShape)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(bounded = true, color = colors.textPrimary),
+                                indication = ripple(bounded = true, radius = 16.dp, color = colors.textSecondary),
                                 onClick = {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     tourState.skip()
                                 }
-                            ),
+                            )
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = "Close Tour"
+                            },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close Tour",
-                            tint = colors.textMuted,
-                            modifier = Modifier.size(15.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(colors.surfaceElevated)
+                                .border(0.8.dp, colors.borderSubtle, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = null,
+                                tint = colors.textSecondary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                AnimatedContent(
+                    targetState = currentStep,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) togetherWith
+                                fadeOut(animationSpec = tween(120, easing = FastOutSlowInEasing))
+                    },
+                    label = "TourStepContent"
+                ) { step ->
+                    Column {
+                        // Step Title
+                        Text(
+                            text = step.title,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.2).sp,
+                            color = colors.textPrimary
+                        )
+
+                        Spacer(modifier = Modifier.height(5.dp))
+
+                        // Step Description
+                        Text(
+                            text = step.description,
+                            fontSize = 12.5.sp,
+                            color = colors.textSecondary,
+                            lineHeight = 17.5.sp
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Step Title
-                Text(
-                    text = currentStep.title,
-                    fontSize = 16.5.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.textPrimary
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // Step Description
-                Text(
-                    text = currentStep.description,
-                    fontSize = 13.sp,
-                    color = colors.textSecondary,
-                    lineHeight = 18.sp
-                )
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // Popover Actions: Skip / Previous / Next
+                // Popover Actions: Skip/Prev, Dots Indicator, Next/Finish
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -397,12 +487,13 @@ fun DriverTourOverlay(
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 tourState.previous()
-                            }
+                            },
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
                                 text = "Previous",
                                 color = colors.textMuted,
-                                fontSize = 13.sp,
+                                fontSize = 12.5.sp,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -411,49 +502,77 @@ fun DriverTourOverlay(
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 tourState.skip()
-                            }
+                            },
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
                                 text = "Skip Tour",
                                 color = colors.textMuted,
-                                fontSize = 13.sp,
+                                fontSize = 12.5.sp,
                                 fontWeight = FontWeight.Medium
                             )
                         }
                     }
 
-                    // Primary Action: Next / Done
-                    Box(
-                        modifier = Modifier
-                            .clip(AzokleRadius.full)
-                            .background(colors.actionPrimaryBg)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(bounded = true, color = colors.actionPrimaryText.copy(alpha = 0.25f)),
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    tourState.next()
-                                }
+                    // Mini Progress Dots
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        repeat(tourState.totalSteps) { idx ->
+                            val isSelected = tourState.currentStepIndex == idx
+                            val dotWidth by animateDpAsState(
+                                targetValue = if (isSelected) 14.dp else 4.dp,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessMedium
+                                ),
+                                label = "tourDotWidth"
                             )
-                            .padding(horizontal = 16.dp, vertical = 9.dp)
-                            .semantics {
-                                role = Role.Button
-                                contentDescription = if (tourState.isLastStep) "Finish Tour" else "Next Step"
-                            },
-                        contentAlignment = Alignment.Center
+
+                            Box(
+                                modifier = Modifier
+                                    .height(4.dp)
+                                    .width(dotWidth)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(
+                                        if (isSelected) accentColor else colors.borderSubtle
+                                    )
+                            )
+                        }
+                    }
+
+                    // Primary Action: Next / Done
+                    ElevatedButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            tourState.next()
+                        },
+                        shape = AzokleRadius.full,
+                        modifier = Modifier
+                            .height(38.dp)
+                            .shadow(
+                                elevation = 4.dp,
+                                shape = AzokleRadius.full,
+                                spotColor = accentColor.copy(alpha = 0.35f)
+                            ),
+                        colors = ButtonDefaults.elevatedButtonColors(
+                            containerColor = accentColor,
+                            contentColor = Color.White
+                        ),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 0.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = if (tourState.isLastStep) "Get Started" else "Next",
-                                color = colors.actionPrimaryText,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.2.sp
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(5.dp))
                             Icon(
                                 imageVector = if (tourState.isLastStep) Icons.Default.Check else Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = null,
-                                tint = colors.actionPrimaryText,
                                 modifier = Modifier.size(13.dp)
                             )
                         }

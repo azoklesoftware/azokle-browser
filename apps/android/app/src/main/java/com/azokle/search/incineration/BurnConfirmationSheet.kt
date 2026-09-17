@@ -1,5 +1,6 @@
 package com.azokle.search.incineration
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,25 +12,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Cookie
-import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -38,7 +30,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
@@ -49,243 +40,183 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.azokle.search.common.theme.AzokleRadius
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.azokle.search.common.theme.AzokleTheme
-import com.azokle.search.common.theme.adaptiveContentWidth
 
 /**
- * Confirmation Sheet displayed before executing a Fire Incineration / Burn Browsing Data action.
- * Gives user clear details on what will be cleared and allows Confirm or Cancel.
+ * Ultra-Minimalist, Sovereign Confirmation Popup Dialog for Fire Burn.
+ * Pure, distraction-free confirmation modal with tactile haptics.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BurnConfirmationSheet(
+fun BurnConfirmationDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val colors = AzokleTheme.colors
     val haptic = LocalHapticFeedback.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    ModalBottomSheet(
+    Dialog(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.cardBg,
-        tonalElevation = 8.dp,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(top = 12.dp, bottom = 8.dp)
-                    .size(width = 36.dp, height = 4.dp)
-                    .clip(CircleShape)
-                    .background(colors.border)
-            )
-        }
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
+        )
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .adaptiveContentWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(horizontal = 28.dp),
+            contentAlignment = Alignment.Center
         ) {
-            // 1. Top Fire Icon Badge
-            Box(
-                modifier = Modifier
-                    .size(60.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFFF4500).copy(alpha = 0.15f))
-                    .border(1.5.dp, Color(0xFFFF4500).copy(alpha = 0.35f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.LocalFireDepartment,
-                    contentDescription = null,
-                    tint = Color(0xFFFF4500),
-                    modifier = Modifier.size(32.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // 2. Title and Description
-            Text(
-                text = "Burn Browsing Data?",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = colors.textPrimary,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = "This will immediately incinerate your current session data and return you to a clean home page.",
-                fontSize = 13.sp,
-                color = colors.textSecondary,
-                textAlign = TextAlign.Center,
-                lineHeight = 18.sp,
-                modifier = Modifier.padding(horizontal = 12.dp)
-            )
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // 3. Summary of Cleared Items
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(AzokleRadius.lg)
-                    .background(colors.surfaceElevated)
-                    .border(1.dp, colors.border, AzokleRadius.lg)
-                    .padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .widthIn(min = 280.dp, max = 330.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(colors.cardBg)
+                    .border(
+                        BorderStroke(1.dp, colors.border.copy(alpha = 0.5f)),
+                        RoundedCornerShape(24.dp)
+                    )
+                    .padding(horizontal = 20.dp, vertical = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                BurnItemRow(
-                    icon = Icons.Default.Layers,
-                    iconTint = Color(0xFF3B82F6),
-                    text = "Close all open tabs & tab groups"
-                )
-                BurnItemRow(
-                    icon = Icons.Default.Cookie,
-                    iconTint = Color(0xFFF59E0B),
-                    text = "Clear cookies & website session storage"
-                )
-                BurnItemRow(
-                    icon = Icons.Default.History,
-                    iconTint = Color(0xFF8B5CF6),
-                    text = "Erase browsing history & web cache"
-                )
-                BurnItemRow(
-                    icon = Icons.Default.Download,
-                    iconTint = Color(0xFF10B981),
-                    text = "Clear download records & site permissions"
-                )
-                BurnItemRow(
-                    icon = Icons.Default.DeleteSweep,
-                    iconTint = Color(0xFFEF4444),
-                    text = "Wipe search suggestions & secure SQLite vacuum"
-                )
-            }
-
-            Spacer(modifier = Modifier.height(22.dp))
-
-            // 4. Action Buttons (Cancel / Burn Data)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Cancel Button
+                // 1. Sleek Fire Icon Emblem
                 Box(
                     modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .clip(AzokleRadius.md)
-                        .background(colors.surface)
-                        .border(1.dp, colors.border, AzokleRadius.md)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(color = colors.textPrimary.copy(alpha = 0.1f)),
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                onDismiss()
-                            }
-                        )
-                        .semantics {
-                            role = Role.Button
-                            contentDescription = "Cancel"
-                        },
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(colors.statusDestructive.copy(alpha = 0.12f))
+                        .border(1.dp, colors.statusDestructive.copy(alpha = 0.25f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "Cancel",
-                        fontSize = 14.5.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colors.textPrimary
+                    Icon(
+                        imageVector = Icons.Default.LocalFireDepartment,
+                        contentDescription = null,
+                        tint = colors.statusDestructive,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
 
-                // Burn Data Button (Destructive Gradient Button)
-                Box(
-                    modifier = Modifier
-                        .weight(1.2f)
-                        .height(48.dp)
-                        .clip(AzokleRadius.md)
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(Color(0xFFFF3B30), Color(0xFFFF6F00))
-                            )
-                        )
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(color = Color.White.copy(alpha = 0.2f)),
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onConfirm()
-                            }
-                        )
-                        .semantics {
-                            role = Role.Button
-                            contentDescription = "Burn Data"
-                        },
-                    contentAlignment = Alignment.Center
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 2. Minimalist Title & Subtitle
+                Text(
+                    text = "Burn Browsing Data?",
+                    fontSize = 17.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = "Close all open tabs, wipe history, cookies, and session data.",
+                    fontSize = 12.5.sp,
+                    color = colors.textSecondary,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 17.sp,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // 3. Clean Horizontal Action Buttons (Cancel / Burn)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.LocalFireDepartment,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
+                    // Cancel Button
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(colors.surfaceElevated)
+                            .border(1.dp, colors.border.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(color = colors.textPrimary.copy(alpha = 0.1f)),
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onDismiss()
+                                }
+                            )
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = "Cancel"
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
                         Text(
-                            text = "Burn Data",
-                            fontSize = 14.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            text = "Cancel",
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.textPrimary
                         )
+                    }
+
+                    // Burn Data Button
+                    Box(
+                        modifier = Modifier
+                            .weight(1.15f)
+                            .height(42.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(Color(0xFFFF3B30), Color(0xFFFF6F00))
+                                )
+                            )
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(color = Color.White.copy(alpha = 0.2f)),
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onConfirm()
+                                }
+                            )
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = "Burn Data"
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.LocalFireDepartment,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Burn Data",
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 }
 
+/**
+ * Backward compatibility alias for BurnConfirmationSheet -> BurnConfirmationDialog
+ */
 @Composable
-private fun BurnItemRow(
-    icon: ImageVector,
-    iconTint: Color,
-    text: String
+fun BurnConfirmationSheet(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
 ) {
-    val colors = AzokleTheme.colors
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Box(
-            modifier = Modifier
-                .size(28.dp)
-                .clip(CircleShape)
-                .background(iconTint.copy(alpha = 0.12f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(14.dp)
-            )
-        }
-        Spacer(modifier = Modifier.width(10.dp))
-        Text(
-            text = text,
-            fontSize = 12.5.sp,
-            fontWeight = FontWeight.Medium,
-            color = colors.textPrimary,
-            lineHeight = 16.sp
-        )
-    }
+    BurnConfirmationDialog(
+        onConfirm = onConfirm,
+        onDismiss = onDismiss
+    )
 }

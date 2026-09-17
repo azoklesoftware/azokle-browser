@@ -212,10 +212,33 @@ private fun CameraViewfinderContent(
     val lifecycleOwner = LocalLifecycleOwner.current
     var isTorchOn by remember { mutableStateOf(false) }
     var cameraControl: Camera? by remember { mutableStateOf(null) }
+    var cameraProviderRef: ProcessCameraProvider? by remember { mutableStateOf(null) }
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
+
+    val releaseCamera = remember(cameraExecutor) {
+        {
+            try {
+                cameraControl?.cameraControl?.enableTorch(false)
+            } catch (_: Exception) {}
+            try {
+                cameraProviderRef?.unbindAll()
+            } catch (_: Exception) {}
+        }
+    }
+
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_PAUSE) {
+        releaseCamera()
+        isTorchOn = false
+    }
+
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_STOP) {
+        releaseCamera()
+        isTorchOn = false
+    }
 
     DisposableEffect(Unit) {
         onDispose {
+            releaseCamera()
             cameraExecutor.shutdown()
         }
     }
@@ -235,27 +258,29 @@ private fun CameraViewfinderContent(
 
                 val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
                 cameraProviderFuture.addListener({
-                    val cameraProvider = cameraProviderFuture.get()
+                    try {
+                        val cameraProvider = cameraProviderFuture.get()
+                        cameraProviderRef = cameraProvider
 
-                    val preview = Preview.Builder().build().also {
-                        it.surfaceProvider = previewView.surfaceProvider
-                    }
-
-                    val imageAnalyzer = ImageAnalysis.Builder()
-                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                        .build()
-                        .also {
-                            it.setAnalyzer(
-                                cameraExecutor,
-                                QrCodeImageAnalyzer { result ->
-                                    onScanResult(result)
-                                }
-                            )
+                        val preview = Preview.Builder().build().also {
+                            it.surfaceProvider = previewView.surfaceProvider
                         }
 
-                    val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+                        val imageAnalyzer = ImageAnalysis.Builder()
+                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                            .build()
+                            .also {
+                                it.setAnalyzer(
+                                    cameraExecutor,
+                                    QrCodeImageAnalyzer { result ->
+                                        releaseCamera()
+                                        onScanResult(result)
+                                    }
+                                )
+                            }
 
-                    try {
+                        val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
                         cameraProvider.unbindAll()
                         cameraControl = cameraProvider.bindToLifecycle(
                             lifecycleOwner,
@@ -269,6 +294,9 @@ private fun CameraViewfinderContent(
                 }, ContextCompat.getMainExecutor(ctx))
 
                 previewView
+            },
+            onRelease = {
+                releaseCamera()
             }
         )
 
@@ -413,7 +441,10 @@ private fun CameraViewfinderContent(
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = ripple(bounded = false, radius = 21.dp, color = Color.White),
-                        onClick = onDismiss
+                        onClick = {
+                            releaseCamera()
+                            onDismiss()
+                        }
                     ),
                 contentAlignment = Alignment.Center
             ) {

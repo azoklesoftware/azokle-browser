@@ -95,10 +95,33 @@ class SelectionDelegateLogicTest {
             isCollapsed = isCollapsed
         )
 
-        val isVisible = payload.text.isNotBlank() || payload.screenRect.width() > 0 || payload.canPaste || payload.canSelectAll
+        val isVisible = (payload.text.trim().isNotEmpty() && (payload.canCopy || payload.canSearch || payload.canShare || payload.canCut)) ||
+                        (payload.isEditable && (payload.canPaste || payload.canSelectAll || payload.canCut))
         assertTrue(isVisible)
         assertTrue(payload.canPaste)
         assertFalse(payload.canCopy)
+    }
+
+    @Test
+    fun testBlankAreaLongPressDoesNotShowToolbar() {
+        val flags = SelectionActionDelegate.FLAG_IS_COLLAPSED
+        val isCollapsed = (flags and SelectionActionDelegate.FLAG_IS_COLLAPSED) != 0
+        val isEditable = (flags and SelectionActionDelegate.FLAG_IS_EDITABLE) != 0
+
+        val payload = TextSelectionPayload(
+            text = "",
+            screenRect = android.graphics.RectF(150f, 200f, 150f, 200f),
+            canCopy = false,
+            canCut = false,
+            canPaste = false,
+            canSelectAll = false,
+            isEditable = isEditable,
+            isCollapsed = isCollapsed
+        )
+
+        val isVisible = (payload.text.trim().isNotEmpty() && (payload.canCopy || payload.canSearch || payload.canShare || payload.canCut)) ||
+                        (payload.isEditable && (payload.canPaste || payload.canSelectAll || payload.canCut))
+        assertFalse(isVisible)
     }
 
     @Test

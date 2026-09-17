@@ -64,6 +64,32 @@ fun BrowserBottomBar(
     onTabsClick: () -> Unit,
     onBurnDataClick: () -> Unit,
     onMenuClick: () -> Unit,
+    showMenuDropup: Boolean = false,
+    onDismissMenuDropup: () -> Unit = {},
+    currentUrl: String = "",
+    currentTitle: String = "",
+    isDesktopMode: Boolean = false,
+    isBookmarked: Boolean = false,
+    blockedTrackersCount: Int = 0,
+    isBrowserContext: Boolean = true,
+    onReload: () -> Unit = {},
+    onToggleBookmark: () -> Unit = {},
+    onShare: () -> Unit = {},
+    onToggleDesktopMode: () -> Unit = {},
+    onSaveAsPdf: () -> Unit = {},
+    onOpenReaderMode: () -> Unit = {},
+    onOpenFindInPage: () -> Unit = {},
+    onOpenNewTab: () -> Unit = {},
+    onOpenNewPrivateTab: () -> Unit = {},
+    onOpenBookmarks: () -> Unit = {},
+    onOpenDownloads: () -> Unit = {},
+    onOpenHistory: () -> Unit = {},
+    onOpenShield: () -> Unit = {},
+    onOpenTorWindow: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+    pwaEligibility: com.azokle.search.pwa.PwaInstallEligibility? = null,
+    onInstallPwa: () -> Unit = {},
+    onBurnData: () -> Unit = {},
     modifier: Modifier = Modifier,
     tabsModifier: Modifier = Modifier,
     burnModifier: Modifier = Modifier,
@@ -231,31 +257,67 @@ fun BrowserBottomBar(
                 )
             }
 
-            // 5. 3-Dots Action Menu Trigger
+            // 5. 3-Dots Action Menu Trigger (with anchor-bound Dropup Menu)
             Box(
                 modifier = Modifier
                     .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                    .then(menuModifier)
-                    .clip(CircleShape)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(bounded = false, radius = 22.dp, color = colors.textPrimary),
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onMenuClick()
-                        }
-                    )
-                    .semantics {
-                        role = Role.Button
-                        contentDescription = "Menu"
-                    },
+                    .then(menuModifier),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = null,
-                    tint = colors.textPrimary,
-                    modifier = Modifier.size(24.dp)
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple(bounded = false, radius = 22.dp, color = colors.textPrimary),
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onMenuClick()
+                            }
+                        )
+                        .semantics {
+                            role = Role.Button
+                            contentDescription = "Menu"
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = null,
+                        tint = if (showMenuDropup) colors.actionPrimaryBg else colors.textPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                // Luxury Dropup Menu anchored directly to this 3-dot button
+                BrowserMenuDropup(
+                    expanded = showMenuDropup,
+                    onDismissRequest = onDismissMenuDropup,
+                    url = currentUrl,
+                    title = currentTitle,
+                    isDesktopMode = isDesktopMode,
+                    isBookmarked = isBookmarked,
+                    blockedTrackersCount = blockedTrackersCount,
+                    isBrowserContext = isBrowserContext,
+                    onReload = onReload,
+                    onToggleBookmark = onToggleBookmark,
+                    onShare = onShare,
+                    onToggleDesktopMode = onToggleDesktopMode,
+                    onSaveAsPdf = onSaveAsPdf,
+                    onOpenReaderMode = onOpenReaderMode,
+                    onOpenFindInPage = onOpenFindInPage,
+                    onOpenNewTab = onOpenNewTab,
+                    onOpenNewPrivateTab = onOpenNewPrivateTab,
+                    onOpenBookmarks = onOpenBookmarks,
+                    onOpenDownloads = onOpenDownloads,
+                    onOpenHistory = onOpenHistory,
+                    onOpenShield = onOpenShield,
+                    onOpenTorWindow = onOpenTorWindow,
+                    onOpenSettings = onOpenSettings,
+                    pwaEligibility = pwaEligibility,
+                    onInstallPwa = onInstallPwa,
+                    onBurnData = onBurnData
                 )
             }
         }

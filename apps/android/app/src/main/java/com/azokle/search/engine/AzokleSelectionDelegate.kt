@@ -112,6 +112,17 @@ class AzokleSelectionDelegate(
         val canSearch = !isPassword && trimmedText.isNotEmpty()
         val canShare = !isPassword && trimmedText.isNotEmpty()
 
+        val hasTextActions = trimmedText.isNotEmpty() && (canCopy || canSearch || canShare || canCut)
+        val hasEditableActions = isEditable && (canPaste || canSelectAll || canCut)
+
+        if (!hasTextActions && !hasEditableActions) {
+            Log.i("AZOKLE_SELECTION", "onShowActionRequest: Ignored blank selection with no available actions")
+            mainHandler.post {
+                onSelectionAction?.invoke(null)
+            }
+            return
+        }
+
         Log.i("AZOKLE_SELECTION", "onShowActionRequest: isPassword=$isPassword, isEditable=$isEditable, isCollapsed=$isCollapsed, canCopy=$canCopy, canPaste=$canPaste")
 
         val payload = TextSelectionPayload(

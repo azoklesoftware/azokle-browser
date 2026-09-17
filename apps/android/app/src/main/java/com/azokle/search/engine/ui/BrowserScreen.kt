@@ -814,6 +814,97 @@ fun BrowserScreen(
                                     barVisibilityStateMachine.forceShow()
                                     showSettingsSheet = true
                                 },
+                                isDesktopMode = isDesktopMode,
+                                isBookmarked = isBookmarked,
+                                onToggleBookmark = {
+                                    val added = vaultManager.toggleBookmark(currentTitle, currentUrl)
+                                    ToastManager.showSuccess(if (added) "Saved to Bookmarks" else "Removed from Bookmarks")
+                                },
+                                onShare = {
+                                    val activeUrl = currentUrl.takeIf { it.isNotBlank() } ?: currentActiveTab?.url ?: ""
+                                    if (activeUrl.isNotBlank()) {
+                                        activeSharePayload = SharePayload(url = activeUrl, title = currentTitle)
+                                        showShareSheet = true
+                                    }
+                                },
+                                onToggleDesktopMode = {
+                                    val activeUrl = currentUrl.takeIf { it.isNotBlank() } ?: currentActiveTab?.url ?: ""
+                                    if (activeUrl.isNotBlank() && activeUrl != "about:blank" && activeUrl != "about:home") {
+                                        targetLoadingUrl = activeUrl
+                                        isPageTransitioning = true
+                                    }
+                                    val newMode = TabManager.toggleDesktopMode(activeTabId)
+                                    isDesktopMode = newMode
+                                    currentError = null
+                                    geckoSession?.reload(GeckoSession.LOAD_FLAGS_BYPASS_CACHE)
+                                    ToastManager.show(if (newMode) "Desktop site enabled" else "Mobile site enabled")
+                                },
+                                onSaveAsPdf = {
+                                    val session = geckoSession
+                                    if (session != null && session.isOpen) {
+                                        GeckoEngineManager.printPageToPdf(
+                                            context = context,
+                                            session = session,
+                                            title = currentTitle,
+                                            url = currentUrl
+                                        ) { file: File? ->
+                                            if (file != null) {
+                                                ToastManager.show("PDF saved: ${file.name}")
+                                            } else {
+                                                ToastManager.show("Failed to generate PDF")
+                                            }
+                                        }
+                                    } else {
+                                        ToastManager.show("Page not loaded yet")
+                                    }
+                                },
+                                onOpenFindInPage = {
+                                    isFindInPageVisible = true
+                                    if (findInPageQuery.isNotBlank()) {
+                                        executeFind(findInPageQuery)
+                                    }
+                                },
+                                onOpenNewTab = {
+                                    showDiscoverScreen = false
+                                    val newId = TabManager.openTab("", "New Tab")
+                                    TabManager.selectTab(newId)
+                                    currentUrl = ""
+                                    currentTitle = "New Tab"
+                                    WallpaperManager.rotateWallpaper()
+                                },
+                                onOpenNewPrivateTab = {
+                                    showDiscoverScreen = false
+                                    val newId = TabManager.openPrivateTab("", "Private Tab")
+                                    TabManager.selectTab(newId)
+                                    currentUrl = ""
+                                    currentTitle = "Private Tab"
+                                    WallpaperManager.rotateWallpaper()
+                                },
+                                onOpenTorWindow = {
+                                    showDiscoverScreen = false
+                                    currentError = null
+                                    val newTorTabId = TabManager.openTorTab(context, "", "Tor Window")
+                                    val torTab = TabManager.tabs.value.find { it.id == newTorTabId }
+                                    if (torTab != null) {
+                                        currentUrl = torTab.url
+                                        currentTitle = torTab.title
+                                    }
+                                    WallpaperManager.rotateWallpaper()
+                                    ToastManager.showTor("Connecting to Isolated Tor Onion Network...")
+                                },
+                                onOpenBookmarks = {
+                                    showBookmarksScreen = true
+                                },
+                                onOpenDownloads = {
+                                    showDownloadsScreen = true
+                                },
+                                onOpenHistory = {
+                                    showHistoryScreen = true
+                                },
+                                pwaEligibility = pwaState?.eligibility,
+                                onInstallPwa = {
+                                    showPwaInstallSheet = true
+                                },
                                 includeStatusBarPadding = false,
                                 selectedSearchEngine = viewModel?.uiState?.collectAsState()?.value?.selectedSearchEngine ?: "azokle",
                                 onSelectSearchEngine = { engineId ->
@@ -1094,6 +1185,150 @@ fun BrowserScreen(
                             onMenuClick = {
                                 barVisibilityStateMachine.forceShow()
                                 showMenuSheet = true
+                            },
+                            showMenuDropup = showMenuSheet,
+                            onDismissMenuDropup = { showMenuSheet = false },
+                            currentUrl = currentUrl,
+                            currentTitle = currentTitle,
+                            isDesktopMode = isDesktopMode,
+                            isBookmarked = isBookmarked,
+                            blockedTrackersCount = shieldStats.adsBlockedCount,
+                            isBrowserContext = true,
+                            onReload = {
+                                showMenuSheet = false
+                                currentError = null
+                                if (currentUrl.isBlank() || currentUrl == "about:home" || currentUrl == "about:blank" || currentUrl == "about:tor") {
+                                    val next = WallpaperManager.rotateWallpaper()
+                                    activeTabId?.let { id -> TabManager.updateTabWallpaper(id, next) }
+                                    ToastManager.show("Wallpaper refreshed")
+                                } else {
+                                    geckoSession?.reload()
+                                }
+                            },
+                            onToggleBookmark = {
+                                val added = vaultManager.toggleBookmark(currentTitle, currentUrl)
+                                ToastManager.showSuccess(if (added) "Saved to Bookmarks" else "Removed from Bookmarks")
+                            },
+                            onShare = {
+                                showMenuSheet = false
+                                val activeUrl = currentUrl.takeIf { it.isNotBlank() } ?: currentActiveTab?.url ?: ""
+                                if (activeUrl.isNotBlank()) {
+                                    activeSharePayload = SharePayload(url = activeUrl, title = currentTitle)
+                                    showShareSheet = true
+                                }
+                            },
+                            onToggleDesktopMode = {
+                                showMenuSheet = false
+                                val activeUrl = currentUrl.takeIf { it.isNotBlank() } ?: currentActiveTab?.url ?: ""
+                                if (activeUrl.isNotBlank() && activeUrl != "about:blank" && activeUrl != "about:home") {
+                                    targetLoadingUrl = activeUrl
+                                    isPageTransitioning = true
+                                }
+                                val newMode = TabManager.toggleDesktopMode(activeTabId)
+                                isDesktopMode = newMode
+                                currentError = null
+                                geckoSession?.reload(GeckoSession.LOAD_FLAGS_BYPASS_CACHE)
+                                ToastManager.show(if (newMode) "Desktop site enabled" else "Mobile site enabled")
+                            },
+                            onSaveAsPdf = {
+                                showMenuSheet = false
+                                val session = geckoSession
+                                if (session != null && session.isOpen) {
+                                    GeckoEngineManager.printPageToPdf(
+                                        context = context,
+                                        session = session,
+                                        title = currentTitle,
+                                        url = currentUrl
+                                    ) { file: File? ->
+                                        if (file != null) {
+                                            ToastManager.show("PDF saved: ${file.name}")
+                                        } else {
+                                            ToastManager.show("Failed to generate PDF")
+                                        }
+                                    }
+                                } else {
+                                    ToastManager.show("Page not loaded yet")
+                                }
+                            },
+                            onOpenReaderMode = {
+                                showMenuSheet = false
+                                scope.launch {
+                                    ToastManager.show("Extracting reader view...")
+                                    val article = ReaderExtractor.extractArticleFromUrl(
+                                        url = currentUrl,
+                                        fallbackTitle = currentTitle,
+                                        isTor = isCurrentTabTor,
+                                        socksPort = TorCircuitManager.socksPort
+                                    )
+                                    activeArticleReader = article
+                                }
+                            },
+                            onOpenFindInPage = {
+                                showMenuSheet = false
+                                isFindInPageVisible = true
+                                if (findInPageQuery.isNotBlank()) {
+                                    executeFind(findInPageQuery)
+                                }
+                            },
+                            onOpenNewTab = {
+                                showMenuSheet = false
+                                showDiscoverScreen = false
+                                val newId = TabManager.openTab("", "New Tab")
+                                TabManager.selectTab(newId)
+                                currentUrl = ""
+                                currentTitle = "New Tab"
+                                WallpaperManager.rotateWallpaper()
+                            },
+                            onOpenNewPrivateTab = {
+                                showMenuSheet = false
+                                showDiscoverScreen = false
+                                val newId = TabManager.openPrivateTab("", "Private Tab")
+                                TabManager.selectTab(newId)
+                                currentUrl = ""
+                                currentTitle = "Private Tab"
+                                WallpaperManager.rotateWallpaper()
+                            },
+                            onOpenTorWindow = {
+                                showMenuSheet = false
+                                showDiscoverScreen = false
+                                currentError = null
+                                val newTorTabId = TabManager.openTorTab(context, "", "Tor Window")
+                                val torTab = TabManager.tabs.value.find { it.id == newTorTabId }
+                                if (torTab != null) {
+                                    currentUrl = torTab.url
+                                    currentTitle = torTab.title
+                                }
+                                WallpaperManager.rotateWallpaper()
+                                ToastManager.showTor("Connecting to Isolated Tor Onion Network...")
+                            },
+                            onOpenShield = {
+                                showMenuSheet = false
+                                showShieldSheet = true
+                            },
+                            onOpenBookmarks = {
+                                showMenuSheet = false
+                                showBookmarksScreen = true
+                            },
+                            onOpenDownloads = {
+                                showMenuSheet = false
+                                showDownloadsScreen = true
+                            },
+                            onOpenHistory = {
+                                showMenuSheet = false
+                                showHistoryScreen = true
+                            },
+                            onOpenSettings = {
+                                showMenuSheet = false
+                                showSettingsSheet = true
+                            },
+                            pwaEligibility = pwaState?.eligibility,
+                            onInstallPwa = {
+                                showMenuSheet = false
+                                showPwaInstallSheet = true
+                            },
+                            onBurnData = {
+                                showMenuSheet = false
+                                showBurnConfirmationSheet = true
                             },
                             tabsModifier = Modifier.tourTarget(homeTourSteps[5], homeTourState),
                             burnModifier = Modifier.tourTarget(homeTourSteps[6], homeTourState),

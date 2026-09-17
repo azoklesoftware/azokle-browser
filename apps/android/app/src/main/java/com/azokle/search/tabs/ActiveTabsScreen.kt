@@ -1305,24 +1305,31 @@ private fun ActiveTabCard(
         }
     }
 
+    val activeAccent = if (!tab.groupId.isNullOrBlank()) {
+        tab.groupColor?.let { Color(it) } ?: colors.statusAccent
+    } else {
+        colors.statusAccent
+    }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(236.dp)
             .shadow(
                 elevation = if (isActive) 6.dp else 1.dp,
-                shape = shape
+                shape = shape,
+                spotColor = if (isActive) activeAccent.copy(alpha = 0.35f) else Color.Black.copy(alpha = 0.2f)
             )
             .clip(shape)
             .background(colors.cardBg)
             .border(
-                width = if (isActive) 2.dp else 1.dp,
-                color = if (isActive) colors.actionPrimaryBg else colors.border.copy(alpha = 0.55f),
+                width = if (isActive) 1.75.dp else 1.dp,
+                color = if (isActive) activeAccent else colors.border.copy(alpha = 0.55f),
                 shape = shape
             )
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = ripple(bounded = true, color = colors.actionPrimaryBg.copy(alpha = 0.25f)),
+                indication = ripple(bounded = true, color = activeAccent.copy(alpha = 0.25f)),
                 onClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     onTabSelected(tab)
@@ -1530,22 +1537,34 @@ private fun ActiveTabCard(
             }
         }
 
-        // Active Tab Indicator Pill
+        // High-Contrast Active Tab Indicator Badge
         if (isActive) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .clip(RoundedCornerShape(topStart = 8.dp, bottomEnd = 20.dp))
-                    .background(colors.actionPrimaryBg)
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .padding(8.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(activeAccent)
+                    .padding(horizontal = 7.dp, vertical = 3.dp)
             ) {
-                Text(
-                    text = "ACTIVE",
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    color = Color.White
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(5.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                    )
+                    Text(
+                        text = "ACTIVE",
+                        fontSize = 8.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        color = Color.White
+                    )
+                }
             }
         }
     }

@@ -259,36 +259,7 @@ fun BrowserModalOverlaysHost(
         )
     }
 
-    // Action Menu Sheet
-    if (showMenuSheet) {
-        BrowserMenuSheet(
-            url = currentUrl,
-            title = currentTitle,
-            isDesktopMode = isDesktopMode,
-            isBookmarked = isBookmarked,
-            blockedTrackersCount = blockedTrackersCount,
-            onReload = onReloadMenu,
-            onToggleBookmark = onToggleBookmarkMenu,
-            onShare = onShareMenu,
-            onToggleDesktopMode = onToggleDesktopModeMenu,
-            onSaveAsPdf = onSaveAsPdfMenu,
-            onOpenReaderMode = onOpenReaderModeMenu,
-            onOpenFindInPage = onOpenFindInPageMenu,
-            isBrowserContext = true,
-            onOpenBookmarks = onOpenBookmarksMenu,
-            onOpenDownloads = onOpenDownloadsMenu,
-            onOpenHistory = onOpenHistoryMenu,
-            onOpenShield = onOpenShieldMenu,
-            onOpenNewTab = onOpenNewTabMenu,
-            onOpenNewPrivateTab = onOpenNewPrivateTabMenu,
-            onOpenTorWindow = onOpenTorWindowMenu,
-            onOpenSettings = onOpenSettingsMenu,
-            pwaEligibility = pwaState?.eligibility,
-            onInstallPwa = onInstallPwaMenu,
-            onBurnData = onBurnDataMenu,
-            onDismiss = onDismissMenuSheet
-        )
-    }
+
 
     // PWA Install / Add to Home Screen Bottom Sheet
     if (showPwaInstallSheet && pwaState?.eligibility != null) {

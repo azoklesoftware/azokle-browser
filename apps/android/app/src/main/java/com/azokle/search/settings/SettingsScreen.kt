@@ -4,12 +4,13 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -34,11 +35,11 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DarkMode
@@ -49,7 +50,6 @@ import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Lock
@@ -58,7 +58,6 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
@@ -97,19 +96,21 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.azokle.search.R
-import com.azokle.search.engine.GeckoEngineManager
-import com.azokle.search.tabs.TabManager
-import com.azokle.search.engine.ui.SiteSettingsSheet
-import com.azokle.search.common.util.PreferencesManager
-import com.azokle.search.common.util.SEARCH_ENGINE_PROVIDERS
-import com.azokle.search.common.util.SUPPORTED_LANGUAGES
-import com.azokle.search.common.util.SearchLocation
-import com.azokle.search.passkey.PasskeyVaultSheet
+import com.azokle.search.common.components.ToastManager
+import com.azokle.search.common.theme.AzokleBreakpoints
 import com.azokle.search.common.theme.AzokleRadius
 import com.azokle.search.common.theme.AzokleTheme
+import com.azokle.search.common.theme.AzokleThemeColors
 import com.azokle.search.common.theme.adaptiveContentWidth
 import com.azokle.search.common.util.DefaultBrowserManager
 import com.azokle.search.common.util.LocaleHelper
+import com.azokle.search.common.util.PreferencesManager
+import com.azokle.search.common.util.SEARCH_ENGINE_PROVIDERS
+import com.azokle.search.common.util.SUPPORTED_LANGUAGES
+import com.azokle.search.engine.GeckoEngineManager
+import com.azokle.search.engine.ui.SiteSettingsSheet
+import com.azokle.search.passkey.PasskeyVaultSheet
+import com.azokle.search.tabs.TabManager
 
 private data class ThemeOption(
     val id: String,
@@ -183,8 +184,8 @@ fun SettingsScreen(
     )
 
     val dohProviders = listOf(
-        Triple("cloudflare", "Cloudflare 1.1.1.1", "Fastest zero-log Anycast encrypted DNS"),
-        Triple("quad9", "Quad9 (9.9.9.9)", "Swiss non-profit threat & malware blocking"),
+        Triple("cloudflare", "Cloudflare 1.1.1.1", "Zero-log Anycast encrypted DNS"),
+        Triple("quad9", "Quad9 (9.9.9.9)", "Swiss non-profit malware blocking"),
         Triple("adguard", "AdGuard DNS", "Network-level ad & tracker filter"),
         Triple("system", "System Default DNS", "Standard ISP-provided name servers")
     )
@@ -197,6 +198,7 @@ fun SettingsScreen(
 
     val arrowRotation by animateFloatAsState(
         targetValue = if (isDohDropdownExpanded) 180f else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
         label = "DohArrowRotation"
     )
 
@@ -241,25 +243,25 @@ fun SettingsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .adaptiveContentWidth(640.dp)
+                    .adaptiveContentWidth(AzokleBreakpoints.MaxContentWidth)
                     .align(Alignment.TopCenter)
             ) {
                 // ==========================================
-                // 1. TOP APP BAR (Modern, Clean, 48dp target)
+                // 1. TOP APP BAR (Minimalist & Accessible)
                 // ==========================================
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
                         modifier = Modifier
-                            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                            .sizeIn(minWidth = 44.dp, minHeight = 44.dp)
                             .clip(CircleShape)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(bounded = false, radius = 22.dp, color = colors.textPrimary),
+                                indication = ripple(bounded = false, radius = 20.dp, color = colors.textPrimary),
                                 onClick = onDismiss
                             )
                             .semantics {
@@ -270,17 +272,17 @@ fun SettingsScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(34.dp)
                                 .clip(CircleShape)
                                 .background(colors.surfaceElevated)
-                                .border(1.dp, colors.borderSubtle, CircleShape),
+                                .border(0.8.dp, colors.borderSubtle, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = null,
                                 tint = colors.textPrimary,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(17.dp)
                             )
                         }
                     }
@@ -290,14 +292,15 @@ fun SettingsScreen(
                     Column(modifier = Modifier.semantics { heading() }) {
                         Text(
                             text = stringResource(R.string.settings_title),
-                            fontSize = 20.sp,
+                            fontSize = 19.sp,
                             fontWeight = FontWeight.Bold,
-                            color = colors.textPrimary
+                            color = colors.textPrimary,
+                            letterSpacing = (-0.3).sp
                         )
                         Text(
                             text = "Preferences & sovereign engine configuration",
                             fontSize = 11.5.sp,
-                            color = colors.textMuted
+                            color = colors.textSecondary
                         )
                     }
                 }
@@ -315,8 +318,8 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .weight(1f)
                         .verticalScroll(scrollState)
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     // ------------------------------------------
                     // CATEGORY: APPEARANCE
@@ -326,14 +329,14 @@ fun SettingsScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 12.dp)
+                                .padding(horizontal = 14.dp, vertical = 11.dp)
                         ) {
                             Text(
                                 text = stringResource(R.string.section_theme),
-                                fontSize = 13.sp,
+                                fontSize = 12.5.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = colors.textSecondary,
-                                modifier = Modifier.padding(bottom = 8.dp)
+                                modifier = Modifier.padding(bottom = 7.dp)
                             )
 
                             Row(
@@ -351,7 +354,7 @@ fun SettingsScreen(
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
-                                            .sizeIn(minHeight = 38.dp)
+                                            .sizeIn(minHeight = 36.dp)
                                             .clip(AzokleRadius.sm)
                                             .background(if (isSelected) colors.actionPrimaryBg else Color.Transparent)
                                             .clickable(
@@ -372,12 +375,12 @@ fun SettingsScreen(
                                                 imageVector = option.icon,
                                                 contentDescription = null,
                                                 tint = if (isSelected) colors.actionPrimaryText else colors.textSecondary,
-                                                modifier = Modifier.size(14.dp)
+                                                modifier = Modifier.size(13.5.dp)
                                             )
-                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Spacer(modifier = Modifier.width(5.dp))
                                             Text(
                                                 text = label,
-                                                fontSize = 12.sp,
+                                                fontSize = 11.5.sp,
                                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                                 color = if (isSelected) colors.actionPrimaryText else colors.textSecondary
                                             )
@@ -398,7 +401,7 @@ fun SettingsScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         text = activeLang.flag,
-                                        fontSize = 15.sp
+                                        fontSize = 14.sp
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Icon(
@@ -430,9 +433,9 @@ fun SettingsScreen(
                                 } else {
                                     Box(
                                         modifier = Modifier
-                                            .clip(AzokleRadius.sm)
+                                            .clip(RoundedCornerShape(6.dp))
                                             .background(colors.actionPrimaryBg)
-                                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                                            .padding(horizontal = 9.dp, vertical = 4.dp)
                                     ) {
                                         Text(
                                             text = "Set Default",
@@ -472,7 +475,7 @@ fun SettingsScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         text = activeEngine.domain,
-                                        fontSize = 12.sp,
+                                        fontSize = 11.5.sp,
                                         color = colors.textMuted
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
@@ -528,7 +531,7 @@ fun SettingsScreen(
                     // CATEGORY: PRIVACY & SECURITY
                     // ------------------------------------------
                     SectionContainer(title = "PRIVACY & SECURITY") {
-                        // Encrypted DNS (DoH)
+                        // Encrypted DNS (DoH) Accordion
                         Column(modifier = Modifier.fillMaxWidth()) {
                             SettingsRow(
                                 icon = Icons.Default.Dns,
@@ -540,7 +543,7 @@ fun SettingsScreen(
                                         contentDescription = if (isDohDropdownExpanded) "Collapse" else "Expand",
                                         tint = colors.textMuted,
                                         modifier = Modifier
-                                            .size(20.dp)
+                                            .size(18.dp)
                                             .rotate(arrowRotation)
                                     )
                                 },
@@ -549,15 +552,15 @@ fun SettingsScreen(
 
                             AnimatedVisibility(
                                 visible = isDohDropdownExpanded,
-                                enter = expandVertically() + fadeIn(),
-                                exit = shrinkVertically() + fadeOut()
+                                enter = expandVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
+                                exit = shrinkVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeOut()
                             ) {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(colors.surfaceElevated.copy(alpha = 0.5f))
-                                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        .background(colors.surfaceElevated.copy(alpha = 0.4f))
+                                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(3.dp)
                                 ) {
                                     dohProviders.forEach { (id, name, desc) ->
                                         val isSelected = selectedDohProvider.equals(id, ignoreCase = true)
@@ -565,7 +568,7 @@ fun SettingsScreen(
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .clip(AzokleRadius.sm)
+                                                .clip(RoundedCornerShape(8.dp))
                                                 .background(if (isSelected) colors.surfaceElevated else Color.Transparent)
                                                 .clickable(
                                                     interactionSource = remember { MutableInteractionSource() },
@@ -574,20 +577,20 @@ fun SettingsScreen(
                                                     onDohProviderChange(id)
                                                     isDohDropdownExpanded = false
                                                 }
-                                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                                .padding(horizontal = 10.dp, vertical = 8.dp),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Text(
                                                     text = name,
-                                                    fontSize = 13.sp,
+                                                    fontSize = 12.5.sp,
                                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                                     color = colors.textPrimary
                                                 )
                                                 Text(
                                                     text = desc,
-                                                    fontSize = 11.sp,
+                                                    fontSize = 10.5.sp,
                                                     color = colors.textMuted,
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
@@ -598,7 +601,7 @@ fun SettingsScreen(
                                                     imageVector = Icons.Default.Check,
                                                     contentDescription = "Selected",
                                                     tint = colors.statusSuccess,
-                                                    modifier = Modifier.size(16.dp)
+                                                    modifier = Modifier.size(15.dp)
                                                 )
                                             }
                                         }
@@ -645,12 +648,12 @@ fun SettingsScreen(
 
                         ItemDivider()
 
-                        // Azokle Sovereign Player (Duck Player alternative)
+                        // Azokle Sovereign Player
                         SettingsRow(
                             icon = Icons.Default.PlayArrow,
                             title = "Azokle Sovereign Player",
                             subtitle = when (currentAzoklePlayerMode) {
-                                "always" -> "Always open videos in sovereign player"
+                                "always" -> "Always open in sovereign ad-free player"
                                 "disabled" -> "Open on standard site (disabled)"
                                 else -> "Always ask before playing"
                             },
@@ -674,7 +677,7 @@ fun SettingsScreen(
                             subtitle = "Erase local search suggestions and query history",
                             onClick = {
                                 prefsManager.clearRecentSearches()
-                                Toast.makeText(context, "Search history cleared", Toast.LENGTH_SHORT).show()
+                                ToastManager.showSuccess("Search history cleared")
                             }
                         )
 
@@ -689,7 +692,7 @@ fun SettingsScreen(
                             onClick = {
                                 GeckoEngineManager.clearAllData(context)
                                 TabManager.closeAllTabs()
-                                Toast.makeText(context, "Browsing session incinerated", Toast.LENGTH_SHORT).show()
+                                ToastManager.showSuccess("Browsing session incinerated")
                             }
                         )
                     }
@@ -786,70 +789,6 @@ fun SettingsScreen(
                     }
 
                     // ------------------------------------------
-                    // CATEGORY: HELP & GUIDES
-                    // ------------------------------------------
-                    val effectiveHomeReplay = onReplayHomeTour ?: onReplayTour
-                    if (effectiveHomeReplay != null || onReplayTabsTour != null) {
-                        SectionContainer(title = "HELP & GUIDES") {
-                            if (effectiveHomeReplay != null) {
-                                SettingsRow(
-                                    icon = Icons.Default.AutoAwesome,
-                                    title = "Home Screen Tour",
-                                    subtitle = "Replay search, shortcuts and navigation guide",
-                                    trailingContent = {
-                                        Icon(
-                                            imageVector = Icons.Default.ChevronRight,
-                                            contentDescription = null,
-                                            tint = colors.textMuted,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    },
-                                    onClick = {
-                                        onDismiss()
-                                        effectiveHomeReplay()
-                                    }
-                                )
-                            }
-
-                            if (effectiveHomeReplay != null && onReplayTabsTour != null) {
-                                ItemDivider()
-                            }
-
-                            if (onReplayTabsTour != null) {
-                                SettingsRow(
-                                    icon = Icons.Default.Layers,
-                                    title = "Tabs Screen Tour",
-                                    subtitle = "Replay tab switcher, groups and private tabs guide",
-                                    trailingContent = {
-                                        Icon(
-                                            imageVector = Icons.Default.ChevronRight,
-                                            contentDescription = null,
-                                            tint = colors.textMuted,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    },
-                                    onClick = {
-                                        onDismiss()
-                                        onReplayTabsTour()
-                                    }
-                                )
-                            }
-
-                            ItemDivider()
-
-                            SettingsRow(
-                                icon = Icons.Default.RestartAlt,
-                                title = "Reset Interactive Guides",
-                                subtitle = "Show interactive feature tours again",
-                                onClick = {
-                                    prefsManager.resetTours()
-                                    Toast.makeText(context, "Interactive guides reset", Toast.LENGTH_SHORT).show()
-                                }
-                            )
-                        }
-                    }
-
-                    // ------------------------------------------
                     // CATEGORY: ABOUT & LEGAL
                     // ------------------------------------------
                     SectionContainer(title = "ABOUT") {
@@ -921,7 +860,7 @@ fun SettingsScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 12.dp, bottom = 24.dp),
+                            .padding(top = 8.dp, bottom = 20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
@@ -963,28 +902,36 @@ fun SettingsScreen(
         val options = listOf("Moderate", "Strict", "Off")
         AlertDialog(
             onDismissRequest = { showSafeSearchDialog = false },
-            title = { Text(text = "SafeSearch Filter", color = colors.textPrimary) },
+            title = {
+                Text(
+                    text = "SafeSearch Filter",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary
+                )
+            },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     options.forEach { option ->
                         val isSelected = currentSafeSearch.equals(option, ignoreCase = true)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(AzokleRadius.sm)
+                                .clip(RoundedCornerShape(8.dp))
                                 .background(if (isSelected) colors.surfaceElevated else Color.Transparent)
                                 .clickable {
                                     currentSafeSearch = option
                                     prefsManager.setSafeSearch(option)
                                     showSafeSearchDialog = false
                                 }
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                .padding(horizontal = 12.dp, vertical = 9.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = option,
                                 color = colors.textPrimary,
+                                fontSize = 13.5.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                             )
                             if (isSelected) {
@@ -1001,10 +948,11 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showSafeSearchDialog = false }) {
-                    Text("Close", color = colors.textPrimary)
+                    Text("Done", color = colors.statusAccent, fontWeight = FontWeight.SemiBold)
                 }
             },
-            containerColor = colors.cardBg
+            containerColor = colors.surface,
+            shape = AzokleRadius.xl
         )
     }
 
@@ -1017,22 +965,29 @@ fun SettingsScreen(
         )
         AlertDialog(
             onDismissRequest = { showAzoklePlayerDialog = false },
-            title = { Text(text = "Azokle Sovereign Player", color = colors.textPrimary) },
+            title = {
+                Text(
+                    text = "Azokle Sovereign Player",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary
+                )
+            },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     options.forEach { (id, title, desc) ->
                         val isSelected = currentAzoklePlayerMode == id
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(AzokleRadius.sm)
+                                .clip(RoundedCornerShape(8.dp))
                                 .background(if (isSelected) colors.surfaceElevated else Color.Transparent)
                                 .clickable {
                                     currentAzoklePlayerMode = id
                                     prefsManager.setAzoklePlayerMode(id)
                                     showAzoklePlayerDialog = false
                                 }
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                .padding(horizontal = 12.dp, vertical = 9.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -1041,12 +996,12 @@ fun SettingsScreen(
                                     text = title,
                                     color = colors.textPrimary,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    fontSize = 14.sp
+                                    fontSize = 13.5.sp
                                 )
                                 Text(
                                     text = desc,
                                     color = colors.textMuted,
-                                    fontSize = 12.sp
+                                    fontSize = 11.sp
                                 )
                             }
                             if (isSelected) {
@@ -1063,10 +1018,11 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showAzoklePlayerDialog = false }) {
-                    Text("Close", color = colors.textPrimary)
+                    Text("Done", color = colors.statusAccent, fontWeight = FontWeight.SemiBold)
                 }
             },
-            containerColor = colors.cardBg
+            containerColor = colors.surface,
+            shape = AzokleRadius.xl
         )
     }
 
@@ -1075,34 +1031,42 @@ fun SettingsScreen(
         val locations = PreferencesManager.DEFAULT_LOCATIONS
         AlertDialog(
             onDismissRequest = { showLocationDialog = false },
-            title = { Text(text = "Search Region", color = colors.textPrimary) },
+            title = {
+                Text(
+                    text = "Search Region",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary
+                )
+            },
             text = {
                 Column(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
                     locations.forEach { loc ->
                         val isSelected = currentLocation.equals(loc.name, ignoreCase = true)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(AzokleRadius.sm)
+                                .clip(RoundedCornerShape(8.dp))
                                 .background(if (isSelected) colors.surfaceElevated else Color.Transparent)
                                 .clickable {
                                     currentLocation = loc.name
                                     prefsManager.setLocation(loc.name)
                                     showLocationDialog = false
                                 }
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                .padding(horizontal = 12.dp, vertical = 9.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = loc.flag, fontSize = 16.sp)
+                                Text(text = loc.flag, fontSize = 15.sp)
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Text(
                                     text = loc.name,
                                     color = colors.textPrimary,
+                                    fontSize = 13.5.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                 )
                             }
@@ -1120,10 +1084,11 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showLocationDialog = false }) {
-                    Text("Close", color = colors.textPrimary)
+                    Text("Done", color = colors.statusAccent, fontWeight = FontWeight.SemiBold)
                 }
             },
-            containerColor = colors.cardBg
+            containerColor = colors.surface,
+            shape = AzokleRadius.xl
         )
     }
 
@@ -1131,11 +1096,20 @@ fun SettingsScreen(
     if (showClearCacheDialog) {
         AlertDialog(
             onDismissRequest = { showClearCacheDialog = false },
-            title = { Text(text = "Clear Web Cache?", color = colors.textPrimary) },
+            title = {
+                Text(
+                    text = "Clear Web Cache?",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary
+                )
+            },
             text = {
                 Text(
-                    text = "This will free up cached temporary files and images. Open tabs and cookies will not be cleared.",
-                    color = colors.textSecondary
+                    text = "This will free up cached temporary files and images. Open tabs and saved cookies will remain intact.",
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
                 )
             },
             confirmButton = {
@@ -1145,7 +1119,7 @@ fun SettingsScreen(
                             context.cacheDir.deleteRecursively()
                         } catch (e: Exception) {}
                         showClearCacheDialog = false
-                        Toast.makeText(context, "Web cache cleared", Toast.LENGTH_SHORT).show()
+                        ToastManager.showSuccess("Web cache cleared")
                     }
                 ) {
                     Text("Clear", color = colors.statusDestructive, fontWeight = FontWeight.Bold)
@@ -1156,7 +1130,8 @@ fun SettingsScreen(
                     Text("Cancel", color = colors.textMuted)
                 }
             },
-            containerColor = colors.cardBg
+            containerColor = colors.surface,
+            shape = AzokleRadius.xl
         )
     }
 }
@@ -1170,12 +1145,12 @@ private fun SectionContainer(
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = title,
-            fontSize = 11.sp,
+            fontSize = 10.5.sp,
             fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Monospace,
             color = colors.textMuted,
             letterSpacing = 0.8.sp,
-            modifier = Modifier.padding(start = 6.dp, bottom = 6.dp)
+            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
         )
 
         Column(
@@ -1196,7 +1171,7 @@ private fun ItemDivider() {
     HorizontalDivider(
         color = colors.borderSubtle,
         thickness = 0.5.dp,
-        modifier = Modifier.padding(start = 54.dp)
+        modifier = Modifier.padding(start = 52.dp)
     )
 }
 
@@ -1221,9 +1196,9 @@ private fun SettingsRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .sizeIn(minHeight = 52.dp)
+            .sizeIn(minHeight = 50.dp)
             .then(clickableModifier)
-            .padding(horizontal = 14.dp, vertical = 11.dp)
+            .padding(horizontal = 14.dp, vertical = 10.dp)
             .semantics {
                 if (onClick != null) role = Role.Button
                 contentDescription = if (subtitle != null) "$title, $subtitle" else title
@@ -1246,7 +1221,7 @@ private fun SettingsRow(
                     imageVector = icon,
                     contentDescription = null,
                     tint = iconTint ?: colors.textPrimary,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(15.dp)
                 )
             }
 
@@ -1255,7 +1230,7 @@ private fun SettingsRow(
             Column(modifier = Modifier.weight(1f, fill = false)) {
                 Text(
                     text = title,
-                    fontSize = 14.sp,
+                    fontSize = 13.5.sp,
                     fontWeight = FontWeight.Medium,
                     color = colors.textPrimary,
                     maxLines = 1,
@@ -1264,7 +1239,7 @@ private fun SettingsRow(
                 if (!subtitle.isNullOrBlank()) {
                     Text(
                         text = subtitle,
-                        fontSize = 11.5.sp,
+                        fontSize = 11.sp,
                         color = colors.textMuted,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -1279,3 +1254,4 @@ private fun SettingsRow(
         }
     }
 }
+

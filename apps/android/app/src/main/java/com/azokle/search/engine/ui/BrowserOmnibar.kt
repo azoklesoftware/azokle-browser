@@ -103,6 +103,21 @@ fun BrowserOmnibar(
     onTabsClick: () -> Unit = {},
     onBurnDataClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
+    isDesktopMode: Boolean = false,
+    isBookmarked: Boolean = false,
+    onToggleBookmark: () -> Unit = {},
+    onShare: () -> Unit = {},
+    onToggleDesktopMode: () -> Unit = {},
+    onSaveAsPdf: () -> Unit = {},
+    onOpenFindInPage: () -> Unit = {},
+    onOpenNewTab: () -> Unit = {},
+    onOpenNewPrivateTab: () -> Unit = {},
+    onOpenBookmarks: () -> Unit = {},
+    onOpenDownloads: () -> Unit = {},
+    onOpenHistory: () -> Unit = {},
+    onOpenTorWindow: () -> Unit = {},
+    pwaEligibility: com.azokle.search.pwa.PwaInstallEligibility? = null,
+    onInstallPwa: () -> Unit = {},
     modifier: Modifier = Modifier,
     includeStatusBarPadding: Boolean = true,
     selectedSearchEngine: String = "azokle",
@@ -503,61 +518,95 @@ fun BrowserOmnibar(
                         )
                     }
 
-                    // Luxury Glassmorphic Dropdown Menu
-                    DropdownMenu(
+                    // Luxury Glassmorphic Dropdown/Dropup Menu
+                    BrowserMenuDropup(
                         expanded = overflowMenuExpanded,
                         onDismissRequest = { overflowMenuExpanded = false },
-                        shape = RoundedCornerShape(18.dp),
-                        containerColor = colors.cardBg,
-                        tonalElevation = 6.dp,
-                        shadowElevation = 16.dp,
-                        border = BorderStroke(1.dp, colors.border),
-                        modifier = Modifier
-                            .widthIn(min = 210.dp, max = 240.dp)
-                            .padding(vertical = 4.dp)
-                    ) {
-                        // 1. Home
-                        OmnibarDropdownActionItem(
-                            title = "Home",
-                            icon = Icons.Default.Home,
-                            iconBgColor = colors.surfaceElevated,
-                            iconTint = colors.textPrimary,
-                            onClick = {
-                                overflowMenuExpanded = false
-                                onHomeClick()
-                            }
-                        )
-
-                        // 2. Discover
-                        OmnibarDropdownActionItem(
-                            title = "Discover",
-                            icon = Icons.Default.Explore,
-                            iconBgColor = colors.surfaceElevated,
-                            iconTint = colors.textPrimary,
-                            onClick = {
-                                overflowMenuExpanded = false
-                                onDiscoverClick()
-                            }
-                        )
-
-                        HorizontalDivider(
-                            thickness = 0.5.dp,
-                            color = colors.border.copy(alpha = 0.6f),
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                        )
-
-                        // 3. Browser Menu Sheet
-                        OmnibarDropdownActionItem(
-                            title = "Menu",
-                            icon = Icons.Default.Menu,
-                            iconBgColor = colors.surfaceElevated,
-                            iconTint = colors.textPrimary,
-                            onClick = {
-                                overflowMenuExpanded = false
-                                onMenuClick()
-                            }
-                        )
-                    }
+                        url = url,
+                        title = title,
+                        isDesktopMode = isDesktopMode,
+                        isBookmarked = isBookmarked,
+                        blockedTrackersCount = blockedCount,
+                        isBrowserContext = !isInternal,
+                        showHomeAndDiscover = true,
+                        onHomeClick = {
+                            overflowMenuExpanded = false
+                            onHomeClick()
+                        },
+                        onDiscoverClick = {
+                            overflowMenuExpanded = false
+                            onDiscoverClick()
+                        },
+                        onReload = {
+                            overflowMenuExpanded = false
+                            onRefreshClick()
+                        },
+                        onToggleBookmark = {
+                            overflowMenuExpanded = false
+                            onToggleBookmark()
+                        },
+                        onShare = {
+                            overflowMenuExpanded = false
+                            onShare()
+                        },
+                        onToggleDesktopMode = {
+                            overflowMenuExpanded = false
+                            onToggleDesktopMode()
+                        },
+                        onSaveAsPdf = {
+                            overflowMenuExpanded = false
+                            onSaveAsPdf()
+                        },
+                        onOpenReaderMode = {
+                            overflowMenuExpanded = false
+                            onReaderModeClick()
+                        },
+                        onOpenFindInPage = {
+                            overflowMenuExpanded = false
+                            onOpenFindInPage()
+                        },
+                        onOpenNewTab = {
+                            overflowMenuExpanded = false
+                            onOpenNewTab()
+                        },
+                        onOpenNewPrivateTab = {
+                            overflowMenuExpanded = false
+                            onOpenNewPrivateTab()
+                        },
+                        onOpenBookmarks = {
+                            overflowMenuExpanded = false
+                            onOpenBookmarks()
+                        },
+                        onOpenDownloads = {
+                            overflowMenuExpanded = false
+                            onOpenDownloads()
+                        },
+                        onOpenHistory = {
+                            overflowMenuExpanded = false
+                            onOpenHistory()
+                        },
+                        onOpenShield = {
+                            overflowMenuExpanded = false
+                            onShieldClick()
+                        },
+                        onOpenTorWindow = {
+                            overflowMenuExpanded = false
+                            onOpenTorWindow()
+                        },
+                        onOpenSettings = {
+                            overflowMenuExpanded = false
+                            onSettingsClick()
+                        },
+                        pwaEligibility = pwaEligibility,
+                        onInstallPwa = {
+                            overflowMenuExpanded = false
+                            onInstallPwa()
+                        },
+                        onBurnData = {
+                            overflowMenuExpanded = false
+                            onBurnDataClick()
+                        }
+                    )
                 }
             }
         }

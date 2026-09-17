@@ -1,11 +1,19 @@
 package com.azokle.search.onboarding
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -38,11 +46,16 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.outlined.Fingerprint
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.VpnKey
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,13 +63,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -69,15 +87,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.azokle.search.R
-import com.azokle.search.common.util.SEARCH_ENGINE_PROVIDERS
-import com.azokle.search.common.util.SearchEngineConfig
 import com.azokle.search.common.theme.AudiowideFontFamily
+import com.azokle.search.common.theme.AzokleBreakpoints
 import com.azokle.search.common.theme.AzokleRadius
 import com.azokle.search.common.theme.AzokleTheme
 import com.azokle.search.common.theme.WindowHeightSize
 import com.azokle.search.common.theme.adaptiveContentWidth
 import com.azokle.search.common.theme.rememberWindowSize
 import com.azokle.search.common.util.DefaultBrowserManager
+import com.azokle.search.common.util.SEARCH_ENGINE_PROVIDERS
+import com.azokle.search.common.util.SearchEngineConfig
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private data class OnboardingStepData(
@@ -87,7 +107,8 @@ private data class OnboardingStepData(
     val description: String,
     val icon: ImageVector,
     val isBrandLogo: Boolean = false,
-    val isSearchEnginePicker: Boolean = false
+    val isSearchEnginePicker: Boolean = false,
+    val isFeatureHighlights: Boolean = false
 )
 
 @Composable
@@ -98,6 +119,7 @@ fun OnboardingScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val colors = AzokleTheme.colors
     var activeSearchEngine by remember { mutableStateOf(selectedSearchEngineId) }
 
@@ -111,11 +133,11 @@ fun OnboardingScreen(
 
     var hasAutoShownDefaultPrompt by remember { mutableStateOf(false) }
 
-    androidx.compose.runtime.LaunchedEffect(pagerState.currentPage) {
+    LaunchedEffect(pagerState.currentPage) {
         if (pagerState.currentPage == 3 && !hasAutoShownDefaultPrompt) {
             hasAutoShownDefaultPrompt = true
             if (!DefaultBrowserManager.isDefaultBrowser(context)) {
-                kotlinx.coroutines.delay(350)
+                delay(350)
                 DefaultBrowserManager.launchSetDefaultBrowser(
                     context = context,
                     launcher = defaultBrowserLauncher
@@ -129,7 +151,7 @@ fun OnboardingScreen(
             stepNumber = "01",
             tag = "SOVEREIGN BROWSING",
             title = "Browse Without Compromise",
-            description = "Experience quantum-fast browsing with sovereign privacy, zero user tracking, and built-in Tor circuit isolation.",
+            description = "Experience lightning-fast browsing with uncompromising privacy, zero telemetry profiling, and leakproof Tor circuit isolation.",
             icon = Icons.Default.Security,
             isBrandLogo = true,
             isSearchEnginePicker = false
@@ -138,7 +160,7 @@ fun OnboardingScreen(
             stepNumber = "02",
             tag = "SEARCH PROVIDER",
             title = "Choose Search Engine",
-            description = "Select your default search engine. Queries are routed directly without profile logging.",
+            description = "Select your default search provider. All search queries are dispatched directly without query profiling or tracking.",
             icon = Icons.Default.Search,
             isBrandLogo = false,
             isSearchEnginePicker = true
@@ -147,16 +169,17 @@ fun OnboardingScreen(
             stepNumber = "03",
             tag = "QUANTUM SHIELD",
             title = "Total Tracker & Ad Defense",
-            description = "Invasive advertisements, analytics scripts, and cryptominers are blocked at the engine level for faster page loads.",
+            description = "Invasive advertisements, cross-site analytics scripts, and cryptominers are neutralized at the engine layer for maximal speed.",
             icon = Icons.Default.Shield,
             isBrandLogo = false,
-            isSearchEnginePicker = false
+            isSearchEnginePicker = false,
+            isFeatureHighlights = true
         ),
         OnboardingStepData(
             stepNumber = "04",
             tag = "GET STARTED",
             title = "Make Azokle Your Daily Driver",
-            description = "Set Azokle as your default Android browser for instant private link opening, or jump straight in.",
+            description = "Set Azokle as your default Android browser for seamless privacy on every opened link, or jump straight in.",
             icon = Icons.Default.Lock,
             isBrandLogo = false,
             isSearchEnginePicker = false
@@ -165,10 +188,10 @@ fun OnboardingScreen(
 
     val windowSize = rememberWindowSize()
     val isCompactHeight = windowSize.height == WindowHeightSize.COMPACT
-    val medallionSize = if (isCompactHeight) 64.dp else 96.dp
-    val medallionLogoSize = if (isCompactHeight) 32.sp else 46.sp
-    val medallionIconSize = if (isCompactHeight) 28.dp else 40.dp
-    val titleFontSize = if (isCompactHeight) 20.sp else 24.sp
+    val medallionSize = if (isCompactHeight) 64.dp else 92.dp
+    val medallionLogoSize = if (isCompactHeight) 30.sp else 44.sp
+    val medallionIconSize = if (isCompactHeight) 28.dp else 38.dp
+    val titleFontSize = if (isCompactHeight) 19.sp else 23.sp
     val spacerHeight = if (isCompactHeight) 8.dp else 14.dp
 
     Box(
@@ -196,10 +219,10 @@ fun OnboardingScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .adaptiveContentWidth(580.dp)
+                .adaptiveContentWidth(AzokleBreakpoints.MaxContentWidth)
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 24.dp, vertical = if (isCompactHeight) 6.dp else 12.dp),
+                .padding(horizontal = 22.dp, vertical = if (isCompactHeight) 6.dp else 12.dp),
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -207,7 +230,7 @@ fun OnboardingScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp),
+                    .padding(top = 4.dp, bottom = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -216,7 +239,7 @@ fun OnboardingScreen(
                         text = "azokle",
                         color = colors.textPrimary,
                         fontFamily = AudiowideFontFamily,
-                        fontSize = 24.sp,
+                        fontSize = 23.sp,
                         fontWeight = FontWeight.Normal,
                         letterSpacing = 0.5.sp
                     )
@@ -229,7 +252,7 @@ fun OnboardingScreen(
                     )
                 }
 
-                // Skip Pill Button (48dp Touch Target)
+                // 44dp Accessible Skip Action
                 Box(
                     modifier = Modifier
                         .sizeIn(minWidth = 54.dp, minHeight = 44.dp)
@@ -237,7 +260,10 @@ fun OnboardingScreen(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = ripple(bounded = true, color = colors.textPrimary.copy(alpha = 0.1f)),
-                            onClick = onFinish
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onFinish()
+                            }
                         )
                         .semantics {
                             role = Role.Button
@@ -248,8 +274,8 @@ fun OnboardingScreen(
                     Box(
                         modifier = Modifier
                             .clip(AzokleRadius.full)
-                            .background(colors.cardBg)
-                            .border(1.dp, colors.border, AzokleRadius.full)
+                            .background(colors.surfaceElevated)
+                            .border(0.8.dp, colors.borderSubtle, AzokleRadius.full)
                             .padding(horizontal = 14.dp, vertical = 6.dp)
                     ) {
                         Text(
@@ -283,15 +309,19 @@ fun OnboardingScreen(
                     Box(
                         modifier = Modifier
                             .size(medallionSize)
-                            .shadow(20.dp, CircleShape, spotColor = colors.statusAccent.copy(alpha = 0.25f))
+                            .shadow(
+                                elevation = 16.dp,
+                                shape = CircleShape,
+                                spotColor = colors.statusAccent.copy(alpha = 0.22f)
+                            )
                             .clip(CircleShape)
-                            .background(colors.surface)
+                            .background(colors.cardBg)
                             .border(
-                                width = 1.2.dp,
+                                width = 1.dp,
                                 brush = Brush.linearGradient(
                                     listOf(
-                                        colors.statusAccent.copy(alpha = 0.5f),
-                                        colors.border,
+                                        colors.statusAccent.copy(alpha = 0.45f),
+                                        colors.borderSubtle,
                                         colors.surfaceElevated
                                     )
                                 ),
@@ -323,8 +353,8 @@ fun OnboardingScreen(
                     Box(
                         modifier = Modifier
                             .clip(AzokleRadius.full)
-                            .background(colors.surface)
-                            .border(1.dp, colors.border, AzokleRadius.full)
+                            .background(colors.surfaceElevated)
+                            .border(0.8.dp, colors.borderSubtle, AzokleRadius.full)
                             .padding(horizontal = 12.dp, vertical = 5.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -364,46 +394,61 @@ fun OnboardingScreen(
                     // Description
                     Text(
                         text = step.description,
-                        fontSize = if (isCompactHeight) 12.sp else 13.sp,
+                        fontSize = if (isCompactHeight) 12.sp else 13.5.sp,
                         color = colors.textSecondary,
                         textAlign = TextAlign.Center,
-                        lineHeight = if (isCompactHeight) 17.sp else 19.sp,
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        lineHeight = if (isCompactHeight) 17.sp else 20.sp,
+                        modifier = Modifier.padding(horizontal = 12.dp)
                     )
 
                     // Step 2: Interactive Choose Search Engine Component
                     if (step.isSearchEnginePicker) {
                         Spacer(modifier = Modifier.height(14.dp))
 
-                        val cardShape = AzokleRadius.lg
                         Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(cardShape)
-                                .background(colors.cardBg)
-                                .border(1.dp, colors.border, cardShape)
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            SEARCH_ENGINE_PROVIDERS.forEachIndexed { index, engine ->
+                            SEARCH_ENGINE_PROVIDERS.forEach { engine ->
                                 val isSelected = activeSearchEngine.equals(engine.id, ignoreCase = true)
 
-                                SearchEnginePickerRow(
+                                SearchEnginePickerCard(
                                     engine = engine,
                                     isSelected = isSelected,
                                     colors = colors,
                                     onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         activeSearchEngine = engine.id
                                         onSelectSearchEngine(engine.id)
                                     }
                                 )
-
-                                if (index < SEARCH_ENGINE_PROVIDERS.size - 1) {
-                                    HorizontalDivider(
-                                        color = colors.border.copy(alpha = 0.4f),
-                                        thickness = 0.5.dp,
-                                        modifier = Modifier.padding(start = 50.dp)
-                                    )
-                                }
                             }
+                        }
+                    }
+
+                    // Step 3: Privacy Feature Badges
+                    if (step.isFeatureHighlights) {
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FeaturePill(
+                                icon = Icons.Outlined.Shield,
+                                title = "Zero Telemetry",
+                                modifier = Modifier.weight(1f)
+                            )
+                            FeaturePill(
+                                icon = Icons.Outlined.VpnKey,
+                                title = "Tor Circuit",
+                                modifier = Modifier.weight(1f)
+                            )
+                            FeaturePill(
+                                icon = Icons.Outlined.Fingerprint,
+                                title = "Anti-Fingerprint",
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                     }
                 }
@@ -413,12 +458,12 @@ fun OnboardingScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 8.dp),
+                    .padding(bottom = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Pagination Spring Indicators (4 steps)
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(7.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     repeat(4) { index ->
@@ -438,7 +483,7 @@ fun OnboardingScreen(
                                 .width(width)
                                 .clip(RoundedCornerShape(3.dp))
                                 .background(
-                                    if (isSelected) colors.actionPrimaryBg else colors.border
+                                    if (isSelected) colors.statusAccent else colors.borderSubtle
                                 )
                         )
                     }
@@ -453,39 +498,36 @@ fun OnboardingScreen(
                     val isDefault = DefaultBrowserManager.isDefaultBrowser(context)
                     if (!isDefault) {
                         // 1. Primary: Set as Default Browser
-                        Row(
+                        ElevatedButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                DefaultBrowserManager.launchSetDefaultBrowser(
+                                    context = context,
+                                    launcher = defaultBrowserLauncher
+                                )
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .shadow(8.dp, ctaShape)
-                                .clip(ctaShape)
-                                .background(colors.actionPrimaryBg)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(color = colors.actionPrimaryText.copy(alpha = 0.2f))
-                                ) {
-                                    DefaultBrowserManager.launchSetDefaultBrowser(
-                                        context = context,
-                                        launcher = defaultBrowserLauncher
-                                    )
-                                }
-                                .padding(vertical = 15.dp)
-                                .semantics {
-                                    role = Role.Button
-                                    contentDescription = "Set as default browser"
-                                },
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
+                                .height(50.dp)
+                                .shadow(
+                                    elevation = 6.dp,
+                                    shape = ctaShape,
+                                    spotColor = colors.statusAccent.copy(alpha = 0.35f)
+                                ),
+                            shape = ctaShape,
+                            colors = ButtonDefaults.elevatedButtonColors(
+                                containerColor = colors.statusAccent,
+                                contentColor = Color.White
+                            )
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Shield,
                                 contentDescription = null,
-                                tint = colors.actionPrimaryText,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "Set as Default Browser",
-                                color = colors.actionPrimaryText,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 0.2.sp
@@ -499,12 +541,15 @@ fun OnboardingScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(ctaShape)
-                                .background(colors.surface)
-                                .border(1.dp, colors.border, ctaShape)
+                                .background(colors.surfaceElevated)
+                                .border(0.8.dp, colors.borderSubtle, ctaShape)
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = ripple(color = colors.textPrimary.copy(alpha = 0.1f)),
-                                    onClick = onFinish
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        onFinish()
+                                    }
                                 )
                                 .padding(vertical = 13.dp)
                                 .semantics {
@@ -521,29 +566,28 @@ fun OnboardingScreen(
                             )
                         }
                     } else {
-                        // Already default
-                        Row(
+                        // Already default: Get Started
+                        ElevatedButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onFinish()
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .shadow(8.dp, ctaShape)
-                                .clip(ctaShape)
-                                .background(colors.actionPrimaryBg)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(color = colors.actionPrimaryText.copy(alpha = 0.2f)),
-                                    onClick = onFinish
-                                )
-                                .padding(vertical = 15.dp)
-                                .semantics {
-                                    role = Role.Button
-                                    contentDescription = "Get started"
-                                },
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
+                                .height(50.dp)
+                                .shadow(
+                                    elevation = 6.dp,
+                                    shape = ctaShape,
+                                    spotColor = colors.statusAccent.copy(alpha = 0.35f)
+                                ),
+                            shape = ctaShape,
+                            colors = ButtonDefaults.elevatedButtonColors(
+                                containerColor = colors.statusAccent,
+                                contentColor = Color.White
+                            )
                         ) {
                             Text(
                                 text = stringResource(R.string.get_started),
-                                color = colors.actionPrimaryText,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 0.2.sp
@@ -552,38 +596,35 @@ fun OnboardingScreen(
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
                                 contentDescription = null,
-                                tint = colors.actionPrimaryText,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
                     }
                 } else {
                     // Steps 0, 1, 2: Continue Button
-                    Row(
+                    ElevatedButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            scope.launch {
+                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .shadow(8.dp, ctaShape)
-                            .clip(ctaShape)
-                            .background(colors.actionPrimaryBg)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(color = colors.actionPrimaryText.copy(alpha = 0.2f))
-                            ) {
-                                scope.launch {
-                                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                                }
-                            }
-                            .padding(vertical = 15.dp)
-                            .semantics {
-                                role = Role.Button
-                                contentDescription = "Continue to next step"
-                            },
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
+                            .height(50.dp)
+                            .shadow(
+                                elevation = 6.dp,
+                                shape = ctaShape,
+                                spotColor = colors.statusAccent.copy(alpha = 0.35f)
+                            ),
+                        shape = ctaShape,
+                        colors = ButtonDefaults.elevatedButtonColors(
+                            containerColor = colors.statusAccent,
+                            contentColor = Color.White
+                        )
                     ) {
                         Text(
                             text = stringResource(R.string.btn_continue),
-                            color = colors.actionPrimaryText,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 0.2.sp
@@ -592,7 +633,6 @@ fun OnboardingScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = null,
-                            tint = colors.actionPrimaryText,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -602,23 +642,34 @@ fun OnboardingScreen(
     }
 }
 
+/**
+ * Individual modern selectable Search Engine card.
+ */
 @Composable
-private fun SearchEnginePickerRow(
+private fun SearchEnginePickerCard(
     engine: SearchEngineConfig,
     isSelected: Boolean,
     colors: com.azokle.search.common.theme.AzokleThemeColors,
     onClick: () -> Unit
 ) {
+    val cardShape = AzokleRadius.md
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .sizeIn(minHeight = 52.dp)
+            .clip(cardShape)
+            .background(if (isSelected) colors.statusAccent.copy(alpha = 0.08f) else colors.cardBg)
+            .border(
+                width = if (isSelected) 1.2.dp else 0.8.dp,
+                color = if (isSelected) colors.statusAccent else colors.borderSubtle,
+                shape = cardShape
+            )
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = ripple(bounded = true, color = colors.textPrimary.copy(alpha = 0.08f)),
+                indication = ripple(bounded = true, color = colors.statusAccent.copy(alpha = 0.15f)),
                 onClick = onClick
             )
-            .padding(horizontal = 14.dp, vertical = 10.dp)
+            .padding(horizontal = 14.dp, vertical = 11.dp)
             .semantics {
                 role = Role.RadioButton
                 contentDescription = "${engine.name}, ${engine.subtitle}, ${if (isSelected) "selected" else "not selected"}"
@@ -630,7 +681,7 @@ private fun SearchEnginePickerRow(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f)
         ) {
-            // Monogram / Brand Icon Badge
+            // Brand Icon / Monogram Badge
             Box(
                 modifier = Modifier
                     .size(36.dp)
@@ -640,17 +691,17 @@ private fun SearchEnginePickerRow(
                         else colors.surfaceElevated
                     )
                     .border(
-                        width = 1.dp,
-                        color = if (isSelected) colors.statusAccent.copy(alpha = 0.6f) else colors.border,
+                        width = 0.8.dp,
+                        color = if (isSelected) colors.statusAccent.copy(alpha = 0.5f) else colors.borderSubtle,
                         shape = CircleShape
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 if (engine.iconRes != 0) {
-                    androidx.compose.foundation.Image(
-                        painter = androidx.compose.ui.res.painterResource(engine.iconRes),
+                    Image(
+                        painter = painterResource(engine.iconRes),
                         contentDescription = null,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 } else {
                     Text(
@@ -696,7 +747,7 @@ private fun SearchEnginePickerRow(
 
                 Text(
                     text = engine.domain,
-                    fontSize = 11.sp,
+                    fontSize = 11.5.sp,
                     color = colors.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -714,7 +765,7 @@ private fun SearchEnginePickerRow(
                 )
                 .border(
                     width = if (isSelected) 0.dp else 1.5.dp,
-                    color = if (isSelected) Color.Transparent else colors.border,
+                    color = if (isSelected) Color.Transparent else colors.borderSubtle,
                     shape = CircleShape
                 ),
             contentAlignment = Alignment.Center
@@ -728,5 +779,51 @@ private fun SearchEnginePickerRow(
                 )
             }
         }
+    }
+}
+
+/**
+ * Minimalist Feature Highlight Pill.
+ */
+@Composable
+private fun FeaturePill(
+    icon: ImageVector,
+    title: String,
+    modifier: Modifier = Modifier
+) {
+    val colors = AzokleTheme.colors
+
+    Column(
+        modifier = modifier
+            .clip(AzokleRadius.md)
+            .background(colors.cardBg)
+            .border(0.8.dp, colors.borderSubtle, AzokleRadius.md)
+            .padding(vertical = 10.dp, horizontal = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(colors.statusAccent.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = colors.statusAccent,
+                modifier = Modifier.size(15.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = title,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.textPrimary,
+            textAlign = TextAlign.Center,
+            maxLines = 1
+        )
     }
 }

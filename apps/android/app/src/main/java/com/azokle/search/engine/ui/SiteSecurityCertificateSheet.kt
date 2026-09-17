@@ -2,7 +2,9 @@ package com.azokle.search.engine.ui
 
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -18,6 +20,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
@@ -26,8 +29,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
@@ -82,17 +85,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.azokle.search.adblock.AdBlockEngine
 import com.azokle.search.adblock.AdBlockStats
+import com.azokle.search.common.components.FaviconImage
+import com.azokle.search.common.components.ToastManager
+import com.azokle.search.common.theme.AzokleBreakpoints
+import com.azokle.search.common.theme.AzokleRadius
+import com.azokle.search.common.theme.AzokleTheme
+import com.azokle.search.common.theme.AzokleThemeColors
+import com.azokle.search.common.theme.adaptiveContentWidth
 import com.azokle.search.engine.GeckoEngineManager
+import com.azokle.search.passkey.PasskeyVaultManager
+import com.azokle.search.passkey.PasskeyVaultSheet
 import com.azokle.search.permissions.SitePermissionState
 import com.azokle.search.permissions.SitePermissionType
 import com.azokle.search.permissions.SitePermissionsManager
-import com.azokle.search.common.components.FaviconImage
-import com.azokle.search.passkey.PasskeyVaultManager
-import com.azokle.search.passkey.PasskeyVaultSheet
-import com.azokle.search.common.components.ToastManager
-import com.azokle.search.common.theme.AzokleRadius
-import com.azokle.search.common.theme.AzokleTheme
-import com.azokle.search.common.theme.adaptiveContentWidth
 import org.mozilla.geckoview.GeckoSession.ProgressDelegate.SecurityInformation
 import java.security.MessageDigest
 import java.security.cert.X509Certificate
@@ -113,10 +118,10 @@ fun SiteSecurityCertificateSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val uri = try { Uri.parse(url) } catch (e: Exception) { null }
-    val host = uri?.host ?: url
+    val host = uri?.host?.takeIf { it.isNotBlank() } ?: url
     val isTor = remember(url) { url.contains(".onion", ignoreCase = true) }
     val isHttps = url.startsWith("https://", ignoreCase = true)
-    val isSecure = securityInfo?.isSecure == true
+    val isSecure = securityInfo?.isSecure == true || isTor
 
     var isShieldEnabled by remember {
         mutableStateOf(AdBlockEngine.instance.isShieldEnabled(host))
@@ -161,22 +166,23 @@ fun SiteSecurityCertificateSheet(
 
         validFrom = try { dateFormat.format(cert.notBefore) } catch (e: Exception) { "Active" }
         validTo = try { dateFormat.format(cert.notAfter) } catch (e: Exception) { "Valid" }
-        sigAlg = cert.sigAlgName ?: "TLS 1.3 Cipher Suite"
+        sigAlg = cert.sigAlgName ?: "TLS 1.3 / ECC Suite"
         keyAlg = "${cert.publicKey?.algorithm ?: "ECC"} (${cert.publicKey?.encoded?.size?.times(8) ?: 256}-bit)"
     } else {
         issuedToCn = host
-        issuedToOrg = if (isSecure) "Verified Host" else "Unverified Host"
-        issuedByCn = if (isSecure) "TLS Trust Store" else "None"
-        issuedByOrg = if (isSecure) "Native Root Trust" else "None"
+        issuedToOrg = if (isTor) "Tor Onion Hidden Service" else if (isSecure) "Verified Host" else "Unverified Host"
+        issuedByCn = if (isTor) "Tor Rendezvous Circuit" else if (isSecure) "TLS Trust Store" else "None"
+        issuedByOrg = if (isTor) "Tor Onion V3 Protocol" else if (isSecure) "Native Root Trust" else "None"
         validFrom = if (isSecure) "Active Session" else "N/A"
         validTo = if (isSecure) "Active Session" else "N/A"
-        sigAlg = if (isSecure) "TLS 1.3 / Quantum Protected" else "None (Unencrypted HTTP)"
-        keyAlg = if (isSecure) "Elliptic Curve (256-bit)" else "N/A"
+        sigAlg = if (isTor) "Tor v3 Onion (ed25519)" else if (isSecure) "TLS 1.3 / Quantum Shield" else "None (Unencrypted HTTP)"
+        keyAlg = if (isTor) "ed25519 Curve (256-bit)" else if (isSecure) "Elliptic Curve (256-bit)" else "N/A"
     }
 
     // Clean user-friendly issuer name
-    val displayIssuer = remember(issuedByOrg, issuedByCn) {
+    val displayIssuer = remember(issuedByOrg, issuedByCn, isTor, isSecure) {
         when {
+            isTor -> "Tor v3 Onion"
             issuedByOrg != "Certificate Authority" && issuedByOrg != "None" && issuedByOrg.isNotBlank() -> issuedByOrg
             issuedByCn.isNotBlank() && issuedByCn != "None" -> issuedByCn
             isSecure -> "Verified Trust Store"
@@ -199,542 +205,556 @@ fun SiteSecurityCertificateSheet(
 
     val chevronRotation by animateFloatAsState(
         targetValue = if (showTechDetails) 90f else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
         label = "techChevronRotation"
     )
+
+    val statusColor = when {
+        isTor -> colors.statusTor
+        isSecure -> colors.statusSuccess
+        else -> colors.statusDestructive
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = colors.background,
+        containerColor = colors.surface,
         contentColor = colors.textPrimary,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         dragHandle = {
             Box(
                 modifier = Modifier
                     .statusBarsPadding()
-                    .padding(top = 12.dp, bottom = 8.dp)
+                    .padding(top = 10.dp, bottom = 6.dp)
                     .size(width = 36.dp, height = 4.dp)
                     .clip(CircleShape)
-                    .background(colors.border.copy(alpha = 0.8f))
+                    .background(colors.border.copy(alpha = 0.6f))
             )
         }
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .adaptiveContentWidth(560.dp)
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .navigationBarsPadding(),
+            contentAlignment = Alignment.TopCenter
         ) {
-            // 1. Sleek Header Bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 18.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.semantics { heading() }) {
-                    Text(
-                        text = "Site Security",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textPrimary,
-                        letterSpacing = (-0.3).sp
-                    )
-                    Text(
-                        text = "Cryptographic identity & site controls",
-                        fontSize = 12.sp,
-                        color = colors.textSecondary
-                    )
-                }
-
-                // 44dp Accessible Close Action
-                Box(
-                    modifier = Modifier
-                        .sizeIn(minWidth = 44.dp, minHeight = 44.dp)
-                        .clip(CircleShape)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(bounded = false, radius = 20.dp, color = colors.textSecondary),
-                            onClick = onDismiss
-                        )
-                        .semantics {
-                            role = Role.Button
-                            contentDescription = "Close security details"
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(colors.surfaceElevated)
-                            .border(1.dp, colors.border, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = null,
-                            tint = colors.textPrimary,
-                            modifier = Modifier.size(15.dp)
-                        )
-                    }
-                }
-            }
-
-            // 2. Hero Trust Banner Card
-            val heroShape = AzokleRadius.xl
-            val accentStatusColor = when {
-                isTor -> Color(0xFF8B5CF6)
-                isSecure -> colors.statusSuccess
-                else -> colors.statusDestructive
-            }
-
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(heroShape)
-                    .background(colors.cardBg)
-                    .border(1.dp, accentStatusColor.copy(alpha = 0.25f), heroShape)
-                    .padding(16.dp)
+                    .adaptiveContentWidth(AzokleBreakpoints.MaxSheetWidth)
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 24.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // 1. Header Bar
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 14.dp, top = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Domain Favicon Squircle
-                    Box(
+                    Column(
                         modifier = Modifier
-                            .size(44.dp)
-                            .clip(AzokleRadius.md)
-                            .background(colors.surfaceElevated)
-                            .border(1.dp, colors.border.copy(alpha = 0.6f), AzokleRadius.md),
-                        contentAlignment = Alignment.Center
+                            .weight(1f)
+                            .semantics { heading() }
                     ) {
-                        FaviconImage(
-                            url = url,
-                            isTor = isTor,
-                            size = 24.dp
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(14.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = host,
-                            fontSize = 16.sp,
+                            text = "Site Security",
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary,
+                            letterSpacing = (-0.3).sp
+                        )
+                        Text(
+                            text = host,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = colors.textSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                    }
 
-                        Spacer(modifier = Modifier.height(3.dp))
-
-                        // Status Badge Pill
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
+                    // 44dp Accessible Close Action
+                    Box(
+                        modifier = Modifier
+                            .sizeIn(minWidth = 44.dp, minHeight = 44.dp)
+                            .clip(CircleShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = false, radius = 20.dp, color = colors.textSecondary),
+                                onClick = onDismiss
+                            )
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = "Close site security sheet"
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(accentStatusColor.copy(alpha = 0.12f))
-                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(colors.surfaceElevated)
+                                .border(0.8.dp, colors.borderSubtle, CircleShape),
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = when {
-                                    isTor -> Icons.Default.VpnLock
-                                    isSecure -> Icons.Default.Lock
-                                    else -> Icons.Default.Warning
-                                },
+                                imageVector = Icons.Default.Close,
                                 contentDescription = null,
-                                tint = accentStatusColor,
-                                modifier = Modifier.size(12.dp)
+                                tint = colors.textPrimary,
+                                modifier = Modifier.size(15.dp)
                             )
-                            Spacer(modifier = Modifier.width(5.dp))
+                        }
+                    }
+                }
+
+                // 2. Minimalist Hero Status Card
+                val heroShape = AzokleRadius.lg
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(heroShape)
+                        .background(colors.cardBg)
+                        .border(1.dp, statusColor.copy(alpha = 0.22f), heroShape)
+                        .padding(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Favicon Container
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(AzokleRadius.md)
+                                .background(colors.surfaceElevated)
+                                .border(0.8.dp, colors.borderSubtle, AzokleRadius.md),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            FaviconImage(
+                                url = url,
+                                isTor = isTor,
+                                size = 22.dp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = when {
-                                    isTor -> "Tor Onion Encrypted"
-                                    isSecure -> "Connection is Secure"
-                                    else -> "Connection Not Secure"
-                                },
-                                fontSize = 11.5.sp,
+                                text = host,
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = accentStatusColor
+                                color = colors.textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
-                            if (isSecure && !isTor) {
-                                Spacer(modifier = Modifier.width(4.dp))
+
+                            Spacer(modifier = Modifier.height(3.dp))
+
+                            // Status Pill
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(statusColor.copy(alpha = 0.12f))
+                                    .padding(horizontal = 7.dp, vertical = 2.5.dp)
+                            ) {
                                 Icon(
-                                    imageVector = Icons.Default.Verified,
-                                    contentDescription = "Verified",
-                                    tint = accentStatusColor,
-                                    modifier = Modifier.size(12.dp)
+                                    imageVector = when {
+                                        isTor -> Icons.Default.VpnLock
+                                        isSecure -> Icons.Default.Lock
+                                        else -> Icons.Default.Warning
+                                    },
+                                    contentDescription = null,
+                                    tint = statusColor,
+                                    modifier = Modifier.size(11.dp)
                                 )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = when {
+                                        isTor -> "Tor Onion Encrypted"
+                                        isSecure -> "Connection is Secure"
+                                        else -> "Connection Not Secure"
+                                    },
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = statusColor
+                                )
+                                if (isSecure && !isTor) {
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.Verified,
+                                        contentDescription = "Verified Certificate",
+                                        tint = statusColor,
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                }
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    HorizontalDivider(color = colors.borderSubtle, thickness = 0.5.dp)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = when {
+                            isTor -> "Traffic is anonymized end-to-end through the 3-hop Tor network with onion cryptographic routing."
+                            isSecure -> "Your connection to $host is end-to-end encrypted with a valid certificate. Sensitive data remains private."
+                            else -> "This website does not use encryption. Passwords and sensitive data may be visible to network eavesdroppers."
+                        },
+                        fontSize = 11.5.sp,
+                        color = colors.textSecondary,
+                        lineHeight = 16.sp
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
-                HorizontalDivider(color = colors.border.copy(alpha = 0.4f), thickness = 0.5.dp)
-                Spacer(modifier = Modifier.height(10.dp))
 
-                Text(
-                    text = when {
-                        isTor -> "Traffic is anonymized through the 3-hop Tor Onion network with end-to-end cryptographic encapsulation."
-                        isSecure -> "Your connection to $host is end-to-end encrypted with a valid digital certificate. Sensitive data remains private."
-                        else -> "This website does not use encryption. Passwords, payment details, and private messages may be visible to network eavesdroppers."
-                    },
-                    fontSize = 12.sp,
-                    color = colors.textSecondary,
-                    lineHeight = 16.5.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 3. Quick-Glance Trust Shelf (3 Metric Tiles)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                QuickMetricTile(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Default.VerifiedUser,
-                    label = "ISSUER",
-                    value = displayIssuer,
-                    accentColor = colors.statusAccent,
-                    colors = colors
-                )
-                QuickMetricTile(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Default.Event,
-                    label = "EXPIRES",
-                    value = validTo,
-                    accentColor = if (isSecure) colors.statusSuccess else colors.textPrimary,
-                    colors = colors
-                )
-                QuickMetricTile(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Default.VpnLock,
-                    label = "PROTOCOL",
-                    value = if (isHttps) "TLS 1.3" else "HTTP",
-                    accentColor = colors.textPrimary,
-                    colors = colors
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // 4. Site Privacy & Controls Card
-            SectionLabel(title = "SITE PRIVACY & CONTROLS")
-
-            CleanGroupCard(colors = colors) {
-                // Azokle Shield Toggle Row
+                // 3. Quick-Glance Metrics Shelf (3 Compact Tiles)
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        ActionAvatar(
-                            icon = Icons.Default.Shield,
-                            tint = if (isShieldEnabled) colors.statusSuccess else colors.textMuted,
-                            bg = if (isShieldEnabled) colors.statusSuccess.copy(alpha = 0.12f) else colors.surfaceElevated
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "Azokle Shield Protection",
-                                fontSize = 13.5.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = colors.textPrimary
-                            )
-                            Text(
-                                text = if (isShieldEnabled) "Block trackers, ads & fingerprinting" else "Protection paused for this site",
-                                fontSize = 11.sp,
-                                color = colors.textMuted
-                            )
-                        }
-                    }
-
-                    Switch(
-                        checked = isShieldEnabled,
-                        onCheckedChange = {
-                            isShieldEnabled = it
-                            AdBlockStats.toggleShield()
-                            ToastManager.show(
-                                if (it) "Shield activated for $host" else "Shield paused for $host"
-                            )
-                            onReload()
-                        },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = colors.statusSuccess,
-                            uncheckedThumbColor = colors.textMuted,
-                            uncheckedTrackColor = colors.surfaceElevated,
-                            uncheckedBorderColor = colors.border
-                        )
+                    QuickMetricTile(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Default.VerifiedUser,
+                        label = "ISSUER",
+                        value = displayIssuer,
+                        accentColor = colors.statusAccent,
+                        colors = colors
+                    )
+                    QuickMetricTile(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Default.Event,
+                        label = "VALIDITY",
+                        value = validTo,
+                        accentColor = if (isSecure) colors.statusSuccess else colors.textMuted,
+                        colors = colors
+                    )
+                    QuickMetricTile(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Default.VpnLock,
+                        label = "CIPHER",
+                        value = if (isTor) "Tor v3" else if (isHttps) "TLS 1.3" else "HTTP",
+                        accentColor = colors.textPrimary,
+                        colors = colors
                     )
                 }
 
-                CertDivider(colors = colors)
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Site Permissions Trigger
-                val customPermCount = sitePerms.size
-                ActionRow(
-                    icon = Icons.Default.Tune,
-                    iconTint = colors.statusAccent,
-                    iconBg = colors.statusAccent.copy(alpha = 0.12f),
-                    title = "Site Permissions",
-                    subtitle = if (customPermCount > 0) "$customPermCount custom permission(s) active" else "Camera, microphone, location & notifications",
-                    onClick = { showSitePermissionsDialog = true },
-                    contentDesc = "Manage hardware permissions for $host",
-                    colors = colors
-                )
-
-                CertDivider(colors = colors)
-
-                // Passkeys & Biometrics Action
-                ActionRow(
-                    icon = Icons.Default.VpnKey,
-                    iconTint = colors.statusAccent,
-                    iconBg = colors.statusAccent.copy(alpha = 0.12f),
-                    title = "Passkeys & Biometrics",
-                    subtitle = if (passkeyCount > 0) "$passkeyCount passkey(s) saved for $host" else "FIDO2 / WebAuthn passwordless sign-in",
-                    onClick = { showPasskeyVault = true },
-                    contentDesc = "Manage saved passkeys for $host",
-                    colors = colors
-                )
-
-                CertDivider(colors = colors)
-
-                // Clear Cookies & Site Data
-                ActionRow(
-                    icon = Icons.Default.DeleteOutline,
-                    iconTint = colors.statusDestructive,
-                    iconBg = colors.statusDestructive.copy(alpha = 0.10f),
-                    title = "Clear Cookies & Site Data",
-                    titleColor = colors.statusDestructive,
-                    subtitle = "Purge local cache, storage & cookies for $host",
-                    onClick = {
-                        GeckoEngineManager.clearHostData(context, host)
-                        GeckoEngineManager.clearStorageForHost(host)
-                        ToastManager.showSuccess("Site data & cookies cleared for $host")
-                        onReload()
-                    },
-                    contentDesc = "Clear cookies and site data for $host",
-                    showChevron = false,
-                    colors = colors
-                )
-            }
-
-            // Permission Access History Audit Card (if any permissions were requested)
-            if (auditLog.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(18.dp))
-                SectionLabel(title = "PERMISSION ACCESS AUDIT LOG")
+                // 4. Site Privacy & Controls Section
+                SectionLabel(title = "SITE CONTROLS & PERMISSIONS")
 
                 CleanGroupCard(colors = colors) {
-                    Column(
+                    // Azokle Shield Toggle Row
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(horizontal = 14.dp, vertical = 9.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        auditLog.take(4).forEach { auditItem ->
-                            val isAllowed = auditItem.state.equals("ALLOW", ignoreCase = true) || auditItem.state.equals("GRANTED", ignoreCase = true)
-                            val statusColor = if (isAllowed) colors.statusSuccess else colors.statusDestructive
-                            val timeStr = remember(auditItem.timestamp) {
-                                SimpleDateFormat("hh:mm a, MMM dd", Locale.getDefault()).format(auditItem.timestamp)
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(statusColor)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = auditItem.permissionType.lowercase().replaceFirstChar { it.uppercase() },
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = colors.textPrimary
-                                    )
-                                }
-
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = if (isAllowed) "Allowed" else "Blocked",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = statusColor
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = timeStr,
-                                        fontSize = 11.sp,
-                                        color = colors.textMuted
-                                    )
-                                }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            ActionAvatar(
+                                icon = Icons.Default.Shield,
+                                tint = if (isShieldEnabled) colors.statusSuccess else colors.textMuted,
+                                bg = if (isShieldEnabled) colors.statusSuccess.copy(alpha = 0.12f) else colors.surfaceElevated
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Azokle Shield Protection",
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = colors.textPrimary
+                                )
+                                Text(
+                                    text = if (isShieldEnabled) "Active: Ads, trackers & fingerprinting blocked" else "Protection paused for this domain",
+                                    fontSize = 11.sp,
+                                    color = colors.textMuted
+                                )
                             }
                         }
-                    }
-                }
-            }
 
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // 5. Expandable Technical Certificate Details (Accordion)
-            CleanGroupCard(colors = colors) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(bounded = true, color = colors.statusAccent.copy(alpha = 0.12f)),
-                            onClick = { showTechDetails = !showTechDetails }
-                        )
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        ActionAvatar(
-                            icon = Icons.Default.Fingerprint,
-                            tint = colors.textPrimary,
-                            bg = colors.surfaceElevated
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "Certificate Details",
-                                fontSize = 13.5.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = colors.textPrimary
+                        Switch(
+                            checked = isShieldEnabled,
+                            onCheckedChange = {
+                                isShieldEnabled = it
+                                AdBlockStats.toggleShield()
+                                ToastManager.show(
+                                    if (it) "Shield activated for $host" else "Shield paused for $host"
+                                )
+                                onReload()
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = colors.statusSuccess,
+                                uncheckedThumbColor = colors.textMuted,
+                                uncheckedTrackColor = colors.surfaceElevated,
+                                uncheckedBorderColor = colors.borderSubtle
                             )
-                            Text(
-                                text = if (showTechDetails) "Hide X.509 technical parameters" else "View cipher suite, keys & SHA fingerprint",
-                                fontSize = 11.sp,
-                                color = colors.textMuted
-                            )
-                        }
+                        )
                     }
 
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = if (showTechDetails) "Collapse" else "Expand",
-                        tint = colors.textMuted,
-                        modifier = Modifier
-                            .size(20.dp)
-                            .rotate(chevronRotation)
+                    CertDivider(colors = colors)
+
+                    // Site Permissions Trigger
+                    val customPermCount = sitePerms.size
+                    ActionRow(
+                        icon = Icons.Default.Tune,
+                        iconTint = colors.statusAccent,
+                        iconBg = colors.statusAccent.copy(alpha = 0.12f),
+                        title = "Site Permissions",
+                        subtitle = if (customPermCount > 0) "$customPermCount custom permission(s) configured" else "Camera, microphone, location & notifications",
+                        onClick = { showSitePermissionsDialog = true },
+                        contentDesc = "Manage hardware and web permissions for $host",
+                        colors = colors
+                    )
+
+                    CertDivider(colors = colors)
+
+                    // Passkeys & Biometrics Action
+                    ActionRow(
+                        icon = Icons.Default.VpnKey,
+                        iconTint = colors.statusAccent,
+                        iconBg = colors.statusAccent.copy(alpha = 0.12f),
+                        title = "Passkeys & Biometrics",
+                        subtitle = if (passkeyCount > 0) "$passkeyCount passkey(s) available for $host" else "FIDO2 / WebAuthn passwordless authentication",
+                        onClick = { showPasskeyVault = true },
+                        contentDesc = "Manage saved passkeys for $host",
+                        colors = colors
+                    )
+
+                    CertDivider(colors = colors)
+
+                    // Clear Cookies & Site Data Action
+                    ActionRow(
+                        icon = Icons.Default.DeleteOutline,
+                        iconTint = colors.statusDestructive,
+                        iconBg = colors.statusDestructive.copy(alpha = 0.10f),
+                        title = "Clear Cookies & Site Data",
+                        titleColor = colors.statusDestructive,
+                        subtitle = "Purge cookies, cache, local storage & session state",
+                        onClick = {
+                            GeckoEngineManager.clearHostData(context, host)
+                            GeckoEngineManager.clearStorageForHost(host)
+                            ToastManager.showSuccess("Site data cleared for $host")
+                            onReload()
+                        },
+                        contentDesc = "Clear cookies and storage for $host",
+                        showChevron = false,
+                        colors = colors
                     )
                 }
 
-                AnimatedVisibility(
-                    visible = showTechDetails,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(colors.surfaceElevated.copy(alpha = 0.35f))
-                    ) {
-                        CertDivider(colors = colors)
+                // 5. Optional Permission Access Audit Log
+                if (auditLog.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    SectionLabel(title = "RECENT PERMISSION ACCESS")
 
-                        CertRow(label = "Subject (CN)", value = issuedToCn, colors = colors)
-                        CertDivider(colors = colors)
-                        CertRow(label = "Organization", value = issuedToOrg, colors = colors)
-                        CertDivider(colors = colors)
-                        CertRow(label = "Issuer Authority", value = issuedByCn, colors = colors)
-                        CertDivider(colors = colors)
-                        CertRow(label = "Valid Period", value = "$validFrom ➔ $validTo", colors = colors)
-                        CertDivider(colors = colors)
-                        CertRow(label = "Cipher Suite", value = sigAlg, colors = colors)
-                        CertDivider(colors = colors)
-                        CertRow(label = "Public Key", value = keyAlg, colors = colors)
+                    CleanGroupCard(colors = colors) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            auditLog.take(3).forEach { auditItem ->
+                                val isAllowed = auditItem.state.equals("ALLOW", ignoreCase = true) || auditItem.state.equals("GRANTED", ignoreCase = true)
+                                val permColor = if (isAllowed) colors.statusSuccess else colors.statusDestructive
+                                val timeStr = remember(auditItem.timestamp) {
+                                    SimpleDateFormat("hh:mm a, MMM dd", Locale.getDefault()).format(auditItem.timestamp)
+                                }
 
-                        if (sha256Fingerprint != null) {
-                            CertDivider(colors = colors)
-
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 10.dp)
-                            ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = "SHA-256 Fingerprint",
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = colors.textMuted
-                                    )
-
-                                    // 1-Tap Copy Chip
-                                    Row(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(colors.surfaceElevated)
-                                            .border(0.8.dp, colors.border, RoundedCornerShape(6.dp))
-                                            .clickable {
-                                                clipboardManager.setText(AnnotatedString(sha256Fingerprint))
-                                                ToastManager.showCopy("Fingerprint copied to clipboard")
-                                            }
-                                            .padding(horizontal = 7.dp, vertical = 3.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.ContentCopy,
-                                            contentDescription = "Copy Fingerprint",
-                                            tint = colors.statusAccent,
-                                            modifier = Modifier.size(11.dp)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(7.dp)
+                                                .clip(CircleShape)
+                                                .background(permColor)
                                         )
-                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
                                         Text(
-                                            text = "Copy",
-                                            fontSize = 10.5.sp,
+                                            text = auditItem.permissionType.lowercase().replaceFirstChar { it.uppercase() },
+                                            fontSize = 12.5.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = colors.statusAccent
+                                            color = colors.textPrimary
+                                        )
+                                    }
+
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = if (isAllowed) "Allowed" else "Blocked",
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = permColor
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = timeStr,
+                                            fontSize = 10.5.sp,
+                                            color = colors.textMuted
                                         )
                                     }
                                 }
+                            }
+                        }
+                    }
+                }
 
-                                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                                Box(
+                // 6. Expandable Technical Certificate Parameters (Accordion)
+                CleanGroupCard(colors = colors) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = true, color = colors.statusAccent.copy(alpha = 0.12f)),
+                                onClick = { showTechDetails = !showTechDetails }
+                            )
+                            .padding(horizontal = 14.dp, vertical = 11.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            ActionAvatar(
+                                icon = Icons.Default.Fingerprint,
+                                tint = colors.textPrimary,
+                                bg = colors.surfaceElevated
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Certificate & Encryption Details",
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = colors.textPrimary
+                                )
+                                Text(
+                                    text = if (showTechDetails) "Hide technical parameters" else "View X.509 keys, cipher suite & SHA fingerprint",
+                                    fontSize = 11.sp,
+                                    color = colors.textMuted
+                                )
+                            }
+                        }
+
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = if (showTechDetails) "Collapse" else "Expand",
+                            tint = colors.textMuted,
+                            modifier = Modifier
+                                .size(18.dp)
+                                .rotate(chevronRotation)
+                        )
+                    }
+
+                    AnimatedVisibility(
+                        visible = showTechDetails,
+                        enter = expandVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
+                        exit = shrinkVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeOut()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(colors.surfaceElevated.copy(alpha = 0.35f))
+                        ) {
+                            CertDivider(colors = colors)
+
+                            CertRow(label = "Common Name (CN)", value = issuedToCn, colors = colors)
+                            CertDivider(colors = colors)
+                            CertRow(label = "Organization", value = issuedToOrg, colors = colors)
+                            CertDivider(colors = colors)
+                            CertRow(label = "Issuer Authority", value = issuedByCn, colors = colors)
+                            CertDivider(colors = colors)
+                            CertRow(label = "Validity Window", value = "$validFrom ➔ $validTo", colors = colors)
+                            CertDivider(colors = colors)
+                            CertRow(label = "Cipher Suite", value = sigAlg, colors = colors)
+                            CertDivider(colors = colors)
+                            CertRow(label = "Public Key Spec", value = keyAlg, colors = colors)
+
+                            if (sha256Fingerprint != null) {
+                                CertDivider(colors = colors)
+
+                                Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(colors.background)
-                                        .border(0.8.dp, colors.border.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                        .padding(10.dp)
+                                        .padding(horizontal = 14.dp, vertical = 10.dp)
                                 ) {
-                                    SelectionContainer {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
                                         Text(
-                                            text = sha256Fingerprint,
-                                            fontSize = 10.5.sp,
-                                            fontFamily = FontFamily.Monospace,
-                                            color = colors.textSecondary,
-                                            lineHeight = 15.sp
+                                            text = "SHA-256 Fingerprint",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = colors.textMuted
                                         )
+
+                                        // 1-Tap Copy Chip
+                                        Row(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(colors.surfaceElevated)
+                                                .border(0.8.dp, colors.borderSubtle, RoundedCornerShape(6.dp))
+                                                .clickable {
+                                                    clipboardManager.setText(AnnotatedString(sha256Fingerprint))
+                                                    ToastManager.showCopy("Fingerprint copied")
+                                                }
+                                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.ContentCopy,
+                                                contentDescription = "Copy Fingerprint",
+                                                tint = colors.statusAccent,
+                                                modifier = Modifier.size(11.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = "Copy",
+                                                fontSize = 10.5.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = colors.statusAccent
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(colors.background)
+                                            .border(0.8.dp, colors.borderSubtle, RoundedCornerShape(8.dp))
+                                            .padding(10.dp)
+                                    ) {
+                                        SelectionContainer {
+                                            Text(
+                                                text = sha256Fingerprint,
+                                                fontSize = 10.sp,
+                                                fontFamily = FontFamily.Monospace,
+                                                color = colors.textSecondary,
+                                                lineHeight = 15.sp
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -770,37 +790,37 @@ private fun QuickMetricTile(
     label: String,
     value: String,
     accentColor: Color,
-    colors: com.azokle.search.common.theme.AzokleThemeColors
+    colors: AzokleThemeColors
 ) {
     val shape = AzokleRadius.md
     Column(
         modifier = modifier
             .clip(shape)
             .background(colors.cardBg)
-            .border(1.dp, colors.border.copy(alpha = 0.5f), shape)
-            .padding(10.dp)
+            .border(1.dp, colors.borderSubtle, shape)
+            .padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = accentColor,
-                modifier = Modifier.size(13.dp)
+                modifier = Modifier.size(12.dp)
             )
-            Spacer(modifier = Modifier.width(5.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = label,
-                fontSize = 9.5.sp,
+                fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
                 color = colors.textMuted,
-                letterSpacing = 0.6.sp
+                letterSpacing = 0.5.sp
             )
         }
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(3.dp))
         Text(
             text = value,
-            fontSize = 12.sp,
+            fontSize = 11.5.sp,
             fontWeight = FontWeight.SemiBold,
             color = colors.textPrimary,
             maxLines = 1,
@@ -817,7 +837,7 @@ private fun ActionAvatar(
 ) {
     Box(
         modifier = Modifier
-            .size(34.dp)
+            .size(32.dp)
             .clip(CircleShape)
             .background(bg),
         contentAlignment = Alignment.Center
@@ -826,7 +846,7 @@ private fun ActionAvatar(
             imageVector = icon,
             contentDescription = null,
             tint = tint,
-            modifier = Modifier.size(16.dp)
+            modifier = Modifier.size(15.dp)
         )
     }
 }
@@ -842,7 +862,7 @@ private fun ActionRow(
     onClick: () -> Unit,
     contentDesc: String,
     showChevron: Boolean = true,
-    colors: com.azokle.search.common.theme.AzokleThemeColors
+    colors: AzokleThemeColors
 ) {
     Row(
         modifier = Modifier
@@ -852,7 +872,7 @@ private fun ActionRow(
                 indication = ripple(bounded = true, color = (titleColor ?: colors.statusAccent).copy(alpha = 0.12f)),
                 onClick = onClick
             )
-            .padding(horizontal = 14.dp, vertical = 11.dp)
+            .padding(horizontal = 14.dp, vertical = 10.dp)
             .semantics {
                 role = Role.Button
                 contentDescription = contentDesc
@@ -879,7 +899,7 @@ private fun ActionRow(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
                 tint = colors.textMuted,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(16.dp)
             )
         }
     }
@@ -890,20 +910,20 @@ private fun SectionLabel(title: String) {
     val colors = AzokleTheme.colors
     Text(
         text = title,
-        fontSize = 11.sp,
+        fontSize = 10.5.sp,
         fontWeight = FontWeight.Bold,
         fontFamily = FontFamily.Monospace,
         color = colors.textMuted,
         letterSpacing = 0.8.sp,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 6.dp, top = 2.dp, bottom = 6.dp)
+            .padding(start = 4.dp, top = 2.dp, bottom = 6.dp)
     )
 }
 
 @Composable
 private fun CleanGroupCard(
-    colors: com.azokle.search.common.theme.AzokleThemeColors,
+    colors: AzokleThemeColors,
     content: @Composable () -> Unit
 ) {
     val shape = AzokleRadius.lg
@@ -912,16 +932,16 @@ private fun CleanGroupCard(
             .fillMaxWidth()
             .clip(shape)
             .background(colors.cardBg)
-            .border(1.dp, colors.border, shape)
+            .border(1.dp, colors.borderSubtle, shape)
     ) {
         content()
     }
 }
 
 @Composable
-private fun CertDivider(colors: com.azokle.search.common.theme.AzokleThemeColors) {
+private fun CertDivider(colors: AzokleThemeColors) {
     HorizontalDivider(
-        color = colors.border.copy(alpha = 0.4f),
+        color = colors.borderSubtle,
         thickness = 0.5.dp,
         modifier = Modifier.padding(horizontal = 14.dp)
     )
@@ -931,21 +951,22 @@ private fun CertDivider(colors: com.azokle.search.common.theme.AzokleThemeColors
 private fun CertRow(
     label: String,
     value: String,
-    colors: com.azokle.search.common.theme.AzokleThemeColors,
+    colors: AzokleThemeColors,
     valueColor: Color = colors.textPrimary
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 9.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = label,
-            fontSize = 12.sp,
+            fontSize = 11.5.sp,
             color = colors.textMuted
         )
+        Spacer(modifier = Modifier.width(12.dp))
         SelectionContainer {
             Text(
                 text = value,
@@ -964,10 +985,9 @@ private fun CertRow(
 private fun SitePermissionsEditorDialog(
     host: String,
     permManager: SitePermissionsManager,
-    colors: com.azokle.search.common.theme.AzokleThemeColors,
+    colors: AzokleThemeColors,
     onDismiss: () -> Unit
 ) {
-    val context = LocalContext.current
     val updateTick by permManager.updatesFlow.collectAsState()
     val sitePerms = remember(host, updateTick) { permManager.getHostPermissions(host) }
 
@@ -984,14 +1004,16 @@ private fun SitePermissionsEditorDialog(
                 Text(
                     text = host,
                     fontSize = 12.sp,
-                    color = colors.textSecondary
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf(
                     SitePermissionType.CAMERA,
@@ -1021,12 +1043,12 @@ private fun SitePermissionsEditorDialog(
                                     isBlock -> colors.statusDestructive
                                     else -> colors.textPrimary
                                 },
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = type.displayName,
-                                fontSize = 13.sp,
+                                fontSize = 12.5.sp,
                                 color = colors.textPrimary
                             )
                         }
@@ -1036,20 +1058,20 @@ private fun SitePermissionsEditorDialog(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(if (isAllow) colors.statusSuccess.copy(alpha = 0.22f) else colors.surfaceElevated)
+                                    .background(if (isAllow) colors.statusSuccess.copy(alpha = 0.20f) else colors.surfaceElevated)
                                     .border(
-                                        1.dp,
-                                        if (isAllow) colors.statusSuccess.copy(alpha = 0.6f) else colors.borderSubtle,
+                                        0.8.dp,
+                                        if (isAllow) colors.statusSuccess.copy(alpha = 0.5f) else colors.borderSubtle,
                                         RoundedCornerShape(6.dp)
                                     )
                                     .clickable {
                                         permManager.setPermission(host, type, SitePermissionState.ALLOW)
                                     }
-                                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                                    .padding(horizontal = 9.dp, vertical = 4.dp)
                             ) {
                                 Text(
                                     text = "Allow",
-                                    fontSize = 11.5.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = if (isAllow) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isAllow) colors.statusSuccess else colors.textSecondary
                                 )
@@ -1059,20 +1081,20 @@ private fun SitePermissionsEditorDialog(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(if (isBlock) colors.statusDestructive.copy(alpha = 0.22f) else colors.surfaceElevated)
+                                    .background(if (isBlock) colors.statusDestructive.copy(alpha = 0.20f) else colors.surfaceElevated)
                                     .border(
-                                        1.dp,
-                                        if (isBlock) colors.statusDestructive.copy(alpha = 0.6f) else colors.borderSubtle,
+                                        0.8.dp,
+                                        if (isBlock) colors.statusDestructive.copy(alpha = 0.5f) else colors.borderSubtle,
                                         RoundedCornerShape(6.dp)
                                     )
                                     .clickable {
                                         permManager.setPermission(host, type, SitePermissionState.BLOCK)
                                     }
-                                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                                    .padding(horizontal = 9.dp, vertical = 4.dp)
                             ) {
                                 Text(
                                     text = "Block",
-                                    fontSize = 11.5.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = if (isBlock) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isBlock) colors.statusDestructive else colors.textSecondary
                                 )

@@ -1,0 +1,751 @@
+package com.azokle.search.engine.ui
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.FindInPage
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.InstallMobile
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.azokle.search.R
+import com.azokle.search.common.theme.AzokleTheme
+import com.azokle.search.pwa.PwaInstallEligibility
+
+/**
+ * Sovereign Luxury Browser Dropup Menu:
+ *  - Expands upward comfortably up to the top Omnibar area for an expansive, spacious experience.
+ *  - Frosted surface elevation with 26dp soft curvature and subtle border glow.
+ *  - Live context-aware Webpage Capsule with dynamic Shield counter.
+ *  - Ergonomic Quick Action Toolbar (Reload, Share, Bookmark, Find in Page, Desktop Mode).
+ *  - Organized grouped actions (Privacy & Isolation, Webpage Utilities, Library, System & Danger).
+ *  - Tactile haptic feedback and smooth responsive vertical scrolling.
+ */
+@Composable
+fun BrowserMenuDropup(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    url: String,
+    title: String,
+    isDesktopMode: Boolean = false,
+    isBookmarked: Boolean = false,
+    blockedTrackersCount: Int = 0,
+    isBrowserContext: Boolean = true,
+    showHomeAndDiscover: Boolean = false,
+    onHomeClick: () -> Unit = {},
+    onDiscoverClick: () -> Unit = {},
+    onReload: () -> Unit = {},
+    onToggleBookmark: () -> Unit = {},
+    onShare: () -> Unit = {},
+    onToggleDesktopMode: () -> Unit = {},
+    onSaveAsPdf: () -> Unit = {},
+    onOpenReaderMode: () -> Unit = {},
+    onOpenFindInPage: () -> Unit = {},
+    onOpenNewTab: () -> Unit = {},
+    onOpenNewPrivateTab: () -> Unit = {},
+    onOpenBookmarks: () -> Unit = {},
+    onOpenDownloads: () -> Unit = {},
+    onOpenHistory: () -> Unit = {},
+    onOpenShield: () -> Unit = {},
+    onOpenTorWindow: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+    pwaEligibility: PwaInstallEligibility? = null,
+    onInstallPwa: () -> Unit = {},
+    onBurnData: () -> Unit = {},
+    offset: DpOffset = DpOffset(0.dp, (-6).dp),
+    modifier: Modifier = Modifier
+) {
+    val colors = AzokleTheme.colors
+    val haptic = LocalHapticFeedback.current
+    val configuration = LocalConfiguration.current
+    // Expansive height reaching up to just below the top Omnibar
+    val maxAvailableHeight = (configuration.screenHeightDp - 108).dp.coerceAtLeast(480.dp)
+
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        offset = offset,
+        shape = RoundedCornerShape(26.dp),
+        containerColor = colors.cardBg,
+        tonalElevation = 8.dp,
+        shadowElevation = 24.dp,
+        border = BorderStroke(1.dp, colors.border.copy(alpha = 0.55f)),
+        modifier = modifier
+            .widthIn(min = 310.dp, max = 350.dp)
+            .heightIn(max = maxAvailableHeight)
+            .padding(vertical = 4.dp)
+    ) {
+        val isWebpage = isBrowserContext && url.isNotBlank() && url != "about:home" && url != "about:blank" && url != "about:tor"
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = maxAvailableHeight)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            // 0. Optional Home & Discover Shortcuts (Tablet / Omnibar mode)
+            if (showHomeAndDiscover) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(colors.surfaceElevated)
+                        .border(1.dp, colors.border.copy(alpha = 0.45f), RoundedCornerShape(16.dp))
+                        .padding(horizontal = 6.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    DropupQuickActionPill(
+                        icon = Icons.Default.Home,
+                        label = "Home",
+                        tint = colors.textPrimary,
+                        modifier = Modifier.weight(1f),
+                        onClick = {
+                            onDismissRequest()
+                            onHomeClick()
+                        }
+                    )
+                    DropupQuickActionPill(
+                        icon = Icons.Default.Explore,
+                        label = "Discover",
+                        tint = colors.textPrimary,
+                        modifier = Modifier.weight(1f),
+                        onClick = {
+                            onDismissRequest()
+                            onDiscoverClick()
+                        }
+                    )
+                }
+
+                HorizontalDivider(
+                    thickness = 0.5.dp,
+                    color = colors.border.copy(alpha = 0.35f),
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+            }
+
+            // 1. Context Header Capsule (Active Webpage Title, Host & Live Shield Pill)
+            if (isWebpage) {
+                val host = remember(url) {
+                    try {
+                        android.net.Uri.parse(url).host?.removePrefix("www.") ?: url
+                    } catch (e: Exception) {
+                        url
+                    }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(colors.surfaceElevated)
+                        .border(1.dp, colors.border.copy(alpha = 0.45f), RoundedCornerShape(16.dp))
+                        .padding(horizontal = 12.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 8.dp)
+                    ) {
+                        Text(
+                            text = if (title.isNotBlank()) title else "Webpage",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(top = 1.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = colors.statusSuccess.copy(alpha = 0.8f),
+                                modifier = Modifier.size(10.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = host,
+                                fontSize = 11.sp,
+                                color = colors.textMuted,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    // Interactive Shield Status Capsule
+                    Box(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(
+                                if (blockedTrackersCount > 0) colors.statusSuccess.copy(alpha = 0.12f)
+                                else colors.cardBg
+                            )
+                            .border(
+                                1.dp,
+                                if (blockedTrackersCount > 0) colors.statusSuccess.copy(alpha = 0.35f)
+                                else colors.border.copy(alpha = 0.6f),
+                                CircleShape
+                            )
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = false, radius = 20.dp, color = colors.statusSuccess),
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onDismissRequest()
+                                    onOpenShield()
+                                }
+                            )
+                            .padding(horizontal = 9.dp, vertical = 4.5.dp)
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = "Shield, $blockedTrackersCount trackers blocked"
+                            }
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Security,
+                                contentDescription = null,
+                                tint = if (blockedTrackersCount > 0) colors.statusSuccess else colors.textMuted,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (blockedTrackersCount > 0) "$blockedTrackersCount" else "Shield",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (blockedTrackersCount > 0) colors.statusSuccess else colors.textSecondary
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 2. Ergonomic Quick Action Toolbar (Reload, Share, Bookmark, Find, Desktop)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(colors.surfaceElevated)
+                    .border(1.dp, colors.border.copy(alpha = 0.45f), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 4.dp, vertical = 7.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Reload
+                DropupQuickActionPill(
+                    icon = Icons.Default.Refresh,
+                    label = "Reload",
+                    tint = colors.textPrimary,
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        onDismissRequest()
+                        onReload()
+                    }
+                )
+
+                // Share
+                DropupQuickActionPill(
+                    icon = Icons.Default.Share,
+                    label = "Share",
+                    tint = if (isWebpage) colors.textPrimary else colors.textMuted.copy(alpha = 0.35f),
+                    enabled = isWebpage,
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        onDismissRequest()
+                        onShare()
+                    }
+                )
+
+                // Bookmark
+                DropupQuickActionPill(
+                    icon = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                    label = if (isBookmarked) "Saved" else "Bookmark",
+                    tint = if (isBookmarked) colors.statusWarning else colors.textPrimary,
+                    isActive = isBookmarked,
+                    activeBorderColor = colors.statusWarning.copy(alpha = 0.6f),
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        onDismissRequest()
+                        onToggleBookmark()
+                    }
+                )
+
+                // Find in Page
+                DropupQuickActionPill(
+                    icon = Icons.Default.FindInPage,
+                    label = "Find",
+                    tint = if (isWebpage) colors.textPrimary else colors.textMuted.copy(alpha = 0.35f),
+                    enabled = isWebpage,
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        onDismissRequest()
+                        onOpenFindInPage()
+                    }
+                )
+
+                // Desktop / Mobile Mode Toggle
+                DropupQuickActionPill(
+                    icon = if (isDesktopMode) Icons.Default.PhoneAndroid else Icons.Default.Devices,
+                    label = if (isDesktopMode) "Mobile" else "Desktop",
+                    tint = if (isDesktopMode) colors.statusSuccess else (if (isWebpage) colors.textPrimary else colors.textMuted.copy(alpha = 0.35f)),
+                    isActive = isDesktopMode && isWebpage,
+                    activeBorderColor = colors.statusSuccess.copy(alpha = 0.6f),
+                    enabled = isWebpage,
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        onToggleDesktopMode()
+                    }
+                )
+            }
+
+            HorizontalDivider(
+                thickness = 0.5.dp,
+                color = colors.border.copy(alpha = 0.35f),
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+            )
+
+            // 3. Navigation & Privacy Section
+            DropupMenuItemRow(
+                title = "New Tab",
+                icon = Icons.Default.Add,
+                iconTint = colors.textPrimary,
+                iconBg = colors.surfaceElevated,
+                onClick = {
+                    onDismissRequest()
+                    onOpenNewTab()
+                }
+            )
+
+            DropupMenuItemRow(
+                title = "New Private Tab",
+                icon = Icons.Default.Security,
+                iconTint = colors.statusAccent,
+                iconBg = colors.statusAccent.copy(alpha = 0.12f),
+                badge = "Private",
+                badgeColor = colors.statusAccent,
+                onClick = {
+                    onDismissRequest()
+                    onOpenNewPrivateTab()
+                }
+            )
+
+            DropupMenuItemRow(
+                title = "New Tor Window",
+                iconRes = R.drawable.ic_tor,
+                iconTint = colors.statusTor,
+                iconBg = colors.statusTor.copy(alpha = 0.14f),
+                badge = "Tor Onion",
+                badgeColor = colors.statusTor,
+                onClick = {
+                    onDismissRequest()
+                    onOpenTorWindow()
+                }
+            )
+
+            DropupMenuItemRow(
+                title = "Azokle Shield",
+                icon = Icons.Default.Security,
+                iconTint = colors.statusSuccess,
+                iconBg = colors.statusSuccess.copy(alpha = 0.12f),
+                badge = if (blockedTrackersCount > 0) "$blockedTrackersCount Blocked" else "Protected",
+                badgeColor = colors.statusSuccess,
+                onClick = {
+                    onDismissRequest()
+                    onOpenShield()
+                }
+            )
+
+            // 4. Webpage Utilities Section (only available when on active webpage)
+            if (isWebpage) {
+                HorizontalDivider(
+                    thickness = 0.5.dp,
+                    color = colors.border.copy(alpha = 0.35f),
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+
+                DropupMenuItemRow(
+                    title = "Reader Mode",
+                    icon = Icons.AutoMirrored.Filled.MenuBook,
+                    iconTint = colors.textPrimary,
+                    iconBg = colors.surfaceElevated,
+                    onClick = {
+                        onDismissRequest()
+                        onOpenReaderMode()
+                    }
+                )
+
+                DropupMenuItemRow(
+                    title = "Save as PDF",
+                    icon = Icons.Default.Download,
+                    iconTint = colors.textPrimary,
+                    iconBg = colors.surfaceElevated,
+                    onClick = {
+                        onDismissRequest()
+                        onSaveAsPdf()
+                    }
+                )
+
+                if (pwaEligibility != null) {
+                    DropupMenuItemRow(
+                        title = "Add to Home screen",
+                        icon = Icons.Default.InstallMobile,
+                        iconTint = colors.actionPrimaryBg,
+                        iconBg = colors.actionPrimaryBg.copy(alpha = 0.12f),
+                        badge = "App",
+                        badgeColor = colors.actionPrimaryBg,
+                        onClick = {
+                            onDismissRequest()
+                            onInstallPwa()
+                        }
+                    )
+                }
+            }
+
+            HorizontalDivider(
+                thickness = 0.5.dp,
+                color = colors.border.copy(alpha = 0.35f),
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+            )
+
+            // 5. Library & Data Section
+            DropupMenuItemRow(
+                title = "Bookmarks",
+                icon = Icons.Default.Star,
+                iconTint = colors.statusWarning,
+                iconBg = colors.statusWarning.copy(alpha = 0.12f),
+                onClick = {
+                    onDismissRequest()
+                    onOpenBookmarks()
+                }
+            )
+
+            DropupMenuItemRow(
+                title = "History",
+                icon = Icons.Default.History,
+                iconTint = colors.textPrimary,
+                iconBg = colors.surfaceElevated,
+                onClick = {
+                    onDismissRequest()
+                    onOpenHistory()
+                }
+            )
+
+            DropupMenuItemRow(
+                title = "Downloads",
+                icon = Icons.Default.Download,
+                iconTint = colors.textPrimary,
+                iconBg = colors.surfaceElevated,
+                onClick = {
+                    onDismissRequest()
+                    onOpenDownloads()
+                }
+            )
+
+            HorizontalDivider(
+                thickness = 0.5.dp,
+                color = colors.border.copy(alpha = 0.35f),
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+            )
+
+            // 6. Settings & Security Incinerator Reset
+            DropupMenuItemRow(
+                title = "Settings",
+                icon = Icons.Default.Settings,
+                iconTint = colors.textPrimary,
+                iconBg = colors.surfaceElevated,
+                onClick = {
+                    onDismissRequest()
+                    onOpenSettings()
+                }
+            )
+
+            DropupMenuItemRow(
+                title = "Burn Browsing Data",
+                icon = Icons.Default.LocalFireDepartment,
+                iconTint = colors.statusDestructive,
+                iconBg = colors.statusDestructive.copy(alpha = 0.12f),
+                isDestructive = true,
+                badge = "Clear",
+                badgeColor = colors.statusDestructive,
+                onClick = {
+                    onDismissRequest()
+                    onBurnData()
+                }
+            )
+        }
+    }
+}
+
+/**
+ * Compact circular quick action pill button in the dropup toolbar
+ */
+@Composable
+private fun DropupQuickActionPill(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    tint: Color? = null,
+    enabled: Boolean = true,
+    isActive: Boolean = false,
+    activeBorderColor: Color? = null
+) {
+    val colors = AzokleTheme.colors
+    val haptic = LocalHapticFeedback.current
+
+    val finalTint = when {
+        !enabled -> colors.textMuted.copy(alpha = 0.35f)
+        isActive -> activeBorderColor ?: colors.actionPrimaryBg
+        tint != null -> tint
+        else -> colors.textPrimary
+    }
+
+    val finalBg = when {
+        !enabled -> Color.Transparent
+        isActive -> (activeBorderColor ?: colors.actionPrimaryBg).copy(alpha = 0.14f)
+        else -> colors.cardBg
+    }
+
+    val finalBorder = when {
+        !enabled -> colors.border.copy(alpha = 0.2f)
+        isActive -> activeBorderColor ?: colors.actionPrimaryBg
+        else -> colors.border.copy(alpha = 0.45f)
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(
+                enabled = enabled,
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = false, radius = 22.dp, color = colors.actionPrimaryBg),
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onClick()
+                }
+            )
+            .padding(vertical = 4.dp, horizontal = 2.dp)
+            .semantics {
+                role = Role.Button
+                contentDescription = label
+            }
+    ) {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(CircleShape)
+                .background(finalBg)
+                .border(
+                    width = if (isActive) 1.5.dp else 0.5.dp,
+                    color = finalBorder,
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = finalTint,
+                modifier = Modifier.size(19.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.5.dp))
+
+        Text(
+            text = label,
+            fontSize = 10.5.sp,
+            fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
+            color = when {
+                !enabled -> colors.textMuted.copy(alpha = 0.35f)
+                isActive -> colors.textPrimary
+                else -> colors.textSecondary
+            },
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+/**
+ * Standard menu item row with squircle icon, clear typography, optional badge and subtle border
+ */
+@Composable
+private fun DropupMenuItemRow(
+    title: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    iconRes: Int? = null,
+    iconTint: Color? = null,
+    iconBg: Color? = null,
+    badge: String? = null,
+    badgeColor: Color? = null,
+    isDestructive: Boolean = false
+) {
+    val colors = AzokleTheme.colors
+    val haptic = LocalHapticFeedback.current
+
+    val finalIconTint = when {
+        isDestructive -> colors.statusDestructive
+        iconTint != null -> iconTint
+        else -> colors.textPrimary
+    }
+
+    val finalIconBg = when {
+        isDestructive -> colors.statusDestructive.copy(alpha = 0.12f)
+        iconBg != null -> iconBg
+        else -> colors.surfaceElevated
+    }
+
+    val finalTitleColor = if (isDestructive) colors.statusDestructive else colors.textPrimary
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(
+                    bounded = true,
+                    color = if (isDestructive) colors.statusDestructive.copy(alpha = 0.15f) else colors.actionPrimaryBg.copy(alpha = 0.12f)
+                ),
+                onClick = {
+                    if (isDestructive) {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    } else {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    }
+                    onClick()
+                }
+            )
+            .padding(horizontal = 8.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Icon squircle badge
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(finalIconBg)
+                .border(0.5.dp, colors.border.copy(alpha = 0.45f), RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (iconRes != null) {
+                Image(
+                    painter = painterResource(id = iconRes),
+                    contentDescription = null,
+                    modifier = Modifier.size(19.dp)
+                )
+            } else if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = finalIconTint,
+                    modifier = Modifier.size(19.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Text(
+            text = title,
+            fontSize = 13.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = finalTitleColor,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        if (!badge.isNullOrBlank()) {
+            Spacer(modifier = Modifier.width(6.dp))
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background((badgeColor ?: colors.actionPrimaryBg).copy(alpha = 0.14f))
+                    .border(0.5.dp, (badgeColor ?: colors.actionPrimaryBg).copy(alpha = 0.4f), CircleShape)
+                    .padding(horizontal = 8.dp, vertical = 2.5.dp)
+            ) {
+                Text(
+                    text = badge,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = badgeColor ?: colors.actionPrimaryBg
+                )
+            }
+        }
+    }
+}

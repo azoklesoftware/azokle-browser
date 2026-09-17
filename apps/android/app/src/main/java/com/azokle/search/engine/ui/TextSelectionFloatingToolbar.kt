@@ -82,10 +82,8 @@ fun TextSelectionFloatingToolbar(
     modifier: Modifier = Modifier
 ) {
     val isVisible = payload != null && (
-        payload.text.isNotBlank() ||
-        payload.screenRect.width() > 0 ||
-        payload.canPaste ||
-        payload.canSelectAll
+        (payload.text.trim().isNotEmpty() && (payload.canCopy || payload.canSearch || payload.canShare || payload.canCut)) ||
+        (payload.isEditable && (payload.canPaste || payload.canSelectAll || payload.canCut))
     )
 
     AnimatedVisibility(
