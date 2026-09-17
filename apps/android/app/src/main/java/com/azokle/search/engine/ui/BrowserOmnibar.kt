@@ -397,9 +397,9 @@ fun BrowserOmnibar(
                 }
             }
 
-            // Responsive Tabs Button & 3-Dot Overflow Menu (Shown when Bottom Bar is hidden in Landscape / Tablet mode)
+            // Responsive Tabs, Fire Burn & 3-Dot Overflow Menu (Shown when Bottom Bar is hidden in Landscape / Tablet mode)
             if (showOverflowMenu) {
-                // 1. Dedicated Tabs Counter Button in Omnibar (Before 3-Dot Overflow Menu)
+                // 1. Dedicated Tabs Counter Button in Omnibar (Before Fire Burn & 3-Dot Menu)
                 Spacer(modifier = Modifier.width(6.dp))
 
                 Box(
@@ -440,7 +440,38 @@ fun BrowserOmnibar(
 
                 Spacer(modifier = Modifier.width(4.dp))
 
-                // 2. Responsive 3-Dot Overflow Menu (Home, Discover, Fire Burn, Menu)
+                // 2. Dedicated Fire Burn Button in Omnibar (After Tabs Button)
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(colors.surfaceElevated)
+                        .border(1.dp, colors.border, CircleShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple(bounded = false, radius = 21.dp, color = colors.statusDestructive.copy(alpha = 0.25f)),
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onBurnDataClick()
+                            }
+                        )
+                        .semantics {
+                            role = Role.Button
+                            contentDescription = "Clear all tabs and browsing data"
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.LocalFireDepartment,
+                        contentDescription = null,
+                        tint = colors.statusDestructive,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                // 3. Responsive 3-Dot Overflow Menu (Home, Discover, Menu)
                 var overflowMenuExpanded by remember { mutableStateOf(false) }
 
                 Box {
@@ -509,26 +540,13 @@ fun BrowserOmnibar(
                             }
                         )
 
-                        // 3. Fire Burn
-                        OmnibarDropdownActionItem(
-                            title = "Fire Burn",
-                            icon = Icons.Default.LocalFireDepartment,
-                            iconBgColor = colors.statusDestructive.copy(alpha = 0.12f),
-                            iconTint = colors.statusDestructive,
-                            textColor = colors.statusDestructive,
-                            onClick = {
-                                overflowMenuExpanded = false
-                                onBurnDataClick()
-                            }
-                        )
-
                         HorizontalDivider(
                             thickness = 0.5.dp,
                             color = colors.border.copy(alpha = 0.6f),
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                         )
 
-                        // 4. Browser Menu Sheet
+                        // 3. Browser Menu Sheet
                         OmnibarDropdownActionItem(
                             title = "Menu",
                             icon = Icons.Default.Menu,
