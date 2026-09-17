@@ -47,6 +47,7 @@ object MediaPlaybackManager {
     private var currentBridge: GeckoMediaSessionBridge? = null
     private var activeTabId: String? = null
     private var isUserExplicitlyPaused = false
+    private var wasPlayingBeforeFocusLoss = false
 
     private val _mediaState = MutableStateFlow(MediaSessionState())
     val mediaState: StateFlow<MediaSessionState> = _mediaState.asStateFlow()
@@ -79,19 +80,38 @@ object MediaPlaybackManager {
         }
     }
 
-    // Audio Focus Change Listener
+    // Audio Focus Change Listener (Handles auto-pause when another app plays and auto-resume when it pauses)
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         when (focusChange) {
             AudioManager.AUDIOFOCUS_LOSS -> {
                 isAudioFocusGranted = false
-                pause()
+                val isCurrentlyPlaying = _mediaState.value.status == PlaybackStatus.PLAYING
+                if (isCurrentlyPlaying) {
+                    wasPlayingBeforeFocusLoss = true
+                    android.util.Log.d(TAG, "AudioFocus loss: Auto-pausing background media")
+                    currentBridge?.pause()
+                    activeTabId?.let { updatePlaybackStatus(it, PlaybackStatus.PAUSED) }
+                }
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                // Preserve playback through transient OS gesture/window transitions
+                isAudioFocusGranted = false
+                val isCurrentlyPlaying = _mediaState.value.status == PlaybackStatus.PLAYING
+                if (isCurrentlyPlaying) {
+                    wasPlayingBeforeFocusLoss = true
+                    android.util.Log.d(TAG, "AudioFocus transient loss: Auto-pausing background media for another app")
+                    currentBridge?.pause()
+                    activeTabId?.let { updatePlaybackStatus(it, PlaybackStatus.PAUSED) }
+                }
             }
             AudioManager.AUDIOFOCUS_GAIN -> {
                 isAudioFocusGranted = true
+                if (wasPlayingBeforeFocusLoss && !isUserExplicitlyPaused) {
+                    wasPlayingBeforeFocusLoss = false
+                    android.util.Log.d(TAG, "AudioFocus gained: Auto-resuming background playback")
+                    currentBridge?.play()
+                    activeTabId?.let { updatePlaybackStatus(it, PlaybackStatus.PLAYING) }
+                }
             }
         }
     }
@@ -198,6 +218,7 @@ object MediaPlaybackManager {
     fun onSessionDeactivated(tabId: String) {
         if (activeTabId == tabId) {
             isUserExplicitlyPaused = false
+            wasPlayingBeforeFocusLoss = false
             _mediaState.update {
                 it.copy(status = PlaybackStatus.STOPPED)
             }
@@ -212,21 +233,8 @@ object MediaPlaybackManager {
         }
     }
 
-    fun onSessionPaused(tabId: String, isBackgroundPlaybackHost: Boolean, activeSession: org.mozilla.geckoview.MediaSession? = null) {
+    fun onSessionPaused(tabId: String, isBackgroundPlaybackHost: Boolean = false, activeSession: org.mozilla.geckoview.MediaSession? = null) {
         if (activeTabId != tabId) return
-        val ctx = appContext
-        val allowBackground = ctx?.let {
-            com.azokle.search.common.util.PreferencesManager(it).isBackgroundAudioEnabled()
-        } ?: true
-
-        // If pause was caused by background/lock-screen transition on a background playback host (YouTube)
-        // and the user did NOT explicitly click pause, suppress the pause and keep session playing (Brave pattern).
-        if (isBackgroundPlaybackHost && allowBackground && !isUserExplicitlyPaused) {
-            android.util.Log.d(TAG, "Transient background pause suppressed for host in tab $tabId")
-            activeSession?.play()
-            return
-        }
-
         updatePlaybackStatus(tabId, PlaybackStatus.PAUSED)
     }
 
@@ -380,16 +388,20 @@ object MediaPlaybackManager {
 
     fun play() {
         isUserExplicitlyPaused = false
+        wasPlayingBeforeFocusLoss = false
         requestAudioFocus()
         currentBridge?.play()
     }
 
     fun pause() {
         isUserExplicitlyPaused = true
+        wasPlayingBeforeFocusLoss = false
         currentBridge?.pause()
     }
 
     fun stop() {
+        isUserExplicitlyPaused = false
+        wasPlayingBeforeFocusLoss = false
         currentBridge?.stop()
         abandonAudioFocus()
         unregisterNoisyReceiver()

@@ -113,6 +113,39 @@
                             host.endsWith('.youtube-nocookie.com');
 
             if (isYouTube) {
+                // Background & Lockscreen Playback: Spoof Page Visibility API in Main Execution Realm
+                try {
+                    Object.defineProperty(document, 'hidden', {
+                        get: function() { return false; },
+                        configurable: true
+                    });
+                    Object.defineProperty(document, 'visibilityState', {
+                        get: function() { return 'visible'; },
+                        configurable: true
+                    });
+                    Object.defineProperty(document, 'webkitVisibilityState', {
+                        get: function() { return 'visible'; },
+                        configurable: true
+                    });
+                    Object.defineProperty(document, 'webkitHidden', {
+                        get: function() { return false; },
+                        configurable: true
+                    });
+                    document.hasFocus = function() { return true; };
+                } catch(e) {}
+
+                // Intercept & neutralize visibility/lifecycle pause events in capture phase in Main Realm
+                var suppressVisibilityEvent = function(e) {
+                    if (e) {
+                        e.stopImmediatePropagation();
+                    }
+                };
+                document.addEventListener('visibilitychange', suppressVisibilityEvent, true);
+                window.addEventListener('visibilitychange', suppressVisibilityEvent, true);
+                document.addEventListener('webkitvisibilitychange', suppressVisibilityEvent, true);
+                window.addEventListener('webkitvisibilitychange', suppressVisibilityEvent, true);
+                window.addEventListener('pagehide', suppressVisibilityEvent, true);
+
                 var sanitizePlayerResponse = function(obj) {
                     if (!obj || typeof obj !== 'object') return obj;
                     try {
@@ -349,32 +382,6 @@
                         host.endsWith('.youtube-nocookie.com');
 
         if (isYouTube) {
-            // Background Playback: Intercept visibilitychange events in capture phase
-            var suppressVisibilityChange = function(e) {
-                if (e) {
-                    e.stopImmediatePropagation();
-                }
-            };
-            document.addEventListener('visibilitychange', suppressVisibilityChange, true);
-            window.addEventListener('visibilitychange', suppressVisibilityChange, true);
-            document.addEventListener('webkitvisibilitychange', suppressVisibilityChange, true);
-
-            // Normalize document.hidden and visibilityState
-            try {
-                Object.defineProperty(document, 'hidden', {
-                    get: function() { return false; },
-                    configurable: true
-                });
-                Object.defineProperty(document, 'visibilityState', {
-                    get: function() { return 'visible'; },
-                    configurable: true
-                });
-                Object.defineProperty(document, 'webkitVisibilityState', {
-                    get: function() { return 'visible'; },
-                    configurable: true
-                });
-            } catch (propErr) {}
-
             // Safe Non-Destructive Ad-Skipper & Prompt Auto-Dismissal
             var handleYouTubePlayerState = function() {
                 var player = document.getElementById('movie_player') ||

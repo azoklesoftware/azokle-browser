@@ -53,6 +53,39 @@
                         host.endsWith('.youtube-nocookie.com');
 
         if (isYouTube) {
+            // Background & Lockscreen Playback: Spoof Page Visibility API in Main Execution Realm
+            try {
+                Object.defineProperty(document, 'hidden', {
+                    get: function() { return false; },
+                    configurable: true
+                });
+                Object.defineProperty(document, 'visibilityState', {
+                    get: function() { return 'visible'; },
+                    configurable: true
+                });
+                Object.defineProperty(document, 'webkitVisibilityState', {
+                    get: function() { return 'visible'; },
+                    configurable: true
+                });
+                Object.defineProperty(document, 'webkitHidden', {
+                    get: function() { return false; },
+                    configurable: true
+                });
+                document.hasFocus = function() { return true; };
+            } catch(e) {}
+
+            // Intercept & neutralize visibility/lifecycle pause events in capture phase in Main Realm
+            var suppressVisibilityEvent = function(e) {
+                if (e) {
+                    e.stopImmediatePropagation();
+                }
+            };
+            document.addEventListener('visibilitychange', suppressVisibilityEvent, true);
+            window.addEventListener('visibilitychange', suppressVisibilityEvent, true);
+            document.addEventListener('webkitvisibilitychange', suppressVisibilityEvent, true);
+            window.addEventListener('webkitvisibilitychange', suppressVisibilityEvent, true);
+            window.addEventListener('pagehide', suppressVisibilityEvent, true);
+
             // High-performance JSON sanitizer replicating Brave-Core & uBlock Origin json-prune
             var sanitizePlayerResponse = function(obj) {
                 if (!obj || typeof obj !== 'object') return obj;
