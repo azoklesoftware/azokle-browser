@@ -3,6 +3,7 @@ package com.azokle.search.widget
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
@@ -10,6 +11,18 @@ import com.azokle.search.MainActivity
 import com.azokle.search.R
 
 class AzokleSearchWidgetProvider : AppWidgetProvider() {
+
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+        val action = intent.action
+        if (action == Intent.ACTION_CONFIGURATION_CHANGED ||
+            action == Intent.ACTION_LOCALE_CHANGED ||
+            action == "android.intent.action.USER_PRESENT" ||
+            action == AppWidgetManager.ACTION_APPWIDGET_UPDATE
+        ) {
+            updateAllWidgets(context)
+        }
+    }
 
     override fun onUpdate(
         context: Context,
@@ -30,7 +43,7 @@ class AzokleSearchWidgetProvider : AppWidgetProvider() {
         fun updateAllWidgets(context: Context) {
             try {
                 val appWidgetManager = AppWidgetManager.getInstance(context)
-                val componentName = android.content.ComponentName(context, AzokleSearchWidgetProvider::class.java)
+                val componentName = ComponentName(context, AzokleSearchWidgetProvider::class.java)
                 val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
                 if (appWidgetIds != null && appWidgetIds.isNotEmpty()) {
                     for (appWidgetId in appWidgetIds) {
@@ -50,7 +63,8 @@ class AzokleSearchWidgetProvider : AppWidgetProvider() {
                     "dark" -> true
                     "light" -> false
                     else -> { // "system"
-                        val nightModeFlags = context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+                        val currentConfig = context.applicationContext?.resources?.configuration ?: context.resources.configuration
+                        val nightModeFlags = currentConfig.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
                         nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES
                     }
                 }

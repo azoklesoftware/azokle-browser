@@ -224,6 +224,13 @@ class MainActivity : FragmentActivity() {
             else -> (newConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         }
         updateSystemBars(isDark)
+        try {
+            com.azokle.search.widget.AzokleSearchWidgetProvider.updateAllWidgets(this)
+            com.azokle.search.widget.AzokleTorSearchWidgetProvider.updateAllWidgets(this)
+            com.azokle.search.widget.AzokleShieldsWidgetProvider.updateAllWidgets(this)
+        } catch (e: Exception) {
+            // Safe ignore
+        }
     }
 
     fun updateSystemBars(isDark: Boolean) {
@@ -424,6 +431,7 @@ class MainActivity : FragmentActivity() {
         com.azokle.search.core.BiometricAuthManager.setCurrentActivity(this)
         com.azokle.search.widget.AzokleSearchWidgetProvider.updateAllWidgets(this)
         com.azokle.search.widget.AzokleTorSearchWidgetProvider.updateAllWidgets(this)
+        com.azokle.search.widget.AzokleShieldsWidgetProvider.updateAllWidgets(this)
     }
 
     override fun onUserLeaveHint() {

@@ -833,31 +833,7 @@ fun SettingsScreen(
                             }
                         )
                     }
-
-                    // ------------------------------------------
-                    // MINIMAL FOOTER
-                    // ------------------------------------------
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp, bottom = 20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "AZOKLE SEARCH • 2026.08",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            fontFamily = FontFamily.Monospace,
-                            color = colors.textMuted,
-                            letterSpacing = 0.5.sp
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Zero Telemetry • Sovereign Privacy Engine",
-                            fontSize = 10.sp,
-                            color = colors.textMuted.copy(alpha = 0.7f)
-                        )
-                    }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }

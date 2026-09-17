@@ -3,9 +3,9 @@
     android:id="@+id/widget_shields_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_bg_shields_premium"
+    android:background="@drawable/widget_bg_shields_dark"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="14dp">
 
     <!-- Header Row: Shield Emblem + Brand Hierarchy + Status Pill -->
     <LinearLayout
@@ -16,18 +16,19 @@
 
         <!-- Shield Emblem Badge Container -->
         <FrameLayout
-            android:layout_width="34dp"
-            android:layout_height="34dp"
-            android:background="@drawable/widget_shield_badge_bg">
+            android:id="@+id/widget_shield_badge_container"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="@drawable/widget_shield_badge_bg_dark">
 
             <ImageView
                 android:id="@+id/widget_shield_icon"
-                android:layout_width="18dp"
-                android:layout_height="18dp"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
                 android:layout_gravity="center"
                 android:contentDescription="Shield"
                 android:src="@drawable/ic_widget_shield"
-                android:tint="#FF10B981" />
+                android:tint="#22C55E" />
         </FrameLayout>
 
         <!-- Brand Hierarchy -->
@@ -39,36 +40,40 @@
             android:orientation="vertical">
 
             <TextView
+                android:id="@+id/widget_shield_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="sans-serif-medium"
                 android:text="Azokle Shield"
-                android:textColor="#FFFFFFFF"
-                android:textSize="15sp"
+                android:textColor="#F3F3F3"
+                android:textSize="14sp"
                 android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/widget_shield_subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="sans-serif"
-                android:text="Privacy &amp; Tracker Protection"
-                android:textColor="#94A3B8"
-                android:textSize="11sp" />
+                android:text="Real-time Privacy Protection"
+                android:textColor="#A0A0A0"
+                android:textSize="10.5sp" />
         </LinearLayout>
 
         <!-- Protected Status Pill -->
         <LinearLayout
+            android:id="@+id/widget_shield_status_pill"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="@drawable/widget_status_pill_active"
+            android:background="@drawable/widget_status_pill_dark"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingStart="9dp"
-            android:paddingTop="4dp"
-            android:paddingEnd="9dp"
-            android:paddingBottom="4dp">
+            android:paddingStart="8dp"
+            android:paddingTop="3dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="3dp">
 
             <ImageView
+                android:id="@+id/widget_shield_status_dot"
                 android:layout_width="6dp"
                 android:layout_height="6dp"
                 android:contentDescription="Status Dot"
@@ -78,41 +83,76 @@
                 android:id="@+id/widget_shield_status"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="5dp"
+                android:layout_marginStart="4dp"
                 android:fontFamily="sans-serif-medium"
                 android:text="PROTECTED"
-                android:textColor="#FF10B981"
-                android:textSize="10sp"
+                android:textColor="#22C55E"
+                android:textSize="9.5sp"
                 android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Metrics Section (Clean, Unified, Vertically Centered) -->
+    <!-- 2x2 Grid of 4 Privacy Metric Cards (Ad Blocker, Tracker Blocker, Data Saved, Time Saved) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="12dp"
-        android:layout_marginBottom="12dp"
+        android:layout_marginTop="10dp"
         android:layout_weight="1"
-        android:gravity="center"
         android:orientation="vertical">
 
+        <!-- Row 1: Ads Blocked & Trackers Blocked -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/widget_metrics_bar_bg"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingTop="12dp"
-            android:paddingBottom="12dp">
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
 
-            <!-- Column 1: Trackers Blocked -->
+            <!-- Card 1: Ads Blocked -->
             <LinearLayout
+                android:id="@+id/widget_card_ads"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_marginEnd="4dp"
+                android:layout_marginBottom="4dp"
                 android:layout_weight="1"
+                android:background="@drawable/widget_metric_card_bg_dark"
                 android:gravity="center"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:padding="8dp">
+
+                <TextView
+                    android:id="@+id/widget_metric_ads"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-black"
+                    android:text="0"
+                    android:textColor="#38BDF8"
+                    android:textSize="19sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/widget_label_ads"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:fontFamily="sans-serif"
+                    android:text="Ads Blocked"
+                    android:textColor="#A0A0A0"
+                    android:textSize="10.5sp" />
+            </LinearLayout>
+
+            <!-- Card 2: Trackers Blocked -->
+            <LinearLayout
+                android:id="@+id/widget_card_trackers"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="4dp"
+                android:layout_marginBottom="4dp"
+                android:layout_weight="1"
+                android:background="@drawable/widget_metric_card_bg_dark"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="8dp">
 
                 <TextView
                     android:id="@+id/widget_metric_trackers"
@@ -120,33 +160,41 @@
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif-black"
                     android:text="0"
-                    android:textColor="#FFFF5500"
-                    android:textSize="22sp"
+                    android:textColor="#F97316"
+                    android:textSize="19sp"
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/widget_label_trackers"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:fontFamily="sans-serif"
-                    android:text="Trackers blocked"
-                    android:textColor="#94A3B8"
+                    android:text="Trackers Blocked"
+                    android:textColor="#A0A0A0"
                     android:textSize="10.5sp" />
             </LinearLayout>
+        </LinearLayout>
 
-            <!-- Vertical Divider -->
-            <FrameLayout
-                android:layout_width="1dp"
-                android:layout_height="30dp"
-                android:background="#1AFFFFFF" />
+        <!-- Row 2: Data Saved & Time Saved -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
 
-            <!-- Column 2: Data Saved -->
+            <!-- Card 3: Data Saved -->
             <LinearLayout
+                android:id="@+id/widget_card_bandwidth"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_marginTop="4dp"
+                android:layout_marginEnd="4dp"
                 android:layout_weight="1"
+                android:background="@drawable/widget_metric_card_bg_dark"
                 android:gravity="center"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:padding="8dp">
 
                 <TextView
                     android:id="@+id/widget_metric_bandwidth"
@@ -154,33 +202,33 @@
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif-black"
                     android:text="0 KB"
-                    android:textColor="#FF38BDF8"
-                    android:textSize="22sp"
+                    android:textColor="#A855F7"
+                    android:textSize="19sp"
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/widget_label_bandwidth"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:fontFamily="sans-serif"
-                    android:text="Data saved"
-                    android:textColor="#94A3B8"
+                    android:text="Data Saved"
+                    android:textColor="#A0A0A0"
                     android:textSize="10.5sp" />
             </LinearLayout>
 
-            <!-- Vertical Divider -->
-            <FrameLayout
-                android:layout_width="1dp"
-                android:layout_height="30dp"
-                android:background="#1AFFFFFF" />
-
-            <!-- Column 3: Time Saved -->
+            <!-- Card 4: Time Saved -->
             <LinearLayout
+                android:id="@+id/widget_card_time"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_marginStart="4dp"
+                android:layout_marginTop="4dp"
                 android:layout_weight="1"
+                android:background="@drawable/widget_metric_card_bg_dark"
                 android:gravity="center"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:padding="8dp">
 
                 <TextView
                     android:id="@+id/widget_metric_time"
@@ -188,89 +236,20 @@
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif-black"
                     android:text="0s"
-                    android:textColor="#FF10B981"
-                    android:textSize="22sp"
+                    android:textColor="#22C55E"
+                    android:textSize="19sp"
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/widget_label_time"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:fontFamily="sans-serif"
-                    android:text="Time saved"
-                    android:textColor="#94A3B8"
+                    android:text="Time Saved"
+                    android:textColor="#A0A0A0"
                     android:textSize="10.5sp" />
             </LinearLayout>
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- Bottom Quick Search & Private Tab Omnibar -->
-    <LinearLayout
-        android:id="@+id/widget_search_pill"
-        android:layout_width="match_parent"
-        android:layout_height="44dp"
-        android:background="@drawable/widget_search_capsule_bg"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="12dp"
-        android:paddingEnd="6dp">
-
-        <ImageView
-            android:id="@+id/widget_search_icon"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:contentDescription="Search"
-            android:src="@drawable/ic_widget_search"
-            android:tint="#94A3B8" />
-
-        <TextView
-            android:id="@+id/widget_search_text"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_marginEnd="6dp"
-            android:layout_weight="1"
-            android:ellipsize="end"
-            android:fontFamily="sans-serif"
-            android:maxLines="1"
-            android:text="Search with Azokle..."
-            android:textColor="#CBD5E1"
-            android:textSize="13sp" />
-
-        <!-- Voice Search Button -->
-        <LinearLayout
-            android:id="@+id/widget_btn_voice"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_marginEnd="5dp"
-            android:background="@drawable/widget_circle_btn_bg"
-            android:gravity="center"
-            android:orientation="vertical">
-
-            <ImageView
-                android:id="@+id/widget_voice_icon"
-                android:layout_width="15dp"
-                android:layout_height="15dp"
-                android:contentDescription="Voice Search"
-                android:src="@drawable/ic_widget_mic"
-                android:tint="#FFFFFFFF" />
-        </LinearLayout>
-
-        <!-- Tor Private Tab Button -->
-        <LinearLayout
-            android:id="@+id/widget_btn_tor"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:background="@drawable/widget_circle_btn_bg"
-            android:gravity="center"
-            android:orientation="vertical">
-
-            <ImageView
-                android:id="@+id/widget_tor_icon"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:contentDescription="Tor Private Tab"
-                android:src="@drawable/ic_tor" />
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>

@@ -148,6 +148,7 @@ class PreferencesManager(private val context: Context) {
         try {
             com.azokle.search.widget.AzokleSearchWidgetProvider.updateAllWidgets(context)
             com.azokle.search.widget.AzokleTorSearchWidgetProvider.updateAllWidgets(context)
+            com.azokle.search.widget.AzokleShieldsWidgetProvider.updateAllWidgets(context)
         } catch (e: Exception) {
             // Safe ignore
         }
@@ -186,6 +187,7 @@ class PreferencesManager(private val context: Context) {
         try {
             com.azokle.search.widget.AzokleSearchWidgetProvider.updateAllWidgets(context)
             com.azokle.search.widget.AzokleTorSearchWidgetProvider.updateAllWidgets(context)
+            com.azokle.search.widget.AzokleShieldsWidgetProvider.updateAllWidgets(context)
         } catch (e: Exception) {
             // Ignore in testing environments
         }

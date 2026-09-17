@@ -71,6 +71,19 @@ class AzokleApplication : Application() {
         }.start()
     }
 
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (isMainProcess()) {
+            try {
+                com.azokle.search.widget.AzokleSearchWidgetProvider.updateAllWidgets(this)
+                com.azokle.search.widget.AzokleTorSearchWidgetProvider.updateAllWidgets(this)
+                com.azokle.search.widget.AzokleShieldsWidgetProvider.updateAllWidgets(this)
+            } catch (e: Exception) {
+                // Safe fallback
+            }
+        }
+    }
+
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (isMainProcess()) {
