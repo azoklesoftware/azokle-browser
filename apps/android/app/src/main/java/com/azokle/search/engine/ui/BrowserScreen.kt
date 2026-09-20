@@ -995,8 +995,6 @@ fun BrowserScreen(
                     val threat = SafeBrowsingGuard.assessUrl(upgradedUrl)
                     if (threat.isThreat) {
                         pendingThreatAssessment = threat
-                    } else {
-                        geckoSession?.loadUri(upgradedUrl)
                     }
                     ToastManager.show("Tab added to group")
                 },

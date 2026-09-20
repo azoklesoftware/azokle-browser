@@ -89,10 +89,12 @@ fun TabGroupBottomStrip(
     val listState = rememberLazyListState()
 
     // Smoothly glide to the active tab whenever selection changes
-    LaunchedEffect(activeTabId, groupTabs.size) {
+    LaunchedEffect(activeTabId) {
         val activeIndex = groupTabs.indexOfFirst { it.id == activeTabId }
-        if (activeIndex >= 0) {
-            listState.animateScrollToItem(activeIndex)
+        if (activeIndex in groupTabs.indices) {
+            runCatching {
+                listState.animateScrollToItem(activeIndex)
+            }
         }
     }
 
@@ -228,7 +230,7 @@ fun TabGroupBottomStrip(
                     }
 
                     // 3. "+" Add Tab in Group Button (Right Side of Carousel)
-                    item {
+                    item(key = "tab_group_add_tab_button") {
                         val addInteractionSource = remember { MutableInteractionSource() }
                         val isAddPressed by addInteractionSource.collectIsPressedAsState()
                         val addScale by animateFloatAsState(

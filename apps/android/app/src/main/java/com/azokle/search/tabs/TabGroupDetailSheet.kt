@@ -398,7 +398,7 @@ fun TabGroupDetailSheet(
                     }
 
                     // Interactive Add Tab Card within Group
-                    item {
+                    item(key = "group_add_tab_card") {
                         GroupAddTabCard(
                             groupTitle = group.title,
                             groupColor = groupColor,
