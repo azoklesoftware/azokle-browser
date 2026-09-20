@@ -77,8 +77,10 @@ android {
 
     splits {
         abi {
-            // Enable ABI splits only for APK builds; disable for Android App Bundles (.aab)
-            isEnable = !gradle.startParameter.taskNames.any { it.contains("bundle", ignoreCase = true) }
+            // Enable ABI splits specifically for APK builds (assemble/install), disable for Bundles and full build tasks to prevent resource shrinking collisions
+            val taskNames = gradle.startParameter.taskNames
+            isEnable = taskNames.any { it.contains("assemble", ignoreCase = true) || it.contains("install", ignoreCase = true) } &&
+                !taskNames.any { it.contains("bundle", ignoreCase = true) || it.contains("build", ignoreCase = true) }
             reset()
             include("arm64-v8a", "armeabi-v7a", "x86_64")
             isUniversalApk = false
