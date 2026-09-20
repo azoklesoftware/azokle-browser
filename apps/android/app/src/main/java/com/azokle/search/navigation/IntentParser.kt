@@ -151,11 +151,13 @@ object IntentParser {
             if (altIdx == -1) return null
             val start = altIdx + altMarker.length
             val end = uriStr.indexOf(';', start).takeIf { it != -1 } ?: uriStr.length
+            if (start >= end || start >= uriStr.length) return null
             val raw = uriStr.substring(start, end).trim()
             return decodeUriComponent(raw)
         }
         val start = idx + marker.length
         val end = uriStr.indexOf(';', start).takeIf { it != -1 } ?: uriStr.length
+        if (start >= end || start >= uriStr.length) return null
         val raw = uriStr.substring(start, end).trim()
         return decodeUriComponent(raw)
     }
@@ -166,6 +168,7 @@ object IntentParser {
         if (idx == -1) return null
         val start = idx + marker.length
         val end = uriStr.indexOf(';', start).takeIf { it != -1 } ?: uriStr.length
+        if (start >= end || start >= uriStr.length) return null
         val raw = uriStr.substring(start, end).trim()
         return raw.takeIf { isValidPackageName(it) }
     }
@@ -176,14 +179,16 @@ object IntentParser {
         if (idx == -1) return null
         val start = idx + marker.length
         val end = uriStr.indexOf(';', start).takeIf { it != -1 } ?: uriStr.length
+        if (start >= end || start >= uriStr.length) return null
         val raw = uriStr.substring(start, end).trim().lowercase()
         return raw.takeIf { isValidScheme(it) && UriClassifier.isCustomAppScheme(it) }
     }
 
     private fun decodeUriComponent(raw: String): String {
+        if (raw.isBlank()) return raw
         return try {
             java.net.URLDecoder.decode(raw, "UTF-8")
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             raw
         }
     }

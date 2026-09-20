@@ -110,7 +110,10 @@ object TabManager {
         sessionMap[id] = session
         val isActive = id == _activeTabId.value
         try {
-            session.setActive(isActive)
+            if (session.isOpen) {
+                session.setActive(isActive)
+                session.setFocused(isActive)
+            }
         } catch (e: Exception) {
             // Ignore
         }
@@ -144,7 +147,9 @@ object TabManager {
             )
             val isActive = id == _activeTabId.value
             try {
-                s.setActive(isActive)
+                if (s.isOpen) {
+                    s.setActive(isActive)
+                }
             } catch (e: Exception) {
                 // Ignore
             }
@@ -307,12 +312,14 @@ object TabManager {
             for ((tabId, session) in sessionMap) {
                 try {
                     val isForeground = tabId == id
-                    session.setActive(isForeground)
-                    session.setFocused(isForeground)
-                    session.setPriorityHint(
-                        if (isForeground) org.mozilla.geckoview.GeckoSession.PRIORITY_HIGH
-                        else org.mozilla.geckoview.GeckoSession.PRIORITY_DEFAULT
-                    )
+                    if (session.isOpen) {
+                        session.setActive(isForeground)
+                        session.setFocused(isForeground)
+                        session.setPriorityHint(
+                            if (isForeground) org.mozilla.geckoview.GeckoSession.PRIORITY_HIGH
+                            else org.mozilla.geckoview.GeckoSession.PRIORITY_DEFAULT
+                        )
+                    }
                 } catch (e: Exception) {
                     // Ignore
                 }

@@ -102,6 +102,16 @@ fun BrowserEngineSurface(
         }
     }
 
+    val currentTab = openTabs.find { it.id == activeTabId }
+    val effectiveUrl = if (currentUrl.isNotBlank() && currentUrl != "about:home" && currentUrl != "about:tor") {
+        currentUrl
+    } else {
+        currentTab?.url ?: ""
+    }
+    val isHomePage = !showDiscoverScreen &&
+            (effectiveUrl.isBlank() || effectiveUrl == "about:home" || effectiveUrl == "about:tor") &&
+            currentTab?.parentTabId == null
+
     Box(modifier = modifier.fillMaxWidth()) {
         if (showDiscoverScreen) {
             val discoverViewModel: DiscoverViewModel = viewModel()
@@ -112,9 +122,8 @@ fun BrowserEngineSurface(
                     onNavigateToUrl(url, title)
                 }
             )
-        } else if (currentUrl.isBlank() || currentUrl == "about:home" || currentUrl == "about:blank" || currentUrl == "about:tor") {
+        } else if (isHomePage) {
             // Render Photographic Wallpaper Browser Home Page (Unified for Normal, Private, and Tor tabs)
-            val currentTab = openTabs.find { it.id == activeTabId }
             BrowserHomeScreenContent(
                 activeTab = currentTab,
                 onNavigate = { targetUrl ->
@@ -132,7 +141,7 @@ fun BrowserEngineSurface(
         } else {
             key(activeTabId) {
                 GeckoBrowserView(
-                    url = currentUrl,
+                    url = effectiveUrl,
                     tabId = activeTabId,
                     isDesktopMode = isDesktopMode,
                     isDarkMode = colors.isDark,

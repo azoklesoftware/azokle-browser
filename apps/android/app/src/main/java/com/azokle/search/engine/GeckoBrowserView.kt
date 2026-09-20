@@ -101,7 +101,7 @@ fun GeckoBrowserView(
     LaunchedEffect(tabId, url) {
         swipeRefreshRef?.currentUrl = url
         swipeRefreshRef?.resetGestureState()
-        if (url.isNotBlank() && !url.equals("about:blank", ignoreCase = true) && !url.equals("about:home", ignoreCase = true)) {
+        if (url.isNotBlank() && !url.equals("about:blank", ignoreCase = true) && !url.equals("about:home", ignoreCase = true) && !url.equals("about:tor", ignoreCase = true)) {
             val isAlreadyLoaded = (tabId != null && TabManager.isTabLoaded(tabId, url))
             if (!isAlreadyLoaded) {
                 if (tabId != null) {
@@ -109,9 +109,17 @@ fun GeckoBrowserView(
                 }
                 lastLoadedUrl = url
                 if (!session.isOpen) {
-                    session.open(runtime)
+                    try {
+                        session.open(runtime)
+                    } catch (e: Exception) {
+                        android.util.Log.w("GeckoBrowserView", "Session open error: ${e.message}")
+                    }
                 }
-                session.loadUri(url)
+                try {
+                    session.loadUri(url)
+                } catch (e: Exception) {
+                    android.util.Log.e("GeckoBrowserView", "loadUri failed: ${e.message}")
+                }
             }
         }
     }
@@ -152,8 +160,11 @@ fun GeckoBrowserView(
                     }
                     onLoadErrorChanged(null)
                     if (session.isOpen) {
-                        session.reload(GeckoSession.LOAD_FLAGS_NONE)
-                        // Safety timeout to prevent spinner from hanging indefinitely on stalled connections
+                        try {
+                            session.reload(GeckoSession.LOAD_FLAGS_NONE)
+                        } catch (e: Exception) {
+                            // Safe reload fallback
+                        }
                         postDelayed({
                             if (isRefreshing) {
                                 isRefreshing = false
@@ -304,7 +315,9 @@ fun GeckoBrowserView(
                 isFocusable = true
                 isFocusableInTouchMode = true
                 try {
-                    session.setFocused(true)
+                    if (session.isOpen) {
+                        session.setFocused(true)
+                    }
                 } catch (e: Exception) {}
 
                 swipeRefresh.targetNestedGeckoView = this

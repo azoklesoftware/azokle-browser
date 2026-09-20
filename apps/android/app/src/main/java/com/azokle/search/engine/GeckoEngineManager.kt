@@ -197,21 +197,21 @@ object GeckoEngineManager {
                                     }
                                 }
                                 "GET_COSMETIC_CSS" -> {
-                                    val domain = json.optString("domain", "")
+                                    val domain = json.optString("domain", "").trim().take(256)
                                     val css = com.azokle.search.core.AzokleCore.getCosmeticStyles(domain)
                                     JSONObject().apply {
                                         put("css", css)
                                     }
                                 }
                                 "GET_SCRIPTLETS" -> {
-                                    val domain = json.optString("domain", "")
+                                    val domain = json.optString("domain", "").trim().take(256)
                                     val scriptlet = com.azokle.search.core.AzokleCore.getDefuserScriptlet(domain)
                                     JSONObject().apply {
                                         put("scriptlet", scriptlet)
                                     }
                                 }
                                 "CLEAN_URL" -> {
-                                    val url = json.optString("url", "")
+                                    val url = json.optString("url", "").trim().take(4096)
                                     val cleaned = com.azokle.search.core.AzokleCore.cleanTrackingParameters(url)
                                     JSONObject().apply {
                                         put("cleanedUrl", cleaned)
@@ -228,12 +228,12 @@ object GeckoEngineManager {
                                     JSONObject().apply { put("ok", true) }
                                 }
                                 "PWA_MANIFEST_DISCOVERED" -> {
-                                    val manifestUrl = json.optString("manifestUrl", "").takeIf { it.isNotBlank() }
-                                    val manifestJson = json.optString("manifestJson", "").takeIf { it.isNotBlank() }
-                                    val documentUrl = json.optString("documentUrl", "")
-                                    val pageTitle = json.optString("pageTitle", "")
-                                    val fallbackIcon = json.optString("fallbackIcon", "").takeIf { it.isNotBlank() }
-                                    val themeColorStr = json.optString("themeColor", "").takeIf { it.isNotBlank() }
+                                    val manifestUrl = json.optString("manifestUrl", "").trim().take(2048).takeIf { it.isNotBlank() }
+                                    val manifestJson = json.optString("manifestJson", "").trim().take(262144).takeIf { it.isNotBlank() }
+                                    val documentUrl = json.optString("documentUrl", "").trim().take(2048)
+                                    val pageTitle = json.optString("pageTitle", "").trim().take(256)
+                                    val fallbackIcon = json.optString("fallbackIcon", "").trim().take(2048).takeIf { it.isNotBlank() }
+                                    val themeColorStr = json.optString("themeColor", "").trim().take(64).takeIf { it.isNotBlank() }
                                     val themeColor = themeColorStr?.let {
                                         try { android.graphics.Color.parseColor(it) } catch (e: Exception) { null }
                                     }
@@ -266,7 +266,7 @@ object GeckoEngineManager {
                             }
                             GeckoResult.fromValue<Any>(response.toString())
                         } catch (e: Throwable) {
-                            android.util.Log.e("GeckoEngineManager", "onMessage error: ${e.message}", e)
+                            android.util.Log.e("GeckoEngineManager", "onMessage processing error")
                             GeckoResult.fromValue<Any>("""{"error":"handler_exception"}""")
                         }
                     }

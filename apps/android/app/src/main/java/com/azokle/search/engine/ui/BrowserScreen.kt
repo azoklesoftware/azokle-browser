@@ -444,8 +444,14 @@ fun BrowserScreen(
         val tab = TabManager.activeTab
         if (tab != null) {
             isDesktopMode = tab.isDesktopMode
-            if (tab.url.isNotBlank() && (tab.url != currentUrl || currentTitle != tab.title)) {
-                currentUrl = tab.url
+            if (tab.url.isNotBlank()) {
+                if (tab.url != currentUrl || currentTitle != tab.title) {
+                    currentUrl = tab.url
+                    currentTitle = tab.title
+                    currentError = null
+                }
+            } else {
+                currentUrl = ""
                 currentTitle = tab.title
                 currentError = null
             }
