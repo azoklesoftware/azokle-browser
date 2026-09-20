@@ -31,9 +31,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -86,14 +85,14 @@ fun TabGroupBottomStrip(
     val isVisible = group != null && groupTabs.isNotEmpty()
     val colors = AzokleTheme.colors
     val haptic = LocalHapticFeedback.current
-    val listState = rememberLazyListState()
+    val scrollState = rememberScrollState()
 
     // Smoothly glide to the active tab whenever selection changes
     LaunchedEffect(activeTabId) {
         val activeIndex = groupTabs.indexOfFirst { it.id == activeTabId }
         if (activeIndex in groupTabs.indices) {
             runCatching {
-                listState.animateScrollToItem(activeIndex)
+                scrollState.animateScrollTo(activeIndex * 140)
             }
         }
     }
@@ -201,16 +200,15 @@ fun TabGroupBottomStrip(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 // 2. Favicon Carousel Switcher with Auto-Scroll & High-Precision Active Badges
-                LazyRow(
-                    state = listState,
+                Row(
                     modifier = Modifier
                         .weight(1f)
+                        .horizontalScroll(scrollState)
                         .padding(vertical = 2.dp),
-                    contentPadding = PaddingValues(horizontal = 2.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    items(groupTabs, key = { it.id }) { tab ->
+                    groupTabs.forEach { tab ->
                         val isActive = tab.id == activeTabId
                         TabFaviconToken(
                             tab = tab,
@@ -230,43 +228,41 @@ fun TabGroupBottomStrip(
                     }
 
                     // 3. "+" Add Tab in Group Button (Right Side of Carousel)
-                    item(key = "tab_group_add_tab_button") {
-                        val addInteractionSource = remember { MutableInteractionSource() }
-                        val isAddPressed by addInteractionSource.collectIsPressedAsState()
-                        val addScale by animateFloatAsState(
-                            targetValue = if (isAddPressed) 0.88f else 1.0f,
-                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                            label = "addScale"
-                        )
+                    val addInteractionSource = remember { MutableInteractionSource() }
+                    val isAddPressed by addInteractionSource.collectIsPressedAsState()
+                    val addScale by animateFloatAsState(
+                        targetValue = if (isAddPressed) 0.88f else 1.0f,
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                        label = "addScale"
+                    )
 
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .scale(addScale)
-                                .clip(CircleShape)
-                                .background(groupColor.copy(alpha = 0.12f))
-                                .border(1.dp, groupColor.copy(alpha = 0.35f), CircleShape)
-                                .clickable(
-                                    interactionSource = addInteractionSource,
-                                    indication = ripple(bounded = true, color = groupColor),
-                                    onClick = {
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        onAddTabInGroup()
-                                    }
-                                )
-                                .semantics {
-                                    role = Role.Button
-                                    contentDescription = "Add tab in group"
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = null,
-                                tint = groupColor,
-                                modifier = Modifier.size(18.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .scale(addScale)
+                            .clip(CircleShape)
+                            .background(groupColor.copy(alpha = 0.12f))
+                            .border(1.dp, groupColor.copy(alpha = 0.35f), CircleShape)
+                            .clickable(
+                                interactionSource = addInteractionSource,
+                                indication = ripple(bounded = true, color = groupColor),
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onAddTabInGroup()
+                                }
                             )
-                        }
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = "Add tab in group"
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            tint = groupColor,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
             }
