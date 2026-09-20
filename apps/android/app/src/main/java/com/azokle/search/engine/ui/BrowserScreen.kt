@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -106,6 +107,7 @@ fun BrowserScreen(
     val vaultManager = remember { EncryptedVaultManager.getInstance(context) }
     val permManager = remember { SitePermissionsManager.getInstance(context) }
     val preferencesManager = remember { PreferencesManager(context) }
+    val focusManager = LocalFocusManager.current
 
     var currentUrl by remember { mutableStateOf(initialUrl) }
     var currentTitle by remember { mutableStateOf("") }
@@ -972,6 +974,7 @@ fun BrowserScreen(
                     activeTextSelection = selection
                 },
                 onNewWindowRequested = { targetUrl ->
+                    focusManager.clearFocus(force = true)
                     val parentId = activeTabId ?: ""
                     val newId = if (parentId.isNotBlank()) {
                         TabManager.openTabFromParent(
@@ -1085,6 +1088,7 @@ fun BrowserScreen(
                                 groupTabs = activeGroupTabs,
                                 activeTabId = activeTabId,
                                 onTabSelected = { selectedTab ->
+                                    focusManager.clearFocus(force = true)
                                     barVisibilityStateMachine.forceShow()
                                     TabManager.selectTab(selectedTab.id)
                                     currentUrl = selectedTab.url
