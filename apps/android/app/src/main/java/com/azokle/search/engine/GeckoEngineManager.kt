@@ -503,9 +503,12 @@ object GeckoEngineManager {
         session.printPageContent()
     }
 
+    @Suppress("DEPRECATION")
     fun onTrimMemory(level: Int) {
         try {
-            if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+            if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_BACKGROUND ||
+                level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW
+            ) {
                 com.azokle.search.tabs.TabManager.reclaimInactiveTabMemory(maxActiveSessions = 1)
             }
         } catch (e: Exception) {
