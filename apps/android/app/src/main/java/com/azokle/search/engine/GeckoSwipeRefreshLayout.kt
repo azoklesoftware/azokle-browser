@@ -26,6 +26,8 @@ class GeckoSwipeRefreshLayout @JvmOverloads constructor(
 ) : SwipeRefreshLayout(context, attrs) {
 
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+    private val density = context.resources.displayMetrics.density
+    private val pullToRefreshMinDragPx = (48 * density).toInt().coerceAtLeast(touchSlop * 3)
 
     // Gesture Tracking
     private var initialDownX = 0f
@@ -81,6 +83,10 @@ class GeckoSwipeRefreshLayout @JvmOverloads constructor(
     private var lastRefreshTimestamp: Long = 0L
 
     init {
+        // Configure deliberate overscroll resistance so gentle scrolling never accidentally triggers refresh
+        setDistanceToTriggerSync((130 * density).toInt())
+        setSlingshotDistance((160 * density).toInt())
+
         // High-precision child scroll check:
         // Returns true if child CAN scroll up (meaning NOT at top or handled by game -> do NOT pull-to-refresh)
         // Returns false if child CANNOT scroll up (meaning at top and eligible -> allow pull-to-refresh)
@@ -91,7 +97,7 @@ class GeckoSwipeRefreshLayout @JvmOverloads constructor(
     }
 
     fun isAtTop(): Boolean {
-        return isContentAtTop && currentScrollY <= 15
+        return isContentAtTop && currentScrollY <= 5
     }
 
     /**
@@ -112,11 +118,6 @@ class GeckoSwipeRefreshLayout @JvmOverloads constructor(
     }
 
     override fun requestDisallowInterceptTouchEvent(b: Boolean) {
-        // If the webpage is at the top, not in fullscreen, and user is pulling downward,
-        // ignore the disallow request so parent can intercept downward pull-to-refresh.
-        if (b && canOverscrollTop() && !isFullScreen) {
-            return
-        }
         super.requestDisallowInterceptTouchEvent(b)
     }
 
@@ -164,13 +165,13 @@ class GeckoSwipeRefreshLayout @JvmOverloads constructor(
                 }
 
                 // Moving horizontally more than vertically -> ignore gesture (carousel / horizontal swipe)
-                if (dx > touchSlop && dx > dy) {
+                if (dx > touchSlop && dx > dy * 0.75f) {
                     isHorizontalSwipe = true
                     return false
                 }
 
-                // Moving predominantly downwards and exceeded touch slop
-                if (dy > touchSlop && dy > dx * 1.15f) {
+                // Moving downward deliberately with substantial distance and verticality
+                if (dy > pullToRefreshMinDragPx && dy > dx * 1.85f) {
                     if (canOverscrollTop()) {
                         return super.onInterceptTouchEvent(ev)
                     }

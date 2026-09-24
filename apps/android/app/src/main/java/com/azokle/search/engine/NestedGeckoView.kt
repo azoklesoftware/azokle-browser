@@ -93,12 +93,9 @@ class NestedGeckoView @JvmOverloads constructor(
             }
             MotionEvent.ACTION_MOVE -> {
                 val deltaY = ev.y - initialDownY
-                // If scrolling upward into content (deltaY < -10), lock out parent SwipeRefreshLayout.
-                // If dragging downward (deltaY > 10), allow parent SwipeRefreshLayout to intercept if at top.
-                if (deltaY < -10) {
+                // If scrolling upward into content (deltaY < -15), disallow parent SwipeRefreshLayout
+                if (deltaY < -15) {
                     parent?.requestDisallowInterceptTouchEvent(true)
-                } else if (deltaY > 10) {
-                    parent?.requestDisallowInterceptTouchEvent(false)
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
