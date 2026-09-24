@@ -13,12 +13,15 @@ import com.google.zxing.MultiFormatReader
 import com.google.zxing.PlanarYUVLuminanceSource
 import com.google.zxing.RGBLuminanceSource
 import com.google.zxing.common.HybridBinarizer
-import java.nio.ByteBuffer
 import java.util.EnumMap
 
 /**
  * High-performance, offline barcode and QR code analyzer for CameraX frames and static bitmaps.
  * Employs ZXing with zero external network or telemetry calls for maximum user privacy.
+ *
+ * Stride-Safe & De-Googled OS Hardened:
+ * Handles Camera HAL row-stride padding (rowStride != width) and non-unit pixelStride
+ * across custom privacy ROMs (GrapheneOS, LineageOS, CalyxOS, /e/OS) and varied hardware architectures.
  */
 class QrCodeImageAnalyzer(
     private val onQrCodeScanned: (String) -> Unit
@@ -68,22 +71,50 @@ class QrCodeImageAnalyzer(
                         image.format == ImageFormat.YUV_422_888 ||
                         image.format == ImageFormat.YUV_444_888)
             ) {
-                val planes = image.planes
-                val yBuffer = planes[0].buffer
-                val ySize = yBuffer.remaining()
-                val yBytes = ByteArray(ySize)
-                yBuffer.get(yBytes)
-
+                val plane = image.planes[0]
+                val buffer = plane.buffer
+                val rowStride = plane.rowStride
+                val pixelStride = plane.pixelStride
                 val width = imageProxy.width
                 val height = imageProxy.height
                 val rotationDegrees = imageProxy.imageInfo.rotationDegrees
 
-                // Rotate luminance bytes if camera is in portrait mode (90 or 270 degrees)
+                // 1. Stride-Safe Luminance Extraction:
+                // Tightly pack row-by-row Y data into a width*height buffer, removing any HAL row-stride padding
+                val yData = ByteArray(width * height)
+                val dupBuffer = buffer.duplicate()
+                dupBuffer.rewind()
+
+                if (rowStride == width && pixelStride == 1) {
+                    dupBuffer.get(yData, 0, width * height)
+                } else {
+                    val rowBuffer = ByteArray(rowStride)
+                    for (row in 0 until height) {
+                        val rowStart = row * rowStride
+                        if (pixelStride == 1) {
+                            dupBuffer.position(rowStart)
+                            val bytesToRead = minOf(dupBuffer.remaining(), width)
+                            dupBuffer.get(yData, row * width, bytesToRead)
+                        } else {
+                            dupBuffer.position(rowStart)
+                            val bytesToRead = minOf(dupBuffer.remaining(), rowStride)
+                            dupBuffer.get(rowBuffer, 0, bytesToRead)
+                            for (col in 0 until width) {
+                                val offset = col * pixelStride
+                                if (offset < bytesToRead) {
+                                    yData[row * width + col] = rowBuffer[offset]
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 2. Rotate luminance bytes based on camera sensor rotation (portrait: 90 / 270)
                 val (finalData, finalWidth, finalHeight) = when (rotationDegrees) {
-                    90 -> Triple(rotateYUV90(yBytes, width, height), height, width)
-                    180 -> Triple(rotateYUV180(yBytes, width, height), width, height)
-                    270 -> Triple(rotateYUV270(yBytes, width, height), height, width)
-                    else -> Triple(yBytes, width, height)
+                    90 -> Triple(rotateYUV90(yData, width, height), height, width)
+                    180 -> Triple(rotateYUV180(yData, width, height), width, height)
+                    270 -> Triple(rotateYUV270(yData, width, height), height, width)
+                    else -> Triple(yData, width, height)
                 }
 
                 val source = PlanarYUVLuminanceSource(
@@ -97,8 +128,21 @@ class QrCodeImageAnalyzer(
                     false
                 )
 
-                val binaryBitmap = BinaryBitmap(HybridBinarizer(source))
-                val result = reader.decodeWithState(binaryBitmap)
+                // 3. Dual-Pass Decoding: Standard binarization pass + Inverted pass (for dark mode QR codes)
+                var result: com.google.zxing.Result? = null
+                try {
+                    result = reader.decodeWithState(BinaryBitmap(HybridBinarizer(source)))
+                } catch (_: Exception) {
+                    // Standard pass failed, attempt inverted pass
+                }
+
+                if (result == null) {
+                    try {
+                        result = reader.decodeWithState(BinaryBitmap(HybridBinarizer(source.invert())))
+                    } catch (_: Exception) {
+                        // Inverted pass failed
+                    }
+                }
 
                 if (result != null && result.text.isNotBlank()) {
                     lastScannedTimestamp = currentTime
@@ -125,8 +169,6 @@ class QrCodeImageAnalyzer(
                 bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
 
                 val source = RGBLuminanceSource(width, height, pixels)
-                val binaryBitmap = BinaryBitmap(HybridBinarizer(source))
-
                 val reader = MultiFormatReader().apply {
                     val hints = EnumMap<DecodeHintType, Any>(DecodeHintType::class.java).apply {
                         put(
@@ -149,7 +191,22 @@ class QrCodeImageAnalyzer(
                     setHints(hints)
                 }
 
-                val result = reader.decodeWithState(binaryBitmap)
+                // Dual-Pass: Standard + Inverted
+                var result: com.google.zxing.Result? = null
+                try {
+                    result = reader.decodeWithState(BinaryBitmap(HybridBinarizer(source)))
+                } catch (_: Exception) {
+                    // Try inverted pass
+                }
+
+                if (result == null) {
+                    try {
+                        result = reader.decodeWithState(BinaryBitmap(HybridBinarizer(source.invert())))
+                    } catch (_: Exception) {
+                        // Ignore
+                    }
+                }
+
                 reader.reset()
                 result?.text
             } catch (_: Exception) {
