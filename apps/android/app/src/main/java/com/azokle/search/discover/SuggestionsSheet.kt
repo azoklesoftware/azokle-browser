@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.NorthWest
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -87,6 +88,22 @@ fun SuggestionsSheet(
     val isVoiceAvailable = remember(context) { VoiceSearchHelper.isVoiceSearchAvailable(context) }
     val focusRequester = remember { FocusRequester() }
     val colors = AzokleTheme.colors
+
+    val historyHosts = remember(query) {
+        if (query.isNotBlank()) {
+            com.azokle.search.history.HistoryManager.searchFrecency(query, 5).map { it.cleanHost }
+        } else {
+            emptyList()
+        }
+    }
+
+    val domainMatch = remember(query, historyHosts, recentSearches) {
+        com.azokle.search.common.util.DomainAutocompleteHelper.findBestMatch(
+            input = query,
+            historyDomains = historyHosts,
+            recentSearches = recentSearches
+        )
+    }
 
     // Handle hardware back press cleanly
     BackHandler {
@@ -157,24 +174,55 @@ fun SuggestionsSheet(
                         ),
                         cursorBrush = SolidColor(colors.textPrimary),
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardOptions = KeyboardOptions(imeAction = if (domainMatch != null) ImeAction.Go else ImeAction.Search),
                         keyboardActions = KeyboardActions(
                             onSearch = {
-                                if (query.trim().isNotEmpty()) {
-                                    onSearch(query.trim())
+                                val target = if (domainMatch != null) domainMatch.matchedDomain else query.trim()
+                                if (target.isNotEmpty()) {
+                                    onSearch(target)
+                                }
+                            },
+                            onGo = {
+                                val target = if (domainMatch != null) domainMatch.matchedDomain else query.trim()
+                                if (target.isNotEmpty()) {
+                                    onSearch(target)
                                 }
                             }
                         ),
                         decorationBox = { innerTextField ->
-                            if (query.isEmpty()) {
-                                Text(
-                                    text = placeholderText,
-                                    color = colors.textMuted,
-                                    fontSize = 14.sp,
-                                    maxLines = 1
-                                )
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (query.isEmpty()) {
+                                    Text(
+                                        text = placeholderText,
+                                        color = colors.textMuted,
+                                        fontSize = 14.sp,
+                                        maxLines = 1
+                                    )
+                                } else if (domainMatch != null && domainMatch.inlineSuffix.isNotEmpty()) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = query,
+                                            style = TextStyle(
+                                                color = Color.Transparent,
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        )
+                                        Text(
+                                            text = domainMatch.inlineSuffix,
+                                            style = TextStyle(
+                                                color = colors.textMuted.copy(alpha = 0.55f),
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        )
+                                    }
+                                }
+                                innerTextField()
                             }
-                            innerTextField()
                         }
                     )
 
@@ -254,6 +302,18 @@ fun SuggestionsSheet(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 if (query.trim().isNotEmpty()) {
+                    // Top Domain Auto-suggestion Match
+                    if (domainMatch != null) {
+                        item {
+                            DomainSuggestionRow(
+                                match = domainMatch,
+                                colors = colors,
+                                onClick = { onSearch(domainMatch.matchedDomain) },
+                                onFillQuery = { onQueryChange(domainMatch.matchedDomain) }
+                            )
+                        }
+                    }
+
                     // Direct Search Row
                     item {
                         SuggestionRow(
@@ -494,3 +554,84 @@ private fun SuggestionRow(
         }
     }
 }
+
+@Composable
+private fun DomainSuggestionRow(
+    match: com.azokle.search.common.util.DomainMatch,
+    colors: com.azokle.search.common.theme.AzokleThemeColors,
+    onClick: () -> Unit,
+    onFillQuery: () -> Unit
+) {
+    val rowShape = RoundedCornerShape(16.dp)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(rowShape)
+            .background(colors.surface)
+            .border(
+                width = 1.dp,
+                color = colors.statusAccent.copy(alpha = 0.35f),
+                shape = rowShape
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(colors.statusAccent.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Public,
+                contentDescription = null,
+                tint = colors.statusAccent,
+                modifier = Modifier.size(17.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = if (match.isFromHistory) "VISITED SITE" else "WEBSITE SUGGESTION",
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                color = colors.statusAccent,
+                letterSpacing = 0.8.sp
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = match.typedPrefix,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.statusAccent
+                )
+                Text(
+                    text = match.inlineSuffix,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary
+                )
+            }
+        }
+
+        IconButton(
+            onClick = onFillQuery,
+            modifier = Modifier.size(28.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.NorthWest,
+                contentDescription = "Fill Query",
+                tint = colors.textMuted,
+                modifier = Modifier.size(14.dp)
+            )
+        }
+    }
+}
+

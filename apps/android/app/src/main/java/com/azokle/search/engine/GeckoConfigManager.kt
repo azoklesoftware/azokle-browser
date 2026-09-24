@@ -20,17 +20,25 @@ object GeckoConfigManager {
     fun getOrCreateConfigFile(context: Context): File {
         val configFile = File(context.filesDir, CONFIG_FILE_NAME)
         try {
-            FileWriter(configFile, false).use { writer ->
-                writer.write(generatePerformanceConfigYaml())
+            val savedDoh = try {
+                com.azokle.search.common.util.PreferencesManager(context).getDohProvider()
+            } catch (e: Exception) {
+                com.azokle.search.core.DnsOverHttpsManager.activeProviderId
             }
-            Log.i(TAG, "Successfully generated performance config at: ${configFile.absolutePath}")
+            FileWriter(configFile, false).use { writer ->
+                writer.write(generatePerformanceConfigYaml(savedDoh))
+            }
+            Log.i(TAG, "Successfully generated performance config at: ${configFile.absolutePath} (DoH: $savedDoh)")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to write geckoview performance config", e)
         }
         return configFile
     }
 
-    internal fun generatePerformanceConfigYaml(): String {
+    internal fun generatePerformanceConfigYaml(dohProviderId: String = com.azokle.search.core.DnsOverHttpsManager.activeProviderId): String {
+        val provider = com.azokle.search.core.DnsOverHttpsManager.getProvider(dohProviderId)
+        val isDohEnabled = !dohProviderId.equals("system", ignoreCase = true) && provider.url.isNotBlank()
+
         return buildString {
             appendLine("env:")
             appendLine("  MOZ_ACCELERATED: \"1\"")
@@ -58,7 +66,7 @@ object GeckoConfigManager {
             appendLine("  gfx.webrender.pbo-uploads: true")
             appendLine("  layers.acceleration.force-enabled: true")
 
-            // 3. High-Performance Network & Memory Caching
+            // 3. High-Performance Network & Memory Caching & DNS-over-HTTPS (TRR)
             appendLine("  browser.cache.memory.enable: true")
             appendLine("  browser.cache.memory.capacity: 65536")
             appendLine("  browser.cache.disk.enable: true")
@@ -69,6 +77,21 @@ object GeckoConfigManager {
             appendLine("  network.ssl_tokens_cache_enabled: true")
             appendLine("  network.dnsCacheEntries: 1024")
             appendLine("  network.dnsCacheExpiration: 3600")
+
+            // Quantum Engine TRR (Trusted Recursive Resolver - DNS-over-HTTPS)
+            if (isDohEnabled) {
+                appendLine("  network.trr.mode: 2")
+                appendLine("  network.trr.uri: \"${provider.url}\"")
+                if (provider.bootstrapAddress.isNotBlank()) {
+                    appendLine("  network.trr.bootstrapAddress: \"${provider.bootstrapAddress}\"")
+                }
+                appendLine("  network.trr.max-fails: 5")
+                appendLine("  network.trr.clear-cache-on-mode-change: true")
+            } else {
+                appendLine("  network.trr.mode: 0")
+                appendLine("  network.trr.uri: \"\"")
+                appendLine("  network.trr.bootstrapAddress: \"\"")
+            }
 
             // 4. Layout, Rendering & Frame Pacing
             appendLine("  content.notify.ontimer: true")

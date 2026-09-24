@@ -27,7 +27,8 @@ class GeckoSwipeRefreshLayout @JvmOverloads constructor(
 
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private val density = context.resources.displayMetrics.density
-    private val pullToRefreshMinDragPx = (48 * density).toInt().coerceAtLeast(touchSlop * 3)
+    private val pullToRefreshMinDragPx = (52 * density).toInt().coerceAtLeast(touchSlop * 3)
+    private val maxPullDownOriginPx = (180 * density).toInt()
 
     // Gesture Tracking
     private var initialDownX = 0f
@@ -102,12 +103,16 @@ class GeckoSwipeRefreshLayout @JvmOverloads constructor(
 
     /**
      * Dynamically determines whether the document can currently overscroll at the top.
-     * Delegates to [NestedGeckoView.canOverscrollTop] when available, and verifies content is at top edge.
+     * Delegates to [NestedGeckoView.canOverscrollTop] when available, and verifies content is at top edge
+     * and gesture originated in the top header zone.
      */
     fun canOverscrollTop(): Boolean {
         if (isFullScreen) return false
         val target = targetNestedGeckoView
         if (target != null && !target.canOverscrollTop()) {
+            return false
+        }
+        if (initialDownY > maxPullDownOriginPx) {
             return false
         }
         return isAtTop()
@@ -140,6 +145,12 @@ class GeckoSwipeRefreshLayout @JvmOverloads constructor(
                 isMultiTouchDetected = false
                 isHorizontalSwipe = false
 
+                // If touch began outside top header zone (e.g. playlist sheet, overlay, comments, dialog),
+                // never intercept to allow seamless in-page gesture handling
+                if (initialDownY > maxPullDownOriginPx) {
+                    return false
+                }
+
                 // Initialize SwipeRefreshLayout internal state (mInitialDownY, mActivePointerId),
                 // but NEVER intercept ACTION_DOWN itself so child receives it!
                 super.onInterceptTouchEvent(ev)
@@ -152,7 +163,7 @@ class GeckoSwipeRefreshLayout @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_MOVE -> {
-                if (isMultiTouchDetected || isHorizontalSwipe) {
+                if (isMultiTouchDetected || isHorizontalSwipe || initialDownY > maxPullDownOriginPx) {
                     return false
                 }
 

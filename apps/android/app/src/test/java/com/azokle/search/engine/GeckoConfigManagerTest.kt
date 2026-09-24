@@ -53,5 +53,36 @@ class GeckoConfigManagerTest {
         assertTrue(yaml.contains("media.peerconnection.ice.obfuscate_host_addresses: true"))
         assertTrue(yaml.contains("media.peerconnection.ice.obfuscate_host_addresses.sync: true"))
         assertTrue(yaml.contains("media.peerconnection.ice.link_local_ips: false"))
+
+        // Trusted Recursive Resolver (TRR) DoH
+        assertTrue(yaml.contains("network.trr.mode: 2"))
+        assertTrue(yaml.contains("network.trr.uri: \"https://cloudflare-dns.com/dns-query\""))
+        assertTrue(yaml.contains("network.trr.bootstrapAddress: \"1.1.1.1\""))
+        assertTrue(yaml.contains("network.trr.max-fails: 5"))
+        assertTrue(yaml.contains("network.trr.clear-cache-on-mode-change: true"))
+    }
+
+    @Test
+    fun testGeneratePerformanceConfigWithQuad9() {
+        val yaml = GeckoConfigManager.generatePerformanceConfigYaml("quad9")
+        assertTrue(yaml.contains("network.trr.mode: 2"))
+        assertTrue(yaml.contains("network.trr.uri: \"https://dns.quad9.net/dns-query\""))
+        assertTrue(yaml.contains("network.trr.bootstrapAddress: \"9.9.9.9\""))
+    }
+
+    @Test
+    fun testGeneratePerformanceConfigWithAdGuard() {
+        val yaml = GeckoConfigManager.generatePerformanceConfigYaml("adguard")
+        assertTrue(yaml.contains("network.trr.mode: 2"))
+        assertTrue(yaml.contains("network.trr.uri: \"https://dns.adguard-dns.com/dns-query\""))
+        assertTrue(yaml.contains("network.trr.bootstrapAddress: \"94.140.14.14\""))
+    }
+
+    @Test
+    fun testGeneratePerformanceConfigWithSystemDns() {
+        val yaml = GeckoConfigManager.generatePerformanceConfigYaml("system")
+        assertTrue(yaml.contains("network.trr.mode: 0"))
+        assertTrue(yaml.contains("network.trr.uri: \"\""))
+        assertTrue(yaml.contains("network.trr.bootstrapAddress: \"\""))
     }
 }

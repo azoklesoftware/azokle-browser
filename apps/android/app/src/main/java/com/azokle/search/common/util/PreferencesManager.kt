@@ -175,7 +175,14 @@ class PreferencesManager(private val context: Context) {
     }
 
     fun setDohProvider(providerId: String) {
-        prefs.edit().putString("doh_provider", providerId.lowercase()).apply()
+        val cleanId = providerId.lowercase()
+        prefs.edit().putString("doh_provider", cleanId).apply()
+        com.azokle.search.core.DnsOverHttpsManager.activeProviderId = cleanId
+        try {
+            com.azokle.search.engine.GeckoConfigManager.getOrCreateConfigFile(context)
+        } catch (e: Exception) {
+            // Ignore in testing environments
+        }
     }
 
     fun getSearchEngine(): String {

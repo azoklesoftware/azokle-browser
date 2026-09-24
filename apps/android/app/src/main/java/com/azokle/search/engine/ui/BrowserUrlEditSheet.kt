@@ -166,6 +166,17 @@ fun BrowserUrlEditSheet(
 
     var clipboardUrl by remember { mutableStateOf<String?>(null) }
 
+    val domainMatch = remember(textValue.text, historySuggestions, topFrecencySites, bookmarks, recentSearches) {
+        val historyHosts = (historySuggestions.map { it.cleanHost } +
+                topFrecencySites.map { it.cleanHost } +
+                bookmarks.map { it.url }).distinct()
+        com.azokle.search.common.util.DomainAutocompleteHelper.findBestMatch(
+            input = textValue.text,
+            historyDomains = historyHosts,
+            recentSearches = recentSearches
+        )
+    }
+
     BackHandler {
         onDismiss()
     }
@@ -284,29 +295,53 @@ fun BrowserUrlEditSheet(
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = if (isUrl) KeyboardType.Uri else KeyboardType.Text,
-                            imeAction = if (isUrl) ImeAction.Go else ImeAction.Search
+                            imeAction = if (isUrl || domainMatch != null) ImeAction.Go else ImeAction.Search
                         ),
                         keyboardActions = KeyboardActions(
                             onGo = {
-                                val target = resolveTarget(textValue.text)
-                                preferences.saveRecentSearch(textValue.text.trim())
+                                val target = if (domainMatch != null && !isUrl) domainMatch.fullUrl else resolveTarget(textValue.text)
+                                preferences.saveRecentSearch(if (domainMatch != null && !isUrl) domainMatch.matchedDomain else textValue.text.trim())
                                 onNavigate(target)
                             },
                             onSearch = {
-                                val target = resolveTarget(textValue.text)
-                                preferences.saveRecentSearch(textValue.text.trim())
+                                val target = if (domainMatch != null && !isUrl) domainMatch.fullUrl else resolveTarget(textValue.text)
+                                preferences.saveRecentSearch(if (domainMatch != null && !isUrl) domainMatch.matchedDomain else textValue.text.trim())
                                 onNavigate(target)
                             }
                         ),
                         decorationBox = { innerTextField ->
-                            if (textValue.text.isEmpty()) {
-                                Text(
-                                    text = "Search ${searchEngineConfig.name} or type URL",
-                                    color = colors.textMuted,
-                                    fontSize = 14.sp
-                                )
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (textValue.text.isEmpty()) {
+                                    Text(
+                                        text = "Search ${searchEngineConfig.name} or type URL",
+                                        color = colors.textMuted,
+                                        fontSize = 14.sp
+                                    )
+                                } else if (domainMatch != null && domainMatch.inlineSuffix.isNotEmpty() && textValue.selection.collapsed && textValue.selection.end == textValue.text.length) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = textValue.text,
+                                            style = TextStyle(
+                                                color = androidx.compose.ui.graphics.Color.Transparent,
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        )
+                                        Text(
+                                            text = domainMatch.inlineSuffix,
+                                            style = TextStyle(
+                                                color = colors.textMuted.copy(alpha = 0.55f),
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        )
+                                    }
+                                }
+                                innerTextField()
                             }
-                            innerTextField()
                         }
                     )
 
@@ -464,6 +499,26 @@ fun BrowserUrlEditSheet(
 
                 // When user is typing
                 if (cleanText.isNotEmpty()) {
+                    // Top Domain Auto-suggestion Card (Direct 1-Tap Jump)
+                    if (domainMatch != null) {
+                        item {
+                            DomainAutocompleteCard(
+                                match = domainMatch,
+                                colors = colors,
+                                onClick = {
+                                    preferences.saveRecentSearch(domainMatch.matchedDomain)
+                                    onNavigate(domainMatch.fullUrl)
+                                },
+                                onFill = {
+                                    textValue = TextFieldValue(
+                                        text = domainMatch.matchedDomain,
+                                        selection = TextRange(domainMatch.matchedDomain.length)
+                                    )
+                                }
+                            )
+                        }
+                    }
+
                     // Primary Direct Action Card
                     item {
                         PrimaryDirectActionCard(
@@ -681,6 +736,105 @@ fun BrowserUrlEditSheet(
     }
 }
 
+@Composable
+private fun DomainAutocompleteCard(
+    match: com.azokle.search.common.util.DomainMatch,
+    colors: com.azokle.search.common.theme.AzokleThemeColors,
+    onClick: () -> Unit,
+    onFill: () -> Unit
+) {
+    val shape = AzokleRadius.lg
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(colors.surface)
+            .border(1.dp, colors.statusAccent.copy(alpha = 0.35f), shape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = true, color = colors.statusAccent.copy(alpha = 0.12f)),
+                onClick = onClick
+            )
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+            .semantics {
+                role = Role.Button
+                contentDescription = "Navigate directly to ${match.matchedDomain}"
+            },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(CircleShape)
+                .background(colors.statusAccent.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Public,
+                contentDescription = null,
+                tint = colors.statusAccent,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = if (match.isFromHistory) "VISITED WEBSITE" else "TOP SUGGESTION",
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                color = colors.statusAccent,
+                letterSpacing = 0.8.sp
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = match.typedPrefix,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.statusAccent
+                )
+                Text(
+                    text = match.inlineSuffix,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary
+                )
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = ripple(bounded = false, radius = 16.dp, color = colors.textSecondary),
+                    onClick = onFill
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.NorthWest,
+                contentDescription = "Fill domain",
+                tint = colors.textMuted,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(4.dp))
+
+        Icon(
+            imageVector = Icons.Default.ArrowOutward,
+            contentDescription = null,
+            tint = colors.statusAccent,
+            modifier = Modifier.size(16.dp)
+        )
+    }
+}
 
 @Composable
 private fun PrimaryDirectActionCard(

@@ -24,6 +24,7 @@ class AzokleApplication : Application() {
         val prefs = PreferencesManager(this)
         val savedTheme = prefs.getThemeMode()
         applyThemeMode(savedTheme)
+        com.azokle.search.core.DnsOverHttpsManager.activeProviderId = prefs.getDohProvider()
 
         // Initialize Native Rust Azokle Core & Privacy Shield Engine
         com.azokle.search.core.AzokleCore.initialize(this)

@@ -75,6 +75,10 @@ fun SearchBarCapsule(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale = if (isPressed) 0.985f else 1.0f
 
+    val domainMatch = remember(query) {
+        if (!isReadOnly) com.azokle.search.common.util.DomainAutocompleteHelper.findBestMatch(query) else null
+    }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -144,23 +148,51 @@ fun SearchBarCapsule(
                             fontSize = 15.sp
                         ),
                         cursorBrush = SolidColor(colors.textPrimary),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardOptions = KeyboardOptions(imeAction = if (domainMatch != null) ImeAction.Go else ImeAction.Search),
                         keyboardActions = KeyboardActions(
                             onSearch = {
                                 keyboardController?.hide()
-                                onSearch(query)
+                                val target = if (domainMatch != null) domainMatch.matchedDomain else query
+                                onSearch(target)
+                            },
+                            onGo = {
+                                keyboardController?.hide()
+                                val target = if (domainMatch != null) domainMatch.matchedDomain else query
+                                onSearch(target)
                             }
                         ),
                         decorationBox = { innerTextField ->
-                            if (query.isEmpty()) {
-                                Text(
-                                    text = placeholderText,
-                                    color = colors.textMuted,
-                                    fontSize = 15.sp,
-                                    maxLines = 1
-                                )
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (query.isEmpty()) {
+                                    Text(
+                                        text = placeholderText,
+                                        color = colors.textMuted,
+                                        fontSize = 15.sp,
+                                        maxLines = 1
+                                    )
+                                } else if (domainMatch != null && domainMatch.inlineSuffix.isNotEmpty()) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = query,
+                                            style = TextStyle(
+                                                color = androidx.compose.ui.graphics.Color.Transparent,
+                                                fontSize = 15.sp
+                                            )
+                                        )
+                                        Text(
+                                            text = domainMatch.inlineSuffix,
+                                            style = TextStyle(
+                                                color = colors.textMuted.copy(alpha = 0.55f),
+                                                fontSize = 15.sp
+                                            )
+                                        )
+                                    }
+                                }
+                                innerTextField()
                             }
-                            innerTextField()
                         },
                         modifier = Modifier.fillMaxWidth()
                     )

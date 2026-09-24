@@ -66,6 +66,9 @@ class NestedGeckoView @JvmOverloads constructor(
         return !isTouchHandledByWebsite()
     }
 
+    private val density = context.resources.displayMetrics.density
+    private val maxPullDownOriginPx = (180 * density).toInt()
+
     @Volatile
     private var lastUserTouchTimestamp: Long = 0L
 
@@ -90,11 +93,17 @@ class NestedGeckoView @JvmOverloads constructor(
                 nestedOffsetY = 0
                 lastY = ev.y.toInt()
                 initialDownY = ev.y
+
+                // If touch originates outside the top pull-to-refresh zone (e.g. playlist sheet, overlays, comments, drawer),
+                // immediately disallow parent interception to give web elements full gesture authority.
+                if (initialDownY > maxPullDownOriginPx) {
+                    parent?.requestDisallowInterceptTouchEvent(true)
+                }
             }
             MotionEvent.ACTION_MOVE -> {
                 val deltaY = ev.y - initialDownY
-                // If scrolling upward into content (deltaY < -15), disallow parent SwipeRefreshLayout
-                if (deltaY < -15) {
+                // If gesture started in page content or scrolling upwards, disallow parent interception
+                if (initialDownY > maxPullDownOriginPx || deltaY < -15) {
                     parent?.requestDisallowInterceptTouchEvent(true)
                 }
             }

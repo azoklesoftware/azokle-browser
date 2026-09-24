@@ -80,35 +80,31 @@ object MediaPlaybackManager {
         }
     }
 
-    // Audio Focus Change Listener (Handles auto-pause when another app plays and auto-resume when it pauses)
+    // Audio Focus Change Listener (Brave-grade: Auto-pauses when other apps play, auto-resumes when they pause/finish, ducks volume during notifications)
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         when (focusChange) {
-            AudioManager.AUDIOFOCUS_LOSS -> {
+            AudioManager.AUDIOFOCUS_LOSS,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                // Focus lost to another app (e.g. YouTube app, Spotify, TikTok, Instagram, phone call, Google Assistant)
                 isAudioFocusGranted = false
                 val isCurrentlyPlaying = _mediaState.value.status == PlaybackStatus.PLAYING
                 if (isCurrentlyPlaying) {
-                    wasPlayingBeforeFocusLoss = true
-                    android.util.Log.d(TAG, "AudioFocus loss: Auto-pausing background media")
+                    wasPlayingBeforeFocusLoss = true // Remember active playing state so we can auto-resume when other app stops!
+                    android.util.Log.d(TAG, "AudioFocus loss (focusChange=$focusChange): Auto-pausing background media for another app")
                     currentBridge?.pause()
                     activeTabId?.let { updatePlaybackStatus(it, PlaybackStatus.PAUSED) }
                 }
             }
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                isAudioFocusGranted = false
-                val isCurrentlyPlaying = _mediaState.value.status == PlaybackStatus.PLAYING
-                if (isCurrentlyPlaying) {
-                    wasPlayingBeforeFocusLoss = true
-                    android.util.Log.d(TAG, "AudioFocus transient loss: Auto-pausing background media for another app")
-                    currentBridge?.pause()
-                    activeTabId?.let { updatePlaybackStatus(it, PlaybackStatus.PAUSED) }
-                }
+                // Transient duckable event (incoming notification chime, SMS, WhatsApp ping, navigation prompt).
+                // Do NOT pause media! Android AudioFramework ducks volume automatically without stopping playback.
+                android.util.Log.d(TAG, "AudioFocus transient can duck: Notification sound playing - maintaining media playback with volume ducking")
             }
             AudioManager.AUDIOFOCUS_GAIN -> {
                 isAudioFocusGranted = true
                 if (wasPlayingBeforeFocusLoss && !isUserExplicitlyPaused) {
                     wasPlayingBeforeFocusLoss = false
-                    android.util.Log.d(TAG, "AudioFocus gained: Auto-resuming background playback")
+                    android.util.Log.d(TAG, "AudioFocus gained: Auto-resuming background media after other app finished")
                     currentBridge?.play()
                     activeTabId?.let { updatePlaybackStatus(it, PlaybackStatus.PLAYING) }
                 }
@@ -431,6 +427,7 @@ object MediaPlaybackManager {
             val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
                 .setAudioAttributes(attr)
                 .setAcceptsDelayedFocusGain(true)
+                .setWillPauseWhenDucked(false)
                 .setOnAudioFocusChangeListener(audioFocusChangeListener)
                 .build()
             audioFocusRequest = req

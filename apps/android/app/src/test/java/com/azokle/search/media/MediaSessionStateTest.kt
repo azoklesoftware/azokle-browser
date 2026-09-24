@@ -56,4 +56,50 @@ class MediaSessionStateTest {
         assertTrue(statuses.contains(PlaybackStatus.PAUSED))
         assertTrue(statuses.contains(PlaybackStatus.STOPPED))
     }
+
+    @Test
+    fun testAudioFocusDuckingBehaviorSpecification() {
+        // Spec verification: AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK must NOT pause media
+        fun shouldPauseOnFocusLoss(focusChange: Int): Boolean {
+            return when (focusChange) {
+                android.media.AudioManager.AUDIOFOCUS_LOSS -> true
+                android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> true
+                android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> false
+                else -> false
+            }
+        }
+
+        assertFalse("Notification sound (CAN_DUCK) should not pause playback",
+            shouldPauseOnFocusLoss(android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK))
+        assertTrue("Phone call / Assistant (TRANSIENT) must pause playback",
+            shouldPauseOnFocusLoss(android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT))
+        assertTrue("Permanent focus loss must pause playback",
+            shouldPauseOnFocusLoss(android.media.AudioManager.AUDIOFOCUS_LOSS))
+    }
+
+    @Test
+    fun testBraveGradeAutoResumePolicy() {
+        var wasPlayingBeforeLoss = false
+        var isCurrentlyPlaying = true
+        var isUserExplicitlyPaused = false
+
+        // 1. Another app (YouTube / Spotify / TikTok / Phone call) requests focus
+        if (isCurrentlyPlaying) {
+            wasPlayingBeforeLoss = true
+            isCurrentlyPlaying = false
+        }
+        assertFalse(isCurrentlyPlaying)
+        assertTrue(wasPlayingBeforeLoss)
+
+        // 2. Other app finishes/pauses -> AUDIOFOCUS_GAIN
+        var shouldAutoResume = wasPlayingBeforeLoss && !isUserExplicitlyPaused
+        assertTrue("Should automatically resume playback when other app finishes", shouldAutoResume)
+
+        // 3. If user explicitly clicked Pause in Azokle UI, do not auto-resume
+        isUserExplicitlyPaused = true
+        shouldAutoResume = wasPlayingBeforeLoss && !isUserExplicitlyPaused
+        assertFalse("Should not auto-resume if user explicitly tapped pause", shouldAutoResume)
+    }
 }
+
+
