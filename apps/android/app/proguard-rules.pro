@@ -26,47 +26,19 @@
     public static <methods>;
 }
 
-# 5. Embedded Tor Onion Daemon (libtor.so)
--keepclassmembers class org.torproject.jni.TorService {
-    public static native <methods>;
-    public static <methods>;
-}
+# 5. Embedded Tor Onion Daemon & JNI Bridge (libtor.so)
+-keep class org.torproject.** { *; }
+-keepclassmembers class org.torproject.** { *; }
+-keep class info.guardianproject.** { *; }
+-keepclassmembers class info.guardianproject.** { *; }
+-keep class com.msopentech.thali.toronionproxy.** { *; }
+-keepclassmembers class com.msopentech.thali.toronionproxy.** { *; }
 
-# 6. Mozilla GeckoView Quantum Engine Precision Keeps
-# (Replaces overly broad wildcard keeps with precision annotation and API contracts)
--keep @org.mozilla.geckoview.annotation.** class * { *; }
--keepclassmembers class * {
-    @org.mozilla.geckoview.annotation.** <fields>;
-    @org.mozilla.geckoview.annotation.** <methods>;
-}
--keep @org.mozilla.gecko.annotation.** class * { *; }
--keepclassmembers class * {
-    @org.mozilla.gecko.annotation.** <fields>;
-    @org.mozilla.gecko.annotation.** <methods>;
-}
-
-# Public GeckoView interfaces & delegates used by Azokle
--keep public class org.mozilla.geckoview.GeckoSession { public *; }
--keep public class org.mozilla.geckoview.GeckoSession$** { public *; }
--keep public class org.mozilla.geckoview.GeckoRuntime { public *; }
--keep public class org.mozilla.geckoview.GeckoRuntime$** { public *; }
--keep public class org.mozilla.geckoview.GeckoRuntimeSettings { public *; }
--keep public class org.mozilla.geckoview.GeckoRuntimeSettings$** { public *; }
--keep public class org.mozilla.geckoview.GeckoView { public *; }
--keep public class org.mozilla.geckoview.GeckoResult { public *; }
--keep public class org.mozilla.geckoview.GeckoResult$** { public *; }
--keep public class org.mozilla.geckoview.WebExtension { public *; }
--keep public class org.mozilla.geckoview.WebExtension$** { public *; }
--keep public class org.mozilla.geckoview.WebResponse { public *; }
--keep public class org.mozilla.geckoview.WebResponse$** { public *; }
--keep public class org.mozilla.geckoview.WebRequestError { public *; }
--keep public class org.mozilla.geckoview.MediaSession { public *; }
--keep public class org.mozilla.geckoview.MediaSession$** { public *; }
--keep public class org.mozilla.geckoview.ContentBlocking { public *; }
--keep public class org.mozilla.geckoview.ContentBlocking$** { public *; }
--keep public class org.mozilla.geckoview.AllowOrDeny { public *; }
--keep public class org.mozilla.geckoview.Autofill { public *; }
--keep public class org.mozilla.geckoview.Autofill$** { public *; }
+# 6. Mozilla GeckoView Quantum Engine Complete JNI & API Keeps
+-keep class org.mozilla.geckoview.** { *; }
+-keepclassmembers class org.mozilla.geckoview.** { *; }
+-keep class org.mozilla.gecko.** { *; }
+-keepclassmembers class org.mozilla.gecko.** { *; }
 
 # 7. Jetpack Compose & Lifecycle Optimization
 -keepclassmembers class * extends androidx.lifecycle.ViewModel {

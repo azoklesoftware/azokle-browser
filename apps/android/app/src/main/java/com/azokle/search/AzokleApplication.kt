@@ -61,14 +61,12 @@ class AzokleApplication : Application() {
             }
         })
 
-        // Pre-warm GeckoView Quantum Engine & WebExtensions on background thread in main process only
-        Thread {
-            try {
-                com.azokle.search.engine.GeckoEngineManager.getRuntime(this)
-            } catch (e: Throwable) {
-                // Safe fallback
-            }
-        }.start()
+        // Initialize GeckoView Quantum Engine & WebExtensions on the main thread to prevent native JNI deadlocks
+        try {
+            com.azokle.search.engine.GeckoEngineManager.getRuntime(this)
+        } catch (e: Throwable) {
+            // Safe fallback
+        }
     }
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
