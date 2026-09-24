@@ -334,11 +334,6 @@ class PwaActivity : FragmentActivity() {
                 android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
                 android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
             )
-        } else {
-            @Suppress("DEPRECATION")
-            window.statusBarColor = effectiveColor
-            @Suppress("DEPRECATION")
-            window.navigationBarColor = effectiveColor
         }
     }
 
