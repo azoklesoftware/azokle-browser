@@ -117,20 +117,26 @@ class AzokleTorSearchWidgetProvider : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.widget_tor_root, searchPendingIntent)
 
-            // 2. Click Voice Button -> Opens Instant Tor Voice Recognition
-            val torVoiceIntent = Intent(context, MainActivity::class.java).apply {
-                action = Intent.ACTION_MAIN
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra(EXTRA_OPEN_TOR, true)
-                putExtra(EXTRA_START_VOICE, true)
+            // 2. Click Voice Button -> Opens Instant Tor Voice Recognition (if supported)
+            val isVoiceAvailable = com.azokle.search.common.util.VoiceSearchHelper.isVoiceSearchAvailable(context)
+            if (isVoiceAvailable) {
+                views.setViewVisibility(R.id.widget_tor_btn_voice, android.view.View.VISIBLE)
+                val torVoiceIntent = Intent(context, MainActivity::class.java).apply {
+                    action = Intent.ACTION_MAIN
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra(EXTRA_OPEN_TOR, true)
+                    putExtra(EXTRA_START_VOICE, true)
+                }
+                val voicePendingIntent = PendingIntent.getActivity(
+                    context,
+                    11,
+                    torVoiceIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                views.setOnClickPendingIntent(R.id.widget_tor_btn_voice, voicePendingIntent)
+            } else {
+                views.setViewVisibility(R.id.widget_tor_btn_voice, android.view.View.GONE)
             }
-            val voicePendingIntent = PendingIntent.getActivity(
-                context,
-                11,
-                torVoiceIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            views.setOnClickPendingIntent(R.id.widget_tor_btn_voice, voicePendingIntent)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }

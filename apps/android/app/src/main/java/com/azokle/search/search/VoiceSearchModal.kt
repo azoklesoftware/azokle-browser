@@ -111,8 +111,8 @@ fun VoiceSearchModal(
     }
 
     fun startListening() {
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            statusText = "Speech recognition unavailable on this device"
+        if (!com.azokle.search.common.util.VoiceSearchHelper.isVoiceSearchAvailable(context)) {
+            statusText = "Voice search is not supported on this device"
             return
         }
 

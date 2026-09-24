@@ -55,6 +55,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -63,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.azokle.search.common.theme.AzokleTheme
 import com.azokle.search.common.theme.adaptiveContentWidth
+import com.azokle.search.common.util.VoiceSearchHelper
 import com.azokle.search.search.SearchCategory
 
 @Composable
@@ -81,6 +83,8 @@ fun SuggestionsSheet(
     onClearRecent: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+    val isVoiceAvailable = remember(context) { VoiceSearchHelper.isVoiceSearchAvailable(context) }
     val focusRequester = remember { FocusRequester() }
     val colors = AzokleTheme.colors
 
@@ -212,20 +216,22 @@ fun SuggestionsSheet(
                         )
                     }
 
-                    // Microphone Button (40dp Touch Target)
-                    Box(
-                        modifier = Modifier
-                            .sizeIn(minWidth = 38.dp, minHeight = 38.dp)
-                            .clip(CircleShape)
-                            .clickable(onClick = onVoiceClick),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Mic,
-                            contentDescription = "Voice Search",
-                            tint = colors.textPrimary,
-                            modifier = Modifier.size(19.dp)
-                        )
+                    if (isVoiceAvailable) {
+                        // Microphone Button (40dp Touch Target)
+                        Box(
+                            modifier = Modifier
+                                .sizeIn(minWidth = 38.dp, minHeight = 38.dp)
+                                .clip(CircleShape)
+                                .clickable(onClick = onVoiceClick),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Mic,
+                                contentDescription = "Voice Search",
+                                tint = colors.textPrimary,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
                     }
                 }
             }

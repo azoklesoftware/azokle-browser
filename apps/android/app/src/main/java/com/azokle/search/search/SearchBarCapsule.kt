@@ -39,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -50,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.azokle.search.common.theme.AzokleRadius
 import com.azokle.search.common.theme.AzokleTheme
+import com.azokle.search.common.util.VoiceSearchHelper
 
 @Composable
 fun SearchBarCapsule(
@@ -65,6 +67,8 @@ fun SearchBarCapsule(
     onEngineSelected: (String) -> Unit = {},
     searchEngineModifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val isVoiceAvailable = remember(context) { VoiceSearchHelper.isVoiceSearchAvailable(context) }
     val colors = AzokleTheme.colors
     val keyboardController = LocalSoftwareKeyboardController.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -193,37 +197,39 @@ fun SearchBarCapsule(
                 }
             }
 
-            // Divider
-            Box(
-                modifier = Modifier
-                    .padding(horizontal = 2.dp)
-                    .width(1.dp)
-                    .height(18.dp)
-                    .background(colors.border)
-            )
-
-            // Voice Search Button (WCAG 48dp Touch Target)
-            Box(
-                modifier = Modifier
-                    .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                    .clip(CircleShape)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(bounded = false, radius = 20.dp, color = colors.textPrimary),
-                        onClick = onVoiceClick
-                    )
-                    .semantics {
-                        role = Role.Button
-                        contentDescription = "Voice search"
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Mic,
-                    contentDescription = null,
-                    tint = colors.textPrimary,
-                    modifier = Modifier.size(20.dp)
+            if (isVoiceAvailable) {
+                // Divider
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 2.dp)
+                        .width(1.dp)
+                        .height(18.dp)
+                        .background(colors.border)
                 )
+
+                // Voice Search Button (WCAG 48dp Touch Target)
+                Box(
+                    modifier = Modifier
+                        .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                        .clip(CircleShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple(bounded = false, radius = 20.dp, color = colors.textPrimary),
+                            onClick = onVoiceClick
+                        )
+                        .semantics {
+                            role = Role.Button
+                            contentDescription = "Voice search"
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = null,
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }

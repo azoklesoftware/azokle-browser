@@ -127,6 +127,7 @@ fun BrowserOmnibar(
 ) {
     val colors = AzokleTheme.colors
     val context = LocalContext.current
+    val isVoiceAvailable = remember(context) { com.azokle.search.common.util.VoiceSearchHelper.isVoiceSearchAvailable(context) }
     val haptic = LocalHapticFeedback.current
 
     val uri = remember(url) {
@@ -381,33 +382,35 @@ fun BrowserOmnibar(
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(2.dp))
+                    if (isVoiceAvailable) {
+                        Spacer(modifier = Modifier.width(2.dp))
 
-                    // Voice Search Trigger
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(bounded = false, radius = 18.dp, color = colors.statusAccent),
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    onVoiceClick()
-                                }
+                        // Voice Search Trigger
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = ripple(bounded = false, radius = 18.dp, color = colors.statusAccent),
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        onVoiceClick()
+                                    }
+                                )
+                                .semantics {
+                                    role = Role.Button
+                                    contentDescription = "Voice search"
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Mic,
+                                contentDescription = null,
+                                tint = colors.textSecondary,
+                                modifier = Modifier.size(22.dp)
                             )
-                            .semantics {
-                                role = Role.Button
-                                contentDescription = "Voice search"
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Mic,
-                            contentDescription = null,
-                            tint = colors.textSecondary,
-                            modifier = Modifier.size(22.dp)
-                        )
+                        }
                     }
                 }
             }

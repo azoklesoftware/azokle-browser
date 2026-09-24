@@ -495,10 +495,15 @@ class MainActivity : FragmentActivity() {
         if (intent == null) return
 
         if (intent.getBooleanExtra(com.azokle.search.widget.AzokleSearchWidgetProvider.EXTRA_START_VOICE, false)) {
-            if (viewModel.uiState.value.inAppBrowserUrl != null) {
-                viewModel.closeInAppBrowser()
+            if (com.azokle.search.common.util.VoiceSearchHelper.isVoiceSearchAvailable(this)) {
+                if (viewModel.uiState.value.inAppBrowserUrl != null) {
+                    viewModel.closeInAppBrowser()
+                }
+                viewModel.setVoiceModalOpen(true)
+            } else {
+                Toast.makeText(this, "Voice search is not supported on this device", Toast.LENGTH_SHORT).show()
+                viewModel.setSearchExpanded(true)
             }
-            viewModel.setVoiceModalOpen(true)
             return
         }
         if (intent.getBooleanExtra(com.azokle.search.widget.AzokleSearchWidgetProvider.EXTRA_OPEN_TOR, false)) {
@@ -556,6 +561,10 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun startVoiceRecognition() {
+        if (!com.azokle.search.common.util.VoiceSearchHelper.isVoiceSearchAvailable(this)) {
+            Toast.makeText(this, "Voice search is not supported on this device", Toast.LENGTH_SHORT).show()
+            return
+        }
         try {
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(

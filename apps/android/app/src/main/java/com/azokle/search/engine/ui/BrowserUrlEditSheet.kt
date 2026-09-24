@@ -108,6 +108,7 @@ fun BrowserUrlEditSheet(
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val preferences = remember { PreferencesManager(context) }
+    val isVoiceAvailable = remember(context) { com.azokle.search.common.util.VoiceSearchHelper.isVoiceSearchAvailable(context) }
     val repository = remember { SearchRepository() }
     val vaultManager = remember { EncryptedVaultManager.getInstance(context) }
     val bookmarks by vaultManager.bookmarksFlow.collectAsState()
@@ -366,31 +367,33 @@ fun BrowserUrlEditSheet(
                             )
                         }
 
-                        // Voice Search Mic Action (matching Home Screen Omnibar)
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(bounded = false, radius = 18.dp, color = colors.textSecondary),
-                                    onClick = {
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        showVoiceModal = true
-                                    }
+                        if (isVoiceAvailable) {
+                            // Voice Search Mic Action (matching Home Screen Omnibar)
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = ripple(bounded = false, radius = 18.dp, color = colors.textSecondary),
+                                        onClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            showVoiceModal = true
+                                        }
+                                    )
+                                    .semantics {
+                                        role = Role.Button
+                                        contentDescription = "Voice search"
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Mic,
+                                    contentDescription = null,
+                                    tint = colors.textSecondary,
+                                    modifier = Modifier.size(22.dp)
                                 )
-                                .semantics {
-                                    role = Role.Button
-                                    contentDescription = "Voice search"
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Mic,
-                                contentDescription = null,
-                                tint = colors.textSecondary,
-                                modifier = Modifier.size(22.dp)
-                            )
+                            }
                         }
                     }
                 }

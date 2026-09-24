@@ -117,19 +117,25 @@ class AzokleSearchWidgetProvider : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.widget_root, searchPendingIntent)
 
-            // 2. Voice Search Action Click -> Opens Instant Voice Recognition
-            val voiceIntent = Intent(context, MainActivity::class.java).apply {
-                action = Intent.ACTION_MAIN
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra(EXTRA_START_VOICE, true)
+            // 2. Voice Search Action Click -> Opens Instant Voice Recognition (if supported)
+            val isVoiceAvailable = com.azokle.search.common.util.VoiceSearchHelper.isVoiceSearchAvailable(context)
+            if (isVoiceAvailable) {
+                views.setViewVisibility(R.id.widget_btn_voice, android.view.View.VISIBLE)
+                val voiceIntent = Intent(context, MainActivity::class.java).apply {
+                    action = Intent.ACTION_MAIN
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra(EXTRA_START_VOICE, true)
+                }
+                val voicePendingIntent = PendingIntent.getActivity(
+                    context,
+                    1,
+                    voiceIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                views.setOnClickPendingIntent(R.id.widget_btn_voice, voicePendingIntent)
+            } else {
+                views.setViewVisibility(R.id.widget_btn_voice, android.view.View.GONE)
             }
-            val voicePendingIntent = PendingIntent.getActivity(
-                context,
-                1,
-                voiceIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            views.setOnClickPendingIntent(R.id.widget_btn_voice, voicePendingIntent)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
