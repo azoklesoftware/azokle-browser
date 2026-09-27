@@ -75,6 +75,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -95,6 +96,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import com.azokle.search.R
 import com.azokle.search.common.components.ToastManager
 import com.azokle.search.common.theme.AzokleBreakpoints
@@ -139,6 +141,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val colors = AzokleTheme.colors
     val prefsManager = remember { PreferencesManager(context) }
     val scrollState = rememberScrollState()
@@ -664,9 +667,10 @@ fun SettingsScreen(
                             subtitle = "Close all tabs, purge cookies, storage and cache",
                             iconTint = colors.statusDestructive,
                             onClick = {
-                                GeckoEngineManager.clearAllData(context)
-                                TabManager.closeAllTabs()
-                                ToastManager.showSuccess("Browsing session incinerated")
+                                coroutineScope.launch {
+                                    com.azokle.search.incineration.DataBurnEngine.executeFullDeepBurn(context)
+                                    ToastManager.showSuccess("Browsing session erased permanently")
+                                }
                             }
                         )
                     }

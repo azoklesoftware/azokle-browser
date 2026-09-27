@@ -121,6 +121,12 @@ class PreferencesManager(private val context: Context) {
 
     fun clearRecentSearches() {
         prefs.edit().remove(KEY_RECENT_SEARCHES).apply()
+        try {
+            context.getSharedPreferences(LEGACY_PREFS_FILE, Context.MODE_PRIVATE)
+                .edit()
+                .remove(KEY_RECENT_SEARCHES)
+                .apply()
+        } catch (_: Exception) {}
     }
 
     fun getSafeSearch(): String {

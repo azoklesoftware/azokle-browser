@@ -68,7 +68,7 @@
     } catch(e) {}
 
     // =========================================================================
-    // 2. Declarative Cosmetic CSS Injection (Cached & Non-Blocking)
+    // 2. Declarative Cosmetic CSS & Procedural DOM Filter Engine
     // Injected into both top-level and subframes to annihilate nested ad containers
     // =========================================================================
     var cosmeticApplied = false;
@@ -85,6 +85,53 @@
             }
         } catch(e) {}
     }
+
+    // Procedural DOM Filter Engine (Throttled & Non-Blocking)
+    function applyProceduralFilters() {
+        if (!document || !document.body) return;
+        try {
+            var adBadges = document.querySelectorAll('[aria-label*="sponsored" i], [aria-label*="advertisement" i], [data-ad-slot], [data-ad-client]');
+            for (var i = 0; i < adBadges.length; i++) {
+                var el = adBadges[i];
+                if (el && el.style.display !== 'none') {
+                    var container = el.closest('div, section, article, aside') || el;
+                    container.style.setProperty('display', 'none', 'important');
+                }
+            }
+        } catch(e) {}
+    }
+
+    var proceduralTimer = null;
+    function scheduleProceduralPass() {
+        if (proceduralTimer) return;
+        var runner = window.requestIdleCallback || window.requestAnimationFrame || function(cb) { setTimeout(cb, 120); };
+        proceduralTimer = runner(function() {
+            proceduralTimer = null;
+            applyProceduralFilters();
+        });
+    }
+
+    if (document.body) {
+        scheduleProceduralPass();
+    } else {
+        document.addEventListener('DOMContentLoaded', scheduleProceduralPass, { once: true, passive: true });
+    }
+
+    try {
+        var domObserver = new MutationObserver(function(mutations) {
+            var hasRelevantNodes = false;
+            for (var i = 0; i < mutations.length; i++) {
+                if (mutations[i].addedNodes && mutations[i].addedNodes.length > 0) {
+                    hasRelevantNodes = true;
+                    break;
+                }
+            }
+            if (hasRelevantNodes) {
+                scheduleProceduralPass();
+            }
+        });
+        domObserver.observe(document.documentElement || document, { childList: true, subtree: true });
+    } catch(e) {}
 
     try {
         if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendMessage) {

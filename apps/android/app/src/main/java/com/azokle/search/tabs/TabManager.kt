@@ -653,6 +653,11 @@ object TabManager {
     }
 
     fun closeAllTabs() {
+        closeAllTabsHard()
+    }
+
+    fun closeAllTabsHard() {
+        persistJob?.cancel()
         com.azokle.search.media.MediaPlaybackManager.stop()
         for ((_, session) in sessionMap) {
             try {
@@ -664,10 +669,34 @@ object TabManager {
         sessionMap.clear()
         _recentlyClosed.clear()
         _groups.value = emptyList()
+        TabThumbnailCache.clear()
         val defaultTab = TabSession()
         _tabs.value = listOf(defaultTab)
         _activeTabId.value = defaultTab.id
-        persistTabs()
+
+        // Synchronously save clean default tab to disk and DB
+        appContext?.let { context ->
+            try {
+                val db = com.azokle.search.history.AzokleHistoryDatabase.getInstance(context)
+                db.saveTabsSession(listOf(defaultTab), emptyList(), defaultTab.id)
+
+                val root = JSONObject().apply {
+                    put("activeTabId", defaultTab.id)
+                    put("tabs", JSONArray().put(defaultTab.toJson()))
+                    put("groups", JSONArray())
+                }
+                val atomicFile = AtomicFile(File(context.filesDir, TABS_STATE_FILE))
+                val stream = atomicFile.startWrite()
+                try {
+                    stream.write(root.toString().toByteArray(Charsets.UTF_8))
+                    atomicFile.finishWrite(stream)
+                } catch (e: Exception) {
+                    atomicFile.failWrite(stream)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed hard persisting clean tabs: ${e.message}")
+            }
+        }
     }
 
     // --- Tab Groups Operations ---

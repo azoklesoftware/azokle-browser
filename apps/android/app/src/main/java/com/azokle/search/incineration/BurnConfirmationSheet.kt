@@ -166,11 +166,7 @@ fun BurnConfirmationDialog(
                             .weight(1.15f)
                             .height(42.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(
-                                Brush.horizontalGradient(
-                                    listOf(Color(0xFFFF3B30), Color(0xFFFF6F00))
-                                )
-                            )
+                            .background(colors.statusDestructive)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = ripple(color = Color.White.copy(alpha = 0.2f)),

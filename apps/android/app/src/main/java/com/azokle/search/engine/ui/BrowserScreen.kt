@@ -1739,34 +1739,31 @@ fun BrowserScreen(
             onConfirmBurnData = {
                 showBurnConfirmationSheet = false
                 isBurningData = true
+                scope.launch {
+                    com.azokle.search.incineration.DataBurnEngine.executeFullDeepBurn(context)
+                }
             },
             onDismissBurnConfirmation = { showBurnConfirmationSheet = false },
             isBurningData = isBurningData,
             onCompleteBurnData = {
-                TabManager.closeAllTabs()
-                GeckoEngineManager.clearAllData(context)
-                HistoryManager.clearAll()
-                DownloadManager.clearAllHistory(context)
-                DownloadManager.shredPrivateDownloads(context)
-                SitePermissionsManager.getInstance(context).clearAllPermissions()
-                AzokleHistoryDatabase.getInstance(context).clearAllSecurely()
-                PreferencesManager(context).clearRecentSearches()
-                AdBlockStats.resetForPage("", "", true)
+                scope.launch {
+                    com.azokle.search.incineration.DataBurnEngine.executeFullDeepBurn(context)
 
-                val newTabId = TabManager.openTab("", "New Tab")
-                TabManager.selectTab(newTabId)
+                    val newTabId = TabManager.openTab("", "New Tab")
+                    TabManager.selectTab(newTabId)
 
-                currentUrl = ""
-                currentTitle = "New Tab"
-                currentError = null
-                showDiscoverScreen = false
-                showTabGridSheet = false
-                showGroupDetailSheet = false
-                showMenuSheet = false
-                showBurnConfirmationSheet = false
-                isBurningData = false
+                    currentUrl = ""
+                    currentTitle = "New Tab"
+                    currentError = null
+                    showDiscoverScreen = false
+                    showTabGridSheet = false
+                    showGroupDetailSheet = false
+                    showMenuSheet = false
+                    showBurnConfirmationSheet = false
+                    isBurningData = false
 
-                ToastManager.showSuccess("All browsing data cleared")
+                    ToastManager.showSuccess("All browsing data erased permanently")
+                }
             },
             activePermissionRequest = activePermissionRequest,
             onAllowAlwaysPermission = { req -> handleAllowPermission(req, true) },

@@ -98,24 +98,47 @@
         // 1. Defuse anti-adblock honeypots & bait variables
         try {
             var dummyFn = makeNativeFn(function() {}, '');
+
+            // Ad Status & Ad Blocker Detection Traps
             window.canRunAds = true;
             window.isAdBlockActive = false;
+            window.adsBlocked = false;
             window.adblocker = false;
             window._adblock = false;
+            window.__adblocker = false;
+            window.showAds = true;
+            window.ads_blocked = false;
+            window.adBlockDetected = false;
+            window.hasAdblocker = false;
+            window.AdBlockEnabled = false;
+            window.google_ad_status = 1;
             if (!window.google_ad_client) window.google_ad_client = 'ca-pub-0000000000000000';
+            if (!window.google_ad_modifications) window.google_ad_modifications = { eids: [] };
 
+            // Admiral & Publisher Firewall Defusers
+            window.admiral = makeNativeFn(function() {}, 'admiral');
+            window.admiral.loaded = true;
+            window.admiralLoaded = true;
+
+            // BlockAdBlock / FuckAdBlock / SnackAdBlock Universal Polyfill
             var babStub = function() {
                 return {
                     check: dummyFn,
                     clearEvent: dummyFn,
-                    on: dummyFn,
+                    on: function(isDetected, fn) {
+                        if (!isDetected && typeof fn === 'function') {
+                            try { fn(); } catch(e) {}
+                        }
+                        return this;
+                    },
                     onDetected: dummyFn,
                     onNotDetected: function(fn) {
                         if (typeof fn === 'function') {
                             try { fn(); } catch(e) {}
                         }
                         return this;
-                    }
+                    },
+                    setOption: function() { return this; }
                 };
             };
             makeNativeFn(babStub, 'BlockAdBlock');
@@ -131,6 +154,27 @@
                 window.SnackAdBlock = babStub;
                 window.snackAdBlock = new babStub();
             }
+
+            // Global Helper: abort-on-property-read & set-constant
+            window.__azokle_abort_on_property = function(prop) {
+                try {
+                    Object.defineProperty(window, prop, {
+                        get: function() { throw new ReferenceError(prop + ' is not accessible'); },
+                        set: function() {},
+                        configurable: true
+                    });
+                } catch(e) {}
+            };
+
+            window.__azokle_set_constant = function(prop, val) {
+                try {
+                    Object.defineProperty(window, prop, {
+                        value: val,
+                        writable: false,
+                        configurable: true
+                    });
+                } catch(e) {}
+            };
         } catch(e) {}
 
         // 2. YouTube Ad Annihilation (Brave-Core style response sanitizer)
@@ -178,23 +222,84 @@
                 var sanitizePlayerResponse = function(obj) {
                     if (!obj || typeof obj !== 'object') return obj;
                     try {
+                        // Top-level ad placements & breaks
                         if ('playerAds' in obj) delete obj.playerAds;
                         if ('adPlacements' in obj) obj.adPlacements = [];
                         if ('adSlots' in obj) obj.adSlots = [];
+                        if ('adBreakResponse' in obj) delete obj.adBreakResponse;
+                        if ('adBreakHeartbeatParams' in obj) delete obj.adBreakHeartbeatParams;
+                        if ('adSignalsInfo' in obj) delete obj.adSignalsInfo;
+                        if ('interstitials' in obj) delete obj.interstitials;
 
+                        // Nested playerResponse wrappers
                         if (obj.playerResponse && typeof obj.playerResponse === 'object') {
-                            if ('playerAds' in obj.playerResponse) delete obj.playerResponse.playerAds;
-                            if ('adPlacements' in obj.playerResponse) obj.playerResponse.adPlacements = [];
-                            if ('adSlots' in obj.playerResponse) obj.playerResponse.adSlots = [];
+                            sanitizePlayerResponse(obj.playerResponse);
                         }
                         if (obj.reelWatchSequenceResponse && typeof obj.reelWatchSequenceResponse === 'object') {
                             if ('adPlacements' in obj.reelWatchSequenceResponse) delete obj.reelWatchSequenceResponse.adPlacements;
                             if ('adSlots' in obj.reelWatchSequenceResponse) delete obj.reelWatchSequenceResponse.adSlots;
                         }
-                        if (obj.adBreakHeartbeatParams) delete obj.adBreakHeartbeatParams;
+
+                        // Enforce pristine playability status (zero adblock blocker error screens)
+                        if (obj.playabilityStatus && typeof obj.playabilityStatus === 'object') {
+                            if (obj.playabilityStatus.status && obj.playabilityStatus.status !== 'OK') {
+                                obj.playabilityStatus.status = 'OK';
+                            }
+                            if ('reason' in obj.playabilityStatus) delete obj.playabilityStatus.reason;
+                            if ('errorScreen' in obj.playabilityStatus) delete obj.playabilityStatus.errorScreen;
+                            if ('messages' in obj.playabilityStatus) delete obj.playabilityStatus.messages;
+                        }
+
+                        // Strip upsell / anti-adblock dialog renderers
+                        if (obj.auxiliaryUi && typeof obj.auxiliaryUi === 'object') {
+                            if (obj.auxiliaryUi.messageRenderers && obj.auxiliaryUi.messageRenderers.upsellDialogRenderer) {
+                                delete obj.auxiliaryUi.messageRenderers.upsellDialogRenderer;
+                            }
+                        }
+
+                        // Strip tracking beacon URLs that trigger ad-telemetry loops
+                        if (obj.playbackTracking && typeof obj.playbackTracking === 'object') {
+                            if (obj.playbackTracking.atrUrl) delete obj.playbackTracking.atrUrl;
+                            if (obj.playbackTracking.videostatsPlaybackUrl) delete obj.playbackTracking.videostatsPlaybackUrl;
+                            if (obj.playbackTracking.qoeUrl) delete obj.playbackTracking.qoeUrl;
+                        }
                     } catch(e) {}
                     return obj;
                 };
+
+                // Hook window.ytcfg to inject Brave-grade ad-disabling experiment flags
+                try {
+                    var overrideYtcfg = function(cfg) {
+                        if (!cfg || typeof cfg !== 'object') return cfg;
+                        try {
+                            var exp = cfg.EXPERIMENT_FLAGS || {};
+                            exp.disable_ad_video_renderers = true;
+                            exp.html5_disable_ad_signals = true;
+                            exp.web_player_enable_ad_insertion = false;
+                            exp.web_enable_ab_in_ad_layout = false;
+                            exp.desktop_ad_block_support = false;
+                            cfg.EXPERIMENT_FLAGS = exp;
+                        } catch(e) {}
+                        return cfg;
+                    };
+
+                    if (window.ytcfg) {
+                        if (typeof window.ytcfg.set === 'function') {
+                            var origYtcfgSet = window.ytcfg.set;
+                            window.ytcfg.set = makeNativeFn(function(k, v) {
+                                if (typeof k === 'object') {
+                                    overrideYtcfg(k);
+                                } else if (k === 'EXPERIMENT_FLAGS' && typeof v === 'object') {
+                                    overrideYtcfg({ EXPERIMENT_FLAGS: v });
+                                }
+                                return origYtcfgSet.apply(this, arguments);
+                            }, 'set');
+                        }
+                        if (window.ytcfg.data_) {
+                            overrideYtcfg(window.ytcfg.data_);
+                        }
+                    }
+                } catch(e) {}
 
                 // Hook window.ytInitialPlayerResponse
                 var _ytInitialPlayerResponse = window.ytInitialPlayerResponse;
@@ -423,31 +528,38 @@
                                  player.classList.contains('ad-interrupting');
 
                 if (isAdActive) {
-                    // 1. Native player skip method
+                    // 1. Native player skip & cancel methods
                     if (typeof player.skipAd === 'function') {
-                        try { player.skipAd(); } catch(e) {}
+                        try { player.skipAd(true); } catch(e) {}
+                    }
+                    if (typeof player.cancelPlayback === 'function') {
+                        try { player.cancelPlayback(); } catch(e) {}
                     }
 
                     // 2. Immediately click any rendered skip buttons
                     var skipBtn = document.querySelector(
                         '.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, ' +
                         '.ytp-ad-skip-button-slot button, button.ytp-ad-skip-button, ' +
-                        '[class*="ytp-ad-skip-button"]'
+                        '[class*="ytp-ad-skip-button"], .ytp-ad-overlay-close-button'
                     );
                     if (skipBtn && typeof skipBtn.click === 'function') {
                         try { skipBtn.click(); } catch(e) {}
                     }
 
-                    // 3. Mute only during the ad
+                    // 3. Instant 0-ms Seek to End without playbackRate acceleration
                     var video = player.querySelector('video') || document.querySelector('video');
                     if (video) {
                         video.muted = true;
-                        video.playbackRate = 16.0;
+                        if (isFinite(video.duration) && video.duration > 0 && video.currentTime < video.duration) {
+                            try {
+                                video.currentTime = video.duration;
+                            } catch(e) {}
+                        }
                     }
                 } else {
-                    // Video is normal content: Ensure normal playback rate and never seek/skip
+                    // Normal content: Keep normal playback rate without speed or buffer stalls
                     var video = player.querySelector('video') || document.querySelector('video');
-                    if (video && video.playbackRate > 2.0) {
+                    if (video && video.playbackRate !== 1.0 && video.playbackRate > 2.0) {
                         video.playbackRate = 1.0;
                     }
                 }
@@ -456,7 +568,8 @@
                 var dismissBtn = document.querySelector(
                     'ytd-enforcement-message-view-model button, ' +
                     'yt-playability-error-supported-renderers button, ' +
-                    '#dismiss-button, tp-yt-paper-dialog button'
+                    '#dismiss-button, tp-yt-paper-dialog button, ' +
+                    'yt-button-renderer[dialog-dismiss] button'
                 );
                 if (dismissBtn && typeof dismissBtn.click === 'function') {
                     try { dismissBtn.click(); } catch(e) {}

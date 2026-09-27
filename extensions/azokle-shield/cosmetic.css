@@ -12,6 +12,7 @@ iframe[id*="google_ads_iframe"],
 .ytp-ad-player-overlay-flyout-cta, .ytp-ad-module,
 .video-ads, .videoAdUi, .ytp-ad-image-overlay,
 .ytp-ad-action-interstitial, .ytp-ad-preview-container,
+.ytp-ad-persistent-progress-bar-container, .ytp-ad-progress-list,
 #player-ads, #masthead-ad, .masthead-ad-control,
 .ad-div, .pyv-afc-ads-container, #promotion-shelf,
 ytd-promoted-sparkles-web-renderer, ytd-display-ad-renderer,
@@ -21,9 +22,12 @@ ytd-ad-slot-renderer, ytd-action-companion-ad-renderer,
 ytd-player-legacy-desktop-watch-ads-renderer,
 ytd-video-masthead-ad-advertiser-info-renderer,
 ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-ads"],
+ytd-ad-inline-playback-meta-renderer,
+yt-mealbar-promo-renderer,
 ytm-promoted-sparkles-web-renderer, ytm-companion-ad-renderer,
 ytm-promoted-sparkles-text-search-web-renderer, ytm-ad-slot-renderer,
-ytm-paid-content-overlay-renderer, ytm-promoted-video-renderer {
+ytm-inline-ad-renderer, ytm-promoted-video-renderer,
+ytm-paid-content-overlay-renderer {
     display: none !important;
     visibility: hidden !important;
     height: 0 !important;

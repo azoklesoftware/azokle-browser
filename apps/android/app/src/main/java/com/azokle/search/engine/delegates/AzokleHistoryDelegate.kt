@@ -27,8 +27,8 @@ class AzokleHistoryDelegate(
         lastVisitedURL: String?,
         flags: Int
     ): GeckoResult<Boolean>? {
-        // Zero disk or state writes if running in a private tab or Tor circuit session
-        if (isPrivate || isTor) {
+        // Zero disk or state writes if running in a private tab, Tor circuit session, or during active data burn
+        if (isPrivate || isTor || HistoryManager.isIncinerating() || com.azokle.search.incineration.DataBurnEngine.isBurning()) {
             return GeckoResult.fromValue(true)
         }
 

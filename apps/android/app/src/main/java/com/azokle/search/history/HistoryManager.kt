@@ -5,6 +5,8 @@ import android.util.Log
 import com.azokle.search.core.AzokleCore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,6 +16,7 @@ import org.json.JSONObject
 import java.io.File
 import java.util.Calendar
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Sovereign Hybrid (In-Memory + SQLite) History Manager for Azokle Search.
@@ -24,15 +27,25 @@ import java.util.UUID
 object HistoryManager {
     private const val TAG = "AzokleHistoryManager"
     private const val HISTORY_FILE = "azokle_browser_history.json"
+    private const val LEGACY_HISTORY_FILE = "history.json"
     private const val MAX_HISTORY_ITEMS = 1000
 
     private val _history = MutableStateFlow<List<HistoryItem>>(emptyList())
     val history: StateFlow<List<HistoryItem>> = _history.asStateFlow()
 
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val supervisorJob = SupervisorJob()
+    private val scope = CoroutineScope(Dispatchers.IO + supervisorJob)
+    private val isIncinerating = AtomicBoolean(false)
+
     private var isInitialized = false
     private var appContext: Context? = null
     private var database: AzokleHistoryDatabase? = null
+
+    fun setIncinerating(active: Boolean) {
+        isIncinerating.set(active)
+    }
+
+    fun isIncinerating(): Boolean = isIncinerating.get()
 
     fun init(context: Context) {
         if (isInitialized) return
@@ -46,12 +59,13 @@ object HistoryManager {
      * Records a standard visited web page in both the In-Memory Rust Engine and SQLite Database.
      */
     fun recordVisit(url: String, title: String = "", isPrivate: Boolean = false) {
-        if (isPrivate || url.isBlank() || isIgnoredScheme(url)) return
+        if (isIncinerating.get() || isPrivate || url.isBlank() || isIgnoredScheme(url)) return
         val active = com.azokle.search.tabs.TabManager.activeTab
         if (active != null && (active.isPrivate || active.isTor)) return
         val context = appContext ?: return
 
         scope.launch {
+            if (isIncinerating.get()) return@launch
             // 1. In-Memory Fast Path
             AzokleCore.recordHistoryVisit(title, url, isPrivate)
             refreshFromRust(context)
@@ -69,12 +83,13 @@ object HistoryManager {
      * Records an explicitly typed omnibox visit, granting higher Frecency priority in both memory and SQLite.
      */
     fun recordTypedVisit(url: String, title: String = "", isPrivate: Boolean = false) {
-        if (isPrivate || url.isBlank() || isIgnoredScheme(url)) return
+        if (isIncinerating.get() || isPrivate || url.isBlank() || isIgnoredScheme(url)) return
         val active = com.azokle.search.tabs.TabManager.activeTab
         if (active != null && (active.isPrivate || active.isTor)) return
         val context = appContext ?: return
 
         scope.launch {
+            if (isIncinerating.get()) return@launch
             // 1. In-Memory Fast Path
             AzokleCore.recordHistoryTypedVisit(title, url, isPrivate)
             refreshFromRust(context)
@@ -92,12 +107,13 @@ object HistoryManager {
      * Updates page title after GeckoView completes parsing document title.
      */
     fun updateTitle(url: String, title: String, isPrivate: Boolean = false) {
-        if (isPrivate || url.isBlank() || title.isBlank() || isIgnoredScheme(url)) return
+        if (isIncinerating.get() || isPrivate || url.isBlank() || title.isBlank() || isIgnoredScheme(url)) return
         val active = com.azokle.search.tabs.TabManager.activeTab
         if (active != null && (active.isPrivate || active.isTor)) return
         val context = appContext ?: return
 
         scope.launch {
+            if (isIncinerating.get()) return@launch
             AzokleCore.recordHistoryVisit(title, url, false)
             refreshFromRust(context)
             database?.updatePlaceTitle(url, title)
@@ -108,10 +124,11 @@ object HistoryManager {
      * Records a search query in history.
      */
     fun recordSearch(query: String, searchUrl: String, isPrivate: Boolean = false) {
-        if (isPrivate || query.isBlank()) return
+        if (isIncinerating.get() || isPrivate || query.isBlank()) return
         val context = appContext ?: return
 
         scope.launch {
+            if (isIncinerating.get()) return@launch
             AzokleCore.recordHistoryVisit(query.trim(), searchUrl, isPrivate)
             refreshFromRust(context)
             database?.recordPlaceVisit(
@@ -128,6 +145,7 @@ object HistoryManager {
      * Searches history and ranks results by Frecency score descending.
      */
     fun searchFrecency(query: String, limit: Int = 20): List<HistoryItem> {
+        if (isIncinerating.get()) return emptyList()
         val array = AzokleCore.searchHistoryFrecency(query, limit)
         val list = mutableListOf<HistoryItem>()
         for (i in 0 until array.length()) {
@@ -144,6 +162,7 @@ object HistoryManager {
      * Returns top historical destinations ranked by Frecency score.
      */
     fun getTopFrecency(limit: Int = 20): List<HistoryItem> {
+        if (isIncinerating.get()) return emptyList()
         val array = AzokleCore.getTopFrecencyHistory(limit)
         val list = mutableListOf<HistoryItem>()
         for (i in 0 until array.length()) {
@@ -157,6 +176,7 @@ object HistoryManager {
      * Returns top visited domains for UI filtering chips.
      */
     fun getTopDomains(limit: Int = 10): List<Pair<String, Int>> {
+        if (isIncinerating.get()) return emptyList()
         val array = AzokleCore.getTopHistoryDomains(limit)
         val list = mutableListOf<Pair<String, Int>>()
         for (i in 0 until array.length()) {
@@ -207,13 +227,38 @@ object HistoryManager {
         }
     }
 
+    fun clearInMemoryHistory() {
+        _history.value = emptyList()
+    }
+
+    fun clearAllSync(context: Context) {
+        isIncinerating.set(true)
+        try {
+            supervisorJob.cancelChildren()
+        } catch (_: Exception) {}
+
+        _history.value = emptyList()
+        AzokleCore.clearAllHistory()
+        database?.clearAllSecurely()
+        
+        try {
+            val file = File(context.filesDir, HISTORY_FILE)
+            if (file.exists()) {
+                file.delete()
+            }
+            val legacyFile = File(context.filesDir, LEGACY_HISTORY_FILE)
+            if (legacyFile.exists()) {
+                legacyFile.delete()
+            }
+        } catch (_: Exception) {}
+    }
+
     fun clearAll() {
         val context = appContext ?: return
+        clearInMemoryHistory()
         scope.launch {
-            AzokleCore.clearAllHistory()
-            database?.clearAllSecurely()
-            _history.value = emptyList()
-            saveToDisk(context)
+            clearAllSync(context)
+            isIncinerating.set(false)
         }
     }
 
@@ -247,6 +292,7 @@ object HistoryManager {
     }
 
     private fun refreshFromRust(context: Context) {
+        if (isIncinerating.get()) return
         try {
             val array = AzokleCore.getRecentHistory(MAX_HISTORY_ITEMS, 0)
             val list = mutableListOf<HistoryItem>()
@@ -261,13 +307,16 @@ object HistoryManager {
                 val sqlList = database?.getAllPlaces(MAX_HISTORY_ITEMS) ?: emptyList()
                 _history.value = sqlList
             }
-            saveToDisk(context)
+            if (!isIncinerating.get()) {
+                saveToDisk(context)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to refresh history: ${e.message}")
         }
     }
 
     private fun saveToDisk(context: Context) {
+        if (isIncinerating.get()) return
         try {
             val jsonStr = AzokleCore.exportHistoryJson()
             val atomicFile = androidx.core.util.AtomicFile(File(context.filesDir, HISTORY_FILE))
@@ -284,8 +333,10 @@ object HistoryManager {
     }
 
     private fun loadHistory(context: Context) {
+        if (isIncinerating.get()) return
         scope.launch(Dispatchers.IO) {
             try {
+                if (isIncinerating.get()) return@launch
                 // 1. Check SQLite first
                 val sqliteRecords = database?.getAllPlaces(MAX_HISTORY_ITEMS) ?: emptyList()
                 if (sqliteRecords.isNotEmpty()) {
@@ -317,7 +368,9 @@ object HistoryManager {
                         }
                     }
                 }
-                refreshFromRust(context)
+                if (!isIncinerating.get()) {
+                    refreshFromRust(context)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load history: ${e.message}")
             }

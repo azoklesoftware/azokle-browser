@@ -423,10 +423,45 @@ object AzokleCore {
 
             if (should) {
                 scheduleShieldStatsRefresh()
+                return FilterDecision(
+                    shouldBlock = true,
+                    category = cat,
+                    matchedRule = null,
+                    isException = false,
+                    redirectUrl = null,
+                    rewrittenUrl = null,
+                    isReady = _isReady.value
+                )
+            }
+
+            // If not blocked initially and request is first-party or matching suspicious tracker subdomain,
+            // perform live Quantum DNS CNAME uncloaking to detect disguised trackers
+            if (!isExc && url.contains("://")) {
+                val host = url.substringAfter("://").substringBefore('/').substringBefore('?').substringBefore(':').lowercase()
+                if (isSuspectedCloakedTracker(host)) {
+                    val canonicalHost = DnsOverHttpsManager.resolveCname(host)
+                    if (canonicalHost != null && canonicalHost != host) {
+                        val uncloakedUrl = url.replaceFirst("://$host", "://$canonicalHost", ignoreCase = true)
+                        val uncloakedDecision = checkUrlFast(uncloakedUrl, sourceOrigin, true)
+                        if ((uncloakedDecision and 1L) != 0L) {
+                            val uncloakedCat = ((uncloakedDecision shr 1) and 0x7FL).toInt()
+                            scheduleShieldStatsRefresh()
+                            return FilterDecision(
+                                shouldBlock = true,
+                                category = if (uncloakedCat != 0) uncloakedCat else 2,
+                                matchedRule = "CNAME:$canonicalHost",
+                                isException = false,
+                                redirectUrl = null,
+                                rewrittenUrl = null,
+                                isReady = _isReady.value
+                            )
+                        }
+                    }
+                }
             }
 
             FilterDecision(
-                shouldBlock = should,
+                shouldBlock = false,
                 category = cat,
                 matchedRule = null,
                 isException = isExc,
@@ -438,6 +473,16 @@ object AzokleCore {
             Log.e(TAG, "shouldBlock error: ${e.message}")
             FilterDecision(isReady = _isReady.value)
         }
+    }
+
+    private val CLOAKED_PREFIXES = listOf(
+        "metrics.", "analytics.", "telemetry.", "track.", "tracker.", "data.", "log.", "stats.", "collector.", "events.",
+        "tr.", "tag.", "tags.", "beacon.", "pixel.", "trk.", "smetrics."
+    )
+
+    private fun isSuspectedCloakedTracker(host: String): Boolean {
+        if (host.isBlank()) return false
+        return CLOAKED_PREFIXES.any { host.startsWith(it) }
     }
 
     /**

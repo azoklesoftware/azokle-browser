@@ -121,6 +121,79 @@ object DnsOverHttpsManager {
         }
     }
 
+    private data class CnameCacheEntry(val canonicalHost: String?, val expiresAtMs: Long)
+    private val cnameCache = java.util.concurrent.ConcurrentHashMap<String, CnameCacheEntry>()
+
+    /**
+     * Resolves the canonical CNAME alias of a domain over encrypted DNS (DoH).
+     * Used for uncovering CNAME-cloaked third-party trackers disguised under first-party subdomains.
+     */
+    fun resolveCname(hostname: String): String? {
+        val cleanHost = hostname.lowercase().trim().trimEnd('.')
+        if (cleanHost.isBlank() || cleanHost == "localhost" || cleanHost.endsWith(".local") || cleanHost.contains(":") || cleanHost.all { it.isDigit() || it == '.' }) {
+            return null
+        }
+
+        val now = System.currentTimeMillis()
+        val cached = cnameCache[cleanHost]
+        if (cached != null) {
+            if (now < cached.expiresAtMs) {
+                return cached.canonicalHost
+            } else {
+                cnameCache.remove(cleanHost)
+            }
+        }
+
+        val provider = getProvider(activeProviderId)
+        val endpoint = if (provider.id == "system" || provider.url.isBlank()) {
+            "https://cloudflare-dns.com/dns-query"
+        } else {
+            provider.url
+        }
+
+        return try {
+            val url = "$endpoint?name=$cleanHost&type=CNAME".toHttpUrl()
+            val request = okhttp3.Request.Builder()
+                .url(url)
+                .addHeader("Accept", "application/dns-json")
+                .build()
+
+            bootstrapClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    cnameCache[cleanHost] = CnameCacheEntry(null, now + 60_000)
+                    return null
+                }
+                val body = response.body?.string() ?: return null
+                val json = org.json.JSONObject(body)
+                val answers = json.optJSONArray("Answer")
+                if (answers != null && answers.length() > 0) {
+                    for (i in 0 until answers.length()) {
+                        val ans = answers.optJSONObject(i) ?: continue
+                        val type = ans.optInt("type", 0)
+                        if (type == 5) { // CNAME type
+                            val data = ans.optString("data", "").trim().trimEnd('.').lowercase()
+                            if (data.isNotBlank() && data != cleanHost) {
+                                val ttl = ans.optLong("TTL", 300L)
+                                val ttlMs = maxOf(60_000L, minOf(ttl * 1000L, 3600_000L))
+                                cnameCache[cleanHost] = CnameCacheEntry(data, now + ttlMs)
+                                return data
+                            }
+                        }
+                    }
+                }
+                cnameCache[cleanHost] = CnameCacheEntry(null, now + 300_000)
+                null
+            }
+        } catch (e: Exception) {
+            cnameCache[cleanHost] = CnameCacheEntry(null, now + 60_000)
+            null
+        }
+    }
+
+    fun clearCnameCache() {
+        cnameCache.clear()
+    }
+
     fun createDohDns(context: Context): Dns {
         val prefs = PreferencesManager(context)
         val selectedId = prefs.getDohProvider()

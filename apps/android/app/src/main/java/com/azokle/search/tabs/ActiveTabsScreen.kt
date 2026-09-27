@@ -948,7 +948,7 @@ fun ActiveTabsScreen(
                             Icon(
                                 imageVector = Icons.Default.CreateNewFolder,
                                 contentDescription = null,
-                                tint = Color(0xFF10B981),
+                                tint = colors.textPrimary,
                                 modifier = Modifier.size(20.dp)
                             )
                         },
@@ -972,7 +972,7 @@ fun ActiveTabsScreen(
                             Icon(
                                 imageVector = Icons.Default.VisibilityOff,
                                 contentDescription = null,
-                                tint = Color(0xFFA855F7),
+                                tint = colors.textPrimary,
                                 modifier = Modifier.size(20.dp)
                             )
                         },

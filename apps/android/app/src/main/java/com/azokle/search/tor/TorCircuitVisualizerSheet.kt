@@ -235,18 +235,18 @@ private fun TorSheetHeader(
                         is TorConnectionState.Connected -> {
                             StatusBadge(
                                 text = "ACTIVE",
-                                dotColor = Color(0xFF10B981),
-                                badgeBg = Color(0xFF10B981).copy(alpha = 0.14f),
-                                textColor = Color(0xFF10B981),
+                                dotColor = colors.statusTor,
+                                badgeBg = colors.statusTor.copy(alpha = 0.14f),
+                                textColor = colors.statusTor,
                                 isPulse = true
                             )
                         }
                         is TorConnectionState.Bootstrapping -> {
                             StatusBadge(
                                 text = "${connectionState.progress}%",
-                                dotColor = Color(0xFFF59E0B),
-                                badgeBg = Color(0xFFF59E0B).copy(alpha = 0.14f),
-                                textColor = Color(0xFFF59E0B),
+                                dotColor = colors.statusTor,
+                                badgeBg = colors.statusTor.copy(alpha = 0.14f),
+                                textColor = colors.statusTor,
                                 isPulse = false
                             )
                         }
@@ -387,14 +387,14 @@ private fun ConnectedCircuitContent(
                 .fillMaxWidth()
                 .clip(cardShape)
                 .background(colors.cardBg)
-                .border(1.dp, colors.statusTor.copy(alpha = 0.16f), cardShape)
+                .border(1.dp, colors.statusTor.copy(alpha = 0.2f), cardShape)
                 .padding(horizontal = 16.dp, vertical = 18.dp)
         ) {
             // Node 1: Client Device
             CircuitNodeItem(
                 icon = Icons.Outlined.Smartphone,
-                iconTint = Color(0xFFA855F7),
-                iconBg = Color(0xFFA855F7).copy(alpha = 0.12f),
+                iconTint = colors.statusTor,
+                iconBg = colors.statusTor.copy(alpha = 0.12f),
                 tag = "CLIENT",
                 title = "This Device",
                 subtitle = "Local SOCKS5 (127.0.0.1:9050)",
@@ -404,8 +404,8 @@ private fun ConnectedCircuitContent(
             // Node 2: Guard Relay (Entry)
             CircuitNodeItem(
                 icon = Icons.Outlined.Shield,
-                iconTint = Color(0xFF38BDF8),
-                iconBg = Color(0xFF38BDF8).copy(alpha = 0.12f),
+                iconTint = colors.statusTor,
+                iconBg = colors.statusTor.copy(alpha = 0.12f),
                 tag = "ENTRY GUARD",
                 title = conn.guardNode.ifBlank { "Guard Relay (Layer 1)" },
                 subtitle = conn.guardCountry.ifBlank { "Encrypted Onion Relay" },
@@ -415,8 +415,8 @@ private fun ConnectedCircuitContent(
             // Node 3: Middle Relay
             CircuitNodeItem(
                 icon = Icons.AutoMirrored.Outlined.AltRoute,
-                iconTint = Color(0xFFC084FC),
-                iconBg = Color(0xFFC084FC).copy(alpha = 0.12f),
+                iconTint = colors.statusTor,
+                iconBg = colors.statusTor.copy(alpha = 0.12f),
                 tag = "MIDDLE RELAY",
                 title = conn.middleNode.ifBlank { "Middle Relay (Layer 2)" },
                 subtitle = conn.middleCountry.ifBlank { "Encrypted Onion Relay" },
@@ -426,8 +426,8 @@ private fun ConnectedCircuitContent(
             // Node 4: Exit Relay
             CircuitNodeItem(
                 icon = Icons.Outlined.Public,
-                iconTint = Color(0xFFF59E0B),
-                iconBg = Color(0xFFF59E0B).copy(alpha = 0.12f),
+                iconTint = colors.statusTor,
+                iconBg = colors.statusTor.copy(alpha = 0.12f),
                 tag = "EXIT RELAY",
                 title = conn.exitNode.ifBlank { "Exit Relay (Layer 3)" },
                 subtitle = if (conn.exitIp.isNotBlank()) "${conn.exitCountry} • ${conn.exitIp}" else conn.exitCountry.ifBlank { "Verified Tor Exit Network" },
@@ -437,8 +437,8 @@ private fun ConnectedCircuitContent(
             // Node 5: Destination
             CircuitNodeItem(
                 icon = Icons.Outlined.Lock,
-                iconTint = Color(0xFF10B981),
-                iconBg = Color(0xFF10B981).copy(alpha = 0.12f),
+                iconTint = colors.statusTor,
+                iconBg = colors.statusTor.copy(alpha = 0.12f),
                 tag = if (isOnion) "ONION SERVICE" else "DESTINATION",
                 title = hostDisplay,
                 subtitle = if (isOnion) "End-to-End Hidden Service v3" else "End-to-End Encrypted (TLS 1.3)",
@@ -454,18 +454,12 @@ private fun ConnectedCircuitContent(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Latency Chip
-            val latencyColor = when {
-                conn.latencyMs in 1..450 -> Color(0xFF10B981)
-                conn.latencyMs in 451..1200 -> Color(0xFFF59E0B)
-                else -> Color(0xFFFB7185)
-            }
-
             Row(
                 modifier = Modifier
                     .weight(1f)
                     .clip(AzokleRadius.md)
                     .background(colors.cardBg)
-                    .border(1.dp, colors.borderSubtle, AzokleRadius.md)
+                    .border(1.dp, colors.statusTor.copy(alpha = 0.18f), AzokleRadius.md)
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -473,14 +467,14 @@ private fun ConnectedCircuitContent(
                     modifier = Modifier
                         .size(30.dp)
                         .clip(CircleShape)
-                        .background(latencyColor.copy(alpha = 0.12f)),
+                        .background(colors.statusTor.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Speed,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
-                        tint = latencyColor
+                        tint = colors.statusTor
                     )
                 }
                 Spacer(modifier = Modifier.width(10.dp))
@@ -508,7 +502,7 @@ private fun ConnectedCircuitContent(
                     .weight(1f)
                     .clip(AzokleRadius.md)
                     .background(colors.cardBg)
-                    .border(1.dp, if (copyConfirmed) Color(0xFF10B981).copy(alpha = 0.4f) else colors.borderSubtle, AzokleRadius.md)
+                    .border(1.dp, if (copyConfirmed) colors.statusTor.copy(alpha = 0.5f) else colors.statusTor.copy(alpha = 0.18f), AzokleRadius.md)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = ripple(color = colors.statusTor.copy(alpha = 0.2f)),
@@ -546,7 +540,7 @@ private fun ConnectedCircuitContent(
                             text = if (copyConfirmed) "COPIED" else "CIRCUIT ID",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (copyConfirmed) Color(0xFF10B981) else colors.textMuted,
+                            color = if (copyConfirmed) colors.statusTor else colors.textMuted,
                             letterSpacing = 0.6.sp
                         )
                         Spacer(modifier = Modifier.height(1.dp))
@@ -568,7 +562,7 @@ private fun ConnectedCircuitContent(
                     modifier = Modifier
                         .size(16.dp)
                         .padding(start = 2.dp),
-                    tint = if (copyConfirmed) Color(0xFF10B981) else colors.textMuted
+                    tint = if (copyConfirmed) colors.statusTor else colors.textMuted
                 )
             }
         }

@@ -234,7 +234,7 @@ fun BrowserMenuDropup(
                             Icon(
                                 imageVector = Icons.Default.Lock,
                                 contentDescription = null,
-                                tint = colors.statusSuccess.copy(alpha = 0.8f),
+                                tint = colors.textMuted,
                                 modifier = Modifier.size(10.dp)
                             )
                             Spacer(modifier = Modifier.width(3.dp))
@@ -252,19 +252,15 @@ fun BrowserMenuDropup(
                     Box(
                         modifier = Modifier
                             .clip(CircleShape)
-                            .background(
-                                if (blockedTrackersCount > 0) colors.statusSuccess.copy(alpha = 0.12f)
-                                else colors.cardBg
-                            )
+                            .background(colors.cardBg)
                             .border(
-                                1.dp,
-                                if (blockedTrackersCount > 0) colors.statusSuccess.copy(alpha = 0.35f)
-                                else colors.border.copy(alpha = 0.6f),
+                                0.8.dp,
+                                colors.border.copy(alpha = 0.6f),
                                 CircleShape
                             )
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(bounded = false, radius = 20.dp, color = colors.statusSuccess),
+                                indication = ripple(bounded = false, radius = 20.dp, color = colors.textSecondary),
                                 onClick = {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     onDismissRequest()
@@ -281,7 +277,7 @@ fun BrowserMenuDropup(
                             Icon(
                                 imageVector = Icons.Default.Security,
                                 contentDescription = null,
-                                tint = if (blockedTrackersCount > 0) colors.statusSuccess else colors.textMuted,
+                                tint = colors.textPrimary,
                                 modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -289,7 +285,7 @@ fun BrowserMenuDropup(
                                 text = if (blockedTrackersCount > 0) "$blockedTrackersCount" else "Shield",
                                 fontSize = 10.5.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (blockedTrackersCount > 0) colors.statusSuccess else colors.textSecondary
+                                color = colors.textPrimary
                             )
                         }
                     }
@@ -336,9 +332,9 @@ fun BrowserMenuDropup(
                 DropupQuickActionPill(
                     icon = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                     label = if (isBookmarked) "Saved" else "Bookmark",
-                    tint = if (isBookmarked) colors.statusWarning else colors.textPrimary,
+                    tint = colors.textPrimary,
                     isActive = isBookmarked,
-                    activeBorderColor = colors.statusWarning.copy(alpha = 0.6f),
+                    activeBorderColor = colors.textPrimary,
                     modifier = Modifier.weight(1f),
                     onClick = {
                         onDismissRequest()
@@ -363,9 +359,9 @@ fun BrowserMenuDropup(
                 DropupQuickActionPill(
                     icon = if (isDesktopMode) Icons.Default.PhoneAndroid else Icons.Default.Devices,
                     label = if (isDesktopMode) "Mobile" else "Desktop",
-                    tint = if (isDesktopMode) colors.statusSuccess else (if (isWebpage) colors.textPrimary else colors.textMuted.copy(alpha = 0.35f)),
+                    tint = if (isWebpage) colors.textPrimary else colors.textMuted.copy(alpha = 0.35f),
                     isActive = isDesktopMode && isWebpage,
-                    activeBorderColor = colors.statusSuccess.copy(alpha = 0.6f),
+                    activeBorderColor = colors.textPrimary,
                     enabled = isWebpage,
                     modifier = Modifier.weight(1f),
                     onClick = {
@@ -380,7 +376,7 @@ fun BrowserMenuDropup(
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
             )
 
-            // 3. Navigation & Privacy Section
+            // 3. Navigation & Privacy Section (Pure Minimalist UI)
             DropupMenuItemRow(
                 title = "New Tab",
                 icon = Icons.Default.Add,
@@ -395,10 +391,10 @@ fun BrowserMenuDropup(
             DropupMenuItemRow(
                 title = "New Private Tab",
                 icon = Icons.Default.Security,
-                iconTint = colors.statusAccent,
-                iconBg = colors.statusAccent.copy(alpha = 0.12f),
+                iconTint = colors.textPrimary,
+                iconBg = colors.surfaceElevated,
                 badge = "Private",
-                badgeColor = colors.statusAccent,
+                badgeColor = colors.textSecondary,
                 onClick = {
                     onDismissRequest()
                     onOpenNewPrivateTab()
@@ -408,10 +404,10 @@ fun BrowserMenuDropup(
             DropupMenuItemRow(
                 title = "New Tor Window",
                 iconRes = R.drawable.ic_tor,
-                iconTint = colors.statusTor,
-                iconBg = colors.statusTor.copy(alpha = 0.14f),
+                iconTint = colors.textPrimary,
+                iconBg = colors.surfaceElevated,
                 badge = "Tor Onion",
-                badgeColor = colors.statusTor,
+                badgeColor = colors.textSecondary,
                 onClick = {
                     onDismissRequest()
                     onOpenTorWindow()
@@ -421,10 +417,10 @@ fun BrowserMenuDropup(
             DropupMenuItemRow(
                 title = "Azokle Shield",
                 icon = Icons.Default.Security,
-                iconTint = colors.statusSuccess,
-                iconBg = colors.statusSuccess.copy(alpha = 0.12f),
+                iconTint = colors.textPrimary,
+                iconBg = colors.surfaceElevated,
                 badge = if (blockedTrackersCount > 0) "$blockedTrackersCount Blocked" else "Protected",
-                badgeColor = colors.statusSuccess,
+                badgeColor = colors.textSecondary,
                 onClick = {
                     onDismissRequest()
                     onOpenShield()
@@ -472,10 +468,10 @@ fun BrowserMenuDropup(
                     DropupMenuItemRow(
                         title = "Open in ${installedPwa.title}",
                         icon = Icons.Default.OpenInBrowser,
-                        iconTint = colors.statusSuccess,
-                        iconBg = colors.statusSuccess.copy(alpha = 0.12f),
+                        iconTint = colors.textPrimary,
+                        iconBg = colors.surfaceElevated,
                         badge = "PWA",
-                        badgeColor = colors.statusSuccess,
+                        badgeColor = colors.textSecondary,
                         onClick = {
                             onDismissRequest()
                             com.azokle.search.pwa.PwaShortcutManager.launchPwa(context, installedPwa)
@@ -498,10 +494,10 @@ fun BrowserMenuDropup(
                     DropupMenuItemRow(
                         title = if (pwaEligibility.isInstallablePwa) "Install Web App" else "Add to Home screen",
                         icon = Icons.Default.InstallMobile,
-                        iconTint = colors.actionPrimaryBg,
-                        iconBg = colors.actionPrimaryBg.copy(alpha = 0.12f),
+                        iconTint = colors.textPrimary,
+                        iconBg = colors.surfaceElevated,
                         badge = if (pwaEligibility.isInstallablePwa) "App" else null,
-                        badgeColor = colors.actionPrimaryBg,
+                        badgeColor = colors.textSecondary,
                         onClick = {
                             onDismissRequest()
                             onInstallPwa()
@@ -520,8 +516,8 @@ fun BrowserMenuDropup(
             DropupMenuItemRow(
                 title = "Bookmarks",
                 icon = Icons.Default.Star,
-                iconTint = colors.statusWarning,
-                iconBg = colors.statusWarning.copy(alpha = 0.12f),
+                iconTint = colors.textPrimary,
+                iconBg = colors.surfaceElevated,
                 onClick = {
                     onDismissRequest()
                     onOpenBookmarks()
@@ -774,15 +770,15 @@ private fun DropupMenuItemRow(
             Box(
                 modifier = Modifier
                     .clip(CircleShape)
-                    .background((badgeColor ?: colors.actionPrimaryBg).copy(alpha = 0.14f))
-                    .border(0.5.dp, (badgeColor ?: colors.actionPrimaryBg).copy(alpha = 0.4f), CircleShape)
+                    .background(colors.surfaceElevated)
+                    .border(0.8.dp, colors.borderSubtle, CircleShape)
                     .padding(horizontal = 8.dp, vertical = 2.5.dp)
             ) {
                 Text(
                     text = badge,
                     fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = badgeColor ?: colors.actionPrimaryBg
+                    fontWeight = FontWeight.Medium,
+                    color = badgeColor ?: colors.textSecondary
                 )
             }
         }

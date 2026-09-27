@@ -24,8 +24,8 @@ android {
         applicationId = "com.azokle.search"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
-        versionName = "2.0.2"
+        versionCode = 14
+        versionName = "2.0.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -83,7 +83,7 @@ android {
                 !taskNames.any { it.contains("bundle", ignoreCase = true) || it.contains("build", ignoreCase = true) }
             reset()
             include("arm64-v8a", "armeabi-v7a", "x86_64")
-            isUniversalApk = false
+            isUniversalApk = true
         }
     }
 

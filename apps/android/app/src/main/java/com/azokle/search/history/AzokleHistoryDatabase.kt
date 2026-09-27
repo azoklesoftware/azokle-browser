@@ -586,17 +586,25 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         try {
             val db = writableDatabase
             db.execSQL("PRAGMA secure_delete = ON;")
-            db.delete(TABLE_VISITS, null, null)
-            db.delete(TABLE_PLACES, null, null)
-            db.delete(TABLE_PERMISSION_AUDIT, null, null)
-            db.delete(TABLE_TABS, null, null)
-            db.delete(TABLE_TAB_GROUPS, null, null)
-            db.delete(TABLE_SESSION_META, null, null)
-            db.delete(TABLE_DOWNLOADS, null, null)
+            db.beginTransactionNonExclusive()
             try {
-                db.delete(TABLE_PLACES_FTS, null, null)
+                db.delete(TABLE_VISITS, null, null)
+                db.delete(TABLE_PLACES, null, null)
+                db.delete(TABLE_PERMISSION_AUDIT, null, null)
+                db.delete(TABLE_TABS, null, null)
+                db.delete(TABLE_TAB_GROUPS, null, null)
+                db.delete(TABLE_SESSION_META, null, null)
+                db.delete(TABLE_DOWNLOADS, null, null)
+                db.setTransactionSuccessful()
+            } finally {
+                db.endTransaction()
+            }
+            try {
+                db.execSQL("PRAGMA wal_checkpoint(TRUNCATE);")
             } catch (_: Exception) {}
-            db.execSQL("VACUUM;")
+            try {
+                db.execSQL("VACUUM;")
+            } catch (_: Exception) {}
         } catch (e: Exception) {
             Log.e(TAG, "Failed to securely wipe SQLite history: ${e.message}")
         }
