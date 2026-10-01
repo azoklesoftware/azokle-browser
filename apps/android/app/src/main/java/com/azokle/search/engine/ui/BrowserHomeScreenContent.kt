@@ -86,61 +86,96 @@ fun BrowserHomeScreenContent(
     val screenHeightDp = configuration.screenHeightDp
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || screenWidthDp > screenHeightDp
 
-    // Dynamic Responsive Typography & Spacing based on viewport dimensions
-    val logoFontSize = when {
-        isLandscape -> 34.sp
-        screenHeightDp < 620 || screenWidthDp < 360 -> 38.sp
-        screenHeightDp < 760 -> 46.sp
-        else -> 52.sp
+    // Dynamic Responsive Typography & Spacing based on viewport dimensions (Memoized)
+    val metrics = remember(screenWidthDp, screenHeightDp, isLandscape) {
+        HomeScreenMetrics(
+            logoFontSize = when {
+                isLandscape -> 34.sp
+                screenHeightDp < 620 || screenWidthDp < 360 -> 38.sp
+                screenHeightDp < 760 -> 46.sp
+                else -> 52.sp
+            },
+            topSpacerHeight = when {
+                isLandscape -> 8.dp
+                screenHeightDp < 620 -> 12.dp
+                screenHeightDp < 760 -> 18.dp
+                else -> 24.dp
+            },
+            midSpacerHeight = when {
+                isLandscape -> 10.dp
+                screenHeightDp < 620 -> 14.dp
+                screenHeightDp < 760 -> 20.dp
+                else -> 28.dp
+            },
+            itemsPerRow = when {
+                screenWidthDp >= 720 || (isLandscape && screenWidthDp >= 640) -> 8
+                screenWidthDp >= 520 -> 6
+                else -> 4
+            },
+            shortcutTileSize = when {
+                isLandscape || screenHeightDp < 600 || screenWidthDp < 360 -> 48.dp
+                screenHeightDp >= 840 || screenWidthDp >= 600 -> 58.dp
+                else -> 54.dp
+            },
+            shortcutIconSize = when {
+                isLandscape || screenHeightDp < 600 || screenWidthDp < 360 -> 26.dp
+                screenHeightDp >= 840 || screenWidthDp >= 600 -> 32.dp
+                else -> 30.dp
+            },
+            shortcutRowSpacing = when {
+                isLandscape || screenHeightDp < 620 -> 10.dp
+                else -> 16.dp
+            },
+            contentHorizontalPadding = when {
+                screenWidthDp < 360 -> 12.dp
+                screenWidthDp < 480 -> 18.dp
+                else -> 24.dp
+            },
+            contentVerticalPadding = when {
+                isLandscape -> 12.dp
+                screenHeightDp < 620 -> 16.dp
+                else -> 24.dp
+            }
+        )
     }
 
-    val topSpacerHeight = when {
-        isLandscape -> 8.dp
-        screenHeightDp < 620 -> 12.dp
-        screenHeightDp < 760 -> 18.dp
-        else -> 24.dp
+    // Cached gradient brushes to prevent allocation churn on scroll/recomposition
+    val topScrimBrush = remember {
+        Brush.verticalGradient(
+            listOf(
+                Color.Black.copy(alpha = 0.60f),
+                Color.Black.copy(alpha = 0.20f),
+                Color.Transparent
+            )
+        )
     }
 
-    val midSpacerHeight = when {
-        isLandscape -> 10.dp
-        screenHeightDp < 620 -> 14.dp
-        screenHeightDp < 760 -> 20.dp
-        else -> 28.dp
+    val bottomScrimBrush = remember {
+        Brush.verticalGradient(
+            listOf(
+                Color.Transparent,
+                Color.Black.copy(alpha = 0.35f),
+                Color.Black.copy(alpha = 0.70f)
+            )
+        )
     }
 
-    val itemsPerRow = when {
-        screenWidthDp >= 720 || (isLandscape && screenWidthDp >= 640) -> 8
-        screenWidthDp >= 520 -> 6
-        else -> 4
+    val donateBgBrush = remember {
+        Brush.horizontalGradient(
+            listOf(
+                Color.Black.copy(alpha = 0.45f),
+                Color.Black.copy(alpha = 0.30f)
+            )
+        )
     }
 
-    val shortcutTileSize = when {
-        isLandscape || screenHeightDp < 600 || screenWidthDp < 360 -> 48.dp
-        screenHeightDp >= 840 || screenWidthDp >= 600 -> 58.dp
-        else -> 54.dp
-    }
-
-    val shortcutIconSize = when {
-        isLandscape || screenHeightDp < 600 || screenWidthDp < 360 -> 26.dp
-        screenHeightDp >= 840 || screenWidthDp >= 600 -> 32.dp
-        else -> 30.dp
-    }
-
-    val shortcutRowSpacing = when {
-        isLandscape || screenHeightDp < 620 -> 10.dp
-        else -> 16.dp
-    }
-
-    val contentHorizontalPadding = when {
-        screenWidthDp < 360 -> 12.dp
-        screenWidthDp < 480 -> 18.dp
-        else -> 24.dp
-    }
-
-    val contentVerticalPadding = when {
-        isLandscape -> 12.dp
-        screenHeightDp < 620 -> 16.dp
-        else -> 24.dp
+    val donateBorderBrush = remember {
+        Brush.horizontalGradient(
+            listOf(
+                Color.White.copy(alpha = 0.25f),
+                Color.White.copy(alpha = 0.10f)
+            )
+        )
     }
 
     Box(
@@ -169,15 +204,7 @@ fun BrowserHomeScreenContent(
                 .fillMaxWidth()
                 .height(100.dp)
                 .align(Alignment.TopCenter)
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.Black.copy(alpha = 0.60f),
-                            Color.Black.copy(alpha = 0.20f),
-                            Color.Transparent
-                        )
-                    )
-                )
+                .background(topScrimBrush)
         )
 
         // Bottom Navigation Scrim
@@ -186,15 +213,7 @@ fun BrowserHomeScreenContent(
                 .fillMaxWidth()
                 .height(140.dp)
                 .align(Alignment.BottomCenter)
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.35f),
-                            Color.Black.copy(alpha = 0.70f)
-                        )
-                    )
-                )
+                .background(bottomScrimBrush)
         )
 
         // Scrollable Responsive Center Content Stack (Guarantees zero clipping on any phone screen height)
@@ -208,7 +227,7 @@ fun BrowserHomeScreenContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .adaptiveContentWidth(680.dp)
-                    .padding(horizontal = contentHorizontalPadding, vertical = contentVerticalPadding),
+                    .padding(horizontal = metrics.contentHorizontalPadding, vertical = metrics.contentVerticalPadding),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -217,13 +236,13 @@ fun BrowserHomeScreenContent(
                     text = "azokle",
                     color = AzokleWhite,
                     fontFamily = AudiowideFontFamily,
-                    fontSize = logoFontSize,
+                    fontSize = metrics.logoFontSize,
                     fontWeight = FontWeight.Normal,
                     letterSpacing = (-1.0).sp,
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(topSpacerHeight))
+                Spacer(modifier = Modifier.height(metrics.topSpacerHeight))
 
                 // Exact Home Page Search Bar Capsule
                 SearchBarCapsule(
@@ -240,7 +259,7 @@ fun BrowserHomeScreenContent(
                     searchEngineModifier = searchEngineModifier
                 )
 
-                Spacer(modifier = Modifier.height(midSpacerHeight))
+                Spacer(modifier = Modifier.height(metrics.midSpacerHeight))
 
                 // Quick Speed Dial Shortcuts (Wikipedia, YouTube, Amazon, Trip, Reddit, Azokle Auth, Kick, Azokle)
                 val shortcuts = remember {
@@ -270,14 +289,14 @@ fun BrowserHomeScreenContent(
                     )
                 }
 
-                val chunkedShortcuts = remember(shortcuts, itemsPerRow) { shortcuts.chunked(itemsPerRow) }
+                val chunkedShortcuts = remember(shortcuts, metrics.itemsPerRow) { shortcuts.chunked(metrics.itemsPerRow) }
 
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .then(shortcutsModifier)
                         .padding(horizontal = 2.dp),
-                    verticalArrangement = Arrangement.spacedBy(shortcutRowSpacing)
+                    verticalArrangement = Arrangement.spacedBy(metrics.shortcutRowSpacing)
                 ) {
                     chunkedShortcuts.forEach { rowItems ->
                         Row(
@@ -289,8 +308,8 @@ fun BrowserHomeScreenContent(
                                 ShortcutTile(
                                     item = item,
                                     onNavigate = onNavigate,
-                                    tileSize = shortcutTileSize,
-                                    iconSize = shortcutIconSize,
+                                    tileSize = metrics.shortcutTileSize,
+                                    iconSize = metrics.shortcutIconSize,
                                     modifier = Modifier.weight(1f)
                                 )
                             }
@@ -310,22 +329,10 @@ fun BrowserHomeScreenContent(
                 .align(Alignment.BottomEnd)
                 .padding(end = 18.dp, bottom = 14.dp)
                 .clip(RoundedCornerShape(20.dp))
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(
-                            Color.Black.copy(alpha = 0.45f),
-                            Color.Black.copy(alpha = 0.30f)
-                        )
-                    )
-                )
+                .background(donateBgBrush)
                 .border(
                     width = 0.8.dp,
-                    brush = Brush.horizontalGradient(
-                        listOf(
-                            Color.White.copy(alpha = 0.25f),
-                            Color.White.copy(alpha = 0.10f)
-                        )
-                    ),
+                    brush = donateBorderBrush,
                     shape = RoundedCornerShape(20.dp)
                 )
                 .clickable(
@@ -369,6 +376,18 @@ fun BrowserHomeScreenContent(
     }
 }
 
+private data class HomeScreenMetrics(
+    val logoFontSize: androidx.compose.ui.unit.TextUnit,
+    val topSpacerHeight: Dp,
+    val midSpacerHeight: Dp,
+    val itemsPerRow: Int,
+    val shortcutTileSize: Dp,
+    val shortcutIconSize: Dp,
+    val shortcutRowSpacing: Dp,
+    val contentHorizontalPadding: Dp,
+    val contentVerticalPadding: Dp
+)
+
 @Composable
 fun ShortcutTile(
     item: BrowserShortcut,
@@ -378,6 +397,22 @@ fun ShortcutTile(
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
+    val tileBgBrush = remember {
+        Brush.verticalGradient(
+            listOf(
+                Color.White.copy(alpha = 0.22f),
+                Color.White.copy(alpha = 0.08f)
+            )
+        )
+    }
+    val tileBorderBrush = remember {
+        Brush.verticalGradient(
+            listOf(
+                Color.White.copy(alpha = 0.40f),
+                Color.White.copy(alpha = 0.12f)
+            )
+        )
+    }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -408,22 +443,10 @@ fun ShortcutTile(
                     spotColor = Color.Black.copy(alpha = 0.45f)
                 )
                 .clip(RoundedCornerShape(16.dp))
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.White.copy(alpha = 0.22f),
-                            Color.White.copy(alpha = 0.08f)
-                        )
-                    )
-                )
+                .background(tileBgBrush)
                 .border(
                     width = 1.dp,
-                    brush = Brush.verticalGradient(
-                        listOf(
-                            Color.White.copy(alpha = 0.40f),
-                            Color.White.copy(alpha = 0.12f)
-                        )
-                    ),
+                    brush = tileBorderBrush,
                     shape = RoundedCornerShape(16.dp)
                 ),
             contentAlignment = Alignment.Center

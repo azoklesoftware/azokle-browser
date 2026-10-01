@@ -18,7 +18,7 @@ class HistoryItemTest {
 
         assertEquals("wikipedia.org", item.cleanHost)
         assertEquals("Kotlin (programming language) - Wikipedia", item.displayTitle)
-        assertEquals("https://icons.duckduckgo.com/ip3/wikipedia.org.ico", item.faviconUrl)
+        assertEquals("https://www.google.com/s2/favicons?domain=wikipedia.org&sz=128", item.faviconUrl)
         assertFalse(item.isSearch)
     }
 

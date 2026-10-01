@@ -19,7 +19,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -27,9 +26,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.Icon
@@ -47,7 +44,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -56,9 +52,9 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 /**
- * Minimal, crisp ember spark particle (solid color, zero gradient).
+ * Minimalist ember spark particle for clean micro-animations.
  */
-private class PureEmber(
+private class MinimalEmber(
     var xPercent: Float,
     var yPercent: Float,
     val radiusDp: Float,
@@ -70,14 +66,15 @@ private class PureEmber(
 )
 
 /**
- * Premium, Clean, Simple & Solid Fire Incineration Overlay.
+ * Ultra-Minimalist, Clean & Snappy Data Incineration Overlay.
  *
- * Designed with pure solid colors (zero gradients):
- * - Immaculate deep pitch obsidian background
- * - Minimalist solid glass disc with crisp amber hairline border
- * - Concentric expanding solid shockwave rings
- * - Pure rising ember sparks with clean alpha falloff
- * - Refined solid status card with crisp typography
+ * Features:
+ * - Deep pitch-black background fade
+ * - Minimalist glowing flame disc with crisp hairline border
+ * - Smooth hairline expanding shockwave ring
+ * - Curated subtle rising micro-embers
+ * - Clean, minimal typography without visual noise
+ * - Responsive tactile haptic feedback
  */
 @Composable
 fun FireIncinerationOverlay(
@@ -85,52 +82,48 @@ fun FireIncinerationOverlay(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-
     val smoothDecel = remember { CubicBezierEasing(0.16f, 1f, 0.3f, 1f) }
 
-    // Primary State Drivers
+    // Primary Animation Drivers
     val veilAlpha = remember { Animatable(0f) }
-    val contentScale = remember { Animatable(0.92f) }
-    val ring1Scale = remember { Animatable(0.8f) }
-    val ring1Alpha = remember { Animatable(0f) }
-    val ring2Scale = remember { Animatable(0.6f) }
-    val ring2Alpha = remember { Animatable(0f) }
+    val contentScale = remember { Animatable(0.88f) }
+    val ringScale = remember { Animatable(0.7f) }
+    val ringAlpha = remember { Animatable(0f) }
 
-    // Curated solid ember particles (pure colors: Amber, Golden Yellow, Warm Orange)
+    // Curated micro-embers (subtle, clean, minimal)
     val embers = remember {
-        val solidColors = listOf(
+        val colors = listOf(
             Color(0xFFFF9800), // Amber
-            Color(0xFFFFB300), // Golden Amber
-            Color(0xFFF97316), // Warm Orange
-            Color(0xFFFFA000)  // Gold
+            Color(0xFFF97316), // Orange
+            Color(0xFFFFA000)  // Golden amber
         )
-        List(18) { index ->
-            PureEmber(
-                xPercent = 0.12f + Random.nextFloat() * 0.76f,
-                yPercent = 0.55f + Random.nextFloat() * 0.45f,
-                radiusDp = Random.nextFloat() * 1.8f + 1.2f,
-                ascentSpeed = Random.nextFloat() * 0.16f + 0.12f,
-                horizontalWander = Random.nextFloat() * 0.018f + 0.008f,
+        List(12) { index ->
+            MinimalEmber(
+                xPercent = 0.2f + Random.nextFloat() * 0.6f,
+                yPercent = 0.52f + Random.nextFloat() * 0.4f,
+                radiusDp = Random.nextFloat() * 1.4f + 0.8f,
+                ascentSpeed = Random.nextFloat() * 0.14f + 0.10f,
+                horizontalWander = Random.nextFloat() * 0.015f + 0.006f,
                 swayPhase = Random.nextFloat() * 6.28f,
-                solidColor = solidColors[index % solidColors.size],
-                baseAlpha = Random.nextFloat() * 0.3f + 0.7f
+                solidColor = colors[index % colors.size],
+                baseAlpha = Random.nextFloat() * 0.3f + 0.65f
             )
         }
     }
 
-    val infiniteTransition = rememberInfiniteTransition(label = "solidEmbers")
+    val infiniteTransition = rememberInfiniteTransition(label = "microEmbers")
     val emberSwayPhase by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 6.28318f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2600, easing = LinearEasing),
+            animation = tween(2200, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "emberSwayPhase"
     )
 
     LaunchedEffect(Unit) {
-        // Tactile Haptic Pulse
+        // 1. Tactile Haptic Pulse
         try {
             val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
@@ -141,36 +134,32 @@ fun FireIncinerationOverlay(
             }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val timings = longArrayOf(0, 30, 40, 50)
-                val amplitudes = intArrayOf(0, 100, 0, 190)
+                val timings = longArrayOf(0, 25, 35, 45)
+                val amplitudes = intArrayOf(0, 90, 0, 180)
                 vibrator?.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
             } else {
                 @Suppress("DEPRECATION")
-                vibrator?.vibrate(180)
+                vibrator?.vibrate(160)
             }
         } catch (_: Exception) {
             // Graceful fallback
         }
 
-        // Phase 1: Smooth Reveal
-        veilAlpha.animateTo(1f, tween(280, easing = FastOutSlowInEasing))
-        contentScale.animateTo(1f, tween(340, easing = smoothDecel))
+        // 2. Smooth Reveal
+        veilAlpha.animateTo(1f, tween(220, easing = FastOutSlowInEasing))
+        contentScale.animateTo(1f, tween(280, easing = smoothDecel))
 
-        // Expanding Solid Shockwave Rings
-        ring1Alpha.snapTo(0.6f)
-        ring1Scale.animateTo(2.0f, tween(550, easing = FastOutSlowInEasing))
-        ring1Alpha.animateTo(0f, tween(300, easing = FastOutSlowInEasing))
+        // Expanding Hairline Shockwave
+        ringAlpha.snapTo(0.5f)
+        ringScale.animateTo(2.2f, tween(480, easing = FastOutSlowInEasing))
+        ringAlpha.animateTo(0f, tween(260, easing = FastOutSlowInEasing))
 
-        ring2Alpha.snapTo(0.35f)
-        ring2Scale.animateTo(2.7f, tween(700, easing = FastOutSlowInEasing))
-        ring2Alpha.animateTo(0f, tween(350, easing = FastOutSlowInEasing))
+        // 3. Steady Hold
+        delay(480)
 
-        // Phase 2: Steady Hold
-        delay(550)
-
-        // Phase 3: Smooth Exit to Clean Slate
-        veilAlpha.animateTo(0f, tween(300, easing = FastOutSlowInEasing))
-        delay(30)
+        // 4. Smooth Exit
+        veilAlpha.animateTo(0f, tween(240, easing = FastOutSlowInEasing))
+        delay(20)
         onComplete()
     }
 
@@ -180,36 +169,25 @@ fun FireIncinerationOverlay(
             .alpha(veilAlpha.value)
             .background(Color(0xFF000000))
     ) {
-        // 1. Clean Canvas: Concentric Solid Rings & Crisp Solid Embers
+        // 1. Minimal Canvas: Expanding Hairline Ring & Micro-Embers
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
             val globalAlpha = veilAlpha.value
-            val centerPoint = Offset(w / 2f, h * 0.44f)
+            val centerPoint = Offset(w / 2f, h * 0.46f)
 
-            // 1A. Expanding Solid Ring 1
-            if (ring1Alpha.value > 0.01f) {
-                val r1 = 42.dp.toPx() * ring1Scale.value
+            // Expanding Hairline Ring
+            if (ringAlpha.value > 0.01f) {
+                val r = 36.dp.toPx() * ringScale.value
                 drawCircle(
-                    color = Color(0xFFFF9800).copy(alpha = ring1Alpha.value * 0.6f),
-                    radius = r1,
-                    center = centerPoint,
-                    style = Stroke(width = 1.2.dp.toPx())
-                )
-            }
-
-            // 1B. Expanding Solid Ring 2
-            if (ring2Alpha.value > 0.01f) {
-                val r2 = 42.dp.toPx() * ring2Scale.value
-                drawCircle(
-                    color = Color(0xFFF97316).copy(alpha = ring2Alpha.value * 0.4f),
-                    radius = r2,
+                    color = Color(0xFFFF9800).copy(alpha = ringAlpha.value * 0.5f),
+                    radius = r,
                     center = centerPoint,
                     style = Stroke(width = 1.0.dp.toPx())
                 )
             }
 
-            // 1C. Clean Solid Embers
+            // Clean Floating Micro-Embers
             embers.forEach { ember ->
                 ember.yPercent -= (ember.ascentSpeed * 0.012f)
                 val sway = sin((ember.yPercent * 8f + ember.swayPhase + emberSwayPhase).toDouble()).toFloat()
@@ -218,7 +196,7 @@ fun FireIncinerationOverlay(
 
                 if (drawY in -20f..h) {
                     val progress = (1f - (drawY / h)).coerceIn(0f, 1f)
-                    val fadeAlpha = (ember.baseAlpha * (1f - (progress * 0.65f)) * globalAlpha).coerceIn(0f, 1f)
+                    val fadeAlpha = (ember.baseAlpha * (1f - (progress * 0.6f)) * globalAlpha).coerceIn(0f, 1f)
                     val rPx = ember.radiusDp.dp.toPx()
 
                     drawCircle(
@@ -230,7 +208,7 @@ fun FireIncinerationOverlay(
             }
         }
 
-        // 2. Pure, Minimalist Luxury Centerpiece
+        // 2. Clean, Minimal Centerpiece
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -244,62 +222,42 @@ fun FireIncinerationOverlay(
                     .scale(contentScale.value)
                     .padding(horizontal = 24.dp)
             ) {
-                // Solid Minimalist Flame Disc
+                // Minimalist Flame Badge
                 Box(
                     modifier = Modifier
-                        .size(76.dp)
+                        .size(56.dp)
                         .clip(CircleShape)
                         .background(Color(0xFF141416))
-                        .border(1.5.dp, Color(0xFFFF9800), CircleShape),
+                        .border(1.2.dp, Color(0xFFFF9800), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.LocalFireDepartment,
-                        contentDescription = "Session Incinerated",
+                        contentDescription = "Data Burned",
                         tint = Color(0xFFFF9800),
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(28.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Solid Minimalist Status Pill
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFF141416))
-                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(20.dp))
-                        .padding(horizontal = 20.dp, vertical = 12.dp)
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.LocalFireDepartment,
-                                contentDescription = null,
-                                tint = Color(0xFFFF9800),
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Spacer(modifier = Modifier.width(7.dp))
-                            Text(
-                                text = stringResource(com.azokle.search.R.string.incinerated_title),
-                                color = Color(0xFFFFFFFF),
-                                fontSize = 12.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                letterSpacing = 1.sp
-                            )
-                        }
+                // Clean Minimalist Title
+                Text(
+                    text = "Browsing Data Burned",
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
 
-                        Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(3.dp))
 
-                        Text(
-                            text = stringResource(com.azokle.search.R.string.incinerated_sub),
-                            color = Color(0xFF9E9EA8),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Normal,
-                            letterSpacing = 0.2.sp
-                        )
-                    }
-                }
+                // Clean Minimalist Subtitle
+                Text(
+                    text = "Tabs, history & session wiped",
+                    color = Color(0xFF9E9EA8),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Normal
+                )
             }
         }
     }

@@ -3,31 +3,10 @@ package com.azokle.search.tabs
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.layout.offset
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.unit.IntOffset
-import kotlin.math.roundToInt
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.isActive
-import com.azokle.search.common.util.PreferencesManager
-import com.azokle.search.common.tour.DriverTourOverlay
-import com.azokle.search.common.tour.TourShape
-import com.azokle.search.common.tour.TourStep
-import com.azokle.search.common.tour.rememberTourState
-import com.azokle.search.common.tour.tourTarget
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -58,26 +37,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Layers
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.ui.res.painterResource
-import com.azokle.search.R
-import com.azokle.search.common.components.FaviconImage
-import com.azokle.search.common.theme.AudiowideFontFamily
-import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -87,16 +56,11 @@ import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import com.azokle.search.tabs.TabThumbnailCache
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -105,7 +69,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -117,13 +85,22 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.azokle.search.tabs.TabGroup
-import com.azokle.search.tabs.TabManager
-import com.azokle.search.tabs.TabSession
-import com.azokle.search.tabs.TabGroupCard
-import com.azokle.search.tabs.TabGroupDetailSheet
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.azokle.search.R
+import com.azokle.search.common.components.FaviconImage
+import com.azokle.search.common.components.ToastManager
 import com.azokle.search.common.theme.AzokleRadius
 import com.azokle.search.common.theme.AzokleTheme
+import com.azokle.search.common.theme.AzokleThemeColors
+import com.azokle.search.common.tour.DriverTourOverlay
+import com.azokle.search.common.tour.TourShape
+import com.azokle.search.common.tour.TourState
+import com.azokle.search.common.tour.TourStep
+import com.azokle.search.common.tour.rememberTourState
+import com.azokle.search.common.tour.tourTarget
+import com.azokle.search.common.util.PreferencesManager
+import com.azokle.search.settings.WallpaperManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -143,7 +120,7 @@ fun ActiveTabsScreen(
     forceStartTour: Boolean = false,
     onTourConsumed: () -> Unit = {}
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val colors = AzokleTheme.colors
     val scope = rememberCoroutineScope()
     val preferencesManager = remember { PreferencesManager(context) }
@@ -226,11 +203,24 @@ fun ActiveTabsScreen(
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showCreateGroupDialog by remember { mutableStateOf(false) }
 
-    val standardCount = remember(tabs) { tabs.count { !it.isPrivate && !it.isTor } }
-    val privateCount = remember(tabs) { tabs.count { it.isPrivate && !it.isTor } }
-    val torCount = remember(tabs) { tabs.count { it.isTor } }
+    // Streamlined single-pass counting
+    val (standardCount, privateCount, torCount) = remember(tabs) {
+        var std = 0
+        var priv = 0
+        var tor = 0
+        tabs.forEach {
+            when {
+                it.isTor -> tor++
+                it.isPrivate -> priv++
+                else -> std++
+            }
+        }
+        Triple(std, priv, tor)
+    }
 
+    // Consolidated category groups derivation
     val categoryGroups = remember(groups, selectedCategory, searchQuery, tabs) {
+        val query = searchQuery.trim()
         groups.filter { group ->
             when (selectedCategory) {
                 TabCategory.STANDARD -> !group.isPrivate && !group.isTor
@@ -238,11 +228,11 @@ fun ActiveTabsScreen(
                 TabCategory.TOR -> group.isTor
             }
         }.filter { group ->
-            if (searchQuery.isBlank()) true
+            if (query.isBlank()) true
             else {
                 val groupTabList = tabs.filter { it.groupId == group.id }
-                group.title.contains(searchQuery, ignoreCase = true) ||
-                groupTabList.any { it.title.contains(searchQuery, ignoreCase = true) || it.url.contains(searchQuery, ignoreCase = true) }
+                group.title.contains(query, ignoreCase = true) ||
+                        groupTabList.any { it.title.contains(query, ignoreCase = true) || it.url.contains(query, ignoreCase = true) }
             }
         }.reversed()
     }
@@ -251,33 +241,36 @@ fun ActiveTabsScreen(
         categoryGroups.flatMap { it.tabIds }.toSet()
     }
 
-    // Newest tabs appear first, oldest tabs appear in last
-    val filteredTabs = remember(tabs, selectedCategory, searchQuery) {
-        tabs.filter { tab ->
+    // Consolidated filtered tabs derivation
+    val filteredTabs = remember(tabs, selectedCategory, searchQuery, isGroupedByDomain) {
+        val query = searchQuery.trim()
+        val baseList = tabs.filter { tab ->
             when (selectedCategory) {
                 TabCategory.STANDARD -> !tab.isPrivate && !tab.isTor
                 TabCategory.PRIVATE -> tab.isPrivate && !tab.isTor
                 TabCategory.TOR -> tab.isTor
             }
         }.filter {
-            if (searchQuery.isBlank()) true
-            else it.title.contains(searchQuery, ignoreCase = true) || it.url.contains(searchQuery, ignoreCase = true)
+            if (query.isBlank()) true
+            else it.title.contains(query, ignoreCase = true) || it.url.contains(query, ignoreCase = true)
         }.reversed()
-    }
 
-    val displayTabs = remember(filteredTabs, isGroupedByDomain) {
         if (isGroupedByDomain) {
-            filteredTabs.sortedBy { tab ->
-                try { android.net.Uri.parse(tab.url).host?.removePrefix("www.") ?: tab.url } catch (e: Exception) { tab.url }
+            baseList.sortedBy { tab ->
+                try {
+                    Uri.parse(tab.url).host?.removePrefix("www.") ?: tab.url
+                } catch (e: Exception) {
+                    tab.url
+                }
             }
         } else {
-            filteredTabs
+            baseList
         }
     }
 
     val allActiveGroupIds = remember(groups) { groups.map { it.id }.toSet() }
-    val standaloneTabs = remember(displayTabs, groupedTabIds, allActiveGroupIds) {
-        displayTabs.filter { !groupedTabIds.contains(it.id) && (it.groupId == null || !allActiveGroupIds.contains(it.groupId)) }
+    val standaloneTabs = remember(filteredTabs, groupedTabIds, allActiveGroupIds) {
+        filteredTabs.filter { !groupedTabIds.contains(it.id) && (it.groupId == null || !allActiveGroupIds.contains(it.groupId)) }
     }
 
     BackHandler(enabled = showOverflowMenu || tabsTourState.isVisible || expandedGroup != null || onClose != null) {
@@ -424,17 +417,17 @@ fun ActiveTabsScreen(
                     }
                 }
 
-                // Right Action Controls (Clear All, + New Tab, Done)
+                // Right Action Controls (Domain Grouping, Clear All, Done)
                 Row(
                     modifier = Modifier.tourTarget(tabsTourSteps[2], tabsTourState),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Domain Grouping Toggle (48dp Touch Target)
+                    // Domain Grouping Toggle
                     if (filteredTabs.size > 1) {
                         Box(
                             modifier = Modifier
-                                .sizeIn(minWidth = 40.dp, minHeight = 40.dp)
+                                .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
                                 .clip(CircleShape)
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
@@ -449,27 +442,27 @@ fun ActiveTabsScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(32.dp)
+                                    .size(30.dp)
                                     .clip(CircleShape)
                                     .background(if (isGroupedByDomain) colors.actionPrimaryBg else colors.cardBg)
-                                    .border(1.dp, if (isGroupedByDomain) colors.actionPrimaryBg else colors.border, CircleShape),
+                                    .border(0.8.dp, if (isGroupedByDomain) colors.actionPrimaryBg else colors.border, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Layers,
                                     contentDescription = null,
                                     tint = if (isGroupedByDomain) colors.actionPrimaryText else colors.textMuted,
-                                    modifier = Modifier.size(15.dp)
+                                    modifier = Modifier.size(14.dp)
                                 )
                             }
                         }
                     }
 
-                    // Close All in Mode (48dp Touch Target)
+                    // Close All in Mode
                     if (filteredTabs.isNotEmpty()) {
                         Box(
                             modifier = Modifier
-                                .sizeIn(minWidth = 40.dp, minHeight = 40.dp)
+                                .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
                                 .clip(CircleShape)
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
@@ -484,27 +477,27 @@ fun ActiveTabsScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(32.dp)
+                                    .size(30.dp)
                                     .clip(CircleShape)
                                     .background(colors.cardBg)
-                                    .border(1.dp, colors.border, CircleShape),
+                                    .border(0.8.dp, colors.border, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.DeleteSweep,
                                     contentDescription = null,
                                     tint = colors.statusDestructive,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                             }
                         }
                     }
 
-                    // Dismiss / Done Button (48dp Touch Target)
+                    // Dismiss / Done Button
                     if (onClose != null) {
                         Box(
                             modifier = Modifier
-                                .sizeIn(minWidth = 40.dp, minHeight = 40.dp)
+                                .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
                                 .clip(CircleShape)
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
@@ -519,17 +512,17 @@ fun ActiveTabsScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(32.dp)
+                                    .size(30.dp)
                                     .clip(CircleShape)
                                     .background(colors.cardBg)
-                                    .border(1.dp, colors.border, CircleShape),
+                                    .border(0.8.dp, colors.border, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = null,
                                     tint = colors.textPrimary,
-                                    modifier = Modifier.size(15.dp)
+                                    modifier = Modifier.size(14.dp)
                                 )
                             }
                         }
@@ -542,11 +535,11 @@ fun ActiveTabsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 6.dp)
-                        .height(38.dp)
+                        .padding(horizontal = 14.dp, vertical = 4.dp)
+                        .height(36.dp)
                         .clip(AzokleRadius.full)
                         .background(colors.cardBg)
-                        .border(1.dp, colors.border, AzokleRadius.full)
+                        .border(0.8.dp, colors.border, AzokleRadius.full)
                         .padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -554,7 +547,7 @@ fun ActiveTabsScreen(
                         imageVector = Icons.Default.Search,
                         contentDescription = null,
                         tint = colors.textMuted,
-                        modifier = Modifier.size(15.dp)
+                        modifier = Modifier.size(14.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     BasicTextField(
@@ -573,7 +566,7 @@ fun ActiveTabsScreen(
                                 Text(
                                     text = "Search open tabs...",
                                     color = colors.textMuted,
-                                    fontSize = 13.sp
+                                    fontSize = 12.5.sp
                                 )
                             }
                             innerTextField()
@@ -582,7 +575,7 @@ fun ActiveTabsScreen(
                     if (searchQuery.isNotEmpty()) {
                         Box(
                             modifier = Modifier
-                                .sizeIn(minWidth = 32.dp, minHeight = 32.dp)
+                                .sizeIn(minWidth = 28.dp, minHeight = 28.dp)
                                 .clip(CircleShape)
                                 .clickable { searchQuery = "" },
                             contentAlignment = Alignment.Center
@@ -591,7 +584,7 @@ fun ActiveTabsScreen(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Clear search",
                                 tint = colors.textMuted,
-                                modifier = Modifier.size(15.dp)
+                                modifier = Modifier.size(14.dp)
                             )
                         }
                     }
@@ -600,7 +593,7 @@ fun ActiveTabsScreen(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // 3. Adaptive Responsive Tabs Grid (Isolated composable for instant 60/120fps sheet transitions)
+            // 3. Adaptive Responsive Tabs Grid
             ActiveTabsGrid(
                 filteredTabs = filteredTabs,
                 categoryGroups = categoryGroups,
@@ -657,8 +650,8 @@ fun ActiveTabsScreen(
                         .shadow(16.dp, AzokleRadius.xl, ambientColor = colors.textPrimary.copy(alpha = 0.1f), spotColor = Color.Black.copy(alpha = 0.2f))
                         .clip(AzokleRadius.xl)
                         .background(colors.cardBg)
-                        .border(1.dp, colors.border, AzokleRadius.xl)
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .border(0.8.dp, colors.border, AzokleRadius.xl)
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -679,7 +672,7 @@ fun ActiveTabsScreen(
                             Text(
                                 text = "Closed \"${closed.title.ifBlank { closed.url }}\"",
                                 color = colors.textPrimary,
-                                fontSize = 13.sp,
+                                fontSize = 12.5.sp,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -697,7 +690,7 @@ fun ActiveTabsScreen(
                                     lastClosedTab = null
                                     undoSnackbarJob?.cancel()
                                 }
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                                .padding(horizontal = 12.dp, vertical = 5.dp)
                                 .semantics {
                                     role = Role.Button
                                     contentDescription = "Undo closed tab"
@@ -725,7 +718,7 @@ fun ActiveTabsScreen(
             }
         }
 
-        // 5. Tab Group Detail Modal Sheet (Expanded Group View with Live State)
+        // 5. Tab Group Detail Modal Sheet
         val liveExpandedGroup = remember(expandedGroup, groups) {
             if (expandedGroup == null) null
             else groups.find { it.id == expandedGroup?.id }
@@ -773,13 +766,13 @@ fun ActiveTabsScreen(
                             TabCategory.TOR -> "Close all Tor windows?"
                         },
                         fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp
+                        fontSize = 16.5.sp
                     )
                 },
                 text = {
                     Text(
-                        text = "All ${filteredTabs.size} open tabs in this view will be closed. Are you sure you want to proceed?",
-                        fontSize = 13.5.sp,
+                        text = "All ${filteredTabs.size} open tabs in this view will be closed.",
+                        fontSize = 13.sp,
                         color = colors.textSecondary
                     )
                 },
@@ -792,7 +785,7 @@ fun ActiveTabsScreen(
                                 TabCategory.PRIVATE -> TabManager.closeCategoryTabs(isPrivateOnly = true, isTorOnly = false)
                                 TabCategory.TOR -> TabManager.closeCategoryTabs(isPrivateOnly = false, isTorOnly = true)
                             }
-                            com.azokle.search.common.components.ToastManager.show("Tabs closed in this mode")
+                            ToastManager.show("Tabs closed in this mode")
                         }
                     ) {
                         Text("Close All", color = colors.statusDestructive, fontWeight = FontWeight.Bold)
@@ -806,7 +799,7 @@ fun ActiveTabsScreen(
             )
         }
 
-        // 5. Bottom Action Area (Centered FAB (+) and Right-Anchored Overflow 3-dots Menu)
+        // 7. Bottom Action Area (Centered FAB (+) and Right-Anchored Overflow 3-dots Menu)
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -814,21 +807,21 @@ fun ActiveTabsScreen(
                 .navigationBarsPadding()
                 .padding(start = 24.dp, end = 24.dp, bottom = 18.dp)
         ) {
-            // Centered + Action Button (Opens tab directly in the active category)
+            // Centered + Action Button
             Box(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .tourTarget(tabsTourSteps[3], tabsTourState)
-                    .size(56.dp)
+                    .size(52.dp)
                     .shadow(
-                        elevation = 14.dp,
+                        elevation = 12.dp,
                         shape = CircleShape,
-                        ambientColor = Color.Black.copy(alpha = 0.4f),
-                        spotColor = colors.actionPrimaryBg.copy(alpha = 0.5f)
+                        ambientColor = Color.Black.copy(alpha = 0.35f),
+                        spotColor = colors.actionPrimaryBg.copy(alpha = 0.45f)
                     )
                     .clip(CircleShape)
                     .background(colors.actionPrimaryBg)
-                    .border(1.2.dp, Color.White.copy(alpha = 0.25f), CircleShape)
+                    .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = ripple(bounded = true, color = colors.actionPrimaryText.copy(alpha = 0.35f)),
@@ -862,7 +855,7 @@ fun ActiveTabsScreen(
                     imageVector = Icons.Default.Add,
                     contentDescription = null,
                     tint = colors.actionPrimaryText,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(26.dp)
                 )
             }
 
@@ -872,19 +865,19 @@ fun ActiveTabsScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(44.dp)
                         .shadow(
-                            elevation = 8.dp,
+                            elevation = 6.dp,
                             shape = CircleShape,
-                            ambientColor = Color.Black.copy(alpha = 0.35f),
-                            spotColor = Color.Black.copy(alpha = 0.25f)
+                            ambientColor = Color.Black.copy(alpha = 0.3f),
+                            spotColor = Color.Black.copy(alpha = 0.2f)
                         )
                         .clip(CircleShape)
                         .background(colors.cardBg)
-                        .border(1.dp, colors.border, CircleShape)
+                        .border(0.8.dp, colors.border, CircleShape)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(bounded = true, color = colors.textPrimary.copy(alpha = 0.25f)),
+                            indication = ripple(bounded = true, color = colors.textPrimary.copy(alpha = 0.2f)),
                             onClick = { showOverflowMenu = true }
                         )
                         .semantics {
@@ -897,7 +890,7 @@ fun ActiveTabsScreen(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = null,
                         tint = colors.textPrimary,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
@@ -906,8 +899,8 @@ fun ActiveTabsScreen(
                     onDismissRequest = { showOverflowMenu = false },
                     modifier = Modifier
                         .background(colors.modalBg)
-                        .border(1.dp, colors.border, RoundedCornerShape(16.dp)),
-                    shape = RoundedCornerShape(16.dp)
+                        .border(0.8.dp, colors.border, RoundedCornerShape(14.dp)),
+                    shape = RoundedCornerShape(14.dp)
                 ) {
                     // 1. New Tab
                     DropdownMenuItem(
@@ -916,7 +909,7 @@ fun ActiveTabsScreen(
                                 text = "New Tab",
                                 color = colors.textPrimary,
                                 fontWeight = FontWeight.Medium,
-                                fontSize = 14.sp
+                                fontSize = 13.5.sp
                             )
                         },
                         leadingIcon = {
@@ -924,7 +917,7 @@ fun ActiveTabsScreen(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = null,
                                 tint = colors.actionPrimaryBg,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         },
                         onClick = {
@@ -941,7 +934,7 @@ fun ActiveTabsScreen(
                                 text = "New Group Tab",
                                 color = colors.textPrimary,
                                 fontWeight = FontWeight.Medium,
-                                fontSize = 14.sp
+                                fontSize = 13.5.sp
                             )
                         },
                         leadingIcon = {
@@ -949,7 +942,7 @@ fun ActiveTabsScreen(
                                 imageVector = Icons.Default.CreateNewFolder,
                                 contentDescription = null,
                                 tint = colors.textPrimary,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         },
                         onClick = {
@@ -965,7 +958,7 @@ fun ActiveTabsScreen(
                                 text = "New Private Tab",
                                 color = colors.textPrimary,
                                 fontWeight = FontWeight.Medium,
-                                fontSize = 14.sp
+                                fontSize = 13.5.sp
                             )
                         },
                         leadingIcon = {
@@ -973,7 +966,7 @@ fun ActiveTabsScreen(
                                 imageVector = Icons.Default.VisibilityOff,
                                 contentDescription = null,
                                 tint = colors.textPrimary,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         },
                         onClick = {
@@ -992,14 +985,14 @@ fun ActiveTabsScreen(
                                 text = "New Tor Window",
                                 color = colors.textPrimary,
                                 fontWeight = FontWeight.Medium,
-                                fontSize = 14.sp
+                                fontSize = 13.5.sp
                             )
                         },
                         leadingIcon = {
                             Image(
                                 painter = painterResource(id = R.drawable.ic_tor),
                                 contentDescription = null,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         },
                         onClick = {
@@ -1014,7 +1007,7 @@ fun ActiveTabsScreen(
             }
         }
 
-        // 7. Create Tab Group Modal Dialog
+        // 8. Create Tab Group Modal Dialog
         if (showCreateGroupDialog) {
             CreateTabGroupDialog(
                 colors = colors,
@@ -1036,21 +1029,20 @@ fun ActiveTabsScreen(
                     )
                     val newTab = TabManager.tabs.value.find { it.id == newTabId }
                     if (newTab != null) onTabSelected(newTab)
-                    com.azokle.search.common.components.ToastManager.show("Tab group \"$title\" created")
+                    ToastManager.show("Tab group \"$title\" created")
                 },
                 onDismiss = { showCreateGroupDialog = false }
             )
         }
 
-        // 🚀 Driver.js-Grade Interactive Spotlight Tour Overlay for Tabs Screen
+        // Tour Overlay
         DriverTourOverlay(tourState = tabsTourState)
     }
 }
 
 /**
  * Isolated Active Tabs Grid:
- * Extracted into a standalone composable so toggling sheets (NewTabOptionsSheet, Dialogs)
- * or snackbars skips recomposing the entire tabs grid and cards, maintaining a solid 60/120fps budget.
+ * Standalone composable so changing overlays avoids recomposing the grid and cards.
  */
 @Composable
 private fun ActiveTabsGrid(
@@ -1067,8 +1059,8 @@ private fun ActiveTabsGrid(
     onNewPrivateTabClick: () -> Unit,
     onNewTorTabClick: () -> Unit,
     onCreateGroupClick: () -> Unit,
-    tourState: com.azokle.search.common.tour.TourState,
-    tourSteps: List<com.azokle.search.common.tour.TourStep>,
+    tourState: TourState,
+    tourSteps: List<TourStep>,
     modifier: Modifier = Modifier
 ) {
     val colors = AzokleTheme.colors
@@ -1086,67 +1078,66 @@ private fun ActiveTabsGrid(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(72.dp)
+                        .size(64.dp)
                         .clip(CircleShape)
-                        .background(colors.surface)
-                        .border(1.dp, colors.border, CircleShape),
+                        .background(colors.surfaceElevated)
+                        .border(0.8.dp, colors.border, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     if (selectedCategory == TabCategory.TOR) {
                         Image(
                             painter = painterResource(id = R.drawable.ic_tor),
                             contentDescription = null,
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(32.dp)
                         )
                     } else {
                         Icon(
                             imageVector = when (selectedCategory) {
                                 TabCategory.STANDARD -> Icons.Default.Layers
                                 TabCategory.PRIVATE -> Icons.Default.VisibilityOff
-                                TabCategory.TOR -> Icons.Default.Security
+                                TabCategory.TOR -> Icons.Default.Layers
                             },
                             contentDescription = null,
                             tint = colors.textPrimary,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(28.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
                     text = when (selectedCategory) {
                         TabCategory.STANDARD -> "No Open Tabs"
-                        TabCategory.PRIVATE -> "No Private Tabs Open"
-                        TabCategory.TOR -> "No Tor Windows Open"
+                        TabCategory.PRIVATE -> "No Private Tabs"
+                        TabCategory.TOR -> "No Tor Windows"
                     },
-                    fontSize = 17.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = colors.textPrimary
                 )
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
                     text = when (selectedCategory) {
                         TabCategory.STANDARD -> "Open a new tab to explore the sovereign web."
                         TabCategory.PRIVATE -> "Private tabs do not save history, cookies, or telemetry."
-                        TabCategory.TOR -> "Tor routes your traffic through 3 encrypted relays with zero telemetry or trace logs."
+                        TabCategory.TOR -> "Tor routes traffic through 3 encrypted relays with zero traces."
                     },
-                    fontSize = 13.sp,
+                    fontSize = 12.5.sp,
                     color = colors.textSecondary,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 24.dp)
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-                // Actions Row in Empty State (New Tab + New Tab Group)
+                // Actions Row in Empty State
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Primary CTA Button: Open New Tab
                     Box(
                         modifier = Modifier
                             .clip(AzokleRadius.full)
@@ -1158,7 +1149,7 @@ private fun ActiveTabsGrid(
                                     TabCategory.TOR -> onNewTorTabClick()
                                 }
                             }
-                            .padding(horizontal = 18.dp, vertical = 11.dp)
+                            .padding(horizontal = 16.dp, vertical = 9.dp)
                             .semantics {
                                 role = Role.Button
                                 contentDescription = when (selectedCategory) {
@@ -1174,14 +1165,14 @@ private fun ActiveTabsGrid(
                                 Image(
                                     painter = painterResource(id = R.drawable.ic_tor),
                                     contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                             } else {
                                 Icon(
                                     imageVector = Icons.Default.Add,
                                     contentDescription = null,
                                     tint = colors.actionPrimaryText,
-                                    modifier = Modifier.size(15.dp)
+                                    modifier = Modifier.size(14.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.width(6.dp))
@@ -1191,21 +1182,20 @@ private fun ActiveTabsGrid(
                                     TabCategory.PRIVATE -> "Private Tab"
                                     TabCategory.TOR -> "Tor Window"
                                 },
-                                fontSize = 13.sp,
+                                fontSize = 12.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = colors.actionPrimaryText
                             )
                         }
                     }
 
-                    // Secondary CTA Button: New Tab Group
                     Box(
                         modifier = Modifier
                             .clip(AzokleRadius.full)
                             .background(colors.surfaceElevated)
-                            .border(1.dp, colors.border, AzokleRadius.full)
+                            .border(0.8.dp, colors.border, AzokleRadius.full)
                             .clickable(onClick = onCreateGroupClick)
-                            .padding(horizontal = 16.dp, vertical = 11.dp)
+                            .padding(horizontal = 14.dp, vertical = 9.dp)
                             .semantics {
                                 role = Role.Button
                                 contentDescription = "Create New Tab Group"
@@ -1217,12 +1207,12 @@ private fun ActiveTabsGrid(
                                 imageVector = Icons.Default.CreateNewFolder,
                                 contentDescription = null,
                                 tint = colors.statusTor,
-                                modifier = Modifier.size(15.dp)
+                                modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "New Group",
-                                fontSize = 13.sp,
+                                fontSize = 12.5.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = colors.textPrimary
                             )
@@ -1239,7 +1229,7 @@ private fun ActiveTabsGrid(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = modifier.fillMaxWidth()
         ) {
-            // 1. Render Tab Group Cards (Brave-Grade Multi-Tab Stack)
+            // 1. Tab Group Cards
             items(
                 items = categoryGroups,
                 key = { "group_${it.id}" },
@@ -1256,7 +1246,7 @@ private fun ActiveTabsGrid(
                 )
             }
 
-            // 2. Render Standalone Tabs
+            // 2. Standalone Tabs
             items(
                 items = standaloneTabs,
                 key = { it.id },
@@ -1280,10 +1270,9 @@ private fun ActiveTabsGrid(
 
 /**
  * Ultra-Smooth Sovereign Tab Card:
- * - Instant tactile ripple feedback on tap (0ms latency, no gesture contention).
- * - Butter-smooth 144Hz vertical grid flinging with zero scroll hesitation.
- * - Accessible, responsive close button (X) with haptic feedback.
+ * - Instant tactile ripple feedback on tap.
  * - Hardware-accelerated cached thumbnail previews.
+ * - Accessible close button with haptic feedback.
  */
 @Composable
 private fun ActiveTabCard(
@@ -1295,7 +1284,7 @@ private fun ActiveTabCard(
 ) {
     val colors = AzokleTheme.colors
     val haptic = LocalHapticFeedback.current
-    val shape = RoundedCornerShape(20.dp)
+    val shape = RoundedCornerShape(18.dp)
     val isHome = tab.url.isBlank() || tab.url == "about:home" || tab.url == "about:blank"
     val host = remember(tab.url) {
         try {
@@ -1314,16 +1303,16 @@ private fun ActiveTabCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(236.dp)
+            .height(230.dp)
             .shadow(
-                elevation = if (isActive) 6.dp else 1.dp,
+                elevation = if (isActive) 5.dp else 1.dp,
                 shape = shape,
-                spotColor = if (isActive) activeAccent.copy(alpha = 0.35f) else Color.Black.copy(alpha = 0.2f)
+                spotColor = if (isActive) activeAccent.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.2f)
             )
             .clip(shape)
             .background(colors.cardBg)
             .border(
-                width = if (isActive) 1.75.dp else 1.dp,
+                width = if (isActive) 1.5.dp else 0.8.dp,
                 color = if (isActive) activeAccent else colors.border.copy(alpha = 0.55f),
                 shape = shape
             )
@@ -1345,14 +1334,14 @@ private fun ActiveTabCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(40.dp)
+                    .height(38.dp)
                     .background(colors.surfaceElevated.copy(alpha = 0.85f))
                     .padding(start = 10.dp, end = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(22.dp)
                         .clip(AzokleRadius.sm)
                         .background(colors.surface)
                         .border(0.5.dp, colors.border.copy(alpha = 0.5f), AzokleRadius.sm),
@@ -1363,27 +1352,27 @@ private fun ActiveTabCard(
                             imageVector = Icons.Default.Home,
                             contentDescription = null,
                             tint = colors.actionPrimaryBg,
-                            modifier = Modifier.size(13.dp)
+                            modifier = Modifier.size(12.dp)
                         )
                     } else if (tab.isTor) {
                         Image(
                             painter = painterResource(id = R.drawable.ic_tor),
                             contentDescription = "Tor Tab",
-                            modifier = Modifier.size(13.dp)
+                            modifier = Modifier.size(12.dp)
                         )
                     } else if (tab.isPrivate) {
                         Icon(
                             imageVector = Icons.Default.VisibilityOff,
                             contentDescription = null,
                             tint = Color(0xFFA855F7),
-                            modifier = Modifier.size(13.dp)
+                            modifier = Modifier.size(12.dp)
                         )
                     } else {
                         FaviconImage(
                             url = tab.url,
                             faviconUrl = tab.faviconUrl,
                             isTor = tab.isTor,
-                            size = 14.dp
+                            size = 13.dp
                         )
                     }
                 }
@@ -1394,7 +1383,7 @@ private fun ActiveTabCard(
                     val groupColor = tab.groupColor?.let { Color(it) } ?: colors.statusAccent
                     Box(
                         modifier = Modifier
-                            .size(7.dp)
+                            .size(6.dp)
                             .clip(CircleShape)
                             .background(groupColor)
                     )
@@ -1403,7 +1392,7 @@ private fun ActiveTabCard(
 
                 Text(
                     text = if (isHome) "New Tab" else tab.title.ifBlank { host },
-                    fontSize = 12.sp,
+                    fontSize = 11.5.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.textPrimary,
                     maxLines = 1,
@@ -1413,16 +1402,16 @@ private fun ActiveTabCard(
 
                 Spacer(modifier = Modifier.width(4.dp))
 
-                // Close Tab Button (Accessible Touch Delegate)
+                // Close Tab Button
                 Box(
                     modifier = Modifier
-                        .size(28.dp)
+                        .size(26.dp)
                         .clip(CircleShape)
                         .background(colors.surface)
                         .border(0.5.dp, colors.border.copy(alpha = 0.4f), CircleShape)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(bounded = false, radius = 14.dp, color = colors.statusDestructive),
+                            indication = ripple(bounded = false, radius = 13.dp, color = colors.statusDestructive),
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 onCloseTab(tab)
@@ -1438,7 +1427,7 @@ private fun ActiveTabCard(
                         imageVector = Icons.Default.Close,
                         contentDescription = null,
                         tint = colors.textSecondary,
-                        modifier = Modifier.size(13.dp)
+                        modifier = Modifier.size(12.dp)
                     )
                 }
             }
@@ -1478,7 +1467,7 @@ private fun ActiveTabCard(
                     Box(modifier = Modifier.fillMaxSize()) {
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
-                                .data(tab.wallpaperResId ?: com.azokle.search.settings.WallpaperManager.getCurrentWallpaper())
+                                .data(tab.wallpaperResId ?: WallpaperManager.getCurrentWallpaper())
                                 .crossfade(false)
                                 .build(),
                             contentDescription = null,
@@ -1498,12 +1487,12 @@ private fun ActiveTabCard(
                                 imageVector = Icons.Default.Home,
                                 contentDescription = null,
                                 tint = Color.White,
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "Home",
-                                fontSize = 12.sp,
+                                fontSize = 11.5.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Color.White
                             )
@@ -1515,18 +1504,18 @@ private fun ActiveTabCard(
                         verticalArrangement = Arrangement.Center,
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp)
+                            .padding(14.dp)
                     ) {
                         FaviconImage(
                             url = tab.url,
                             faviconUrl = tab.faviconUrl,
                             isTor = tab.isTor,
-                            size = 32.dp
+                            size = 28.dp
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = host,
-                            fontSize = 12.sp,
+                            fontSize = 11.5.sp,
                             fontWeight = FontWeight.Medium,
                             color = colors.textSecondary,
                             maxLines = 1,
@@ -1537,7 +1526,7 @@ private fun ActiveTabCard(
             }
         }
 
-        // High-Contrast Active Tab Indicator Badge
+        // Active Tab Indicator Badge
         if (isActive) {
             Box(
                 modifier = Modifier
@@ -1545,7 +1534,7 @@ private fun ActiveTabCard(
                     .padding(8.dp)
                     .clip(RoundedCornerShape(6.dp))
                     .background(activeAccent)
-                    .padding(horizontal = 7.dp, vertical = 3.dp)
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -1553,13 +1542,13 @@ private fun ActiveTabCard(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(5.dp)
+                            .size(4.dp)
                             .clip(CircleShape)
                             .background(Color.White)
                     )
                     Text(
                         text = "ACTIVE",
-                        fontSize = 8.5.sp,
+                        fontSize = 8.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace,
                         color = Color.White
@@ -1572,7 +1561,7 @@ private fun ActiveTabCard(
 
 @Composable
 private fun CreateTabGroupDialog(
-    colors: com.azokle.search.common.theme.AzokleThemeColors,
+    colors: AzokleThemeColors,
     onConfirm: (title: String, color: Long) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -1599,30 +1588,30 @@ private fun CreateTabGroupDialog(
                     imageVector = Icons.Default.CreateNewFolder,
                     contentDescription = null,
                     tint = Color(selectedColor),
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "New Tab Group",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
+                    fontSize = 17.sp
                 )
             }
         },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Group tabs together to organize your research, reading, or projects.",
-                    fontSize = 13.sp,
+                    text = "Group tabs together to organize your research or projects.",
+                    fontSize = 12.5.sp,
                     color = colors.textSecondary
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 OutlinedTextField(
                     value = groupName,
                     onValueChange = { groupName = it },
-                    placeholder = { Text("Group name (e.g. Work, Research)", fontSize = 14.sp) },
+                    placeholder = { Text("Group name", fontSize = 13.5.sp) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color(selectedColor),
@@ -1636,17 +1625,7 @@ private fun CreateTabGroupDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "THEME COLOR",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.textSecondary,
-                    letterSpacing = 0.5.sp
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1657,11 +1636,11 @@ private fun CreateTabGroupDialog(
                         val isSelected = selectedColor == col
                         Box(
                             modifier = Modifier
-                                .size(34.dp)
+                                .size(32.dp)
                                 .clip(CircleShape)
                                 .background(Color(col))
                                 .border(
-                                    width = if (isSelected) 3.dp else 0.dp,
+                                    width = if (isSelected) 2.5.dp else 0.dp,
                                     color = if (isSelected) colors.textPrimary else Color.Transparent,
                                     shape = CircleShape
                                 )
@@ -1671,7 +1650,7 @@ private fun CreateTabGroupDialog(
                             if (isSelected) {
                                 Box(
                                     modifier = Modifier
-                                        .size(8.dp)
+                                        .size(7.dp)
                                         .clip(CircleShape)
                                         .background(Color.White)
                                 )
@@ -1688,7 +1667,7 @@ private fun CreateTabGroupDialog(
                     onConfirm(finalTitle, selectedColor)
                 }
             ) {
-                Text("Create & Open Tab", color = colors.actionPrimaryBg, fontWeight = FontWeight.Bold)
+                Text("Create", color = colors.actionPrimaryBg, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {

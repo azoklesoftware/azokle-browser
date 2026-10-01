@@ -1,6 +1,5 @@
 package com.azokle.search.tabs
 
-import com.azokle.search.common.components.FaviconImage
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -29,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -41,18 +41,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.azokle.search.tabs.TabGroup
-import com.azokle.search.tabs.TabSession
+import com.azokle.search.common.components.FaviconImage
 import com.azokle.search.common.theme.AzokleRadius
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.layout.ContentScale
-import com.azokle.search.common.theme.AudiowideFontFamily
-import com.azokle.search.settings.WallpaperManager
 import com.azokle.search.common.theme.AzokleTheme
+import com.azokle.search.settings.WallpaperManager
 
 /**
- * Brave-Inspired Tab Group Card for the Active Tabs Grid:
+ * Tab Group Card for the Active Tabs Grid:
  *  - Displays a 2x2 multi-tab matrix of previews/favicons.
  *  - Colored header with group title and tab counter.
  *  - Direct actions to expand or close group.
@@ -76,7 +71,7 @@ fun TabGroupCard(
             .clip(AzokleRadius.xl)
             .background(colors.cardBg)
             .border(
-                width = if (isActive) 2.dp else 1.dp,
+                width = if (isActive) 1.5.dp else 0.8.dp,
                 color = if (isActive) groupColor else colors.border,
                 shape = AzokleRadius.xl
             )
@@ -102,14 +97,14 @@ fun TabGroupCard(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(10.dp)
+                            .size(8.dp)
                             .clip(CircleShape)
                             .background(groupColor)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = group.title,
-                        fontSize = 13.sp,
+                        fontSize = 12.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary,
                         maxLines = 1,
@@ -124,7 +119,7 @@ fun TabGroupCard(
                     ) {
                         Text(
                             text = "${tabs.size}",
-                            fontSize = 10.sp,
+                            fontSize = 9.5.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
                             color = groupColor
@@ -140,7 +135,7 @@ fun TabGroupCard(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Close Group",
                         tint = colors.textSecondary,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(13.dp)
                     )
                 }
             }
@@ -152,7 +147,7 @@ fun TabGroupCard(
                     .fillMaxWidth()
                     .weight(1f)
                     .clip(AzokleRadius.lg)
-                    .background(colors.surface.copy(alpha = 0.6f))
+                    .background(colors.surfaceElevated.copy(alpha = 0.6f))
                     .padding(6.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
@@ -196,7 +191,6 @@ private fun MiniTabTile(
     tab: TabSession?,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val colors = AzokleTheme.colors
 
     if (tab == null) {
@@ -216,7 +210,7 @@ private fun MiniTabTile(
             modifier = modifier
                 .fillMaxSize()
                 .clip(RoundedCornerShape(8.dp))
-                .border(1.dp, colors.border.copy(alpha = 0.5f), RoundedCornerShape(8.dp)),
+                .border(0.8.dp, colors.border.copy(alpha = 0.5f), RoundedCornerShape(8.dp)),
             contentAlignment = Alignment.Center
         ) {
             AsyncImage(
@@ -235,8 +229,8 @@ private fun MiniTabTile(
             )
             Text(
                 text = "azokle",
-                fontFamily = AudiowideFontFamily,
                 fontSize = 8.sp,
+                fontWeight = FontWeight.Bold,
                 color = Color.White
             )
         }
@@ -250,14 +244,13 @@ private fun MiniTabTile(
             tab.url
         }
     }
-    val faviconUrl = tab.faviconUrl ?: "https://www.google.com/s2/favicons?domain=$host&sz=64"
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(8.dp))
             .background(colors.cardBg)
-            .border(1.dp, colors.border.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+            .border(0.8.dp, colors.border.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
             .padding(4.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -269,12 +262,12 @@ private fun MiniTabTile(
                 url = tab.url,
                 faviconUrl = tab.faviconUrl,
                 isTor = tab.isTor,
-                size = 16.dp
+                size = 14.dp
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = tab.title,
-                fontSize = 9.sp,
+                text = tab.title.ifBlank { host },
+                fontSize = 8.5.sp,
                 fontWeight = FontWeight.Medium,
                 color = colors.textSecondary,
                 maxLines = 1,

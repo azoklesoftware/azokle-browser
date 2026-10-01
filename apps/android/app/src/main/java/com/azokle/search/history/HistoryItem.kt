@@ -38,5 +38,5 @@ data class HistoryItem(
         cleanHost
     }
 
-    val faviconUrl: String = "https://icons.duckduckgo.com/ip3/$cleanHost.ico"
+    val faviconUrl: String = "https://www.google.com/s2/favicons?domain=$cleanHost&sz=128"
 }

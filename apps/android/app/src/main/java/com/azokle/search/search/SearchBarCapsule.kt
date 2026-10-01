@@ -70,13 +70,13 @@ fun SearchBarCapsule(
     val context = LocalContext.current
     val isVoiceAvailable = remember(context) { VoiceSearchHelper.isVoiceSearchAvailable(context) }
     val colors = AzokleTheme.colors
-    val keyboardController = LocalSoftwareKeyboardController.current
+    val keyboardController = if (!isReadOnly) LocalSoftwareKeyboardController.current else null
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale = if (isPressed) 0.985f else 1.0f
 
-    val domainMatch = remember(query) {
-        if (!isReadOnly) com.azokle.search.common.util.DomainAutocompleteHelper.findBestMatch(query) else null
+    val domainMatch = remember(query, isReadOnly) {
+        if (!isReadOnly && query.isNotBlank()) com.azokle.search.common.util.DomainAutocompleteHelper.findBestMatch(query) else null
     }
 
     Box(

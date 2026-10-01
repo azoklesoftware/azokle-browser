@@ -27,16 +27,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.azokle.search.R
 import kotlin.math.abs
 
 /**
- * Robust, high-res Favicon Image Loader:
+ * Robust, high-speed, high-res Favicon Image Loader:
  *  - Tor Isolation: Displays onion icon.
  *  - Azokle / New Tab: Displays official Azokle Emblem icon.
- *  - Primary: Uses tab.faviconUrl if available.
- *  - Secondary: Google S2 Favicon API (128px).
+ *  - Primary: High-speed Google S2 Global Edge CDN (128px PNG) / direct webpage favicon.
  *  - Fallback: Deterministic Domain Monogram Letter or Vector Earth/Language Icon.
  */
 @Composable
@@ -119,7 +119,7 @@ fun FaviconImage(
     }
 
     val primaryFaviconUrl = remember(host, faviconUrl) {
-        if (!faviconUrl.isNullExOrBlank()) {
+        if (!faviconUrl.isNullOrBlank() && !faviconUrl.contains("icons.duckduckgo.com")) {
             faviconUrl
         } else if (host.contains(".")) {
             "https://www.google.com/s2/favicons?domain=$host&sz=128"
@@ -149,7 +149,10 @@ fun FaviconImage(
             AsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(activeFaviconUrl)
-                    .crossfade(true)
+                    .crossfade(60)
+                    .memoryCachePolicy(CachePolicy.ENABLED)
+                    .diskCachePolicy(CachePolicy.ENABLED)
+                    .networkCachePolicy(CachePolicy.ENABLED)
                     .build(),
                 contentDescription = null,
                 onError = {
