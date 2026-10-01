@@ -10,9 +10,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
@@ -23,12 +23,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -53,20 +51,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.azokle.search.permissions.SitePermissionState
-import com.azokle.search.permissions.SitePermissionType
-import com.azokle.search.permissions.SitePermissionsManager
 import com.azokle.search.common.theme.AzokleRadius
 import com.azokle.search.common.theme.AzokleTheme
 import com.azokle.search.common.theme.adaptiveContentWidth
-import com.azokle.search.common.util.UrlHelper
+import com.azokle.search.permissions.SitePermissionState
+import com.azokle.search.permissions.SitePermissionType
+import com.azokle.search.permissions.SitePermissionsManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,128 +83,139 @@ fun SiteSettingsSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = colors.surface,
-        scrimColor = colors.scrim,
+        containerColor = colors.cardBg,
+        contentColor = colors.textPrimary,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        dragHandle = null
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .statusBarsPadding()
+                    .padding(top = 10.dp, bottom = 6.dp)
+                    .size(width = 36.dp, height = 4.dp)
+                    .clip(CircleShape)
+                    .background(colors.borderSubtle)
+            )
+        }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .adaptiveContentWidth(560.dp)
-                .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 18.dp),
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Drag Indicator
-            Box(
-                modifier = Modifier
-                    .size(width = 36.dp, height = 4.dp)
-                    .clip(CircleShape)
-                    .background(colors.border)
-                    .align(Alignment.CenterHorizontally)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             // Header
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(colors.statusAccent.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = null,
-                            tint = colors.statusAccent,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "Site Permissions",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.textPrimary
-                        )
-                        Text(
-                            text = "Hardware & sensor access rules",
-                            fontSize = 12.sp,
-                            color = colors.textSecondary
-                        )
-                    }
-                }
+                Text(
+                    text = "Site Permissions",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary,
+                    modifier = Modifier.semantics { heading() }
+                )
 
-                if (allSites.isNotEmpty()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (allSites.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
+                                .clip(CircleShape)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = ripple(bounded = false, radius = 18.dp, color = colors.statusDestructive),
+                                    onClick = { showClearAllConfirm = true }
+                                )
+                                .semantics {
+                                    role = Role.Button
+                                    contentDescription = "Clear all site permissions"
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.DeleteSweep,
+                                contentDescription = null,
+                                tint = colors.statusDestructive,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+
                     Box(
                         modifier = Modifier
-                            .sizeIn(minWidth = 38.dp, minHeight = 44.dp)
+                            .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
                             .clip(CircleShape)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(bounded = false, radius = 16.dp, color = colors.statusDestructive),
-                                onClick = { showClearAllConfirm = true }
+                                indication = ripple(bounded = false, radius = 18.dp, color = colors.textSecondary),
+                                onClick = onDismiss
                             )
                             .semantics {
                                 role = Role.Button
-                                contentDescription = "Clear all site permissions"
+                                contentDescription = "Close site permissions"
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteSweep,
-                            contentDescription = null,
-                            tint = colors.statusDestructive,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(colors.surfaceElevated)
+                                .border(0.8.dp, colors.borderSubtle, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = null,
+                                tint = colors.textPrimary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(480.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 // Section 1: Default Global Permissions
                 item {
                     Text(
-                        text = "GLOBAL DEFAULT BEHAVIOR",
+                        text = "DEFAULT PERMISSIONS",
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.statusAccent,
-                        letterSpacing = 1.sp
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textMuted,
+                        letterSpacing = 0.5.sp,
+                        modifier = Modifier.padding(start = 2.dp, bottom = 6.dp)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
 
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(AzokleRadius.lg)
-                            .background(colors.cardBg)
-                            .border(1.dp, colors.border, AzokleRadius.lg)
-                            .padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .background(colors.surfaceElevated)
+                            .border(0.8.dp, colors.borderSubtle, AzokleRadius.lg)
                     ) {
-                        listOf(
-                            SitePermissionType.AUTOPLAY,
+                        val permTypes = listOf(
                             SitePermissionType.CAMERA,
                             SitePermissionType.MICROPHONE,
                             SitePermissionType.GEOLOCATION,
-                            SitePermissionType.NOTIFICATIONS
-                        ).forEachIndexed { idx, type ->
+                            SitePermissionType.NOTIFICATIONS,
+                            SitePermissionType.AUTOPLAY
+                        )
+
+                        permTypes.forEachIndexed { idx, type ->
                             val defaultState = permManager.getGlobalDefault(type)
                             val isEnabled = if (type == SitePermissionType.AUTOPLAY) {
                                 defaultState == SitePermissionState.ALLOW
@@ -216,7 +224,10 @@ fun SiteSettingsSheet(
                             }
 
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .sizeIn(minHeight = 48.dp)
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
@@ -228,27 +239,15 @@ fun SiteSettingsSheet(
                                         imageVector = type.icon,
                                         contentDescription = null,
                                         tint = colors.textPrimary,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
-                                    Column {
-                                        Text(
-                                            text = type.displayName,
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = colors.textPrimary
-                                        )
-                                        val subtitle = if (type == SitePermissionType.AUTOPLAY) {
-                                            if (isEnabled) "Allow media playback (Default)" else "Block automatic playback"
-                                        } else {
-                                            if (isEnabled) "Ask before accessing (Recommended)" else "Block automatically"
-                                        }
-                                        Text(
-                                            text = subtitle,
-                                            fontSize = 11.sp,
-                                            color = colors.textSecondary
-                                        )
-                                    }
+                                    Text(
+                                        text = type.displayName,
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.Normal,
+                                        color = colors.textPrimary
+                                    )
                                 }
 
                                 Switch(
@@ -271,15 +270,17 @@ fun SiteSettingsSheet(
                                         checkedTrackColor = colors.statusSuccess,
                                         checkedBorderColor = Color.Transparent,
                                         uncheckedThumbColor = colors.textSecondary,
-                                        uncheckedTrackColor = colors.surfaceElevated
+                                        uncheckedTrackColor = colors.cardBg,
+                                        uncheckedBorderColor = colors.borderSubtle
                                     )
                                 )
                             }
 
-                            if (idx < 4) {
+                            if (idx < permTypes.size - 1) {
                                 HorizontalDivider(
-                                    modifier = Modifier.padding(vertical = 4.dp),
-                                    color = colors.border.copy(alpha = 0.5f)
+                                    color = colors.borderSubtle,
+                                    thickness = 0.5.dp,
+                                    modifier = Modifier.padding(start = 40.dp)
                                 )
                             }
                         }
@@ -289,103 +290,116 @@ fun SiteSettingsSheet(
                 // Section 2: Configured Websites
                 item {
                     Text(
-                        text = "CUSTOMIZED WEBSITES (${allSites.size})",
+                        text = "CUSTOM SITES (${allSites.size})",
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.statusAccent,
-                        letterSpacing = 1.sp
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textMuted,
+                        letterSpacing = 0.5.sp,
+                        modifier = Modifier.padding(start = 2.dp, bottom = 6.dp)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
 
-                if (allSites.isEmpty()) {
-                    item {
+                    if (allSites.isEmpty()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(AzokleRadius.md)
-                                .background(colors.cardBg)
-                                .padding(24.dp),
+                                .background(colors.surfaceElevated)
+                                .border(0.8.dp, colors.borderSubtle, AzokleRadius.md)
+                                .padding(16.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "No custom website permissions configured.\nSites will follow global default policies.",
+                                text = "No custom site permissions",
                                 fontSize = 12.sp,
-                                color = colors.textSecondary,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                lineHeight = 18.sp
+                                color = colors.textMuted
                             )
                         }
-                    }
-                } else {
-                    items(allSites.keys.toList()) { host ->
-                        val perms = allSites[host] ?: emptyMap()
-                        Row(
+                    } else {
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(AzokleRadius.md)
-                                .background(colors.cardBg)
-                                .border(1.dp, colors.border, AzokleRadius.md)
-                                .clickable { selectedSiteHost = host }
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                                .clip(AzokleRadius.lg)
+                                .background(colors.surfaceElevated)
+                                .border(0.8.dp, colors.borderSubtle, AzokleRadius.lg)
                         ) {
-                            Row(
-                                modifier = Modifier.weight(1f),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Public,
-                                    contentDescription = null,
-                                    tint = colors.statusAccent,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text(
-                                        text = permManager.getDisplayHost(host),
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = colors.textPrimary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    val summary = perms.entries.joinToString(", ") { "${it.key.displayName}: ${it.value.name}" }
-                                    Text(
-                                        text = summary,
-                                        fontSize = 11.sp,
-                                        color = colors.textSecondary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                            val siteKeys = allSites.keys.toList()
+                            siteKeys.forEachIndexed { idx, host ->
+                                val perms = allSites[host] ?: emptyMap()
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .sizeIn(minHeight = 48.dp)
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = ripple(bounded = true, color = colors.textPrimary.copy(alpha = 0.08f)),
+                                            onClick = { selectedSiteHost = host }
+                                        )
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        modifier = Modifier.weight(1f),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Public,
+                                            contentDescription = null,
+                                            tint = colors.statusAccent,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column {
+                                            Text(
+                                                text = permManager.getDisplayHost(host),
+                                                fontSize = 13.5.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = colors.textPrimary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = "${perms.size} custom rule${if (perms.size != 1) "s" else ""}",
+                                                fontSize = 11.sp,
+                                                color = colors.textMuted
+                                            )
+                                        }
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .sizeIn(minWidth = 32.dp, minHeight = 32.dp)
+                                            .clip(CircleShape)
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = ripple(bounded = false, radius = 16.dp, color = colors.statusDestructive),
+                                                onClick = {
+                                                    permManager.clearHostPermissions(host)
+                                                    Toast.makeText(context, "Reset ${permManager.getDisplayHost(host)}", Toast.LENGTH_SHORT).show()
+                                                }
+                                            )
+                                            .semantics {
+                                                role = Role.Button
+                                                contentDescription = "Delete permissions for $host"
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = null,
+                                            tint = colors.textMuted,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+
+                                if (idx < siteKeys.size - 1) {
+                                    HorizontalDivider(
+                                        color = colors.borderSubtle,
+                                        thickness = 0.5.dp,
+                                        modifier = Modifier.padding(start = 40.dp)
                                     )
                                 }
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .sizeIn(minWidth = 36.dp, minHeight = 40.dp)
-                                    .clip(CircleShape)
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = ripple(bounded = false, radius = 16.dp, color = colors.statusDestructive),
-                                        onClick = {
-                                            permManager.clearHostPermissions(host)
-                                            Toast.makeText(context, "Permissions cleared for ${permManager.getDisplayHost(host)}", Toast.LENGTH_SHORT).show()
-                                        }
-                                    )
-                                    .semantics {
-                                        role = Role.Button
-                                        contentDescription = "Delete permissions for $host"
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = null,
-                                    tint = colors.textSecondary,
-                                    modifier = Modifier.size(16.dp)
-                                )
                             }
                         }
                     }
@@ -402,22 +416,22 @@ fun SiteSettingsSheet(
             title = {
                 Text(
                     text = permManager.getDisplayHost(host),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = colors.textPrimary
                 )
             },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     listOf(
-                        SitePermissionType.AUTOPLAY,
                         SitePermissionType.CAMERA,
                         SitePermissionType.MICROPHONE,
                         SitePermissionType.GEOLOCATION,
-                        SitePermissionType.NOTIFICATIONS
+                        SitePermissionType.NOTIFICATIONS,
+                        SitePermissionType.AUTOPLAY
                     ).forEach { type ->
                         val state = sitePerms[type] ?: permManager.getGlobalDefault(type)
                         val isAllow = state == SitePermissionState.ALLOW
@@ -440,7 +454,7 @@ fun SiteSettingsSheet(
                                         isBlock -> colors.statusDestructive
                                         else -> colors.textPrimary
                                     },
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
@@ -454,43 +468,43 @@ fun SiteSettingsSheet(
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(6.dp))
-                                        .background(if (isAllow) colors.statusSuccess.copy(alpha = 0.22f) else colors.surfaceElevated)
+                                        .background(if (isAllow) colors.statusSuccess.copy(alpha = 0.18f) else colors.cardBg)
                                         .border(
-                                            1.dp,
-                                            if (isAllow) colors.statusSuccess.copy(alpha = 0.6f) else colors.borderSubtle,
+                                            0.8.dp,
+                                            if (isAllow) colors.statusSuccess.copy(alpha = 0.5f) else colors.borderSubtle,
                                             RoundedCornerShape(6.dp)
                                         )
                                         .clickable {
                                             permManager.setPermission(host, type, SitePermissionState.ALLOW)
                                         }
-                                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
                                 ) {
                                     Text(
                                         text = "Allow",
-                                        fontSize = 11.5.sp,
-                                        fontWeight = if (isAllow) FontWeight.Bold else FontWeight.Medium,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isAllow) FontWeight.SemiBold else FontWeight.Normal,
                                         color = if (isAllow) colors.statusSuccess else colors.textSecondary
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(6.dp))
-                                        .background(if (isBlock) colors.statusDestructive.copy(alpha = 0.22f) else colors.surfaceElevated)
+                                        .background(if (isBlock) colors.statusDestructive.copy(alpha = 0.18f) else colors.cardBg)
                                         .border(
-                                            1.dp,
-                                            if (isBlock) colors.statusDestructive.copy(alpha = 0.6f) else colors.borderSubtle,
+                                            0.8.dp,
+                                            if (isBlock) colors.statusDestructive.copy(alpha = 0.5f) else colors.borderSubtle,
                                             RoundedCornerShape(6.dp)
                                         )
                                         .clickable {
                                             permManager.setPermission(host, type, SitePermissionState.BLOCK)
                                         }
-                                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
                                 ) {
                                     Text(
                                         text = "Block",
-                                        fontSize = 11.5.sp,
-                                        fontWeight = if (isBlock) FontWeight.Bold else FontWeight.Medium,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isBlock) FontWeight.SemiBold else FontWeight.Normal,
                                         color = if (isBlock) colors.statusDestructive else colors.textSecondary
                                     )
                                 }
@@ -501,7 +515,7 @@ fun SiteSettingsSheet(
             },
             confirmButton = {
                 TextButton(onClick = { selectedSiteHost = null }) {
-                    Text("Done", color = colors.statusAccent)
+                    Text("Done", color = colors.statusAccent, fontSize = 13.sp)
                 }
             },
             dismissButton = {
@@ -512,10 +526,10 @@ fun SiteSettingsSheet(
                         Toast.makeText(context, "Permissions reset for $host", Toast.LENGTH_SHORT).show()
                     }
                 ) {
-                    Text("Reset Site", color = colors.statusDestructive)
+                    Text("Reset", color = colors.statusDestructive, fontSize = 13.sp)
                 }
             },
-            containerColor = colors.surface,
+            containerColor = colors.cardBg,
             shape = AzokleRadius.xl
         )
     }
@@ -525,11 +539,11 @@ fun SiteSettingsSheet(
         AlertDialog(
             onDismissRequest = { showClearAllConfirm = false },
             title = {
-                Text("Clear All Site Permissions?", fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                Text("Clear All Permissions?", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = colors.textPrimary)
             },
             text = {
                 Text(
-                    "This will reset all customized website permissions to default settings.",
+                    "Reset all site-specific rules to default.",
                     color = colors.textSecondary,
                     fontSize = 13.sp
                 )
@@ -542,15 +556,15 @@ fun SiteSettingsSheet(
                         Toast.makeText(context, "All site permissions cleared", Toast.LENGTH_SHORT).show()
                     }
                 ) {
-                    Text("Clear All", color = colors.statusDestructive, fontWeight = FontWeight.Bold)
+                    Text("Clear All", color = colors.statusDestructive, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearAllConfirm = false }) {
-                    Text("Cancel", color = colors.textSecondary)
+                    Text("Cancel", color = colors.textSecondary, fontSize = 13.sp)
                 }
             },
-            containerColor = colors.surface,
+            containerColor = colors.cardBg,
             shape = AzokleRadius.xl
         )
     }

@@ -14,8 +14,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -33,8 +35,6 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -44,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -52,6 +53,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -77,11 +79,10 @@ data class SharePayload(
 )
 
 /**
- * Sovereign In-App Share Sheet:
- *  - Rich preview card (Favicon, Webpage Title, Clean Domain with SSL status)
- *  - Direct 1-tap Installed App Targets (WhatsApp, Telegram, Gmail, Messages, Twitter, etc.)
- *  - One-tap Quick Actions (Copy Link, Android System Share, Save to PDF / Print, Open in External Browser)
- *  - Crash-proof intent dispatching across all Android Context types.
+ * Ultra-Minimalist In-App Share Sheet:
+ *  - Clean URL/title preview card
+ *  - Direct 1-tap Installed App Targets (WhatsApp, Telegram, Gmail, etc.)
+ *  - Single-line clean action items (Copy Link, System Share, Save to PDF, Open in External App)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -119,17 +120,17 @@ fun BrowserShareSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = colors.background,
+        containerColor = colors.cardBg,
         contentColor = colors.textPrimary,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         dragHandle = {
             Box(
                 modifier = Modifier
                     .statusBarsPadding()
-                    .padding(top = 10.dp, bottom = 4.dp)
+                    .padding(top = 10.dp, bottom = 6.dp)
                     .size(width = 36.dp, height = 4.dp)
                     .clip(CircleShape)
-                    .background(colors.border)
+                    .background(colors.borderSubtle)
             )
         },
         modifier = modifier
@@ -138,115 +139,133 @@ fun BrowserShareSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .adaptiveContentWidth(560.dp)
-                .padding(horizontal = 18.dp)
-                .padding(top = 4.dp, bottom = 32.dp),
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header Row: Title & Close Button
+            // Header Row
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (payload.selectedText != null) "Share Text" else "Share Webpage",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textPrimary
-                    )
+                    text = if (payload.selectedText != null) "Share Text" else "Share",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary,
+                    modifier = Modifier.semantics { heading() }
                 )
 
-                IconButton(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onDismiss()
-                    },
-                    modifier = Modifier.size(32.dp)
+                Box(
+                    modifier = Modifier
+                        .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
+                        .clip(CircleShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple(bounded = false, radius = 18.dp, color = colors.textSecondary),
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onDismiss()
+                            }
+                        )
+                        .semantics {
+                            role = Role.Button
+                            contentDescription = "Close share sheet"
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = colors.textSecondary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(colors.surfaceElevated)
+                            .border(0.8.dp, colors.borderSubtle, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = null,
+                            tint = colors.textPrimary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 1. Rich Preview Card
+            // 1. Preview Card
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(AzokleRadius.lg)
-                    .background(colors.cardBg)
-                    .border(1.dp, colors.border, AzokleRadius.lg)
-                    .padding(14.dp),
+                    .background(colors.surfaceElevated)
+                    .border(0.8.dp, colors.borderSubtle, AzokleRadius.lg)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Favicon / Globe Badge
+                // Favicon
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(colors.surface)
-                        .border(1.dp, colors.border, CircleShape),
+                        .size(32.dp)
+                        .clip(AzokleRadius.sm)
+                        .background(colors.cardBg)
+                        .border(0.8.dp, colors.borderSubtle, AzokleRadius.sm),
                     contentAlignment = Alignment.Center
                 ) {
                     if (cleanHost.isNotBlank()) {
                         AsyncImage(
                             model = "https://www.google.com/s2/favicons?domain=$cleanHost&sz=128",
-                            contentDescription = "Favicon",
-                            modifier = Modifier.size(24.dp),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
                             contentScale = ContentScale.Fit
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Default.Language,
                             contentDescription = null,
-                            tint = colors.textSecondary,
-                            modifier = Modifier.size(22.dp)
+                            tint = colors.textMuted,
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = if (!payload.selectedText.isNullOrBlank()) {
-                            "\"${payload.selectedText.take(80)}${if (payload.selectedText.length > 80) "..." else ""}\""
+                            "\"${payload.selectedText.take(60)}${if (payload.selectedText.length > 60) "..." else ""}\""
                         } else {
                             payload.title.ifBlank { cleanHost.ifBlank { "Shared Link" } }
                         },
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            color = colors.textPrimary
-                        ),
-                        maxLines = 2,
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = colors.textPrimary,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
 
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(1.dp))
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         if (isSecure) {
                             Icon(
                                 imageVector = Icons.Default.Lock,
-                                contentDescription = "Secure",
-                                tint = androidx.compose.ui.graphics.Color(0xFF10B981),
-                                modifier = Modifier.size(12.dp)
+                                contentDescription = null,
+                                tint = colors.statusSuccess,
+                                modifier = Modifier.size(11.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                         }
                         Text(
-                            text = cleanHost.ifBlank { payload.url.take(40) },
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = colors.textSecondary,
-                                fontSize = 12.sp
-                            ),
+                            text = cleanHost.ifBlank { payload.url.take(36) },
+                            fontSize = 11.5.sp,
+                            color = colors.textMuted,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -254,22 +273,22 @@ fun BrowserShareSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 2. Direct App Targets Row (WhatsApp, Telegram, Gmail, etc.)
+            // 2. Direct App Targets
             if (installedShareApps.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(14.dp))
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     installedShareApps.forEach { app ->
                         ShareAppTargetItem(
                             app = app,
                             onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 onDismiss()
                                 ShareHelper.launchDirectAppShare(context, app)
                             }
@@ -280,12 +299,12 @@ fun BrowserShareSheet(
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
-                            .width(64.dp)
+                            .width(54.dp)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(bounded = false, radius = 28.dp),
+                                indication = ripple(bounded = false, radius = 24.dp, color = colors.textPrimary),
                                 onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     onDismiss()
                                     ShareHelper.launchSystemShare(context, effectiveShareText, payload.title)
                                 }
@@ -293,93 +312,94 @@ fun BrowserShareSheet(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(50.dp)
+                                .size(42.dp)
                                 .clip(CircleShape)
-                                .background(colors.surface)
-                                .border(1.dp, colors.border, CircleShape),
+                                .background(colors.surfaceElevated)
+                                .border(0.8.dp, colors.borderSubtle, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.MoreHoriz,
                                 contentDescription = "More Apps",
                                 tint = colors.textPrimary,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "More",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = colors.textSecondary,
-                                fontSize = 11.sp
-                            ),
+                            fontSize = 10.5.sp,
+                            color = colors.textSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             textAlign = TextAlign.Center
                         )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(color = colors.border.copy(alpha = 0.5f), thickness = 1.dp)
-                Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // 3. Quick Action Buttons Row
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // 3. Single-Line Action List
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(AzokleRadius.lg)
+                    .background(colors.surfaceElevated)
+                    .border(0.8.dp, colors.borderSubtle, AzokleRadius.lg)
             ) {
                 // Copy Link / Text
-                ShareActionRowItem(
+                ShareActionItemRow(
                     icon = Icons.Default.ContentCopy,
                     label = if (payload.selectedText != null) "Copy Text" else "Copy Link",
-                    subtitle = if (payload.selectedText != null) "Copy text to clipboard" else "Copy URL to clipboard",
                     onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         ShareHelper.copyToClipboard(
                             context = context,
                             text = effectiveShareText,
-                            successMessage = if (payload.selectedText != null) "Text copied to clipboard" else "Link copied to clipboard"
+                            successMessage = if (payload.selectedText != null) "Text copied" else "Link copied"
                         )
                         onDismiss()
                     }
                 )
 
+                HorizontalDivider(color = colors.borderSubtle, thickness = 0.5.dp, modifier = Modifier.padding(start = 48.dp))
+
                 // Android System Share
-                ShareActionRowItem(
+                ShareActionItemRow(
                     icon = Icons.Default.Share,
-                    label = "System Share Sheet",
-                    subtitle = "Open full Android share chooser",
+                    label = "System Share",
                     onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         onDismiss()
                         ShareHelper.launchSystemShare(context, effectiveShareText, payload.title)
                     }
                 )
 
-                // Save as PDF / Print (Available for web URLs)
+                // Save as PDF / Print
                 if (payload.url.isNotBlank() && onPrintToPdf != null) {
-                    ShareActionRowItem(
+                    HorizontalDivider(color = colors.borderSubtle, thickness = 0.5.dp, modifier = Modifier.padding(start = 48.dp))
+
+                    ShareActionItemRow(
                         icon = Icons.Default.PictureAsPdf,
-                        label = "Save as PDF / Print",
-                        subtitle = "Export current webpage content to PDF",
+                        label = "Save as PDF",
                         onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onDismiss()
                             onPrintToPdf()
                         }
                     )
                 }
 
-                // Open in External Browser
+                // Open in External App
                 if (payload.url.isNotBlank()) {
-                    ShareActionRowItem(
+                    HorizontalDivider(color = colors.borderSubtle, thickness = 0.5.dp, modifier = Modifier.padding(start = 48.dp))
+
+                    ShareActionItemRow(
                         icon = Icons.AutoMirrored.Filled.OpenInNew,
                         label = "Open in External App",
-                        subtitle = "View URL in another installed browser",
                         onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onDismiss()
                             ShareHelper.openInExternalBrowser(context, payload.url)
                         }
@@ -398,7 +418,7 @@ private fun ShareAppTargetItem(
     val colors = AzokleTheme.colors
     val iconBitmap = remember(app.icon) {
         try {
-            app.icon.toBitmap(width = 96, height = 96).asImageBitmap()
+            app.icon.toBitmap(width = 84, height = 84).asImageBitmap()
         } catch (e: Exception) {
             null
         }
@@ -407,10 +427,10 @@ private fun ShareAppTargetItem(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .width(64.dp)
+            .width(54.dp)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = ripple(bounded = false, radius = 28.dp),
+                indication = ripple(bounded = false, radius = 24.dp, color = colors.textPrimary),
                 onClick = onClick
             )
             .semantics {
@@ -420,38 +440,36 @@ private fun ShareAppTargetItem(
     ) {
         Box(
             modifier = Modifier
-                .size(50.dp)
+                .size(42.dp)
                 .clip(CircleShape)
-                .background(colors.surface)
-                .border(1.dp, colors.border, CircleShape),
+                .background(colors.surfaceElevated)
+                .border(0.8.dp, colors.borderSubtle, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             if (iconBitmap != null) {
                 Image(
                     bitmap = iconBitmap,
-                    contentDescription = app.label,
+                    contentDescription = null,
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(28.dp)
                         .clip(CircleShape)
                 )
             } else {
                 Icon(
                     imageVector = Icons.Default.Share,
-                    contentDescription = app.label,
+                    contentDescription = null,
                     tint = colors.textPrimary,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         Text(
             text = app.label,
-            style = MaterialTheme.typography.labelSmall.copy(
-                color = colors.textSecondary,
-                fontSize = 11.sp
-            ),
+            fontSize = 10.5.sp,
+            color = colors.textSecondary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center
@@ -460,10 +478,9 @@ private fun ShareAppTargetItem(
 }
 
 @Composable
-private fun ShareActionRowItem(
+private fun ShareActionItemRow(
     icon: ImageVector,
     label: String,
-    subtitle: String,
     onClick: () -> Unit
 ) {
     val colors = AzokleTheme.colors
@@ -471,44 +488,38 @@ private fun ShareActionRowItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(AzokleRadius.md)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .sizeIn(minHeight = 48.dp)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = true, color = colors.textPrimary.copy(alpha = 0.08f)),
+                onClick = onClick
+            )
+            .padding(horizontal = 14.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(38.dp)
-                .clip(CircleShape)
-                .background(colors.surface)
-                .border(1.dp, colors.border, CircleShape),
+                .size(28.dp)
+                .clip(AzokleRadius.sm)
+                .background(colors.cardBg)
+                .border(0.8.dp, colors.borderSubtle, AzokleRadius.sm),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = colors.textPrimary,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(15.dp)
             )
         }
 
-        Spacer(modifier = Modifier.width(14.dp))
+        Spacer(modifier = Modifier.width(12.dp))
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    color = colors.textPrimary
-                )
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall.copy(
-                    color = colors.textSecondary,
-                    fontSize = 12.sp
-                )
-            )
-        }
+        Text(
+            text = label,
+            fontSize = 13.5.sp,
+            fontWeight = FontWeight.Medium,
+            color = colors.textPrimary
+        )
     }
 }

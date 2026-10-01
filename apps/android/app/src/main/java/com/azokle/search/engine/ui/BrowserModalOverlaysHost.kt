@@ -401,9 +401,9 @@ fun BrowserModalOverlaysHost(
         )
     }
 
-    // Link Context Menu Sheet (Long-Press hyperlink)
+    // Link Context Menu Popup Dialog (Long-Press hyperlink)
     activeLinkContextTarget?.let { target ->
-        LinkContextMenuSheet(
+        LinkContextMenuPopup(
             target = target,
             isPrivate = isCurrentTabPrivate,
             isTor = isCurrentTabTor,

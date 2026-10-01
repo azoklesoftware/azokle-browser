@@ -2,7 +2,6 @@ package com.azokle.search.browser.bookmarks
 
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -27,26 +27,23 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -61,14 +58,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
-import com.azokle.search.R
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -77,20 +75,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.azokle.search.R
+import com.azokle.search.common.components.ToastManager
+import com.azokle.search.common.theme.AzokleBlack
+import com.azokle.search.common.theme.AzokleRadius
+import com.azokle.search.common.theme.AzokleTheme
+import com.azokle.search.common.theme.AzokleWhite
+import com.azokle.search.common.theme.adaptiveContentWidth
 import com.azokle.search.vault.BookmarkItem
 import com.azokle.search.vault.EncryptedVaultManager
 import com.azokle.search.vault.QuickLinkItem
-import com.azokle.search.common.theme.AzokleRadius
-import com.azokle.search.common.theme.AzokleTheme
-import com.azokle.search.common.theme.adaptiveContentWidth
 
-/**
- * Dedicated Sovereign Bookmarks & Quick Links Screen:
- *  - Pinned Quick Links / Shortcuts Carousel
- *  - Real-Time Searchable Bookmarks List
- *  - Add / Edit Bookmark & Quick Link Dialogs
- *  - Open in Browser or Tor
- */
 @Composable
 fun BookmarksScreen(
     onDismiss: () -> Unit,
@@ -114,9 +109,9 @@ fun BookmarksScreen(
         if (searchQuery.isBlank()) {
             bookmarks
         } else {
+            val query = searchQuery.trim().lowercase()
             bookmarks.filter {
-                it.title.contains(searchQuery.trim(), ignoreCase = true) ||
-                        it.url.contains(searchQuery.trim(), ignoreCase = true)
+                it.title.lowercase().contains(query) || it.url.lowercase().contains(query)
             }
         }
     }
@@ -136,233 +131,302 @@ fun BookmarksScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .adaptiveContentWidth(680.dp)
+                    .adaptiveContentWidth(640.dp)
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                // 1. Header Bar
+                // 1. Minimal Header Bar
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 12.dp),
+                        .padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(colors.cardBg)
-                                .border(1.dp, colors.border, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Bookmark,
-                                contentDescription = null,
-                                tint = colors.statusWarning,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = "BOOKMARKS & SHORTCUTS",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace,
-                                color = colors.textPrimary,
-                                letterSpacing = 0.8.sp
-                            )
-                            Text(
-                                text = "${bookmarks.size} Bookmarks • ${quickLinks.size} Pinned",
-                                fontSize = 11.sp,
-                                color = colors.textSecondary
-                            )
-                        }
-                    }
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(
-                            onClick = { showAddBookmarkDialog = true },
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(colors.surface)
-                                .border(1.dp, colors.border, CircleShape)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Add Bookmark",
-                                tint = colors.textPrimary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        IconButton(
-                            onClick = onDismiss,
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(colors.surface)
-                                .border(1.dp, colors.border, CircleShape)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = colors.textSecondary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                }
-
-                // 2. Search Bar
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search bookmarks or URLs...", fontSize = 13.sp, color = colors.textMuted) },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = colors.textSecondary,
-                            modifier = Modifier.size(18.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.semantics { heading() }
+                    ) {
+                        Text(
+                            text = "Bookmarks",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.textPrimary
                         )
-                    },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Clear",
-                                    tint = colors.textSecondary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = colors.cardBg,
-                        unfocusedContainerColor = colors.cardBg,
-                        focusedBorderColor = colors.statusAccent,
-                        unfocusedBorderColor = colors.border,
-                        focusedTextColor = colors.textPrimary,
-                        unfocusedTextColor = colors.textPrimary
-                    ),
-                    shape = AzokleRadius.lg,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 14.dp)
-                )
-
-                // 3. Pinned Quick Links Section
-                Text(
-                    text = "PINNED QUICK LINKS",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    color = colors.textSecondary,
-                    letterSpacing = 0.6.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp)
-                ) {
-                    items(quickLinks) { link ->
-                        QuickLinkCard(
-                            item = link,
-                            onClick = {
-                                onDismiss()
-                                onNavigate(link.url)
-                            },
-                            onRemove = { vaultManager.removeQuickLink(link.id) },
-                            colors = colors
-                        )
-                    }
-
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .width(90.dp)
-                                .height(82.dp)
-                                .clip(AzokleRadius.lg)
-                                .background(colors.surface)
-                                .border(1.dp, colors.border, AzokleRadius.lg)
-                                .clickable { showAddQuickLinkDialog = true }
-                                .padding(8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = "Add Shortcut",
-                                    tint = colors.statusAccent,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
+                        if (bookmarks.isNotEmpty()) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(colors.surfaceElevated)
+                                    .border(0.8.dp, colors.borderSubtle, RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                            ) {
                                 Text(
-                                    text = "Add Link",
+                                    text = "${bookmarks.size}",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.SemiBold,
+                                    fontFamily = FontFamily.Monospace,
                                     color = colors.textSecondary
                                 )
                             }
                         }
                     }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Add Button
+                        Box(
+                            modifier = Modifier
+                                .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
+                                .clip(CircleShape)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = ripple(bounded = false, radius = 18.dp, color = colors.textSecondary),
+                                    onClick = { showAddBookmarkDialog = true }
+                                )
+                                .semantics {
+                                    role = Role.Button
+                                    contentDescription = "Add bookmark"
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(colors.surfaceElevated)
+                                    .border(0.8.dp, colors.borderSubtle, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = null,
+                                    tint = colors.textPrimary,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Close Button
+                        Box(
+                            modifier = Modifier
+                                .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
+                                .clip(CircleShape)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = ripple(bounded = false, radius = 18.dp, color = colors.textSecondary),
+                                    onClick = onDismiss
+                                )
+                                .semantics {
+                                    role = Role.Button
+                                    contentDescription = "Close bookmarks"
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(colors.surfaceElevated)
+                                    .border(0.8.dp, colors.borderSubtle, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = null,
+                                    tint = colors.textPrimary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                    }
                 }
 
-                // 4. Bookmarks List Section
-                Text(
-                    text = "SAVED BOOKMARKS (${filteredBookmarks.size})",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    color = colors.textSecondary,
-                    letterSpacing = 0.6.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // 2. Compact Search Bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp)
+                        .clip(AzokleRadius.md)
+                        .background(colors.surfaceElevated)
+                        .border(0.8.dp, colors.borderSubtle, AzokleRadius.md)
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = colors.textMuted,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        textStyle = TextStyle(
+                            color = colors.textPrimary,
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Normal
+                        ),
+                        cursorBrush = SolidColor(if (colors.isDark) AzokleWhite else AzokleBlack),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        decorationBox = { innerTextField ->
+                            if (searchQuery.isEmpty()) {
+                                Text(
+                                    text = "Search bookmarks...",
+                                    color = colors.textMuted,
+                                    fontSize = 13.5.sp
+                                )
+                            }
+                            innerTextField()
+                        }
+                    )
+                    if (searchQuery.isNotEmpty()) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Clear search",
+                            tint = colors.textMuted,
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = ripple(bounded = false, radius = 12.dp, color = colors.textMuted),
+                                    onClick = { searchQuery = "" }
+                                )
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // 3. Shortcuts / Quick Links (if any or minimal)
+                if (quickLinks.isNotEmpty()) {
+                    Text(
+                        text = "SHORTCUTS (${quickLinks.size})",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textMuted,
+                        letterSpacing = 0.5.sp,
+                        modifier = Modifier.padding(start = 2.dp, bottom = 6.dp)
+                    )
+
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 14.dp)
+                    ) {
+                        items(quickLinks, key = { it.id }) { link ->
+                            QuickLinkTile(
+                                item = link,
+                                onClick = {
+                                    onDismiss()
+                                    onNavigate(link.url)
+                                },
+                                colors = colors
+                            )
+                        }
+
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .width(76.dp)
+                                    .height(68.dp)
+                                    .clip(AzokleRadius.md)
+                                    .background(colors.surfaceElevated)
+                                    .border(0.8.dp, colors.borderSubtle, AzokleRadius.md)
+                                    .clickable { showAddQuickLinkDialog = true }
+                                    .padding(6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = "Add Shortcut",
+                                        tint = colors.textMuted,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(3.dp))
+                                    Text(
+                                        text = "Add",
+                                        fontSize = 10.sp,
+                                        color = colors.textMuted
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 4. Saved Bookmarks Header
+                if (filteredBookmarks.isNotEmpty()) {
+                    Text(
+                        text = "SAVED (${filteredBookmarks.size})",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textMuted,
+                        letterSpacing = 0.5.sp,
+                        modifier = Modifier.padding(start = 2.dp, bottom = 6.dp)
+                    )
+                }
             }
 
-            // Bookmarks LazyColumn
+            // Bookmarks List
             if (filteredBookmarks.isEmpty()) {
                 EmptyBookmarksView(searchQuery = searchQuery, colors = colors)
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 48.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .adaptiveContentWidth(640.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp)
                 ) {
-                    items(filteredBookmarks, key = { it.id }) { bookmark ->
-                        BookmarkCard(
-                            bookmark = bookmark,
-                            isPinned = vaultManager.isQuickLinkPinned(bookmark.url),
-                            onClick = {
-                                onDismiss()
-                                onNavigate(bookmark.url)
-                            },
-                            onOpenTor = {
-                                onDismiss()
-                                onOpenTor(bookmark.url)
-                            },
-                            onTogglePin = {
-                                if (vaultManager.isQuickLinkPinned(bookmark.url)) {
-                                    val ql = quickLinks.find { it.url == bookmark.url }
-                                    if (ql != null) vaultManager.removeQuickLink(ql.id)
-                                } else {
-                                    vaultManager.addQuickLink(bookmark.title, bookmark.url)
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(AzokleRadius.lg)
+                                .background(colors.surfaceElevated)
+                                .border(0.8.dp, colors.borderSubtle, AzokleRadius.lg)
+                        ) {
+                            filteredBookmarks.forEachIndexed { index, bookmark ->
+                                BookmarkItemRow(
+                                    bookmark = bookmark,
+                                    isPinned = vaultManager.isQuickLinkPinned(bookmark.url),
+                                    onClick = {
+                                        onDismiss()
+                                        onNavigate(bookmark.url)
+                                    },
+                                    onOpenTor = {
+                                        onDismiss()
+                                        onOpenTor(bookmark.url)
+                                    },
+                                    onTogglePin = {
+                                        if (vaultManager.isQuickLinkPinned(bookmark.url)) {
+                                            val ql = quickLinks.find { it.url == bookmark.url }
+                                            if (ql != null) vaultManager.removeQuickLink(ql.id)
+                                        } else {
+                                            vaultManager.addQuickLink(bookmark.title, bookmark.url)
+                                        }
+                                    },
+                                    onEdit = { bookmarkToEdit = bookmark },
+                                    onDelete = { vaultManager.removeBookmark(bookmark.id) },
+                                    colors = colors
+                                )
+
+                                if (index < filteredBookmarks.size - 1) {
+                                    HorizontalDivider(
+                                        color = colors.borderSubtle,
+                                        thickness = 0.5.dp,
+                                        modifier = Modifier.padding(start = 52.dp)
+                                    )
                                 }
-                            },
-                            onEdit = { bookmarkToEdit = bookmark },
-                            onDelete = { vaultManager.removeBookmark(bookmark.id) },
-                            colors = colors
-                        )
+                            }
+                        }
                     }
                 }
             }
@@ -374,6 +438,7 @@ fun BookmarksScreen(
                 onConfirm = { title, url ->
                     vaultManager.addBookmark(title, url)
                     showAddBookmarkDialog = false
+                    ToastManager.show("Bookmark saved")
                 },
                 onDismiss = { showAddBookmarkDialog = false },
                 colors = colors
@@ -386,6 +451,7 @@ fun BookmarksScreen(
                 onConfirm = { title, url ->
                     vaultManager.addQuickLink(title, url)
                     showAddQuickLinkDialog = false
+                    ToastManager.show("Shortcut added")
                 },
                 onDismiss = { showAddQuickLinkDialog = false },
                 colors = colors
@@ -399,6 +465,7 @@ fun BookmarksScreen(
                 onConfirm = { newTitle, newUrl ->
                     vaultManager.updateBookmark(item.id, newTitle, newUrl)
                     bookmarkToEdit = null
+                    ToastManager.show("Bookmark updated")
                 },
                 onDismiss = { bookmarkToEdit = null },
                 colors = colors
@@ -408,10 +475,9 @@ fun BookmarksScreen(
 }
 
 @Composable
-private fun QuickLinkCard(
+private fun QuickLinkTile(
     item: QuickLinkItem,
     onClick: () -> Unit,
-    onRemove: () -> Unit,
     colors: com.azokle.search.common.theme.AzokleThemeColors
 ) {
     val context = LocalContext.current
@@ -424,12 +490,16 @@ private fun QuickLinkCard(
 
     Box(
         modifier = Modifier
-            .width(90.dp)
-            .height(82.dp)
-            .clip(AzokleRadius.lg)
-            .background(colors.cardBg)
-            .border(1.dp, colors.border, AzokleRadius.lg)
-            .clickable(onClick = onClick)
+            .width(76.dp)
+            .height(68.dp)
+            .clip(AzokleRadius.md)
+            .background(colors.surfaceElevated)
+            .border(0.8.dp, colors.borderSubtle, AzokleRadius.md)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = true, color = colors.textPrimary.copy(alpha = 0.08f)),
+                onClick = onClick
+            )
             .padding(6.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -439,10 +509,10 @@ private fun QuickLinkCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(26.dp)
                     .clip(CircleShape)
-                    .background(colors.surface)
-                    .border(1.dp, colors.border, CircleShape),
+                    .background(colors.cardBg)
+                    .border(0.8.dp, colors.borderSubtle, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
@@ -452,7 +522,7 @@ private fun QuickLinkCard(
                         .build(),
                     contentDescription = null,
                     modifier = Modifier
-                        .size(18.dp)
+                        .size(15.dp)
                         .clip(CircleShape)
                 )
             }
@@ -460,7 +530,7 @@ private fun QuickLinkCard(
             Text(
                 text = item.title,
                 fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Medium,
                 color = colors.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -471,7 +541,7 @@ private fun QuickLinkCard(
 }
 
 @Composable
-private fun BookmarkCard(
+private fun BookmarkItemRow(
     bookmark: BookmarkItem,
     isPinned: Boolean,
     onClick: () -> Unit,
@@ -494,97 +564,111 @@ private fun BookmarkCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(AzokleRadius.lg)
-            .background(colors.cardBg)
-            .border(1.dp, colors.border, AzokleRadius.lg)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .sizeIn(minHeight = 52.dp)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = true, color = colors.textPrimary.copy(alpha = 0.08f)),
+                onClick = onClick
+            )
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(colors.surface)
-                .border(1.dp, colors.border, CircleShape),
-            contentAlignment = Alignment.Center
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
         ) {
-            AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(faviconUrl)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = null,
+            // Favicon badge
+            Box(
                 modifier = Modifier
-                    .size(20.dp)
-                    .clip(CircleShape)
-            )
-        }
+                    .size(30.dp)
+                    .clip(AzokleRadius.sm)
+                    .background(colors.cardBg)
+                    .border(0.8.dp, colors.borderSubtle, AzokleRadius.sm),
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(faviconUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clip(CircleShape)
+                )
+            }
 
-        Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = bookmark.title,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = colors.textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f, fill = false)) {
+                Text(
+                    text = bookmark.title,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(1.dp))
                 Text(
                     text = cleanHost,
-                    fontSize = 11.sp,
-                    color = colors.textSecondary,
+                    fontSize = 11.5.sp,
+                    color = colors.textMuted,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
+                    overflow = TextOverflow.Ellipsis
                 )
-                if (bookmark.dateAdded.isNotBlank()) {
-                    Text(
-                        text = " • ${bookmark.dateAdded}",
-                        fontSize = 11.sp,
-                        color = colors.textMuted
-                    )
-                }
             }
         }
 
+        Spacer(modifier = Modifier.width(8.dp))
+
         Box {
-            IconButton(
-                onClick = { showMenu = true },
-                modifier = Modifier.size(32.dp)
+            Box(
+                modifier = Modifier
+                    .sizeIn(minWidth = 32.dp, minHeight = 32.dp)
+                    .clip(CircleShape)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = ripple(bounded = false, radius = 16.dp, color = colors.textSecondary),
+                        onClick = { showMenu = true }
+                    )
+                    .semantics {
+                        role = Role.Button
+                        contentDescription = "Bookmark options for ${bookmark.title}"
+                    },
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
-                    contentDescription = "Options",
-                    tint = colors.textSecondary,
-                    modifier = Modifier.size(18.dp)
+                    contentDescription = null,
+                    tint = colors.textMuted,
+                    modifier = Modifier.size(16.dp)
                 )
             }
 
             DropdownMenu(
                 expanded = showMenu,
                 onDismissRequest = { showMenu = false },
-                modifier = Modifier.background(colors.modalBg)
+                modifier = Modifier
+                    .background(colors.cardBg)
+                    .border(0.8.dp, colors.borderSubtle, RoundedCornerShape(12.dp))
             ) {
                 DropdownMenuItem(
-                    text = { Text("Open in Browser", color = colors.textPrimary) },
-                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null, tint = colors.statusAccent) },
+                    text = { Text("Open", fontSize = 13.sp, color = colors.textPrimary) },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.OpenInNew, null, tint = colors.statusAccent, modifier = Modifier.size(16.dp)) },
                     onClick = {
                         showMenu = false
                         onClick()
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("Open in Tor Window", color = colors.statusTor) },
+                    text = { Text("Open in Tor", fontSize = 13.sp, color = colors.statusTor) },
                     leadingIcon = {
                         Image(
                             painter = painterResource(id = R.drawable.ic_tor),
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(15.dp)
                         )
                     },
                     onClick = {
@@ -593,39 +677,39 @@ private fun BookmarkCard(
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text(if (isPinned) "Unpin from Quick Links" else "Pin to Quick Links", color = colors.textPrimary) },
-                    leadingIcon = { Icon(Icons.Default.PushPin, null, tint = if (isPinned) colors.statusWarning else colors.textSecondary) },
+                    text = { Text(if (isPinned) "Unpin Shortcut" else "Pin Shortcut", fontSize = 13.sp, color = colors.textPrimary) },
+                    leadingIcon = { Icon(Icons.Default.PushPin, null, tint = if (isPinned) colors.statusWarning else colors.textMuted, modifier = Modifier.size(16.dp)) },
                     onClick = {
                         showMenu = false
                         onTogglePin()
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("Copy Link", color = colors.textPrimary) },
-                    leadingIcon = { Icon(Icons.Default.ContentCopy, null, tint = colors.textSecondary) },
+                    text = { Text("Copy Link", fontSize = 13.sp, color = colors.textPrimary) },
+                    leadingIcon = { Icon(Icons.Default.ContentCopy, null, tint = colors.textMuted, modifier = Modifier.size(16.dp)) },
                     onClick = {
                         showMenu = false
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                         val clipData = android.content.ClipData.newPlainText("URL", bookmark.url)
                         clipboard?.setPrimaryClip(clipData)
-                        com.azokle.search.common.components.ToastManager.showCopy("Link copied to clipboard")
+                        ToastManager.showCopy("Link copied")
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("Edit Bookmark", color = colors.textPrimary) },
-                    leadingIcon = { Icon(Icons.Default.Edit, null, tint = colors.textSecondary) },
+                    text = { Text("Edit", fontSize = 13.sp, color = colors.textPrimary) },
+                    leadingIcon = { Icon(Icons.Default.Edit, null, tint = colors.textMuted, modifier = Modifier.size(16.dp)) },
                     onClick = {
                         showMenu = false
                         onEdit()
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("Delete", color = colors.statusDestructive) },
-                    leadingIcon = { Icon(Icons.Default.DeleteOutline, null, tint = colors.statusDestructive) },
+                    text = { Text("Delete", fontSize = 13.sp, color = colors.statusDestructive) },
+                    leadingIcon = { Icon(Icons.Default.DeleteOutline, null, tint = colors.statusDestructive, modifier = Modifier.size(16.dp)) },
                     onClick = {
                         showMenu = false
                         onDelete()
-                        com.azokle.search.common.components.ToastManager.show("Bookmark removed")
+                        ToastManager.show("Bookmark removed")
                     }
                 )
             }
@@ -647,37 +731,36 @@ private fun EmptyBookmarksView(
     ) {
         Box(
             modifier = Modifier
-                .size(64.dp)
+                .size(44.dp)
                 .clip(CircleShape)
-                .background(colors.surface)
-                .border(1.dp, colors.border, CircleShape),
+                .background(colors.surfaceElevated)
+                .border(0.8.dp, colors.borderSubtle, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.BookmarkBorder,
                 contentDescription = null,
-                tint = colors.textSecondary,
-                modifier = Modifier.size(28.dp)
+                tint = colors.textMuted,
+                modifier = Modifier.size(20.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = if (searchQuery.isNotEmpty()) "No Matching Bookmarks" else "No Bookmarks Saved Yet",
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Bold,
+            text = if (searchQuery.isNotEmpty()) "No results" else "No bookmarks",
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
             color = colors.textPrimary
         )
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = if (searchQuery.isNotEmpty()) "Try a different search query." else "Tap the bookmark icon on any webpage to save it here for quick access.",
-            fontSize = 13.sp,
-            color = colors.textSecondary,
-            textAlign = TextAlign.Center,
-            lineHeight = 18.sp
+            text = if (searchQuery.isNotEmpty()) "Try a different search query" else "Saved pages will appear here",
+            fontSize = 12.sp,
+            color = colors.textMuted,
+            textAlign = TextAlign.Center
         )
     }
 }
@@ -693,21 +776,42 @@ private fun AddBookmarkDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Bookmark", fontWeight = FontWeight.Bold, color = colors.textPrimary) },
+        title = {
+            Text(
+                text = "Add Bookmark",
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp,
+                color = colors.textPrimary
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Title") },
+                    label = { Text("Title", fontSize = 12.sp) },
                     singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = colors.actionPrimaryBg,
+                        unfocusedBorderColor = colors.borderSubtle,
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary
+                    ),
+                    shape = AzokleRadius.md,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
-                    label = { Text("URL") },
+                    label = { Text("URL", fontSize = 12.sp) },
                     singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = colors.actionPrimaryBg,
+                        unfocusedBorderColor = colors.borderSubtle,
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary
+                    ),
+                    shape = AzokleRadius.md,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -718,15 +822,16 @@ private fun AddBookmarkDialog(
                     if (url.isNotBlank()) onConfirm(title.ifBlank { url }, url)
                 }
             ) {
-                Text("Save", fontWeight = FontWeight.Bold, color = colors.statusAccent)
+                Text("Save", fontWeight = FontWeight.SemiBold, color = colors.statusAccent, fontSize = 13.sp)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = colors.textSecondary)
+                Text("Cancel", color = colors.textSecondary, fontSize = 13.sp)
             }
         },
-        containerColor = colors.modalBg
+        containerColor = colors.cardBg,
+        shape = AzokleRadius.xl
     )
 }
 
@@ -741,21 +846,42 @@ private fun AddQuickLinkDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Quick Link", fontWeight = FontWeight.Bold, color = colors.textPrimary) },
+        title = {
+            Text(
+                text = "Add Shortcut",
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp,
+                color = colors.textPrimary
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Title") },
+                    label = { Text("Title", fontSize = 12.sp) },
                     singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = colors.actionPrimaryBg,
+                        unfocusedBorderColor = colors.borderSubtle,
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary
+                    ),
+                    shape = AzokleRadius.md,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
-                    label = { Text("URL") },
+                    label = { Text("URL", fontSize = 12.sp) },
                     singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = colors.actionPrimaryBg,
+                        unfocusedBorderColor = colors.borderSubtle,
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary
+                    ),
+                    shape = AzokleRadius.md,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -766,15 +892,16 @@ private fun AddQuickLinkDialog(
                     if (url.isNotBlank()) onConfirm(title.ifBlank { url }, url)
                 }
             ) {
-                Text("Add", fontWeight = FontWeight.Bold, color = colors.statusAccent)
+                Text("Add", fontWeight = FontWeight.SemiBold, color = colors.statusAccent, fontSize = 13.sp)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = colors.textSecondary)
+                Text("Cancel", color = colors.textSecondary, fontSize = 13.sp)
             }
         },
-        containerColor = colors.modalBg
+        containerColor = colors.cardBg,
+        shape = AzokleRadius.xl
     )
 }
 
@@ -790,21 +917,42 @@ private fun EditBookmarkDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Edit Bookmark", fontWeight = FontWeight.Bold, color = colors.textPrimary) },
+        title = {
+            Text(
+                text = "Edit Bookmark",
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp,
+                color = colors.textPrimary
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Title") },
+                    label = { Text("Title", fontSize = 12.sp) },
                     singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = colors.actionPrimaryBg,
+                        unfocusedBorderColor = colors.borderSubtle,
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary
+                    ),
+                    shape = AzokleRadius.md,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
-                    label = { Text("URL") },
+                    label = { Text("URL", fontSize = 12.sp) },
                     singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = colors.actionPrimaryBg,
+                        unfocusedBorderColor = colors.borderSubtle,
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary
+                    ),
+                    shape = AzokleRadius.md,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -815,14 +963,15 @@ private fun EditBookmarkDialog(
                     if (url.isNotBlank()) onConfirm(title.ifBlank { url }, url)
                 }
             ) {
-                Text("Update", fontWeight = FontWeight.Bold, color = colors.statusAccent)
+                Text("Update", fontWeight = FontWeight.SemiBold, color = colors.statusAccent, fontSize = 13.sp)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = colors.textSecondary)
+                Text("Cancel", color = colors.textSecondary, fontSize = 13.sp)
             }
         },
-        containerColor = colors.modalBg
+        containerColor = colors.cardBg,
+        shape = AzokleRadius.xl
     )
 }

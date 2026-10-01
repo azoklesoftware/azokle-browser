@@ -1,13 +1,12 @@
 package com.azokle.search.history
 
-import android.content.Context
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,7 +33,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
@@ -53,32 +52,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.azokle.search.history.HistoryItem
-import com.azokle.search.history.HistoryManager
 import com.azokle.search.common.components.FaviconImage
+import com.azokle.search.common.theme.AzokleBlack
 import com.azokle.search.common.theme.AzokleRadius
 import com.azokle.search.common.theme.AzokleTheme
+import com.azokle.search.common.theme.AzokleWhite
 import com.azokle.search.common.theme.adaptiveContentWidth
 import com.azokle.search.search.HomeViewModel
 import java.text.SimpleDateFormat
@@ -90,18 +81,6 @@ enum class HistoryFilter {
     ALL,
     PAGES,
     SEARCHES
-}
-
-enum class GroupPosition {
-    SINGLE,
-    FIRST,
-    MIDDLE,
-    LAST
-}
-
-sealed class HistoryUiModel {
-    data class Header(val title: String) : HistoryUiModel()
-    data class Entry(val item: HistoryItem, val position: GroupPosition) : HistoryUiModel()
 }
 
 @Composable
@@ -129,7 +108,6 @@ fun HistoryScreen(
 
     val timeFormatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
 
-    // Filter & Search
     val filteredHistory = remember(historyList, searchQuery, selectedFilter) {
         historyList.filter { item ->
             val matchesFilter = when (selectedFilter) {
@@ -145,8 +123,8 @@ fun HistoryScreen(
         }
     }
 
-    // Grouping by Date & Virtualized UI Models
-    val uiItems = remember(filteredHistory) {
+    // Grouping by Date
+    val dateGroups = remember(filteredHistory) {
         val todayStart = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
@@ -167,22 +145,7 @@ fun HistoryScreen(
             }
             groups.getOrPut(groupKey) { mutableListOf() }.add(item)
         }
-
-        val result = ArrayList<HistoryUiModel>(filteredHistory.size + groups.size)
-        for ((dateGroup, items) in groups) {
-            result.add(HistoryUiModel.Header(dateGroup))
-            val size = items.size
-            items.forEachIndexed { index, item ->
-                val position = when {
-                    size == 1 -> GroupPosition.SINGLE
-                    index == 0 -> GroupPosition.FIRST
-                    index == size - 1 -> GroupPosition.LAST
-                    else -> GroupPosition.MIDDLE
-                }
-                result.add(HistoryUiModel.Entry(item, position))
-            }
-        }
-        result
+        groups
     }
 
     Box(
@@ -196,26 +159,29 @@ fun HistoryScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .adaptiveContentWidth(680.dp),
+                .adaptiveContentWidth(640.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 1. Clean Top Header Bar
+            // 1. Header Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
                     if (onClose != null) {
                         Box(
                             modifier = Modifier
-                                .sizeIn(minWidth = 44.dp, minHeight = 44.dp)
+                                .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
                                 .clip(CircleShape)
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(bounded = false, radius = 18.dp, color = colors.textPrimary),
+                                    indication = ripple(bounded = false, radius = 18.dp, color = colors.textSecondary),
                                     onClick = onClose
                                 )
                                 .semantics {
@@ -226,27 +192,27 @@ fun HistoryScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(36.dp)
+                                    .size(28.dp)
                                     .clip(CircleShape)
                                     .background(colors.surfaceElevated)
-                                    .border(1.dp, colors.border, CircleShape),
+                                    .border(0.8.dp, colors.borderSubtle, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                     contentDescription = null,
                                     tint = colors.textPrimary,
-                                    modifier = Modifier.size(17.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                     }
 
                     Text(
                         text = if (isSelectionMode) "${selectedIds.size} Selected" else "History",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
                         color = colors.textPrimary,
                         modifier = Modifier.semantics { heading() }
                     )
@@ -255,16 +221,17 @@ fun HistoryScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
-                                .clip(CircleShape)
+                                .clip(RoundedCornerShape(4.dp))
                                 .background(colors.surfaceElevated)
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                                .border(0.8.dp, colors.borderSubtle, RoundedCornerShape(4.dp))
+                                .padding(horizontal = 6.dp, vertical = 1.dp)
                         ) {
                             Text(
                                 text = "${historyList.size}",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 fontFamily = FontFamily.Monospace,
-                                color = colors.textMuted
+                                color = colors.textSecondary
                             )
                         }
                     }
@@ -275,7 +242,7 @@ fun HistoryScreen(
                         if (selectedIds.isNotEmpty()) {
                             Box(
                                 modifier = Modifier
-                                    .sizeIn(minWidth = 44.dp, minHeight = 44.dp)
+                                    .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
                                     .clip(CircleShape)
                                     .clickable(
                                         interactionSource = remember { MutableInteractionSource() },
@@ -284,18 +251,18 @@ fun HistoryScreen(
                                             HistoryManager.deleteEntries(selectedIds.toList())
                                             selectedIds = emptySet()
                                             isSelectionMode = false
-                                            Toast.makeText(context, "Deleted selected entries", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "Deleted selected", Toast.LENGTH_SHORT).show()
                                         }
                                     )
                                     .semantics {
                                         role = Role.Button
-                                        contentDescription = "Delete selected history"
+                                        contentDescription = "Delete selected"
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(36.dp)
+                                        .size(28.dp)
                                         .clip(CircleShape)
                                         .background(colors.statusDestructive.copy(alpha = 0.15f)),
                                     contentAlignment = Alignment.Center
@@ -304,7 +271,7 @@ fun HistoryScreen(
                                         imageVector = Icons.Default.Delete,
                                         contentDescription = null,
                                         tint = colors.statusDestructive,
-                                        modifier = Modifier.size(17.dp)
+                                        modifier = Modifier.size(15.dp)
                                     )
                                 }
                             }
@@ -312,11 +279,11 @@ fun HistoryScreen(
                         }
                         Box(
                             modifier = Modifier
-                                .sizeIn(minWidth = 44.dp, minHeight = 44.dp)
+                                .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
                                 .clip(CircleShape)
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(bounded = false, radius = 18.dp, color = colors.textPrimary),
+                                    indication = ripple(bounded = false, radius = 18.dp, color = colors.textSecondary),
                                     onClick = {
                                         isSelectionMode = false
                                         selectedIds = emptySet()
@@ -330,24 +297,24 @@ fun HistoryScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(36.dp)
+                                    .size(28.dp)
                                     .clip(CircleShape)
                                     .background(colors.surfaceElevated)
-                                    .border(1.dp, colors.border, CircleShape),
+                                    .border(0.8.dp, colors.borderSubtle, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = null,
                                     tint = colors.textPrimary,
-                                    modifier = Modifier.size(17.dp)
+                                    modifier = Modifier.size(14.dp)
                                 )
                             }
                         }
                     } else if (historyList.isNotEmpty()) {
                         Box(
                             modifier = Modifier
-                                .sizeIn(minWidth = 44.dp, minHeight = 44.dp)
+                                .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
                                 .clip(CircleShape)
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
@@ -362,17 +329,17 @@ fun HistoryScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(36.dp)
+                                    .size(28.dp)
                                     .clip(CircleShape)
                                     .background(colors.surfaceElevated)
-                                    .border(1.dp, colors.border, CircleShape),
+                                    .border(0.8.dp, colors.borderSubtle, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.DeleteSweep,
+                                    imageVector = Icons.Default.DeleteOutline,
                                     contentDescription = null,
                                     tint = colors.textMuted,
-                                    modifier = Modifier.size(17.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                             }
                         }
@@ -380,97 +347,97 @@ fun HistoryScreen(
                 }
             }
 
-            // 2. Search Input Bar
-            Box(
+            // 2. Search Bar
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .height(42.dp)
                     .clip(AzokleRadius.md)
                     .background(colors.surfaceElevated)
-                    .border(1.dp, colors.border, AzokleRadius.md)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .border(0.8.dp, colors.borderSubtle, AzokleRadius.md)
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = null,
-                        tint = colors.textMuted,
-                        modifier = Modifier.size(17.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    BasicTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        textStyle = TextStyle(
-                            color = colors.textPrimary,
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.Medium
-                        ),
-                        cursorBrush = SolidColor(colors.textPrimary),
-                        modifier = Modifier.weight(1f),
-                        decorationBox = { innerTextField ->
-                            if (searchQuery.isEmpty()) {
-                                Text(
-                                    text = "Search browsing history...",
-                                    color = colors.textMuted,
-                                    fontSize = 13.5.sp
-                                )
-                            }
-                            innerTextField()
-                        }
-                    )
-                    if (searchQuery.isNotEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .sizeIn(minWidth = 32.dp, minHeight = 32.dp)
-                                .clip(CircleShape)
-                                .clickable { searchQuery = "" },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Clear search",
-                                tint = colors.textMuted,
-                                modifier = Modifier.size(15.dp)
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = null,
+                    tint = colors.textMuted,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                BasicTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    textStyle = TextStyle(
+                        color = colors.textPrimary,
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.Normal
+                    ),
+                    cursorBrush = SolidColor(if (colors.isDark) AzokleWhite else AzokleBlack),
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                    decorationBox = { innerTextField ->
+                        if (searchQuery.isEmpty()) {
+                            Text(
+                                text = "Search history...",
+                                color = colors.textMuted,
+                                fontSize = 13.5.sp
                             )
                         }
+                        innerTextField()
                     }
+                )
+                if (searchQuery.isNotEmpty()) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Clear search",
+                        tint = colors.textMuted,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = false, radius = 12.dp, color = colors.textMuted),
+                                onClick = { searchQuery = "" }
+                            )
+                    )
                 }
             }
 
-            // 3. Filter Segmented Chips (All, Webpages, Searches)
+            // 3. Filter Chips
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(vertical = 6.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                item { Spacer(modifier = Modifier.width(8.dp)) }
                 items(HistoryFilter.values()) { filter ->
                     val isSelected = selectedFilter == filter
-                    val chipShape = AzokleRadius.full
                     val label = when (filter) {
                         HistoryFilter.ALL -> "All"
                         HistoryFilter.PAGES -> "Webpages"
                         HistoryFilter.SEARCHES -> "Searches"
                     }
+
                     Box(
                         modifier = Modifier
-                            .clip(chipShape)
+                            .clip(CircleShape)
                             .background(if (isSelected) colors.actionPrimaryBg else colors.surfaceElevated)
-                            .border(1.dp, if (isSelected) Color.Transparent else colors.border, chipShape)
+                            .border(
+                                width = 0.8.dp,
+                                color = if (isSelected) Color.Transparent else colors.borderSubtle,
+                                shape = CircleShape
+                            )
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(bounded = true, color = colors.textPrimary.copy(alpha = 0.15f)),
+                                indication = ripple(bounded = true, radius = 16.dp, color = colors.textPrimary.copy(alpha = 0.1f)),
                                 onClick = { selectedFilter = filter }
                             )
-                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                            .padding(horizontal = 12.dp, vertical = 5.dp)
                             .semantics {
                                 role = Role.Tab
-                                contentDescription = "$label history filter"
+                                contentDescription = "$label filter"
                             },
                         contentAlignment = Alignment.Center
                     ) {
@@ -478,14 +445,13 @@ fun HistoryScreen(
                             text = label,
                             color = if (isSelected) colors.actionPrimaryText else colors.textSecondary,
                             fontSize = 12.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                         )
                     }
                 }
-                item { Spacer(modifier = Modifier.width(8.dp)) }
             }
 
-            // 4. Content Area
+            // 4. History List
             if (filteredHistory.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -499,31 +465,36 @@ fun HistoryScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(60.dp)
+                                .size(44.dp)
                                 .clip(CircleShape)
                                 .background(colors.surfaceElevated)
-                                .border(1.dp, colors.border, CircleShape),
+                                .border(0.8.dp, colors.borderSubtle, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Search,
                                 contentDescription = null,
                                 tint = colors.textMuted,
-                                modifier = Modifier.size(26.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
                         Text(
                             text = if (searchQuery.isNotBlank()) "No matching history" else "No browsing history",
                             fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             color = colors.textPrimary
                         )
+
                         Spacer(modifier = Modifier.height(4.dp))
+
                         Text(
-                            text = if (searchQuery.isNotBlank()) "Try a different search term" else "Searches and visited websites will securely appear here",
-                            fontSize = 12.5.sp,
-                            color = colors.textMuted
+                            text = if (searchQuery.isNotBlank()) "Try a different search term" else "Searches and visited websites will appear here",
+                            fontSize = 12.sp,
+                            color = colors.textMuted,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -532,52 +503,31 @@ fun HistoryScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .padding(horizontal = 16.dp)
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    items(
-                        items = uiItems,
-                        key = { model ->
-                            when (model) {
-                                is HistoryUiModel.Header -> "hdr_${model.title}"
-                                is HistoryUiModel.Entry -> model.item.id
-                            }
-                        },
-                        contentType = { model ->
-                            when (model) {
-                                is HistoryUiModel.Header -> 0
-                                is HistoryUiModel.Entry -> 1
-                            }
-                        }
-                    ) { model ->
-                        when (model) {
-                            is HistoryUiModel.Header -> {
-                                Text(
-                                    text = model.title.uppercase(),
-                                    fontSize = 11.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold,
-                                    color = colors.textMuted,
-                                    letterSpacing = 0.8.sp,
-                                    modifier = Modifier.padding(start = 4.dp, top = 16.dp, bottom = 6.dp)
-                                )
-                            }
-                            is HistoryUiModel.Entry -> {
-                                val item = model.item
-                                val isSelected = selectedIds.contains(item.id)
-                                val shape = when (model.position) {
-                                    GroupPosition.SINGLE -> AzokleRadius.lg
-                                    GroupPosition.FIRST -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-                                    GroupPosition.MIDDLE -> RoundedCornerShape(0.dp)
-                                    GroupPosition.LAST -> RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
-                                }
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(shape)
-                                        .background(colors.cardBg)
-                                        .historyCardBorder(model.position, colors.border)
-                                ) {
-                                    HistoryGroupedRow(
+                    dateGroups.forEach { (groupTitle, items) ->
+                        item(key = "header_$groupTitle") {
+                            Text(
+                                text = groupTitle.uppercase(),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = colors.textMuted,
+                                letterSpacing = 0.5.sp,
+                                modifier = Modifier.padding(start = 2.dp, bottom = 6.dp)
+                            )
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(AzokleRadius.lg)
+                                    .background(colors.surfaceElevated)
+                                    .border(0.8.dp, colors.borderSubtle, AzokleRadius.lg)
+                            ) {
+                                items.forEachIndexed { index, item ->
+                                    val isSelected = selectedIds.contains(item.id)
+
+                                    HistoryItemRow(
                                         item = item,
                                         isSelectionMode = isSelectionMode,
                                         isSelected = isSelected,
@@ -605,18 +555,18 @@ fun HistoryScreen(
                                         }
                                     )
 
-                                    if (model.position == GroupPosition.FIRST || model.position == GroupPosition.MIDDLE) {
+                                    if (index < items.size - 1) {
                                         HorizontalDivider(
-                                            color = colors.border.copy(alpha = 0.5f),
+                                            color = colors.borderSubtle,
                                             thickness = 0.5.dp,
-                                            modifier = Modifier.padding(start = 56.dp)
+                                            modifier = Modifier.padding(start = 50.dp)
                                         )
                                     }
                                 }
                             }
                         }
                     }
-                    item { Spacer(modifier = Modifier.height(96.dp)) }
+                    item { Spacer(modifier = Modifier.height(20.dp)) }
                 }
             }
         }
@@ -626,18 +576,18 @@ fun HistoryScreen(
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            title = { Text(text = "Clear Browsing History?", fontWeight = FontWeight.Bold, fontSize = 17.sp) },
-            text = { Text(text = "Choose whether to clear today's browsing history or purge all local history.", fontSize = 13.5.sp) },
+            title = { Text(text = "Clear History?", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = colors.textPrimary) },
+            text = { Text(text = "Clear your browsing and search history.", fontSize = 13.sp, color = colors.textSecondary) },
             confirmButton = {
                 TextButton(
                     onClick = {
                         HistoryManager.clearAll()
                         viewModel.clearRecentSearches()
                         showClearDialog = false
-                        Toast.makeText(context, "All history purged", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "All history cleared", Toast.LENGTH_SHORT).show()
                     }
                 ) {
-                    Text(text = "Clear All", color = colors.statusDestructive, fontWeight = FontWeight.Bold)
+                    Text(text = "Clear All", color = colors.statusDestructive, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
             },
             dismissButton = {
@@ -649,20 +599,22 @@ fun HistoryScreen(
                             Toast.makeText(context, "Today's history cleared", Toast.LENGTH_SHORT).show()
                         }
                     ) {
-                        Text(text = "Clear Today")
+                        Text(text = "Clear Today", color = colors.textPrimary, fontSize = 13.sp)
                     }
                     TextButton(onClick = { showClearDialog = false }) {
-                        Text(text = "Cancel")
+                        Text(text = "Cancel", color = colors.textSecondary, fontSize = 13.sp)
                     }
                 }
-            }
+            },
+            containerColor = colors.cardBg,
+            shape = AzokleRadius.xl
         )
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun HistoryGroupedRow(
+private fun HistoryItemRow(
     item: HistoryItem,
     isSelectionMode: Boolean,
     isSelected: Boolean,
@@ -675,15 +627,15 @@ private fun HistoryGroupedRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .sizeIn(minHeight = 54.dp)
+            .sizeIn(minHeight = 50.dp)
             .background(if (isSelected) colors.actionPrimaryBg.copy(alpha = 0.08f) else Color.Transparent)
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = ripple(color = colors.textPrimary.copy(alpha = 0.06f)),
+                indication = ripple(bounded = true, color = colors.textPrimary.copy(alpha = 0.08f)),
                 onClick = onClick,
                 onLongClick = onLongClick
             )
-            .padding(horizontal = 14.dp, vertical = 10.dp)
+            .padding(horizontal = 14.dp, vertical = 9.dp)
             .semantics {
                 role = Role.Button
                 contentDescription = "${item.displayTitle}, ${item.cleanHost}"
@@ -693,10 +645,10 @@ private fun HistoryGroupedRow(
         if (isSelectionMode) {
             Box(
                 modifier = Modifier
-                    .size(20.dp)
+                    .size(18.dp)
                     .clip(CircleShape)
                     .background(if (isSelected) colors.actionPrimaryBg else Color.Transparent)
-                    .border(1.5.dp, if (isSelected) colors.actionPrimaryBg else colors.border, CircleShape),
+                    .border(1.2.dp, if (isSelected) Color.Transparent else colors.borderSubtle, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 if (isSelected) {
@@ -704,34 +656,34 @@ private fun HistoryGroupedRow(
                         imageVector = Icons.Default.Check,
                         contentDescription = "Selected",
                         tint = colors.actionPrimaryText,
-                        modifier = Modifier.size(13.dp)
+                        modifier = Modifier.size(11.dp)
                     )
                 }
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(10.dp))
         }
 
-        // Icon Favicon or Search Glyph
+        // Icon Badge
         Box(
             modifier = Modifier
-                .size(34.dp)
-                .clip(CircleShape)
-                .background(colors.surfaceElevated)
-                .border(1.dp, colors.border, CircleShape),
+                .size(30.dp)
+                .clip(AzokleRadius.sm)
+                .background(colors.cardBg)
+                .border(0.8.dp, colors.borderSubtle, AzokleRadius.sm),
             contentAlignment = Alignment.Center
         ) {
             if (item.isSearch) {
                 Icon(
                     imageVector = Icons.Default.Search,
-                    contentDescription = "Search",
+                    contentDescription = null,
                     tint = colors.textPrimary,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(15.dp)
                 )
             } else {
                 FaviconImage(
                     url = item.url,
                     faviconUrl = item.faviconUrl,
-                    size = 18.dp
+                    size = 16.dp
                 )
             }
         }
@@ -749,25 +701,25 @@ private fun HistoryGroupedRow(
                 overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(1.5.dp))
+            Spacer(modifier = Modifier.height(1.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = if (item.isSearch) "Search query" else item.cleanHost,
+                    text = if (item.isSearch) "Search" else item.cleanHost,
                     fontSize = 11.sp,
                     color = colors.textMuted,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
                 )
-                Spacer(modifier = Modifier.width(5.dp))
+                Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = "• ${timeFormatter.format(Date(item.timestamp))}",
                     fontSize = 10.5.sp,
                     color = colors.textMuted
                 )
                 if (item.visitCount > 1) {
-                    Spacer(modifier = Modifier.width(5.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "(${item.visitCount})",
                         fontSize = 10.sp,
@@ -783,11 +735,11 @@ private fun HistoryGroupedRow(
         if (!isSelectionMode) {
             Box(
                 modifier = Modifier
-                    .sizeIn(minWidth = 32.dp, minHeight = 36.dp)
+                    .size(26.dp)
                     .clip(CircleShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(bounded = false, radius = 14.dp, color = colors.textMuted),
+                        indication = ripple(bounded = false, radius = 13.dp, color = colors.textMuted),
                         onClick = onDelete
                     )
                     .semantics {
@@ -799,68 +751,10 @@ private fun HistoryGroupedRow(
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = null,
-                    tint = colors.textMuted.copy(alpha = 0.7f),
-                    modifier = Modifier.size(14.dp)
+                    tint = colors.textMuted,
+                    modifier = Modifier.size(13.dp)
                 )
             }
         }
-    }
-}
-
-private fun Modifier.historyCardBorder(position: GroupPosition, borderColor: Color): Modifier = when (position) {
-    GroupPosition.SINGLE -> this.border(1.dp, borderColor, AzokleRadius.lg)
-    GroupPosition.FIRST -> this.drawBehind {
-        val strokeWidth = 1.dp.toPx()
-        val halfStroke = strokeWidth / 2f
-        val cornerRadius = 16.dp.toPx()
-        val path = Path().apply {
-            moveTo(halfStroke, size.height)
-            lineTo(halfStroke, cornerRadius + halfStroke)
-            arcTo(
-                rect = Rect(halfStroke, halfStroke, halfStroke + cornerRadius * 2, halfStroke + cornerRadius * 2),
-                startAngleDegrees = 180f,
-                sweepAngleDegrees = 90f,
-                forceMoveTo = false
-            )
-            lineTo(size.width - halfStroke - cornerRadius, halfStroke)
-            arcTo(
-                rect = Rect(size.width - halfStroke - cornerRadius * 2, halfStroke, size.width - halfStroke, halfStroke + cornerRadius * 2),
-                startAngleDegrees = 270f,
-                sweepAngleDegrees = 90f,
-                forceMoveTo = false
-            )
-            lineTo(size.width - halfStroke, size.height)
-        }
-        drawPath(path, color = borderColor, style = Stroke(width = strokeWidth))
-    }
-    GroupPosition.MIDDLE -> this.drawBehind {
-        val strokeWidth = 1.dp.toPx()
-        val halfStroke = strokeWidth / 2f
-        drawLine(borderColor, Offset(halfStroke, 0f), Offset(halfStroke, size.height), strokeWidth)
-        drawLine(borderColor, Offset(size.width - halfStroke, 0f), Offset(size.width - halfStroke, size.height), strokeWidth)
-    }
-    GroupPosition.LAST -> this.drawBehind {
-        val strokeWidth = 1.dp.toPx()
-        val halfStroke = strokeWidth / 2f
-        val cornerRadius = 16.dp.toPx()
-        val path = Path().apply {
-            moveTo(halfStroke, 0f)
-            lineTo(halfStroke, size.height - halfStroke - cornerRadius)
-            arcTo(
-                rect = Rect(halfStroke, size.height - halfStroke - cornerRadius * 2, halfStroke + cornerRadius * 2, size.height - halfStroke),
-                startAngleDegrees = 180f,
-                sweepAngleDegrees = -90f,
-                forceMoveTo = false
-            )
-            lineTo(size.width - halfStroke - cornerRadius, size.height - halfStroke)
-            arcTo(
-                rect = Rect(size.width - halfStroke - cornerRadius * 2, size.height - halfStroke - cornerRadius * 2, size.width - halfStroke, size.height - halfStroke),
-                startAngleDegrees = 90f,
-                sweepAngleDegrees = -90f,
-                forceMoveTo = false
-            )
-            lineTo(size.width - halfStroke, 0f)
-        }
-        drawPath(path, color = borderColor, style = Stroke(width = strokeWidth))
     }
 }

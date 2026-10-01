@@ -16,9 +16,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
@@ -293,7 +297,74 @@ fun BrowserHomeScreenContent(
                         }
                     }
                 }
+
+                // Bottom spacer to ensure shortcuts never collide with the docked Donate button when scrolled
+                Spacer(modifier = Modifier.height(42.dp))
             }
+        }
+
+        // 4. Sovereign Azokle Foundation "Donate" Action (Docked at bottom-right, just above bottom navigation)
+        val haptic = LocalHapticFeedback.current
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 18.dp, bottom = 14.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            Color.Black.copy(alpha = 0.45f),
+                            Color.Black.copy(alpha = 0.30f)
+                        )
+                    )
+                )
+                .border(
+                    width = 0.8.dp,
+                    brush = Brush.horizontalGradient(
+                        listOf(
+                            Color.White.copy(alpha = 0.25f),
+                            Color.White.copy(alpha = 0.10f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(20.dp)
+                )
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = ripple(bounded = true, color = Color.White.copy(alpha = 0.25f)),
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onNavigate("https://azokle.com/foundation")
+                    }
+                )
+                .padding(horizontal = 11.dp, vertical = 6.5.dp)
+                .semantics {
+                    role = Role.Button
+                    contentDescription = "Donate to Azokle Foundation"
+                },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Favorite,
+                contentDescription = null,
+                tint = Color(0xFFFB7185),
+                modifier = Modifier.size(13.dp)
+            )
+            Spacer(modifier = Modifier.width(5.dp))
+            Text(
+                text = "Donate",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White.copy(alpha = 0.95f),
+                letterSpacing = 0.2.sp,
+                style = TextStyle(
+                    shadow = Shadow(
+                        color = Color.Black.copy(alpha = 0.8f),
+                        offset = Offset(0f, 1.5f),
+                        blurRadius = 4f
+                    )
+                )
+            )
         }
     }
 }

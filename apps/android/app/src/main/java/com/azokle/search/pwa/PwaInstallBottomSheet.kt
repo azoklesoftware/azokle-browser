@@ -15,16 +15,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -46,10 +48,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -59,13 +71,23 @@ import com.azokle.search.common.theme.AzokleTheme
 import com.azokle.search.common.theme.adaptiveContentWidth
 import kotlinx.coroutines.launch
 
+/**
+ * Ultra-Minimalist Add to Home Screen & PWA Install Sheet:
+ *  - Crisp single-line header with compact close button
+ *  - Flat elevated preview card with 36dp favicon/logo & origin lock indicator
+ *  - Streamlined single-line name input
+ *  - Responsive primary action button with tactile haptic feedback
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PwaInstallBottomSheet(
     eligibility: PwaInstallEligibility,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val colors = AzokleTheme.colors
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -73,68 +95,138 @@ fun PwaInstallBottomSheet(
 
     var appTitle by remember { mutableStateOf(eligibility.title) }
     val isPwa = eligibility.isInstallablePwa
-    val headerTitle = if (isPwa) "Install Web App" else "Add to Home Screen"
-    val actionButtonText = if (isPwa) "Install App" else "Add Shortcut"
+    val headerTitle = if (isPwa) "Install App" else "Add to Home Screen"
+    val actionButtonText = if (isPwa) "Install" else "Add"
+
+    val host = remember(eligibility.verifiedOrigin) {
+        try {
+            android.net.Uri.parse(eligibility.verifiedOrigin).host?.removePrefix("www.")
+                ?: eligibility.verifiedOrigin.removePrefix("https://").removePrefix("http://").removePrefix("www.")
+        } catch (e: Exception) {
+            eligibility.verifiedOrigin
+        }
+    }
+
+    val submitAction: () -> Unit = {
+        if (!isInstalling) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            keyboardController?.hide()
+            isInstalling = true
+            scope.launch {
+                val success = PwaShortcutManager.pinPwaShortcut(
+                    context = context,
+                    eligibility = eligibility,
+                    customTitle = appTitle
+                )
+                isInstalling = false
+                if (success) {
+                    Toast.makeText(context, "Added '$appTitle' to Home Screen", Toast.LENGTH_SHORT).show()
+                    onDismiss()
+                } else {
+                    Toast.makeText(context, "Failed to create home screen shortcut", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.cardBg,
         contentColor = colors.textPrimary,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         dragHandle = {
             Box(
                 modifier = Modifier
                     .statusBarsPadding()
-                    .padding(top = 12.dp, bottom = 8.dp)
-                    .size(width = 38.dp, height = 4.5.dp)
+                    .padding(top = 10.dp, bottom = 6.dp)
+                    .size(width = 36.dp, height = 4.dp)
                     .clip(CircleShape)
-                    .background(colors.borderSubtle.copy(alpha = 0.8f))
+                    .background(colors.borderSubtle)
             )
-        }
+        },
+        modifier = modifier
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .adaptiveContentWidth(520.dp)
+                .adaptiveContentWidth(560.dp)
                 .navigationBarsPadding()
-                .padding(horizontal = 22.dp)
-                .padding(bottom = 24.dp),
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header Title
-            Text(
-                text = headerTitle,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = colors.textPrimary
-            )
-            Text(
-                text = "Runs as a dedicated standalone app on your device",
-                fontSize = 12.sp,
-                color = colors.textMuted,
-                modifier = Modifier.padding(top = 2.dp)
-            )
+            // 1. Header Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = headerTitle,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary,
+                    modifier = Modifier.semantics { heading() }
+                )
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Box(
+                    modifier = Modifier
+                        .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
+                        .clip(CircleShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple(bounded = false, radius = 18.dp, color = colors.textSecondary),
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onDismiss()
+                            }
+                        )
+                        .semantics {
+                            role = Role.Button
+                            contentDescription = "Close sheet"
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(colors.surfaceElevated)
+                            .border(0.8.dp, colors.borderSubtle, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = null,
+                            tint = colors.textPrimary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+            }
 
-            // App Icon & Domain Card Preview
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 2. Preview Card
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(AzokleRadius.lg)
-                    .background(colors.surfaceElevated.copy(alpha = 0.7f))
-                    .border(1.dp, colors.borderSubtle, AzokleRadius.lg)
-                    .padding(14.dp),
+                    .background(colors.surfaceElevated)
+                    .border(0.8.dp, colors.borderSubtle, AzokleRadius.lg)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // App Icon
+                // App / Favicon Icon
                 Box(
                     modifier = Modifier
-                        .size(56.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .size(36.dp)
+                        .clip(AzokleRadius.md)
                         .background(colors.cardBg)
-                        .border(1.dp, colors.borderSubtle, RoundedCornerShape(16.dp)),
+                        .border(0.8.dp, colors.borderSubtle, AzokleRadius.md),
                     contentAlignment = Alignment.Center
                 ) {
                     if (!eligibility.iconUrl.isNullOrBlank()) {
@@ -145,155 +237,156 @@ fun PwaInstallBottomSheet(
                                 .build(),
                             contentDescription = eligibility.title,
                             modifier = Modifier
-                                .size(46.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .size(28.dp)
+                                .clip(AzokleRadius.sm),
+                            contentScale = ContentScale.Fit
                         )
                     } else {
                         Text(
-                            text = eligibility.title.take(1).uppercase(),
-                            fontSize = 24.sp,
+                            text = eligibility.title.take(1).uppercase().ifBlank { "W" },
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = eligibility.title,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
+                        text = eligibility.title.ifBlank { "Web Page" },
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.Medium,
                         color = colors.textPrimary,
-                        maxLines = 1
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(3.dp))
+
+                    Spacer(modifier = Modifier.height(1.dp))
+
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (eligibility.isHttps) {
                             Icon(
                                 imageVector = Icons.Default.Lock,
-                                contentDescription = "Secure Origin",
+                                contentDescription = null,
                                 tint = colors.statusSuccess,
-                                modifier = Modifier.size(12.dp)
+                                modifier = Modifier.size(11.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                         }
                         Text(
-                            text = eligibility.verifiedOrigin,
+                            text = host.ifBlank { eligibility.verifiedOrigin },
                             fontSize = 11.5.sp,
-                            fontFamily = FontFamily.Monospace,
-                            color = colors.textSecondary,
-                            maxLines = 1
+                            color = colors.textMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
+                }
+
+                if (isPwa) {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(
-                                if (isPwa) colors.statusSuccess.copy(alpha = 0.12f)
-                                else colors.surfaceElevated
-                            )
-                            .padding(horizontal = 7.dp, vertical = 2.dp)
+                            .clip(AzokleRadius.sm)
+                            .background(colors.statusSuccess.copy(alpha = 0.12f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = if (isPwa) "STANDALONE PWA" else "WEB SHORTCUT",
-                            fontSize = 9.5.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontFamily = FontFamily.Monospace,
-                            letterSpacing = 0.5.sp,
-                            color = if (isPwa) colors.statusSuccess else colors.textMuted
+                            text = "PWA",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.statusSuccess
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Editable Name Input
+            // 3. Editable Name Input
             OutlinedTextField(
                 value = appTitle,
                 onValueChange = { appTitle = it },
-                label = { Text("App Name", fontSize = 12.sp) },
+                placeholder = {
+                    Text(
+                        text = "Shortcut name",
+                        fontSize = 13.5.sp,
+                        color = colors.textMuted
+                    )
+                },
                 singleLine = true,
+                textStyle = TextStyle(
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = colors.textPrimary
+                ),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { submitAction() }),
                 modifier = Modifier.fillMaxWidth(),
                 shape = AzokleRadius.md,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = colors.actionPrimaryBg,
                     unfocusedBorderColor = colors.borderSubtle,
-                    focusedTextColor = colors.textPrimary,
-                    unfocusedTextColor = colors.textPrimary,
-                    focusedContainerColor = colors.surfaceElevated.copy(alpha = 0.5f),
-                    unfocusedContainerColor = colors.surfaceElevated.copy(alpha = 0.5f)
+                    focusedContainerColor = colors.surfaceElevated,
+                    unfocusedContainerColor = colors.surfaceElevated,
+                    cursorColor = colors.actionPrimaryBg
                 )
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Action Buttons
+            // 4. Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 TextButton(
-                    onClick = onDismiss,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onDismiss()
+                    },
                     modifier = Modifier
                         .weight(1f)
-                        .height(46.dp),
+                        .height(44.dp),
                     shape = AzokleRadius.md
                 ) {
                     Text(
                         text = "Cancel",
                         color = colors.textSecondary,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 13.5.sp
                     )
                 }
 
                 Button(
-                    onClick = {
-                        isInstalling = true
-                        scope.launch {
-                            val success = PwaShortcutManager.pinPwaShortcut(
-                                context = context,
-                                eligibility = eligibility,
-                                customTitle = appTitle
-                            )
-                            isInstalling = false
-                            if (success) {
-                                Toast.makeText(context, "Added '$appTitle' to Home Screen", Toast.LENGTH_SHORT).show()
-                                onDismiss()
-                            } else {
-                                Toast.makeText(context, "Failed to create home screen shortcut", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    },
+                    onClick = submitAction,
                     modifier = Modifier
-                        .weight(1.5f)
-                        .height(46.dp),
+                        .weight(1.3f)
+                        .height(44.dp),
                     shape = AzokleRadius.md,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = colors.actionPrimaryBg,
                         contentColor = colors.actionPrimaryText
                     ),
-                    enabled = !isInstalling
+                    enabled = !isInstalling && appTitle.isNotBlank()
                 ) {
                     if (isInstalling) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(18.dp),
                             strokeWidth = 2.dp,
                             color = colors.actionPrimaryText
                         )
                     } else {
                         Icon(
-                            imageVector = if (isPwa) Icons.Default.InstallMobile else Icons.Default.Download,
+                            imageVector = if (isPwa) Icons.Default.InstallMobile else Icons.Default.Add,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(15.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = actionButtonText,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             fontSize = 13.5.sp
                         )
                     }

@@ -1,14 +1,12 @@
 package com.azokle.search.tor
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -53,6 +51,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -70,7 +69,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -80,11 +78,13 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -95,11 +95,6 @@ import com.azokle.search.common.theme.AzokleTheme
 import com.azokle.search.common.theme.adaptiveContentWidth
 import kotlinx.coroutines.delay
 
-/**
- * Premium Sovereign Tor Circuit Visualizer Modal.
- * Renders the live 3-hop cryptographic onion circuit (Client -> Guard -> Middle -> Exit -> Destination)
- * with real vector iconography, elegant continuous stepper paths, node roles, latency telemetry, and 1-tap circuit rotation.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TorCircuitVisualizerSheet(
@@ -113,7 +108,7 @@ fun TorCircuitVisualizerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = colors.surface,
+        containerColor = colors.cardBg,
         contentColor = colors.textPrimary,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         dragHandle = {
@@ -123,7 +118,7 @@ fun TorCircuitVisualizerSheet(
                     .padding(top = 10.dp, bottom = 6.dp)
                     .size(width = 36.dp, height = 4.dp)
                     .clip(CircleShape)
-                    .background(colors.border.copy(alpha = 0.6f))
+                    .background(colors.borderSubtle)
             )
         }
     ) {
@@ -136,8 +131,8 @@ fun TorCircuitVisualizerSheet(
             Column(
                 modifier = Modifier
                     .adaptiveContentWidth(AzokleBreakpoints.MaxSheetWidth)
-                    .padding(horizontal = 18.dp)
-                    .padding(bottom = 28.dp)
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 20.dp)
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -147,30 +142,27 @@ fun TorCircuitVisualizerSheet(
                     onClose = onDismiss
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 AnimatedContent(
                     targetState = state,
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) togetherWith
-                                fadeOut(animationSpec = tween(150, easing = FastOutSlowInEasing))
+                        fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) togetherWith
+                                fadeOut(animationSpec = tween(140, easing = FastOutSlowInEasing))
                     },
                     label = "TorCircuitStateContent"
                 ) { targetState ->
                     when (targetState) {
                         is TorConnectionState.Connected -> {
-                            // Connected 3-Hop Circuit Visualizer
                             ConnectedCircuitContent(
                                 conn = targetState,
                                 url = url
                             )
                         }
                         is TorConnectionState.Bootstrapping -> {
-                            // Bootstrapping State
                             BootstrappingCircuitContent(conn = targetState)
                         }
                         else -> {
-                            // Inactive State
                             InactiveCircuitContent()
                         }
                     }
@@ -180,9 +172,6 @@ fun TorCircuitVisualizerSheet(
     }
 }
 
-/**
- * Clean Executive Header with Tor emblem, title, pulsing live status badge, and accessible close button.
- */
 @Composable
 private fun TorSheetHeader(
     connectionState: TorConnectionState,
@@ -193,93 +182,60 @@ private fun TorSheetHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 6.dp, top = 2.dp),
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.semantics { heading() }
         ) {
-            // Tor Emblem with Soft Halo
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(colors.statusTor.copy(alpha = 0.12f))
-                    .border(1.dp, colors.statusTor.copy(alpha = 0.25f), RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_tor),
-                    contentDescription = "Tor Network",
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+            Text(
+                text = "Tor Circuit",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textPrimary
+            )
+            Spacer(modifier = Modifier.width(8.dp))
 
-            Spacer(modifier = Modifier.width(13.dp))
-
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Tor Onion Circuit",
-                        fontSize = 17.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textPrimary,
-                        letterSpacing = (-0.2).sp
+            when (connectionState) {
+                is TorConnectionState.Connected -> {
+                    StatusBadge(
+                        text = "ACTIVE",
+                        dotColor = colors.statusTor,
+                        badgeBg = colors.statusTor.copy(alpha = 0.12f),
+                        textColor = colors.statusTor,
+                        isPulse = true
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // Live Status Pill
-                    when (connectionState) {
-                        is TorConnectionState.Connected -> {
-                            StatusBadge(
-                                text = "ACTIVE",
-                                dotColor = colors.statusTor,
-                                badgeBg = colors.statusTor.copy(alpha = 0.14f),
-                                textColor = colors.statusTor,
-                                isPulse = true
-                            )
-                        }
-                        is TorConnectionState.Bootstrapping -> {
-                            StatusBadge(
-                                text = "${connectionState.progress}%",
-                                dotColor = colors.statusTor,
-                                badgeBg = colors.statusTor.copy(alpha = 0.14f),
-                                textColor = colors.statusTor,
-                                isPulse = false
-                            )
-                        }
-                        else -> {
-                            StatusBadge(
-                                text = "OFFLINE",
-                                dotColor = colors.textMuted,
-                                badgeBg = colors.borderSubtle,
-                                textColor = colors.textMuted,
-                                isPulse = false
-                            )
-                        }
-                    }
                 }
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                Text(
-                    text = "3-Hop Cryptographic Onion Tunnel",
-                    fontSize = 12.sp,
-                    color = colors.textSecondary
-                )
+                is TorConnectionState.Bootstrapping -> {
+                    StatusBadge(
+                        text = "${connectionState.progress}%",
+                        dotColor = colors.statusTor,
+                        badgeBg = colors.statusTor.copy(alpha = 0.12f),
+                        textColor = colors.statusTor,
+                        isPulse = false
+                    )
+                }
+                else -> {
+                    StatusBadge(
+                        text = "OFFLINE",
+                        dotColor = colors.textMuted,
+                        badgeBg = colors.surfaceElevated,
+                        textColor = colors.textMuted,
+                        isPulse = false
+                    )
+                }
             }
         }
 
-        // 44dp Accessible Close Action
         Box(
             modifier = Modifier
-                .sizeIn(minWidth = 44.dp, minHeight = 44.dp)
+                .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
                 .clip(CircleShape)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
-                    indication = ripple(bounded = false, radius = 20.dp, color = colors.textSecondary),
+                    indication = ripple(bounded = false, radius = 18.dp, color = colors.textSecondary),
                     onClick = onClose
                 )
                 .semantics {
@@ -290,7 +246,7 @@ private fun TorSheetHeader(
         ) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(28.dp)
                     .clip(CircleShape)
                     .background(colors.surfaceElevated)
                     .border(0.8.dp, colors.borderSubtle, CircleShape),
@@ -300,7 +256,7 @@ private fun TorSheetHeader(
                     imageVector = Icons.Default.Close,
                     contentDescription = null,
                     tint = colors.textPrimary,
-                    modifier = Modifier.size(15.dp)
+                    modifier = Modifier.size(14.dp)
                 )
             }
         }
@@ -333,31 +289,28 @@ private fun StatusBadge(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(4.dp))
             .background(badgeBg)
-            .padding(horizontal = 6.5.dp, vertical = 2.5.dp)
+            .padding(horizontal = 6.dp, vertical = 2.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(5.5.dp)
+                .size(5.dp)
                 .alpha(pulseAlpha)
                 .clip(CircleShape)
                 .background(dotColor)
         )
-        Spacer(modifier = Modifier.width(4.5.dp))
+        Spacer(modifier = Modifier.width(4.dp))
         Text(
             text = text,
-            fontSize = 10.sp,
+            fontSize = 9.5.sp,
             fontWeight = FontWeight.Bold,
-            letterSpacing = 0.6.sp,
+            fontFamily = FontFamily.Monospace,
             color = textColor
         )
     }
 }
 
-/**
- * The main 5-node continuous circuit diagram when Tor is connected.
- */
 @Composable
 private fun ConnectedCircuitContent(
     conn: TorConnectionState.Connected,
@@ -380,190 +333,140 @@ private fun ConnectedCircuitContent(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Circuit Card with continuous vertical path
-        val cardShape = AzokleRadius.xl
+        // Circuit Container
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(cardShape)
-                .background(colors.cardBg)
-                .border(1.dp, colors.statusTor.copy(alpha = 0.2f), cardShape)
-                .padding(horizontal = 16.dp, vertical = 18.dp)
+                .clip(AzokleRadius.lg)
+                .background(colors.surfaceElevated)
+                .border(0.8.dp, colors.statusTor.copy(alpha = 0.25f), AzokleRadius.lg)
+                .padding(horizontal = 14.dp, vertical = 14.dp)
         ) {
             // Node 1: Client Device
             CircuitNodeItem(
                 icon = Icons.Outlined.Smartphone,
-                iconTint = colors.statusTor,
-                iconBg = colors.statusTor.copy(alpha = 0.12f),
                 tag = "CLIENT",
                 title = "This Device",
-                subtitle = "Local SOCKS5 (127.0.0.1:9050)",
+                subtitle = "SOCKS5 127.0.0.1:9050",
                 isLast = false
             )
 
             // Node 2: Guard Relay (Entry)
             CircuitNodeItem(
                 icon = Icons.Outlined.Shield,
-                iconTint = colors.statusTor,
-                iconBg = colors.statusTor.copy(alpha = 0.12f),
-                tag = "ENTRY GUARD",
-                title = conn.guardNode.ifBlank { "Guard Relay (Layer 1)" },
-                subtitle = conn.guardCountry.ifBlank { "Encrypted Onion Relay" },
+                tag = "GUARD",
+                title = conn.guardNode.ifBlank { "Guard Relay" },
+                subtitle = conn.guardCountry.ifBlank { "Encrypted Relay" },
                 isLast = false
             )
 
             // Node 3: Middle Relay
             CircuitNodeItem(
                 icon = Icons.AutoMirrored.Outlined.AltRoute,
-                iconTint = colors.statusTor,
-                iconBg = colors.statusTor.copy(alpha = 0.12f),
-                tag = "MIDDLE RELAY",
-                title = conn.middleNode.ifBlank { "Middle Relay (Layer 2)" },
-                subtitle = conn.middleCountry.ifBlank { "Encrypted Onion Relay" },
+                tag = "MIDDLE",
+                title = conn.middleNode.ifBlank { "Middle Relay" },
+                subtitle = conn.middleCountry.ifBlank { "Encrypted Relay" },
                 isLast = false
             )
 
             // Node 4: Exit Relay
             CircuitNodeItem(
                 icon = Icons.Outlined.Public,
-                iconTint = colors.statusTor,
-                iconBg = colors.statusTor.copy(alpha = 0.12f),
-                tag = "EXIT RELAY",
-                title = conn.exitNode.ifBlank { "Exit Relay (Layer 3)" },
-                subtitle = if (conn.exitIp.isNotBlank()) "${conn.exitCountry} • ${conn.exitIp}" else conn.exitCountry.ifBlank { "Verified Tor Exit Network" },
+                tag = "EXIT",
+                title = conn.exitNode.ifBlank { "Exit Relay" },
+                subtitle = if (conn.exitIp.isNotBlank()) "${conn.exitCountry} • ${conn.exitIp}" else conn.exitCountry.ifBlank { "Tor Exit Network" },
                 isLast = false
             )
 
             // Node 5: Destination
             CircuitNodeItem(
                 icon = Icons.Outlined.Lock,
-                iconTint = colors.statusTor,
-                iconBg = colors.statusTor.copy(alpha = 0.12f),
-                tag = if (isOnion) "ONION SERVICE" else "DESTINATION",
+                tag = if (isOnion) "ONION" else "DESTINATION",
                 title = hostDisplay,
-                subtitle = if (isOnion) "End-to-End Hidden Service v3" else "End-to-End Encrypted (TLS 1.3)",
+                subtitle = if (isOnion) "Hidden Service v3" else "TLS Encrypted",
                 isLast = true
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // Metadata Chips Row (Latency & Circuit ID)
+        // Telemetry Row: Latency & Circuit ID
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(AzokleRadius.md)
+                .background(colors.surfaceElevated)
+                .border(0.8.dp, colors.statusTor.copy(alpha = 0.2f), AzokleRadius.md)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Latency Chip
+            // Latency
             Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(AzokleRadius.md)
-                    .background(colors.cardBg)
-                    .border(1.dp, colors.statusTor.copy(alpha = 0.18f), AzokleRadius.md)
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(30.dp)
-                        .clip(CircleShape)
-                        .background(colors.statusTor.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Speed,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = colors.statusTor
-                    )
-                }
-                Spacer(modifier = Modifier.width(10.dp))
+                Icon(
+                    imageVector = Icons.Outlined.Speed,
+                    contentDescription = null,
+                    modifier = Modifier.size(15.dp),
+                    tint = colors.statusTor
+                )
+                Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
                         text = "LATENCY",
                         fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textMuted,
-                        letterSpacing = 0.6.sp
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textMuted
                     )
-                    Spacer(modifier = Modifier.height(1.dp))
                     Text(
                         text = if (conn.latencyMs > 0) "${conn.latencyMs} ms" else "Active",
-                        fontSize = 12.5.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
                         color = colors.textPrimary
                     )
                 }
             }
 
-            // Circuit ID Chip (Click-to-Copy)
+            // Circuit ID (1-Tap Copy)
             Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .weight(1f)
-                    .clip(AzokleRadius.md)
-                    .background(colors.cardBg)
-                    .border(1.dp, if (copyConfirmed) colors.statusTor.copy(alpha = 0.5f) else colors.statusTor.copy(alpha = 0.18f), AzokleRadius.md)
+                    .clip(RoundedCornerShape(6.dp))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(color = colors.statusTor.copy(alpha = 0.2f)),
+                        indication = ripple(color = colors.statusTor.copy(alpha = 0.15f)),
                         onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             clipboardManager.setText(AnnotatedString(conn.circuitId))
                             copyConfirmed = true
                         }
                     )
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f, fill = false)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(30.dp)
-                            .clip(CircleShape)
-                            .background(colors.statusTor.copy(alpha = 0.12f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Key,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = colors.statusTor
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = if (copyConfirmed) "COPIED" else "CIRCUIT ID",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (copyConfirmed) colors.statusTor else colors.textMuted,
-                            letterSpacing = 0.6.sp
-                        )
-                        Spacer(modifier = Modifier.height(1.dp))
-                        Text(
-                            text = conn.circuitId.take(10).uppercase(),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            fontFamily = FontFamily.Monospace,
-                            color = colors.textPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-
                 Icon(
-                    imageVector = if (copyConfirmed) Icons.Outlined.Check else Icons.Outlined.ContentCopy,
-                    contentDescription = "Copy Circuit ID",
-                    modifier = Modifier
-                        .size(16.dp)
-                        .padding(start = 2.dp),
-                    tint = if (copyConfirmed) colors.statusTor else colors.textMuted
+                    imageVector = if (copyConfirmed) Icons.Outlined.Check else Icons.Outlined.Key,
+                    contentDescription = "Circuit ID",
+                    modifier = Modifier.size(15.dp),
+                    tint = colors.statusTor
                 )
+                Spacer(modifier = Modifier.width(6.dp))
+                Column {
+                    Text(
+                        text = if (copyConfirmed) "COPIED" else "CIRCUIT ID",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (copyConfirmed) colors.statusTor else colors.textMuted
+                    )
+                    Text(
+                        text = conn.circuitId.take(8).uppercase(),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        fontFamily = FontFamily.Monospace,
+                        color = colors.textPrimary
+                    )
+                }
             }
         }
 
@@ -574,7 +477,7 @@ private fun ConnectedCircuitContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         // Rotate Circuit Action Button
         val infiniteTransition = rememberInfiniteTransition(label = "rotate_anim")
@@ -597,17 +500,12 @@ private fun ConnectedCircuitContent(
             enabled = !isRotating,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
-                .shadow(
-                    elevation = if (isRotating) 0.dp else 4.dp,
-                    shape = RoundedCornerShape(14.dp),
-                    spotColor = colors.statusTor.copy(alpha = 0.35f)
-                ),
-            shape = RoundedCornerShape(14.dp),
+                .height(44.dp),
+            shape = AzokleRadius.md,
             colors = ButtonDefaults.elevatedButtonColors(
                 containerColor = colors.statusTor,
                 contentColor = Color.White,
-                disabledContainerColor = colors.statusTor.copy(alpha = 0.65f),
+                disabledContainerColor = colors.statusTor.copy(alpha = 0.6f),
                 disabledContentColor = Color.White.copy(alpha = 0.8f)
             )
         ) {
@@ -615,29 +513,22 @@ private fun ConnectedCircuitContent(
                 imageVector = Icons.Default.Refresh,
                 contentDescription = null,
                 modifier = Modifier
-                    .size(18.dp)
+                    .size(16.dp)
                     .rotate(if (isRotating) rotationAngle else 0f)
             )
-            Spacer(modifier = Modifier.width(9.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = if (isRotating) "Building New Onion Circuit..." else "New Tor Circuit for this Site",
+                text = if (isRotating) "Building New Circuit..." else "New Tor Circuit",
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                letterSpacing = 0.1.sp
+                fontSize = 13.5.sp
             )
         }
     }
 }
 
-/**
- * Individual Node Row in the vertical stepper.
- * Clean, icon-driven, with smooth continuous connecting paths and role badges.
- */
 @Composable
 private fun CircuitNodeItem(
     icon: ImageVector,
-    iconTint: Color,
-    iconBg: Color,
     tag: String,
     title: String,
     subtitle: String,
@@ -654,35 +545,35 @@ private fun CircuitNodeItem(
         // Left: Node Icon + Stepper Line
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.width(36.dp)
+            modifier = Modifier.width(28.dp)
         ) {
             // Icon Bubble
             Box(
                 modifier = Modifier
-                    .size(34.dp)
+                    .size(28.dp)
                     .clip(CircleShape)
-                    .background(iconBg)
-                    .border(0.8.dp, iconTint.copy(alpha = 0.35f), CircleShape),
+                    .background(colors.cardBg)
+                    .border(0.8.dp, colors.statusTor.copy(alpha = 0.35f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = title,
-                    tint = iconTint,
-                    modifier = Modifier.size(17.dp)
+                    tint = colors.statusTor,
+                    modifier = Modifier.size(14.dp)
                 )
             }
 
-            // Stepper Connecting Line
+            // Stepper Line
             if (!isLast) {
                 Box(
                     modifier = Modifier
-                        .width(2.dp)
-                        .height(24.dp)
+                        .width(1.5.dp)
+                        .height(18.dp)
                         .background(
                             Brush.verticalGradient(
                                 listOf(
-                                    iconTint.copy(alpha = 0.45f),
+                                    colors.statusTor.copy(alpha = 0.45f),
                                     colors.borderSubtle
                                 )
                             )
@@ -691,13 +582,13 @@ private fun CircuitNodeItem(
             }
         }
 
-        Spacer(modifier = Modifier.width(13.dp))
+        Spacer(modifier = Modifier.width(10.dp))
 
-        // Right: Node Metadata
+        // Right: Node Info
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(top = 2.dp, bottom = if (isLast) 0.dp else 12.dp)
+                .padding(top = 2.dp, bottom = if (isLast) 0.dp else 10.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -706,7 +597,7 @@ private fun CircuitNodeItem(
             ) {
                 Text(
                     text = title,
-                    fontSize = 13.5.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.textPrimary,
                     maxLines = 1,
@@ -716,25 +607,24 @@ private fun CircuitNodeItem(
 
                 Spacer(modifier = Modifier.width(6.dp))
 
-                // Role Tag
                 Text(
                     text = tag,
-                    fontSize = 9.sp,
+                    fontSize = 8.5.sp,
                     fontWeight = FontWeight.Bold,
-                    color = iconTint,
-                    letterSpacing = 0.6.sp,
+                    fontFamily = FontFamily.Monospace,
+                    color = colors.statusTor,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(iconBg)
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(colors.statusTor.copy(alpha = 0.1f))
+                        .padding(horizontal = 4.dp, vertical = 1.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(1.dp))
 
             Text(
                 text = subtitle,
-                fontSize = 11.5.sp,
+                fontSize = 11.sp,
                 color = colors.textMuted,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -743,74 +633,66 @@ private fun CircuitNodeItem(
     }
 }
 
-/**
- * Bootstrapping progress view while building a new circuit.
- */
 @Composable
 private fun BootstrappingCircuitContent(
     conn: TorConnectionState.Bootstrapping
 ) {
     val colors = AzokleTheme.colors
-    val cardShape = AzokleRadius.xl
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(cardShape)
-            .background(colors.cardBg)
-            .border(1.dp, colors.statusTor.copy(alpha = 0.2f), cardShape)
-            .padding(30.dp),
+            .clip(AzokleRadius.lg)
+            .background(colors.surfaceElevated)
+            .border(0.8.dp, colors.statusTor.copy(alpha = 0.25f), AzokleRadius.lg)
+            .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         CircularProgressIndicator(
             progress = { conn.progress / 100f },
             color = colors.statusTor,
             trackColor = colors.borderSubtle,
-            modifier = Modifier.size(50.dp),
-            strokeWidth = 3.8.dp
+            modifier = Modifier.size(40.dp),
+            strokeWidth = 3.dp
         )
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         Text(
-            text = conn.statusText,
-            fontSize = 15.sp,
+            text = conn.statusText.ifBlank { "Connecting to Tor..." },
+            fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
             color = colors.textPrimary
         )
 
-        Spacer(modifier = Modifier.height(5.dp))
+        Spacer(modifier = Modifier.height(3.dp))
 
         Text(
-            text = "Establishing 3-Hop Encrypted Onion Circuit (${conn.progress}%)",
-            fontSize = 12.sp,
-            color = colors.textSecondary
+            text = "Building 3-hop circuit (${conn.progress}%)",
+            fontSize = 11.5.sp,
+            color = colors.textMuted
         )
     }
 }
 
-/**
- * Inactive state when Tor browsing is not currently active.
- */
 @Composable
 private fun InactiveCircuitContent() {
     val colors = AzokleTheme.colors
-    val cardShape = AzokleRadius.xl
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(cardShape)
-            .background(colors.cardBg)
-            .border(1.dp, colors.borderSubtle, cardShape)
-            .padding(30.dp),
+            .clip(AzokleRadius.lg)
+            .background(colors.surfaceElevated)
+            .border(0.8.dp, colors.borderSubtle, AzokleRadius.lg)
+            .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
             modifier = Modifier
-                .size(46.dp)
+                .size(38.dp)
                 .clip(CircleShape)
-                .background(colors.surfaceElevated)
+                .background(colors.cardBg)
                 .border(0.8.dp, colors.borderSubtle, CircleShape),
             contentAlignment = Alignment.Center
         ) {
@@ -818,35 +700,32 @@ private fun InactiveCircuitContent() {
                 imageVector = Icons.Outlined.VpnLock,
                 contentDescription = null,
                 tint = colors.textMuted,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(18.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         Text(
             text = "Tor Circuit Inactive",
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
             color = colors.textPrimary
         )
 
-        Spacer(modifier = Modifier.height(5.dp))
+        Spacer(modifier = Modifier.height(3.dp))
 
         Text(
-            text = "Open a Tor Tab or toggle onion mode to establish a leakproof encrypted circuit.",
-            fontSize = 12.sp,
-            color = colors.textSecondary,
-            lineHeight = 17.sp
+            text = "Open a Tor Tab to route traffic through onion relays",
+            fontSize = 11.5.sp,
+            color = colors.textMuted,
+            textAlign = TextAlign.Center
         )
     }
 }
 
-/**
- * Extracts a clean, human-readable host name from a URL without protocol prefixes or paths.
- */
 private fun extractCleanHost(url: String): String {
-    if (url.isBlank() || url == "about:blank") return "Encrypted Webpage"
+    if (url.isBlank() || url == "about:blank") return "Webpage"
     return try {
         val clean = url.removePrefix("https://").removePrefix("http://")
         clean.substringBefore('/')
