@@ -217,9 +217,106 @@
         } catch(e) {}
     };
 
+    // =========================================================================
+    // 4. In-Realm Article Content Extractor (DOM-First Reader Mode)
+    // Extracts clean article elements directly from live DOM without secondary requests
+    // =========================================================================
+    var articleDispatched = false;
+    var scanForArticleContent = function() {
+        if (articleDispatched || !document || !document.body) return;
+
+        try {
+            var articleRoot = document.querySelector('article, [itemprop="articleBody"], main, .article-content, .post-content, .entry-content, [role="main"]') || document.body;
+            if (!articleRoot) return;
+
+            // Extract Title
+            var titleEl = document.querySelector('article h1, h1, [itemprop="headline"], meta[property="og:title"]');
+            var title = '';
+            if (titleEl) {
+                title = titleEl.tagName === 'META' ? (titleEl.content || '') : (titleEl.innerText || '');
+            }
+            if (!title) title = document.title || '';
+            title = title.trim();
+
+            // Extract Author/Byline
+            var bylineEl = document.querySelector('meta[name="author"], [rel="author"], .byline, [itemprop="author"], .author, .entry-author');
+            var byline = '';
+            if (bylineEl) {
+                byline = bylineEl.tagName === 'META' ? (bylineEl.content || '') : (bylineEl.innerText || '');
+            }
+            byline = byline.trim();
+
+            // Extract Lead Image
+            var ogImage = document.querySelector('meta[property="og:image"]');
+            var leadImage = ogImage ? ogImage.content : null;
+            if (!leadImage) {
+                var firstImg = articleRoot.querySelector('figure img, img');
+                if (firstImg && firstImg.src && !firstImg.src.includes('avatar') && !firstImg.src.includes('logo')) {
+                    leadImage = firstImg.src;
+                }
+            }
+
+            // Extract Content Blocks
+            var elements = articleRoot.querySelectorAll('p, h2, h3, blockquote');
+            if (!elements || elements.length < 2) return;
+
+            var blocks = [];
+            var paragraphs = [];
+            var totalWords = 0;
+
+            for (var i = 0; i < elements.length; i++) {
+                var el = elements[i];
+                if (el.offsetParent === null && el.offsetHeight === 0) continue;
+                if (el.closest('header, footer, nav, aside, .comments, #comments, [aria-label*="advertisement" i], .ad, .social-share')) continue;
+
+                var text = (el.innerText || '').trim();
+                if (text.length < 25 && el.tagName === 'P') continue;
+                if (text.includes('Cookie Policy') || text.includes('Privacy Policy') || text.includes('All rights reserved')) continue;
+
+                var blockType = 'PARAGRAPH';
+                if (el.tagName === 'H2' || el.tagName === 'H3') {
+                    blockType = 'HEADING';
+                } else if (el.tagName === 'BLOCKQUOTE') {
+                    blockType = 'BLOCKQUOTE';
+                }
+
+                blocks.push({ type: blockType, text: text });
+                if (blockType === 'PARAGRAPH') {
+                    paragraphs.push(text);
+                }
+                totalWords += text.split(/\s+/).length;
+            }
+
+            if (blocks.length === 0) return;
+            articleDispatched = true;
+
+            var readingMinutes = Math.max(1, Math.round(totalWords / 200));
+
+            if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendMessage) {
+                browser.runtime.sendMessage({
+                    type: 'ARTICLE_CONTENT_DISCOVERED',
+                    url: window.location.href,
+                    title: title,
+                    byline: byline,
+                    leadImageUrl: leadImage,
+                    blocks: blocks,
+                    paragraphs: paragraphs,
+                    readingMinutes: readingMinutes
+                }).catch(function() {
+                    articleDispatched = false;
+                });
+            }
+        } catch(e) {}
+    };
+
     if (document.readyState === 'complete') {
         scanForManifest();
+        setTimeout(scanForArticleContent, 600);
     } else {
-        window.addEventListener('load', scanForManifest, { passive: true, once: true });
+        window.addEventListener('load', function() {
+            scanForManifest();
+            setTimeout(scanForArticleContent, 600);
+        }, { passive: true, once: true });
     }
 })();
+

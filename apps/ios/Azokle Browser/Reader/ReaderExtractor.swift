@@ -18,7 +18,7 @@ public final class ReaderExtractor {
         guard let url = URL(string: urlString), !urlString.hasPrefix("about:") else {
             completion(ArticleContent(
                 title: fallbackTitle.isEmpty ? "Article Reader" : fallbackTitle,
-                byline: "Azokle Sovereign Reader",
+                byline: "Azokle Reader",
                 domain: "Internal Session",
                 excerpt: "Distilled reader view strips ad frames, tracking analytics, and extraneous scripts.",
                 paragraphs: [
@@ -55,7 +55,7 @@ public final class ReaderExtractor {
                 DispatchQueue.main.async {
                     completion(ArticleContent(
                         title: fallbackTitle.isEmpty ? "Article View" : fallbackTitle,
-                        byline: "Azokle Sovereign Reader",
+                        byline: "Azokle Reader",
                         domain: url.host ?? "",
                         excerpt: "Reader Mode",
                         paragraphs: [
@@ -118,7 +118,7 @@ public final class ReaderExtractor {
 
         return ArticleContent(
             title: title.isEmpty ? fallbackTitle : title,
-            byline: "Azokle Sovereign Reader",
+            byline: "Azokle Reader",
             domain: domain,
             excerpt: paragraphs.first?.prefix(140).appending("...") ?? "",
             paragraphs: paragraphs,

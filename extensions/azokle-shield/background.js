@@ -605,7 +605,7 @@
                 } else {
                     if (sendResponse) sendResponse({ scriptlet: '' });
                 }
-            } else if (message.type === 'PWA_MANIFEST_DISCOVERED') {
+            } else if (message.type === 'PWA_MANIFEST_DISCOVERED' || message.type === 'ARTICLE_CONTENT_DISCOVERED') {
                 if (sender && sender.frameId === 0 && typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendNativeMessage) {
                     browser.runtime.sendNativeMessage('nativeApp', message).then(function(res) {
                         if (sendResponse) sendResponse(res);

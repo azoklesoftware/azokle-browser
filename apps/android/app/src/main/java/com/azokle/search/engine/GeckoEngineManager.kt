@@ -259,6 +259,56 @@ object GeckoEngineManager {
                                     )
                                     JSONObject().apply { put("ok", true) }
                                 }
+                                "ARTICLE_CONTENT_DISCOVERED" -> {
+                                    val url = json.optString("url", "").trim().take(2048)
+                                    val title = json.optString("title", "").trim().take(512)
+                                    val byline = json.optString("byline", "").trim().take(256)
+                                    val leadImageUrl = json.optString("leadImageUrl", "").trim().take(2048).takeIf { it.isNotBlank() }
+                                    val readingMinutes = json.optInt("readingMinutes", 1).coerceAtLeast(1)
+
+                                    val blocksArr = json.optJSONArray("blocks")
+                                    val blocksList = mutableListOf<com.azokle.search.reader.ArticleBlock>()
+                                    if (blocksArr != null) {
+                                        for (i in 0 until blocksArr.length()) {
+                                            val blockObj = blocksArr.optJSONObject(i)
+                                            if (blockObj != null) {
+                                                val bTypeStr = blockObj.optString("type", "PARAGRAPH")
+                                                val bType = when (bTypeStr) {
+                                                    "HEADING" -> com.azokle.search.reader.BlockType.HEADING
+                                                    "BLOCKQUOTE" -> com.azokle.search.reader.BlockType.BLOCKQUOTE
+                                                    else -> com.azokle.search.reader.BlockType.PARAGRAPH
+                                                }
+                                                val bText = blockObj.optString("text", "").trim()
+                                                if (bText.isNotBlank()) {
+                                                    blocksList.add(com.azokle.search.reader.ArticleBlock(bType, bText))
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    val paragraphsArr = json.optJSONArray("paragraphs")
+                                    val paragraphsList = mutableListOf<String>()
+                                    if (paragraphsArr != null) {
+                                        for (i in 0 until paragraphsArr.length()) {
+                                            val pText = paragraphsArr.optString(i, "").trim()
+                                            if (pText.isNotBlank()) paragraphsList.add(pText)
+                                        }
+                                    }
+
+                                    if (url.isNotBlank() && (blocksList.isNotEmpty() || paragraphsList.isNotEmpty())) {
+                                        val article = com.azokle.search.reader.ArticleContent(
+                                            title = title.ifBlank { "Article Reader" },
+                                            byline = byline.ifBlank { "Azokle Reader" },
+                                            blocks = blocksList,
+                                            paragraphs = if (paragraphsList.isNotEmpty()) paragraphsList else blocksList.map { it.text },
+                                            estimatedMinutes = readingMinutes,
+                                            leadImageUrl = leadImageUrl
+                                        )
+                                        com.azokle.search.reader.ReaderExtractor.cacheArticle(url, article)
+                                    }
+
+                                    JSONObject().apply { put("ok", true) }
+                                }
                                 else -> JSONObject().apply {
                                     put("ok", false)
                                     put("error", "unsupported_type")

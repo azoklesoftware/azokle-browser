@@ -1,6 +1,8 @@
 package com.azokle.search.reader
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,21 +16,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -38,10 +40,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.azokle.search.common.theme.AzokleTheme
 import com.azokle.search.common.theme.adaptiveContentWidth
 
@@ -70,6 +77,28 @@ fun ReaderModeScreen(
     var fontSizeSp by remember { mutableFloatStateOf(17f) }
     var useSerif by remember { mutableStateOf(true) }
 
+    val listState = rememberLazyListState()
+
+    // Dynamic Reading Progress
+    val totalItems = remember(article) {
+        val count = if (article.blocks.isNotEmpty()) article.blocks.size else article.paragraphs.size
+        (count + 2).coerceAtLeast(1)
+    }
+
+    val readingProgress by remember {
+        derivedStateOf {
+            val first = listState.firstVisibleItemIndex
+            val offset = listState.firstVisibleItemScrollOffset
+            val normalized = (first.toFloat() + (offset / 500f)) / totalItems.toFloat()
+            normalized.coerceIn(0f, 1f)
+        }
+    }
+
+    val animatedProgress by animateFloatAsState(
+        targetValue = readingProgress,
+        label = "readingProgress"
+    )
+
     BackHandler {
         onClose()
     }
@@ -78,24 +107,46 @@ fun ReaderModeScreen(
         modifier = modifier
             .fillMaxSize()
             .background(selectedReaderTheme.bg)
+            .clickable(
+                indication = null,
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+            ) {} // Consume all touches to avoid click passthrough to underlying browser views
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
         ) {
-            // 1. Reader Control Top Bar
+            // 1. Reading Progress Hairline
+            LinearProgressIndicator(
+                progress = { animatedProgress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(2.5.dp),
+                color = if (selectedReaderTheme == ReaderTheme.SEPIA) Color(0xFF8D6E63) else AzokleTheme.colors.actionPrimaryBg,
+                trackColor = selectedReaderTheme.border.copy(alpha = 0.35f)
+            )
+
+            // 2. Reader Control Top Bar (Responsive & Overflow-Safe)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(58.dp)
+                    .height(54.dp)
                     .background(selectedReaderTheme.cardBg)
-                    .border(1.dp, selectedReaderTheme.border)
-                    .padding(horizontal = 12.dp),
+                    .border(0.8.dp, selectedReaderTheme.border)
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                    ) {} // Consume header area clicks so underlying searchbox/mic/qr are never triggered
+                    .padding(horizontal = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // Left: Close & Title
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
                     IconButton(
                         onClick = onClose,
                         modifier = Modifier.size(36.dp)
@@ -104,12 +155,12 @@ fun ReaderModeScreen(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close Reader",
                             tint = selectedReaderTheme.text,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "READER MODE",
+                        text = "READER",
                         fontSize = 12.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
@@ -117,70 +168,69 @@ fun ReaderModeScreen(
                     )
                 }
 
-                // Controls: Font Size, Serif/Sans, Color Theme
+                // Right: Typography & Theme Controls
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // Serif / Sans Toggle
+                    // Serif / Sans Toggle Pill
                     Box(
                         modifier = Modifier
-                            .sizeIn(minHeight = 36.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(selectedReaderTheme.bg)
-                            .border(1.dp, selectedReaderTheme.border, RoundedCornerShape(8.dp))
+                            .border(0.8.dp, selectedReaderTheme.border, RoundedCornerShape(8.dp))
                             .clickable { useSerif = !useSerif }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                            .padding(horizontal = 8.dp, vertical = 5.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = if (useSerif) "Serif" else "Sans",
-                            fontSize = 12.sp,
+                            fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = selectedReaderTheme.text
                         )
                     }
 
-                    // Smaller Font (36dp Touch Target)
+                    // A- Button
                     Box(
                         modifier = Modifier
-                            .size(34.dp)
+                            .size(32.dp)
                             .clip(CircleShape)
                             .background(selectedReaderTheme.bg)
-                            .border(1.dp, selectedReaderTheme.border, CircleShape)
+                            .border(0.8.dp, selectedReaderTheme.border, CircleShape)
                             .clickable { if (fontSizeSp > 13f) fontSizeSp -= 2f },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "A-",
-                            fontSize = 12.sp,
+                            fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = selectedReaderTheme.text
                         )
                     }
 
-                    // Larger Font (36dp Touch Target)
+                    // A+ Button
                     Box(
                         modifier = Modifier
-                            .size(34.dp)
+                            .size(32.dp)
                             .clip(CircleShape)
                             .background(selectedReaderTheme.bg)
-                            .border(1.dp, selectedReaderTheme.border, CircleShape)
+                            .border(0.8.dp, selectedReaderTheme.border, CircleShape)
                             .clickable { if (fontSizeSp < 26f) fontSizeSp += 2f },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "A+",
-                            fontSize = 12.sp,
+                            fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = selectedReaderTheme.text
                         )
                     }
 
-                    // Theme Cycler (36dp Touch Target)
+                    // Theme Cycler Circle
                     Box(
                         modifier = Modifier
-                            .size(34.dp)
+                            .size(32.dp)
                             .clip(CircleShape)
                             .background(
                                 when (selectedReaderTheme) {
@@ -189,7 +239,7 @@ fun ReaderModeScreen(
                                     ReaderTheme.DARK -> Color(0xFFFFFFFF)
                                 }
                             )
-                            .border(1.dp, selectedReaderTheme.border, CircleShape)
+                            .border(1.2.dp, selectedReaderTheme.border, CircleShape)
                             .clickable {
                                 selectedReaderTheme = when (selectedReaderTheme) {
                                     ReaderTheme.LIGHT -> ReaderTheme.SEPIA
@@ -201,13 +251,14 @@ fun ReaderModeScreen(
                 }
             }
 
-            // 2. Article Content Body
+            // 3. Article Content Body
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .adaptiveContentWidth(700.dp)
-                    .padding(horizontal = 24.dp, vertical = 18.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+                    .adaptiveContentWidth(680.dp)
+                    .padding(horizontal = 22.dp, vertical = 16.dp),
+                horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Headline
@@ -240,10 +291,10 @@ fun ReaderModeScreen(
 
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(10.dp))
                                 .background(selectedReaderTheme.cardBg)
-                                .border(1.dp, selectedReaderTheme.border, RoundedCornerShape(12.dp))
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                                .border(0.8.dp, selectedReaderTheme.border, RoundedCornerShape(10.dp))
+                                .padding(horizontal = 9.dp, vertical = 3.5.dp)
                         ) {
                             Text(
                                 text = "⏱️ ${article.estimatedMinutes} min read",
@@ -259,21 +310,96 @@ fun ReaderModeScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(1.dp)
-                            .background(selectedReaderTheme.border)
+                            .height(0.8.dp)
+                            .background(selectedReaderTheme.border.copy(alpha = 0.6f))
                     )
                 }
 
-                // Paragraphs
-                items(article.paragraphs) { paragraph ->
-                    Text(
-                        text = paragraph,
-                        fontSize = fontSizeSp.sp,
-                        color = selectedReaderTheme.text,
-                        fontFamily = if (useSerif) FontFamily.Serif else FontFamily.SansSerif,
-                        lineHeight = (fontSizeSp * 1.6f).sp,
-                        letterSpacing = 0.2.sp
-                    )
+                // Optional Lead Image
+                if (!article.leadImageUrl.isNullOrBlank()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(220.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(selectedReaderTheme.cardBg)
+                                .border(0.8.dp, selectedReaderTheme.border, RoundedCornerShape(14.dp))
+                        ) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(article.leadImageUrl)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = article.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                }
+
+                // Structured Blocks (Headings, Blockquotes, Paragraphs)
+                if (article.blocks.isNotEmpty()) {
+                    items(article.blocks) { block ->
+                        when (block.type) {
+                            BlockType.HEADING -> {
+                                Text(
+                                    text = block.text,
+                                    fontSize = (fontSizeSp + 3f).sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = selectedReaderTheme.text,
+                                    fontFamily = if (useSerif) FontFamily.Serif else FontFamily.SansSerif,
+                                    lineHeight = (fontSizeSp + 8f).sp,
+                                    modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+                                )
+                            }
+                            BlockType.BLOCKQUOTE -> {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(selectedReaderTheme.cardBg.copy(alpha = 0.6f))
+                                        .border(
+                                            BorderStroke(2.5.dp, selectedReaderTheme.border),
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .padding(start = 14.dp, top = 10.dp, end = 12.dp, bottom = 10.dp)
+                                ) {
+                                    Text(
+                                        text = block.text,
+                                        fontSize = (fontSizeSp - 0.5f).sp,
+                                        fontStyle = FontStyle.Italic,
+                                        color = selectedReaderTheme.text.copy(alpha = 0.9f),
+                                        fontFamily = if (useSerif) FontFamily.Serif else FontFamily.SansSerif,
+                                        lineHeight = (fontSizeSp * 1.55f).sp
+                                    )
+                                }
+                            }
+                            BlockType.PARAGRAPH -> {
+                                Text(
+                                    text = block.text,
+                                    fontSize = fontSizeSp.sp,
+                                    color = selectedReaderTheme.text,
+                                    fontFamily = if (useSerif) FontFamily.Serif else FontFamily.SansSerif,
+                                    lineHeight = (fontSizeSp * 1.65f).sp,
+                                    letterSpacing = 0.2.sp
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // Fallback to plain paragraphs
+                    items(article.paragraphs) { paragraph ->
+                        Text(
+                            text = paragraph,
+                            fontSize = fontSizeSp.sp,
+                            color = selectedReaderTheme.text,
+                            fontFamily = if (useSerif) FontFamily.Serif else FontFamily.SansSerif,
+                            lineHeight = (fontSizeSp * 1.65f).sp,
+                            letterSpacing = 0.2.sp
+                        )
+                    }
                 }
 
                 item {

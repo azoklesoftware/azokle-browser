@@ -653,7 +653,7 @@ fun BrowserScreen(
             .background(if (isFullScreenMode || isInPipMode) Color.Black else colors.background)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            val shouldShowOmnibar = (isBottomBarVisible || isHomeOrEmpty || isFindInPageVisible) && !showTabGridSheet
+            val shouldShowOmnibar = (isBottomBarVisible || isHomeOrEmpty || isFindInPageVisible) && !showTabGridSheet && (activeArticleReader == null)
 
             // 0. Permanent Status Bar Protection Scrim (protects system clock, battery, camera cutout & icons)
             if (!isFullScreenMode && !isInPipMode) {
@@ -669,7 +669,7 @@ fun BrowserScreen(
             }
 
             // 1. Header Omnibar or Find In Page Toolbar
-            if (!isFullScreenMode && !isInPipMode && !showDiscoverScreen && !showTabGridSheet) {
+            if (!isFullScreenMode && !isInPipMode && !showDiscoverScreen && !showTabGridSheet && activeArticleReader == null) {
                 AnimatedVisibility(
                     visible = shouldShowOmnibar,
                     enter = slideInVertically(
@@ -740,14 +740,19 @@ fun BrowserScreen(
                                 onShieldClick = { showShieldSheet = true },
                                 onReaderModeClick = {
                                     scope.launch {
-                                        Toast.makeText(context, "Extracting reader view...", Toast.LENGTH_SHORT).show()
-                                        val article = ReaderExtractor.extractArticleFromUrl(
-                                            url = currentUrl,
-                                            fallbackTitle = currentTitle,
-                                            isTor = isCurrentTabTor,
-                                            socksPort = TorCircuitManager.socksPort
-                                        )
-                                        activeArticleReader = article
+                                        val cached = ReaderExtractor.getCachedArticle(currentUrl)
+                                        if (cached != null) {
+                                            activeArticleReader = cached
+                                        } else {
+                                            ToastManager.show("Extracting reader view...")
+                                            val article = ReaderExtractor.extractArticleFromUrl(
+                                                url = currentUrl,
+                                                fallbackTitle = currentTitle,
+                                                isTor = isCurrentTabTor,
+                                                socksPort = TorCircuitManager.socksPort
+                                            )
+                                            activeArticleReader = article
+                                        }
                                     }
                                 },
                                 onMenuClick = { showMenuSheet = true },
@@ -1060,7 +1065,7 @@ fun BrowserScreen(
 
             // 3. Tab Group Bottom Strip + Docked Bottom Action Toolbar
             if (!isFullScreenMode && !isInPipMode) {
-                val shouldShowBottomControls = !windowSize.shouldHideBottomBar && (isBottomBarVisible || showDiscoverScreen || (currentUrl.isBlank() || currentUrl == "about:home"))
+                val shouldShowBottomControls = !windowSize.shouldHideBottomBar && (isBottomBarVisible || showDiscoverScreen || (currentUrl.isBlank() || currentUrl == "about:home")) && (activeArticleReader == null)
 
                 AnimatedVisibility(
                     visible = shouldShowBottomControls,
@@ -1236,14 +1241,19 @@ fun BrowserScreen(
                             onOpenReaderMode = {
                                 showMenuSheet = false
                                 scope.launch {
-                                    ToastManager.show("Extracting reader view...")
-                                    val article = ReaderExtractor.extractArticleFromUrl(
-                                        url = currentUrl,
-                                        fallbackTitle = currentTitle,
-                                        isTor = isCurrentTabTor,
-                                        socksPort = TorCircuitManager.socksPort
-                                    )
-                                    activeArticleReader = article
+                                    val cached = ReaderExtractor.getCachedArticle(currentUrl)
+                                    if (cached != null) {
+                                        activeArticleReader = cached
+                                    } else {
+                                        ToastManager.show("Extracting reader view...")
+                                        val article = ReaderExtractor.extractArticleFromUrl(
+                                            url = currentUrl,
+                                            fallbackTitle = currentTitle,
+                                            isTor = isCurrentTabTor,
+                                            socksPort = TorCircuitManager.socksPort
+                                        )
+                                        activeArticleReader = article
+                                    }
                                 }
                             },
                             onOpenFindInPage = {
@@ -1434,14 +1444,19 @@ fun BrowserScreen(
             onOpenReaderModeMenu = {
                 showMenuSheet = false
                 scope.launch {
-                    ToastManager.show("Extracting reader view...")
-                    val article = ReaderExtractor.extractArticleFromUrl(
-                        url = currentUrl,
-                        fallbackTitle = currentTitle,
-                        isTor = isCurrentTabTor,
-                        socksPort = TorCircuitManager.socksPort
-                    )
-                    activeArticleReader = article
+                    val cached = ReaderExtractor.getCachedArticle(currentUrl)
+                    if (cached != null) {
+                        activeArticleReader = cached
+                    } else {
+                        ToastManager.show("Extracting reader view...")
+                        val article = ReaderExtractor.extractArticleFromUrl(
+                            url = currentUrl,
+                            fallbackTitle = currentTitle,
+                            isTor = isCurrentTabTor,
+                            socksPort = TorCircuitManager.socksPort
+                        )
+                        activeArticleReader = article
+                    }
                 }
             },
             onOpenFindInPageMenu = {
