@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -123,7 +124,7 @@ fun ActiveTabsScreen(
     val context = LocalContext.current
     val colors = AzokleTheme.colors
     val scope = rememberCoroutineScope()
-    val preferencesManager = remember { PreferencesManager(context) }
+    val preferencesManager = remember { PreferencesManager.getInstance(context) }
 
     val tabsTourSteps = remember {
         listOf(
@@ -145,11 +146,10 @@ fun ActiveTabsScreen(
             ),
             TourStep(
                 id = "tabs_actions",
-                title = "Quick Clean Up",
-                description = "Tap the broom icon to close all tabs at once, or group pages from the same website together.",
-                shape = TourShape.ROUNDED_RECT,
-                paddingDp = 6f,
-                cornerRadiusDp = 18f
+                title = "Group Websites",
+                description = "Tap here to group pages from the same website together, or use the 3-dots menu below to close all tabs.",
+                shape = TourShape.CIRCLE,
+                paddingDp = 6f
             ),
             TourStep(
                 id = "tabs_new_hub",
@@ -289,6 +289,11 @@ fun ActiveTabsScreen(
         modifier = modifier
             .fillMaxSize()
             .background(colors.background)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { /* Intercept and consume unhandled taps to prevent leakage to underlying browser screens */ }
+            )
     ) {
         Column(
             modifier = Modifier
@@ -301,7 +306,12 @@ fun ActiveTabsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 8.dp),
+                    .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 8.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { /* Intercept blank header space clicks */ }
+                    ),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -417,114 +427,38 @@ fun ActiveTabsScreen(
                     }
                 }
 
-                // Right Action Controls (Domain Grouping, Clear All, Done)
-                Row(
-                    modifier = Modifier.tourTarget(tabsTourSteps[2], tabsTourState),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Domain Grouping Toggle
-                    if (filteredTabs.size > 1) {
+                // Right Action Controls (Domain Grouping Toggle)
+                if (filteredTabs.size > 1) {
+                    Box(
+                        modifier = Modifier
+                            .tourTarget(tabsTourSteps[2], tabsTourState)
+                            .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
+                            .clip(CircleShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = false, radius = 18.dp, color = colors.actionPrimaryBg),
+                                onClick = { isGroupedByDomain = !isGroupedByDomain }
+                            )
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = if (isGroupedByDomain) "Ungroup tabs" else "Group tabs by domain"
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
                         Box(
                             modifier = Modifier
-                                .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
+                                .size(30.dp)
                                 .clip(CircleShape)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(bounded = false, radius = 18.dp, color = colors.actionPrimaryBg),
-                                    onClick = { isGroupedByDomain = !isGroupedByDomain }
-                                )
-                                .semantics {
-                                    role = Role.Button
-                                    contentDescription = if (isGroupedByDomain) "Ungroup tabs" else "Group tabs by domain"
-                                },
+                                .background(if (isGroupedByDomain) colors.actionPrimaryBg else colors.cardBg)
+                                .border(0.8.dp, if (isGroupedByDomain) colors.actionPrimaryBg else colors.border, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(30.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isGroupedByDomain) colors.actionPrimaryBg else colors.cardBg)
-                                    .border(0.8.dp, if (isGroupedByDomain) colors.actionPrimaryBg else colors.border, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Layers,
-                                    contentDescription = null,
-                                    tint = if (isGroupedByDomain) colors.actionPrimaryText else colors.textMuted,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    // Close All in Mode
-                    if (filteredTabs.isNotEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
-                                .clip(CircleShape)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(bounded = false, radius = 18.dp, color = colors.statusDestructive),
-                                    onClick = { showCloseAllDialog = true }
-                                )
-                                .semantics {
-                                    role = Role.Button
-                                    contentDescription = "Close all tabs in this mode"
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(30.dp)
-                                    .clip(CircleShape)
-                                    .background(colors.cardBg)
-                                    .border(0.8.dp, colors.border, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.DeleteSweep,
-                                    contentDescription = null,
-                                    tint = colors.statusDestructive,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    // Dismiss / Done Button
-                    if (onClose != null) {
-                        Box(
-                            modifier = Modifier
-                                .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
-                                .clip(CircleShape)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(bounded = false, radius = 18.dp, color = colors.textPrimary),
-                                    onClick = onClose
-                                )
-                                .semantics {
-                                    role = Role.Button
-                                    contentDescription = "Done"
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(30.dp)
-                                    .clip(CircleShape)
-                                    .background(colors.cardBg)
-                                    .border(0.8.dp, colors.border, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = null,
-                                    tint = colors.textPrimary,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.Layers,
+                                contentDescription = null,
+                                tint = if (isGroupedByDomain) colors.actionPrimaryText else colors.textMuted,
+                                modifier = Modifier.size(14.dp)
+                            )
                         }
                     }
                 }
@@ -1003,6 +937,37 @@ fun ActiveTabsScreen(
                             if (newTab != null) onTabSelected(newTab)
                         }
                     )
+
+                    // 5. Close All Tabs in Mode
+                    if (filteredTabs.isNotEmpty()) {
+                        HorizontalDivider(
+                            color = colors.border.copy(alpha = 0.5f),
+                            thickness = 0.5.dp
+                        )
+
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = "Close All Tabs",
+                                    color = colors.statusDestructive,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 13.5.sp
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteSweep,
+                                    contentDescription = null,
+                                    tint = colors.statusDestructive,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            onClick = {
+                                showOverflowMenu = false
+                                showCloseAllDialog = true
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -1222,6 +1187,7 @@ private fun ActiveTabsGrid(
             }
         }
     } else {
+        val firstStandaloneTabId = remember(standaloneTabs) { standaloneTabs.firstOrNull()?.id }
         LazyVerticalGrid(
             columns = GridCells.Adaptive(minSize = 155.dp),
             contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 6.dp, bottom = 96.dp),
@@ -1252,7 +1218,7 @@ private fun ActiveTabsGrid(
                 key = { it.id },
                 contentType = { "tab_card" }
             ) { tab ->
-                val isFirstCard = tab.id == standaloneTabs.firstOrNull()?.id
+                val isFirstCard = tab.id == firstStandaloneTabId
                 val cardTourModifier = if (isFirstCard) Modifier.tourTarget(tourSteps[1], tourState) else Modifier
                 val isActive = tab.id == activeTabId
 
@@ -1464,12 +1430,16 @@ private fun ActiveTabCard(
                             )
                     )
                 } else if (isHome) {
+                    val context = LocalContext.current
+                    val homeWallpaperModel = remember(tab.wallpaperResId, context) {
+                        ImageRequest.Builder(context)
+                            .data(tab.wallpaperResId ?: WallpaperManager.getCurrentWallpaper())
+                            .crossfade(false)
+                            .build()
+                    }
                     Box(modifier = Modifier.fillMaxSize()) {
                         AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(tab.wallpaperResId ?: WallpaperManager.getCurrentWallpaper())
-                                .crossfade(false)
-                                .build(),
+                            model = homeWallpaperModel,
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()

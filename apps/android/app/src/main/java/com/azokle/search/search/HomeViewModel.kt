@@ -63,7 +63,7 @@ data class HomeUiState(
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = SearchRepository()
-    private val preferences = PreferencesManager(application)
+    private val preferences = PreferencesManager.getInstance(application)
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()

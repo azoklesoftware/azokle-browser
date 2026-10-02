@@ -244,6 +244,7 @@ fun BrowserHomeScreenContent(
 
                 Spacer(modifier = Modifier.height(metrics.topSpacerHeight))
 
+                /*
                 // Exact Home Page Search Bar Capsule
                 SearchBarCapsule(
                     query = "",
@@ -260,6 +261,7 @@ fun BrowserHomeScreenContent(
                 )
 
                 Spacer(modifier = Modifier.height(metrics.midSpacerHeight))
+                */
 
                 // Quick Speed Dial Shortcuts (Wikipedia, YouTube, Amazon, Trip, Reddit, Azokle Auth, Kick, Azokle)
                 val shortcuts = remember {

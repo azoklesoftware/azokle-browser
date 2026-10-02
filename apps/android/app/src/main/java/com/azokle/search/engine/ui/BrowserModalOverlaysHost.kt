@@ -1,11 +1,14 @@
 package com.azokle.search.engine.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -68,6 +71,7 @@ import com.azokle.search.reader.ReaderModeScreen
 import com.azokle.search.search.ChooseSearchEngineSheet
 import com.azokle.search.search.HomeViewModel
 import com.azokle.search.search.VoiceSearchModal
+import com.azokle.search.settings.AboutAzokleScreen
 import com.azokle.search.settings.ChooseLanguageSheet
 import com.azokle.search.settings.SettingsSheet
 import com.azokle.search.tabs.ActiveTabsScreen
@@ -290,7 +294,9 @@ fun BrowserModalOverlaysHost(
         )
     }
 
-    // Lifecycle-Aware Background Compositor Throttling: Pause Gecko rendering thread & detach SurfaceView while tab switcher is open
+    // Lifecycle-Aware Background Compositor Throttling: Pause Gecko rendering thread while tab switcher is open
+    // NOTE: We keep the hardware Surface attached beneath the 100% opaque ActiveTabsScreen to prevent WindowManager
+    // surface destruction/reallocation stalls on the UI thread.
     LaunchedEffect(showTabGridSheet) {
         val activeSession = TabManager.getActiveSession()
         if (showTabGridSheet) {
@@ -298,7 +304,6 @@ fun BrowserModalOverlaysHost(
                 activeSession?.setActive(false)
                 activeSession?.setFocused(false)
                 activeSession?.setPriorityHint(GeckoSession.PRIORITY_DEFAULT)
-                geckoView?.visibility = android.view.View.INVISIBLE
             } catch (e: Exception) {}
         } else {
             try {
@@ -313,11 +318,19 @@ fun BrowserModalOverlaysHost(
         }
     }
 
-    // Unified Active Tabs Screen Switcher (Butter-smooth 120/144Hz Transition)
+    // Unified Active Tabs Screen Switcher (Butter-smooth 120/144Hz GPU-accelerated translation)
     AnimatedVisibility(
         visible = showTabGridSheet,
-        enter = fadeIn(animationSpec = tween(180)) + scaleIn(initialScale = 0.95f, animationSpec = tween(180)),
-        exit = fadeOut(animationSpec = tween(150)) + scaleOut(targetScale = 0.95f, animationSpec = tween(150))
+        enter = fadeIn(animationSpec = tween(160, easing = LinearOutSlowInEasing)) +
+                slideInVertically(
+                    initialOffsetY = { it / 24 },
+                    animationSpec = tween(160, easing = FastOutSlowInEasing)
+                ),
+        exit = fadeOut(animationSpec = tween(130, easing = FastOutLinearInEasing)) +
+                slideOutVertically(
+                    targetOffsetY = { it / 24 },
+                    animationSpec = tween(130, easing = FastOutLinearInEasing)
+                )
     ) {
         ActiveTabsScreen(
             onTabSelected = onTabSelected,
@@ -392,12 +405,15 @@ fun BrowserModalOverlaysHost(
         )
     }
 
-    // About Dialog
+    // About Azokle Screen Overlay
     if (isAboutModalOpen) {
-        InfoDialog(
-            title = stringResource(R.string.about_app),
-            content = stringResource(R.string.about_app_content),
-            onDismiss = onDismissAboutModal
+        AboutAzokleScreen(
+            onBack = onDismissAboutModal,
+            onClose = {
+                onDismissAboutModal()
+                onDismissSettingsSheet()
+            },
+            onOpenUrl = onOpenUrlFromSettings
         )
     }
 

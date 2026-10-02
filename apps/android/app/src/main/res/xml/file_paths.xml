@@ -2,6 +2,6 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Restrict FileProvider strictly to private app cache, downloads, and shared files -->
     <cache-path name="app_cache" path="shared/" />
-    <files-path name="app_files" path="downloads/" />
+    <files-path name="app_files" path="." />
     <external-files-path name="app_downloads" path="." />
 </paths>

@@ -14,7 +14,7 @@ data class SearchLocation(
 )
 
 class PreferencesManager(private val context: Context) {
-    private val prefs: SharedPreferences = createEncryptedPrefs(context)
+    private val prefs: SharedPreferences = getOrCreateEncryptedPrefs(context)
 
     companion object {
         private const val KEY_RECENT_SEARCHES = "recent_searches"
@@ -24,6 +24,33 @@ class PreferencesManager(private val context: Context) {
         private const val MAX_RECENT = 6
         private const val PREFS_FILE = "azokle_search_secure_prefs"
         private const val LEGACY_PREFS_FILE = "azokle_search_prefs"
+
+        @Volatile
+        private var cachedPrefs: SharedPreferences? = null
+
+        @Volatile
+        private var instance: PreferencesManager? = null
+
+        @Volatile
+        private var tabsTourCompletedCache: Boolean? = null
+
+        @Volatile
+        private var homeTourCompletedCache: Boolean? = null
+
+        fun getInstance(context: Context): PreferencesManager {
+            return instance ?: synchronized(this) {
+                instance ?: PreferencesManager(context.applicationContext).also { instance = it }
+            }
+        }
+
+        private fun getOrCreateEncryptedPrefs(context: Context): SharedPreferences {
+            cachedPrefs?.let { return it }
+            return synchronized(this) {
+                cachedPrefs ?: createEncryptedPrefs(context.applicationContext).also {
+                    cachedPrefs = it
+                }
+            }
+        }
 
         private fun createEncryptedPrefs(context: Context): SharedPreferences {
             val encPrefs = try {
@@ -231,22 +258,32 @@ class PreferencesManager(private val context: Context) {
     }
 
     fun hasCompletedHomeTour(): Boolean {
-        return prefs.getBoolean("has_completed_home_tour", false)
+        homeTourCompletedCache?.let { return it }
+        val value = prefs.getBoolean("has_completed_home_tour", false)
+        homeTourCompletedCache = value
+        return value
     }
 
     fun setHomeTourCompleted(completed: Boolean) {
+        homeTourCompletedCache = completed
         prefs.edit().putBoolean("has_completed_home_tour", completed).apply()
     }
 
     fun hasCompletedTabsTour(): Boolean {
-        return prefs.getBoolean("has_completed_tabs_tour", false)
+        tabsTourCompletedCache?.let { return it }
+        val value = prefs.getBoolean("has_completed_tabs_tour", false)
+        tabsTourCompletedCache = value
+        return value
     }
 
     fun setTabsTourCompleted(completed: Boolean) {
+        tabsTourCompletedCache = completed
         prefs.edit().putBoolean("has_completed_tabs_tour", completed).apply()
     }
 
     fun resetTours() {
+        homeTourCompletedCache = false
+        tabsTourCompletedCache = false
         prefs.edit()
             .remove("has_completed_home_tour")
             .remove("has_completed_tabs_tour")

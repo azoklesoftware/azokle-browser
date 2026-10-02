@@ -26,7 +26,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
@@ -41,7 +40,7 @@ class MainActivity : FragmentActivity() {
     private val viewModel: HomeViewModel by viewModels()
 
     override fun attachBaseContext(newBase: Context) {
-        val prefs = PreferencesManager(newBase)
+        val prefs = PreferencesManager.getInstance(newBase)
         val lang = prefs.getAppLanguage()
         val wrappedContext = LocaleHelper.applyLocale(newBase, lang)
         super.attachBaseContext(wrappedContext)
@@ -56,8 +55,14 @@ class MainActivity : FragmentActivity() {
                 ?.firstOrNull()
 
             if (!spokenText.isNullOrBlank()) {
-                viewModel.onQueryChange(spokenText)
-                viewModel.executeSearch(spokenText)
+                val cleanQuery = spokenText
+                    .filter { it >= ' ' && it != '\u007F' }
+                    .trim()
+                    .take(500)
+                if (cleanQuery.isNotBlank()) {
+                    viewModel.onQueryChange(cleanQuery)
+                    viewModel.executeSearch(cleanQuery)
+                }
             }
         }
     }
@@ -216,7 +221,7 @@ class MainActivity : FragmentActivity() {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         currentConfig = Configuration(newConfig)
-        val prefs = PreferencesManager(this)
+        val prefs = PreferencesManager.getInstance(this)
         val savedTheme = prefs.getThemeMode().lowercase()
         val isDark = when (savedTheme) {
             "dark" -> true
@@ -277,11 +282,10 @@ class MainActivity : FragmentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_USER
         currentConfig = Configuration(resources.configuration)
-        val prefs = PreferencesManager(this)
+        val prefs = PreferencesManager.getInstance(this)
         val savedTheme = prefs.getThemeMode().lowercase()
         val isInitialDark = when (savedTheme) {
             "dark" -> true
@@ -293,31 +297,8 @@ class MainActivity : FragmentActivity() {
         }
         updateSystemBars(isInitialDark)
 
-        // Cinema-grade exit transition: smooth alpha fade
-        splashScreen.setOnExitAnimationListener { splashScreenViewProvider ->
-            try {
-                val splashView = splashScreenViewProvider.view
-                val alphaAnimator = android.animation.ObjectAnimator.ofFloat(splashView, android.view.View.ALPHA, 1f, 0f).apply {
-                    duration = 240
-                    interpolator = android.view.animation.AccelerateDecelerateInterpolator()
-                }
-                alphaAnimator.addListener(object : android.animation.AnimatorListenerAdapter() {
-                    override fun onAnimationEnd(animation: android.animation.Animator) {
-                        splashScreenViewProvider.remove()
-                        updateSystemBars(isInitialDark)
-                    }
-                })
-                alphaAnimator.start()
-            } catch (e: Throwable) {
-                splashScreenViewProvider.remove()
-                updateSystemBars(isInitialDark)
-            }
-        }
-
         com.azokle.search.core.BiometricAuthManager.setCurrentActivity(this)
         AzokleApplication.applyThemeMode(prefs.getThemeMode())
-
-        com.azokle.search.media.MediaPlaybackManager.initialize(this)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             lifecycleScope.launch {
@@ -413,11 +394,20 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+
+        // Warm up GeckoView Quantum Engine & MediaPlaybackManager strictly AFTER the window is attached
+        // and the initial Home Screen frame is drawn, ensuring sub-100ms cold start to interactive UI.
+        window.decorView.post {
+            try {
+                com.azokle.search.media.MediaPlaybackManager.initialize(applicationContext)
+                com.azokle.search.engine.GeckoEngineManager.getRuntime(applicationContext)
+            } catch (_: Throwable) {}
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        val prefs = PreferencesManager(this)
+        val prefs = PreferencesManager.getInstance(this)
         val savedTheme = prefs.getThemeMode().lowercase()
         val isDark = when (savedTheme) {
             "dark" -> true

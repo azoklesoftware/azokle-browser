@@ -106,7 +106,7 @@ fun BrowserScreen(
     val scope = rememberCoroutineScope()
     val vaultManager = remember { EncryptedVaultManager.getInstance(context) }
     val permManager = remember { SitePermissionsManager.getInstance(context) }
-    val preferencesManager = remember { PreferencesManager(context) }
+    val preferencesManager = remember { PreferencesManager.getInstance(context) }
     val focusManager = LocalFocusManager.current
 
     var currentUrl by remember { mutableStateOf(initialUrl) }
@@ -653,7 +653,7 @@ fun BrowserScreen(
             .background(if (isFullScreenMode || isInPipMode) Color.Black else colors.background)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            val shouldShowOmnibar = isBottomBarVisible || isHomeOrEmpty || isFindInPageVisible
+            val shouldShowOmnibar = (isBottomBarVisible || isHomeOrEmpty || isFindInPageVisible) && !showTabGridSheet
 
             // 0. Permanent Status Bar Protection Scrim (protects system clock, battery, camera cutout & icons)
             if (!isFullScreenMode && !isInPipMode) {
@@ -669,7 +669,7 @@ fun BrowserScreen(
             }
 
             // 1. Header Omnibar or Find In Page Toolbar
-            if (!isFullScreenMode && !isInPipMode && !showDiscoverScreen) {
+            if (!isFullScreenMode && !isInPipMode && !showDiscoverScreen && !showTabGridSheet) {
                 AnimatedVisibility(
                     visible = shouldShowOmnibar,
                     enter = slideInVertically(
@@ -1791,21 +1791,30 @@ fun BrowserScreen(
                     contentLength = payload.contentLength,
                     headers = payload.headers,
                     isPrivate = payload.isPrivate,
-                    isTor = payload.isTor
+                    isTor = payload.isTor,
+                    stagedFilePath = payload.stagedFilePath
                 )
                 ToastManager.show("Downloading ${payload.filename}...")
             },
-            onDismissDownload = { pendingDownloadPayload = null },
+            onDismissDownload = {
+                pendingDownloadPayload?.stagedFilePath?.let { path ->
+                    try { java.io.File(path).delete() } catch (_: Exception) {}
+                }
+                pendingDownloadPayload = null
+            },
             showVoiceModal = showVoiceModal,
             onVoiceSearchResult = { recognizedQuery ->
                 showVoiceModal = false
-                val searchEngineConfig = SEARCH_ENGINE_PROVIDERS.find { it.id == viewModel?.uiState?.value?.selectedSearchEngine }
-                    ?: SEARCH_ENGINE_PROVIDERS[0]
-                val targetUrl = UrlHelper.resolveSearchOrUrl(
-                    input = recognizedQuery,
-                    searchEngineQueryUrl = searchEngineConfig.queryUrl
-                )
-                navigateToUrl(targetUrl, recognizedQuery)
+                val cleanQuery = recognizedQuery.trim()
+                if (cleanQuery.isNotBlank()) {
+                    val searchEngineConfig = SEARCH_ENGINE_PROVIDERS.find { it.id == viewModel?.uiState?.value?.selectedSearchEngine }
+                        ?: SEARCH_ENGINE_PROVIDERS[0]
+                    val targetUrl = UrlHelper.resolveSearchOrUrl(
+                        input = cleanQuery,
+                        searchEngineQueryUrl = searchEngineConfig.queryUrl
+                    )
+                    navigateToUrl(targetUrl, cleanQuery)
+                }
             },
             onDismissVoiceModal = { showVoiceModal = false },
             showQrScanner = showQrScanner,

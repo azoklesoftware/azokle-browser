@@ -21,7 +21,7 @@ class AzokleApplication : Application() {
             return
         }
 
-        val prefs = PreferencesManager(this)
+        val prefs = PreferencesManager.getInstance(this)
         val savedTheme = prefs.getThemeMode()
         applyThemeMode(savedTheme)
         com.azokle.search.core.DnsOverHttpsManager.activeProviderId = prefs.getDohProvider()
@@ -61,13 +61,6 @@ class AzokleApplication : Application() {
                 }
             }
         })
-
-        // Initialize GeckoView Quantum Engine & WebExtensions on the main thread to prevent native JNI deadlocks
-        try {
-            com.azokle.search.engine.GeckoEngineManager.getRuntime(this)
-        } catch (e: Throwable) {
-            // Safe fallback
-        }
     }
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {

@@ -158,16 +158,39 @@ class AzokleContentDelegate(
             mimeType = contentType
         )
         val mimeType = contentType ?: "application/octet-stream"
-        val contentLength = (response.headers["Content-Length"] ?: response.headers["content-length"])?.toLongOrNull() ?: 0L
+        val headerLength = (response.headers["Content-Length"] ?: response.headers["content-length"])?.toLongOrNull() ?: 0L
+
+        // STAGE THE STREAM IMMEDIATELY:
+        // GeckoView gives us response.body (InputStream) directly from the authenticated session.
+        // Reading response.body directly preserves session cookies, authentication headers,
+        // single-use download tokens, POST-generated streams, and client-side blob: URLs!
+        var stagedFile: java.io.File? = null
+        try {
+            val stagingDir = java.io.File(context.cacheDir, "download_staging").apply { mkdirs() }
+            val tempFile = java.io.File(stagingDir, "stage_${java.util.UUID.randomUUID().toString().take(8)}.tmp")
+            response.body?.use { inStream ->
+                tempFile.outputStream().use { outStream ->
+                    inStream.copyTo(outStream)
+                }
+            }
+            if (tempFile.exists() && tempFile.length() > 0L) {
+                stagedFile = tempFile
+            }
+        } catch (e: Throwable) {
+            Log.w("AzokleContentDelegate", "Error staging download response stream: ${e.message}")
+        }
+
+        val effectiveLength = stagedFile?.length()?.takeIf { it > 0L } ?: headerLength
 
         val payload = DownloadConfirmationPayload(
             url = downloadUrl,
             filename = filename,
             mimeType = mimeType,
-            contentLength = contentLength,
+            contentLength = effectiveLength,
             headers = response.headers,
             isPrivate = isPrivate,
-            isTor = isTor
+            isTor = isTor,
+            stagedFilePath = stagedFile?.absolutePath
         )
 
         if (onDownloadConfirmationRequested != null) {
@@ -180,10 +203,11 @@ class AzokleContentDelegate(
                 url = downloadUrl,
                 filename = filename,
                 mimeType = mimeType,
-                contentLength = contentLength,
+                contentLength = effectiveLength,
                 headers = response.headers,
                 isPrivate = isPrivate,
-                isTor = isTor
+                isTor = isTor,
+                stagedFilePath = stagedFile?.absolutePath
             )
             Toast.makeText(context, "Downloading $filename...", Toast.LENGTH_SHORT).show()
         }

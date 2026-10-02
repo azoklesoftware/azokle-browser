@@ -46,7 +46,7 @@ object GeckoEngineManager {
     @Synchronized
     fun getRuntime(context: Context): GeckoRuntime {
         if (runtime == null) {
-            val savedTheme = com.azokle.search.common.util.PreferencesManager(context).getThemeMode().lowercase()
+            val savedTheme = com.azokle.search.common.util.PreferencesManager.getInstance(context).getThemeMode().lowercase()
             currentThemeMode = savedTheme
             val initialScheme = when (savedTheme) {
                 "light" -> GeckoRuntimeSettings.COLOR_SCHEME_LIGHT

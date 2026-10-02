@@ -23,7 +23,7 @@ data class QuickLinkItem(
 )
 
 class EncryptedVaultManager(context: Context) {
-    private val prefs: SharedPreferences = createEncryptedPrefs(context)
+    private val prefs: SharedPreferences = getOrCreateEncryptedPrefs(context)
 
     private val _bookmarksFlow = MutableStateFlow<List<BookmarkItem>>(emptyList())
     val bookmarksFlow: StateFlow<List<BookmarkItem>> = _bookmarksFlow.asStateFlow()
@@ -35,11 +35,25 @@ class EncryptedVaultManager(context: Context) {
         private const val KEY_BOOKMARKS = "vault_bookmarks"
         private const val KEY_QUICK_LINKS = "vault_quick_links"
         private const val PREFS_FILE = "azokle_secure_vault_v2"
+
+        @Volatile
+        private var cachedPrefs: SharedPreferences? = null
+
+        @Volatile
         private var instance: EncryptedVaultManager? = null
 
         fun getInstance(context: Context): EncryptedVaultManager {
             return instance ?: synchronized(this) {
                 instance ?: EncryptedVaultManager(context.applicationContext).also { instance = it }
+            }
+        }
+
+        private fun getOrCreateEncryptedPrefs(context: Context): SharedPreferences {
+            cachedPrefs?.let { return it }
+            return synchronized(this) {
+                cachedPrefs ?: createEncryptedPrefs(context.applicationContext).also {
+                    cachedPrefs = it
+                }
             }
         }
 

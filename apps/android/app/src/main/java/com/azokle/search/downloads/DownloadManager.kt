@@ -64,11 +64,17 @@ object DownloadManager {
             val ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(detectedMime) ?: "bin"
             return "download_${System.currentTimeMillis()}.$ext"
         }
-        return com.azokle.search.core.AzokleCore.extractDownloadFilename(
+        var name = com.azokle.search.core.AzokleCore.extractDownloadFilename(
             urlStr,
             contentDisposition ?: "",
             mimeType ?: ""
         )
+        // If MIME type indicates PDF, enforce .pdf extension so Android viewers recognize it
+        val lowerMime = (mimeType ?: "").lowercase()
+        if ((lowerMime.contains("pdf") || lowerMime == "application/pdf") && !name.lowercase().endsWith(".pdf")) {
+            name = "$name.pdf"
+        }
+        return name
     }
 
     /**
@@ -123,7 +129,8 @@ object DownloadManager {
         contentLength: Long = 0L,
         headers: Map<String, String>? = null,
         isPrivate: Boolean = false,
-        isTor: Boolean = false
+        isTor: Boolean = false,
+        stagedFilePath: String? = null
     ): String {
         init(context)
         val rawName = filename?.takeIf { it.isNotBlank() } ?: extractFilename(url, mimeType = mimeType)
@@ -178,11 +185,16 @@ object DownloadManager {
         _downloads.update { listOf(item) + it }
         saveHistory(context)
 
-        startDownloadJob(context, item, headers)
+        startDownloadJob(context, item, headers, stagedFilePath)
         return item.id
     }
 
-    private fun startDownloadJob(context: Context, item: DownloadItem, headers: Map<String, String>? = null) {
+    private fun startDownloadJob(
+        context: Context,
+        item: DownloadItem,
+        headers: Map<String, String>? = null,
+        stagedFilePath: String? = null
+    ) {
         val job = scope.launch {
             var inputStream: InputStream? = null
             var outputStream: FileOutputStream? = null
@@ -190,6 +202,28 @@ object DownloadManager {
             var downloaded = targetFile.length()
 
             try {
+                // 0. Pre-Staged Stream from GeckoView onExternalResponse (0ms instant move/copy!)
+                // Completely eliminates authentication/cookie/token loss and handles client-side blob: URLs
+                if (!stagedFilePath.isNullOrBlank()) {
+                    val stagedFile = File(stagedFilePath)
+                    if (stagedFile.exists() && stagedFile.length() > 0L) {
+                        try {
+                            stagedFile.copyTo(targetFile, overwrite = true)
+                            val finalSize = targetFile.length()
+                            if (!item.isPrivate && !item.isTor) {
+                                publishToPublicDownloads(context, targetFile, item.mimeType, targetFile.name)
+                            }
+                            updateItemStatus(item.id, DownloadStatus.COMPLETED, finalSize, finalSize)
+                            postCompletionNotification(context, item, isSuccess = true)
+                            saveHistory(context)
+                            try { stagedFile.delete() } catch (_: Exception) {}
+                            return@launch
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to copy staged download file, falling back to network: ${e.message}")
+                        }
+                    }
+                }
+
                 // 1. Client-Side Data URI Stream (prevents JVM heap OOM on large Base64 files)
                 if (item.url.startsWith("data:", ignoreCase = true)) {
                     val commaIndex = item.url.indexOf(',')
@@ -229,162 +263,105 @@ object DownloadManager {
                     }
                 }
 
-                // 2. Reject blob: URLs gracefully with informative status
+                // 2. Reject unresolvable blob: URLs gracefully if not staged
                 if (item.url.startsWith("blob:", ignoreCase = true)) {
-                    throw Exception("Client blob URL downloads must be saved directly via page context.")
+                    throw Exception("Blob data stream timed out or was not supplied by page context.")
                 }
 
                 val isTorActive = item.isTor || com.azokle.search.tor.TorCircuitManager.isTorActive || item.url.contains(".onion", ignoreCase = true)
 
-                if (isTorActive) {
+                val client = if (isTorActive) {
                     val socksPort = com.azokle.search.tor.TorCircuitManager.socksPort.takeIf { it > 0 } ?: 9050
                     val socksProxy = java.net.Proxy(
                         java.net.Proxy.Type.SOCKS,
                         java.net.InetSocketAddress.createUnresolved("127.0.0.1", socksPort)
                     )
-                    val client = okhttp3.OkHttpClient.Builder()
+                    okhttp3.OkHttpClient.Builder()
                         .proxy(socksProxy)
                         .dns(com.azokle.search.tor.TorRemoteDns)
                         .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
                         .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
                         .followRedirects(true)
+                        .followSslRedirects(true)
                         .build()
-
-                    val requestBuilder = okhttp3.Request.Builder()
-                        .url(item.url)
-                        .header("User-Agent", com.azokle.search.engine.GeckoEngineManager.MODERN_MOBILE_UA)
-
-                    // Forward only safe client request headers; strip response reflection headers
-                    headers?.forEach { (k, v) ->
-                        if (!FORBIDDEN_OUTBOUND_HEADERS.contains(k.lowercase().trim())) {
-                            requestBuilder.header(k, v)
-                        }
-                    }
-
-                    if (downloaded > 0) {
-                        requestBuilder.header("Range", "bytes=$downloaded-")
-                    }
-
-                    val response = client.newCall(requestBuilder.build()).execute()
-                    val responseCode = response.code
-
-                    if (!response.isSuccessful && responseCode != 206) {
-                        throw Exception("Tor HTTP error code $responseCode")
-                    }
-
-                    // Fix BUG-001: Strict Range 206 Resumption Check
-                    val isRange206 = (responseCode == 206)
-                    if (!isRange206) {
-                        downloaded = 0L // Reset if server sent full file from byte 0
-                    }
-
-                    val body = response.body ?: throw Exception("Empty response body from Tor")
-                    val bodyLen = body.contentLength()
-                    val totalLength = if (isRange206) {
-                        downloaded + bodyLen
-                    } else {
-                        if (bodyLen > 0L) bodyLen else item.totalBytes
-                    }
-
-                    val stream = body.byteStream()
-                    inputStream = stream
-                    outputStream = FileOutputStream(targetFile, isRange206)
-
-                    val buffer = ByteArray(32 * 1024)
-                    var bytesRead: Int = stream.read(buffer)
-                    var lastUpdate = System.currentTimeMillis()
-
-                    while (bytesRead != -1) {
-                        outputStream.write(buffer, 0, bytesRead)
-                        downloaded += bytesRead
-
-                        val now = System.currentTimeMillis()
-                        if (now - lastUpdate > 250) {
-                            lastUpdate = now
-                            updateItemStatus(item.id, DownloadStatus.DOWNLOADING, downloaded, totalLength)
-                        }
-                        bytesRead = stream.read(buffer)
-                    }
-
-                    outputStream.flush()
-
-                    // Only publish to public MediaStore if NOT Private/Tor
-                    if (!item.isPrivate && !item.isTor) {
-                        publishToPublicDownloads(context, targetFile, item.mimeType, targetFile.name)
-                    }
-
-                    updateItemStatus(item.id, DownloadStatus.COMPLETED, downloaded, downloaded)
-                    postCompletionNotification(context, item, isSuccess = true)
-                    saveHistory(context)
                 } else {
-                    // 3. Clearnet High-Speed Download Stream
-                    val url = URL(item.url)
-                    val connection = url.openConnection() as HttpURLConnection
-                    connection.connectTimeout = 25000
-                    connection.readTimeout = 45000
-                    connection.instanceFollowRedirects = true
-                    connection.setRequestProperty("User-Agent", com.azokle.search.engine.GeckoEngineManager.MODERN_MOBILE_UA)
-
-                    // Forward only safe client request headers; strip response reflection headers
-                    headers?.forEach { (k, v) ->
-                        if (!FORBIDDEN_OUTBOUND_HEADERS.contains(k.lowercase().trim())) {
-                            connection.setRequestProperty(k, v)
-                        }
-                    }
-
-                    if (downloaded > 0) {
-                        connection.setRequestProperty("Range", "bytes=$downloaded-")
-                    }
-
-                    connection.connect()
-                    val responseCode = connection.responseCode
-                    if (responseCode !in 200..299 && responseCode != 206) {
-                        throw Exception("HTTP error code $responseCode")
-                    }
-
-                    // Fix BUG-001: Strict Range 206 Resumption Check
-                    val isRange206 = (responseCode == 206)
-                    if (!isRange206) {
-                        downloaded = 0L // Reset if server sent full file from byte 0
-                    }
-
-                    val totalLength = if (isRange206) {
-                        downloaded + connection.contentLengthLong
-                    } else {
-                        connection.contentLengthLong.takeIf { it > 0 } ?: item.totalBytes
-                    }
-
-                    inputStream = connection.inputStream
-                    outputStream = FileOutputStream(targetFile, isRange206)
-
-                    val buffer = ByteArray(32 * 1024)
-                    var bytesRead: Int
-                    var lastUpdate = System.currentTimeMillis()
-
-                    while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                        outputStream.write(buffer, 0, bytesRead)
-                        downloaded += bytesRead
-
-                        val now = System.currentTimeMillis()
-                        if (now - lastUpdate > 250) {
-                            lastUpdate = now
-                            updateItemStatus(item.id, DownloadStatus.DOWNLOADING, downloaded, totalLength)
-                            val pct = if (totalLength > 0) ((downloaded * 100) / totalLength).toInt() else 0
-                            postProgressNotification(context, item, pct, totalLength <= 0)
-                        }
-                    }
-
-                    outputStream.flush()
-
-                    // Only publish to public MediaStore if NOT Private/Tor
-                    if (!item.isPrivate && !item.isTor) {
-                        publishToPublicDownloads(context, targetFile, item.mimeType, targetFile.name)
-                    }
-
-                    updateItemStatus(item.id, DownloadStatus.COMPLETED, downloaded, downloaded)
-                    postCompletionNotification(context, item, isSuccess = true)
-                    saveHistory(context)
+                    // Clearnet modern OkHttpClient: supports HTTP/2, TLS 1.3, and automatic HTTP -> HTTPS redirects!
+                    okhttp3.OkHttpClient.Builder()
+                        .connectTimeout(25, java.util.concurrent.TimeUnit.SECONDS)
+                        .readTimeout(45, java.util.concurrent.TimeUnit.SECONDS)
+                        .followRedirects(true)
+                        .followSslRedirects(true)
+                        .build()
                 }
+
+                val requestBuilder = okhttp3.Request.Builder()
+                    .url(item.url)
+                    .header("User-Agent", com.azokle.search.engine.GeckoEngineManager.MODERN_MOBILE_UA)
+
+                // Forward only safe client request headers; strip response reflection headers
+                headers?.forEach { (k, v) ->
+                    if (!FORBIDDEN_OUTBOUND_HEADERS.contains(k.lowercase().trim())) {
+                        requestBuilder.header(k, v)
+                    }
+                }
+
+                if (downloaded > 0) {
+                    requestBuilder.header("Range", "bytes=$downloaded-")
+                }
+
+                val response = client.newCall(requestBuilder.build()).execute()
+                val responseCode = response.code
+
+                if (!response.isSuccessful && responseCode != 206) {
+                    throw Exception("HTTP error code $responseCode")
+                }
+
+                // Strict Range 206 Resumption Check
+                val isRange206 = (responseCode == 206)
+                if (!isRange206) {
+                    downloaded = 0L // Reset if server sent full file from byte 0
+                }
+
+                val body = response.body ?: throw Exception("Empty response body from server")
+                val bodyLen = body.contentLength()
+                val totalLength = if (isRange206) {
+                    downloaded + bodyLen
+                } else {
+                    if (bodyLen > 0L) bodyLen else item.totalBytes
+                }
+
+                val stream = body.byteStream()
+                inputStream = stream
+                outputStream = FileOutputStream(targetFile, isRange206)
+
+                val buffer = ByteArray(32 * 1024)
+                var bytesRead: Int = stream.read(buffer)
+                var lastUpdate = System.currentTimeMillis()
+
+                while (bytesRead != -1) {
+                    outputStream.write(buffer, 0, bytesRead)
+                    downloaded += bytesRead
+
+                    val now = System.currentTimeMillis()
+                    if (now - lastUpdate > 250) {
+                        lastUpdate = now
+                        updateItemStatus(item.id, DownloadStatus.DOWNLOADING, downloaded, totalLength)
+                        val pct = if (totalLength > 0) ((downloaded * 100) / totalLength).toInt() else 0
+                        postProgressNotification(context, item, pct, totalLength <= 0)
+                    }
+                    bytesRead = stream.read(buffer)
+                }
+
+                outputStream.flush()
+
+                // Only publish to public MediaStore if NOT Private/Tor
+                if (!item.isPrivate && !item.isTor) {
+                    publishToPublicDownloads(context, targetFile, item.mimeType, targetFile.name)
+                }
+
+                updateItemStatus(item.id, DownloadStatus.COMPLETED, downloaded, downloaded)
+                postCompletionNotification(context, item, isSuccess = true)
+                saveHistory(context)
             } catch (e: Exception) {
                 Log.e(TAG, "Download error for ${item.filename}: ${e.message}")
                 updateItemStatus(item.id, DownloadStatus.FAILED, item.downloadedBytes, item.totalBytes, e.message)
@@ -632,13 +609,14 @@ object DownloadManager {
             val file = File(item.filePath)
             if (!file.exists()) return
 
+            val resolvedMime = resolveEffectiveMimeType(file, item.mimeType)
             val uri = FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.fileprovider",
                 file
             )
             val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, item.mimeType)
+                setDataAndType(uri, resolvedMime)
                 flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
             }
             context.startActivity(Intent.createChooser(intent, "Open with").apply {
@@ -657,13 +635,14 @@ object DownloadManager {
             val file = File(item.filePath)
             if (!file.exists()) return
 
+            val resolvedMime = resolveEffectiveMimeType(file, item.mimeType)
             val uri = FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.fileprovider",
                 file
             )
             val intent = Intent(Intent.ACTION_SEND).apply {
-                type = item.mimeType
+                type = resolvedMime
                 putExtra(Intent.EXTRA_STREAM, uri)
                 flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
             }
@@ -673,6 +652,20 @@ object DownloadManager {
         } catch (e: Exception) {
             Log.e(TAG, "Error sharing file: ${e.message}")
         }
+    }
+
+    private fun resolveEffectiveMimeType(file: File, fallbackMime: String): String {
+        if (fallbackMime.isNotBlank() && fallbackMime != "application/octet-stream" && fallbackMime != "*/*") {
+            return fallbackMime
+        }
+        val ext = file.extension.lowercase().trim()
+        if (ext.isNotBlank()) {
+            val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext)
+            if (!mime.isNullOrBlank()) return mime
+            if (ext == "pdf") return "application/pdf"
+            if (ext == "apk") return "application/vnd.android.package-archive"
+        }
+        return fallbackMime.ifBlank { "application/octet-stream" }
     }
 
     private fun saveHistory(context: Context) {

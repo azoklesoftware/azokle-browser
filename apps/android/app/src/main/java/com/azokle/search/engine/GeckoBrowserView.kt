@@ -50,7 +50,8 @@ data class DownloadConfirmationPayload(
     val contentLength: Long,
     val headers: Map<String, String>? = null,
     val isPrivate: Boolean = false,
-    val isTor: Boolean = false
+    val isTor: Boolean = false,
+    val stagedFilePath: String? = null
 )
 
 @Composable

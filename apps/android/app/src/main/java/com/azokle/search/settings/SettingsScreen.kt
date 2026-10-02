@@ -34,7 +34,6 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -51,7 +50,6 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhoneAndroid
@@ -63,6 +61,7 @@ import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -88,7 +87,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
@@ -100,7 +98,6 @@ import com.azokle.search.common.components.ToastManager
 import com.azokle.search.common.theme.AzokleBreakpoints
 import com.azokle.search.common.theme.AzokleRadius
 import com.azokle.search.common.theme.AzokleTheme
-import com.azokle.search.common.theme.AzokleThemeColors
 import com.azokle.search.common.theme.adaptiveContentWidth
 import com.azokle.search.common.util.DefaultBrowserManager
 import com.azokle.search.common.util.LocaleHelper
@@ -153,6 +150,8 @@ fun SettingsScreen(
     var showSafeSearchDialog by remember { mutableStateOf(false) }
     var showLocationDialog by remember { mutableStateOf(false) }
     var showClearCacheDialog by remember { mutableStateOf(false) }
+    var showClearHistoryDialog by remember { mutableStateOf(false) }
+    var showIncinerateDialog by remember { mutableStateOf(false) }
 
     // Dynamic preferences states
     var currentSafeSearch by remember { mutableStateOf(prefsManager.getSafeSearch()) }
@@ -171,6 +170,10 @@ fun SettingsScreen(
             showLocationDialog = false
         } else if (showClearCacheDialog) {
             showClearCacheDialog = false
+        } else if (showClearHistoryDialog) {
+            showClearHistoryDialog = false
+        } else if (showIncinerateDialog) {
+            showIncinerateDialog = false
         } else {
             onDismiss()
         }
@@ -245,51 +248,31 @@ fun SettingsScreen(
                     .adaptiveContentWidth(AzokleBreakpoints.MaxContentWidth)
                     .align(Alignment.TopCenter)
             ) {
-                // 1. Top App Bar
+                // 1. Top App Bar (Consistent with About & Legal screens)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .sizeIn(minWidth = 40.dp, minHeight = 40.dp)
-                            .clip(CircleShape)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(bounded = false, radius = 18.dp, color = colors.textPrimary),
-                                onClick = onDismiss
-                            )
-                            .semantics {
-                                role = Role.Button
-                                contentDescription = "Navigate back"
-                            },
-                        contentAlignment = Alignment.Center
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(44.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(colors.surfaceElevated)
-                                .border(0.8.dp, colors.borderSubtle, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = null,
-                                tint = colors.textPrimary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Navigate back",
+                            tint = colors.textPrimary,
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
 
-                    Spacer(modifier = Modifier.width(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
 
                     Text(
                         text = stringResource(R.string.settings_title),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.SemiBold,
                         color = colors.textPrimary,
                         letterSpacing = (-0.3).sp,
                         modifier = Modifier.semantics { heading() }
@@ -305,10 +288,10 @@ fun SettingsScreen(
                         .weight(1f)
                         .verticalScroll(scrollState)
                         .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // CATEGORY: GENERAL
-                    SectionContainer(title = "GENERAL") {
+                    // CATEGORY 1: GENERAL & APPEARANCE
+                    SectionContainer(title = "GENERAL & APPEARANCE") {
                         // Theme Selector
                         Column(
                             modifier = Modifier
@@ -419,7 +402,7 @@ fun SettingsScreen(
                         )
                     }
 
-                    // CATEGORY: SEARCH
+                    // CATEGORY 2: SEARCH
                     SectionContainer(title = "SEARCH") {
                         SettingsRow(
                             icon = Icons.Default.Search,
@@ -450,7 +433,7 @@ fun SettingsScreen(
                         )
                     }
 
-                    // CATEGORY: PRIVACY & SECURITY
+                    // CATEGORY 3: PRIVACY & SECURITY
                     SectionContainer(title = "PRIVACY & SECURITY") {
                         // Encrypted DNS Accordion
                         Column(modifier = Modifier.fillMaxWidth()) {
@@ -475,7 +458,7 @@ fun SettingsScreen(
                                         .padding(horizontal = 14.dp, vertical = 6.dp),
                                     verticalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
-                                    dohProviders.forEach { (id, name, desc) ->
+                                    dohProviders.forEach { (id, name, _) ->
                                         val isSelected = selectedDohProvider.equals(id, ignoreCase = true)
 
                                         Row(
@@ -531,16 +514,22 @@ fun SettingsScreen(
                             showChevron = true,
                             onClick = { showPasskeySheet = true }
                         )
+                    }
+
+                    // CATEGORY 4: BROWSING DATA & STORAGE
+                    SectionContainer(title = "BROWSING DATA & STORAGE") {
+                        SettingsRow(
+                            icon = Icons.Default.Storage,
+                            title = "Clear Web Cache",
+                            onClick = { showClearCacheDialog = true }
+                        )
 
                         ItemDivider()
 
                         SettingsRow(
                             icon = Icons.Default.DeleteSweep,
                             title = "Clear Search History",
-                            onClick = {
-                                prefsManager.clearRecentSearches()
-                                ToastManager.showSuccess("Search history cleared")
-                            }
+                            onClick = { showClearHistoryDialog = true }
                         )
 
                         ItemDivider()
@@ -550,17 +539,12 @@ fun SettingsScreen(
                             title = "Incinerate Browsing Data",
                             titleColor = colors.statusDestructive,
                             iconTint = colors.statusDestructive,
-                            onClick = {
-                                coroutineScope.launch {
-                                    com.azokle.search.incineration.DataBurnEngine.executeFullDeepBurn(context)
-                                    ToastManager.showSuccess("Data incinerated permanently")
-                                }
-                            }
+                            onClick = { showIncinerateDialog = true }
                         )
                     }
 
-                    // CATEGORY: SYSTEM & MEDIA
-                    SectionContainer(title = "SYSTEM & MEDIA") {
+                    // CATEGORY 5: MEDIA & NOTIFICATIONS
+                    SectionContainer(title = "MEDIA & NOTIFICATIONS") {
                         SettingsRow(
                             icon = Icons.Default.MusicNote,
                             title = "Background Audio",
@@ -586,14 +570,6 @@ fun SettingsScreen(
                                 isBackgroundAudio = toggled
                                 prefsManager.setBackgroundAudioEnabled(toggled)
                             }
-                        )
-
-                        ItemDivider()
-
-                        SettingsRow(
-                            icon = Icons.Default.Storage,
-                            title = "Clear Web Cache",
-                            onClick = { showClearCacheDialog = true }
                         )
 
                         ItemDivider()
@@ -629,43 +605,13 @@ fun SettingsScreen(
                         )
                     }
 
-                    // CATEGORY: ABOUT
+                    // CATEGORY 6: ABOUT
                     SectionContainer(title = "ABOUT") {
                         SettingsRow(
                             icon = Icons.Default.Info,
-                            title = stringResource(R.string.about_us),
-                            trailingIcon = Icons.AutoMirrored.Filled.OpenInNew,
-                            onClick = {
-                                onDismiss()
-                                onOpenUrl("https://azokle.com/company-info")
-                                onOpenAbout()
-                            }
-                        )
-
-                        ItemDivider()
-
-                        SettingsRow(
-                            icon = Icons.Default.Lock,
-                            title = stringResource(R.string.privacy_policy),
-                            trailingIcon = Icons.AutoMirrored.Filled.OpenInNew,
-                            onClick = {
-                                onDismiss()
-                                onOpenUrl("https://azokle.com/privacy")
-                                onOpenPrivacyPolicy()
-                            }
-                        )
-
-                        ItemDivider()
-
-                        SettingsRow(
-                            icon = Icons.Default.Shield,
-                            title = stringResource(R.string.terms_service),
-                            trailingIcon = Icons.AutoMirrored.Filled.OpenInNew,
-                            onClick = {
-                                onDismiss()
-                                onOpenUrl("https://azokle.com/terms")
-                                onOpenTerms()
-                            }
+                            title = "About Azokle Browser",
+                            trailingIcon = Icons.Default.ChevronRight,
+                            onClick = onOpenAbout
                         )
                     }
 
@@ -807,6 +753,7 @@ fun SettingsScreen(
         )
     }
 
+    // Clear Web Cache Confirmation Dialog
     if (showClearCacheDialog) {
         AlertDialog(
             onDismissRequest = { showClearCacheDialog = false },
@@ -822,8 +769,8 @@ fun SettingsScreen(
                 Text(
                     text = "Free temporary cached files and site memory. Open tabs will remain intact.",
                     color = colors.textSecondary,
-                    fontSize = 12.5.sp,
-                    lineHeight = 17.sp
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
                 )
             },
             confirmButton = {
@@ -848,6 +795,90 @@ fun SettingsScreen(
             shape = AzokleRadius.xl
         )
     }
+
+    // Clear Search History Confirmation Dialog
+    if (showClearHistoryDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearHistoryDialog = false },
+            title = {
+                Text(
+                    text = "Clear Search History?",
+                    fontSize = 16.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "Remove recent search queries and suggestions stored on this device.",
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        prefsManager.clearRecentSearches()
+                        showClearHistoryDialog = false
+                        ToastManager.showSuccess("Search history cleared")
+                    }
+                ) {
+                    Text("Clear", color = colors.statusDestructive, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearHistoryDialog = false }) {
+                    Text("Cancel", color = colors.textMuted)
+                }
+            },
+            containerColor = colors.surface,
+            shape = AzokleRadius.xl
+        )
+    }
+
+    // Incinerate All Browsing Data Confirmation Dialog
+    if (showIncinerateDialog) {
+        AlertDialog(
+            onDismissRequest = { showIncinerateDialog = false },
+            title = {
+                Text(
+                    text = "Incinerate All Browsing Data?",
+                    fontSize = 16.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.statusDestructive
+                )
+            },
+            text = {
+                Text(
+                    text = "Permanently erase active sessions, cookies, cached web files, and browsing records. This action is irreversible.",
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showIncinerateDialog = false
+                        coroutineScope.launch {
+                            com.azokle.search.incineration.DataBurnEngine.executeFullDeepBurn(context)
+                            ToastManager.showSuccess("Data incinerated permanently")
+                        }
+                    }
+                ) {
+                    Text("Incinerate", color = colors.statusDestructive, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showIncinerateDialog = false }) {
+                    Text("Cancel", color = colors.textMuted)
+                }
+            },
+            containerColor = colors.surface,
+            shape = AzokleRadius.xl
+        )
+    }
 }
 
 // ---------------- Helper Components & Composables ----------------
@@ -861,11 +892,10 @@ private fun SectionContainer(
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = title,
-            fontSize = 10.5.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
             color = colors.textMuted,
-            letterSpacing = 0.8.sp,
+            letterSpacing = 0.5.sp,
             modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
         )
 
@@ -874,7 +904,7 @@ private fun SectionContainer(
                 .fillMaxWidth()
                 .clip(AzokleRadius.lg)
                 .background(colors.cardBg)
-                .border(1.dp, colors.borderSubtle, AzokleRadius.lg)
+                .border(0.8.dp, colors.borderSubtle, AzokleRadius.lg)
         ) {
             content()
         }
