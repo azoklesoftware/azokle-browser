@@ -9,9 +9,41 @@ import android.os.Bundle
 import android.os.Process
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.fragment.app.FragmentActivity
+import coil.ImageLoader
+import coil.ImageLoaderFactory
+import coil.decode.GifDecoder
+import coil.decode.ImageDecoderDecoder
+import coil.decode.SvgDecoder
+import coil.disk.DiskCache
+import coil.memory.MemoryCache
 import com.azokle.search.common.util.PreferencesManager
 
-class AzokleApplication : Application() {
+class AzokleApplication : Application(), ImageLoaderFactory {
+    override fun newImageLoader(): ImageLoader {
+        return ImageLoader.Builder(this)
+            .memoryCache {
+                MemoryCache.Builder(this)
+                    .maxSizePercent(0.20) // Use at most 20% of app RAM for bitmap caching
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(cacheDir.resolve("image_cache"))
+                    .maxSizeBytes(64 * 1024 * 1024) // 64 MB bounded disk cache
+                    .build()
+            }
+            .components {
+                add(SvgDecoder.Factory())
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    add(ImageDecoderDecoder.Factory())
+                } else {
+                    add(GifDecoder.Factory())
+                }
+            }
+            .crossfade(true)
+            .build()
+    }
+
     override fun onCreate() {
         super.onCreate()
 

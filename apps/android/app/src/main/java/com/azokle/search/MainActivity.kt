@@ -283,7 +283,6 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_USER
         currentConfig = Configuration(resources.configuration)
         val prefs = PreferencesManager.getInstance(this)
         val savedTheme = prefs.getThemeMode().lowercase()

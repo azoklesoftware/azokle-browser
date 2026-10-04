@@ -616,7 +616,12 @@ fun BrowserScreen(
                     window.attributes.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
                 }
 
-                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                val isLargeScreenOrMultiWindow = activity.isInMultiWindowMode ||
+                    (activity.resources.configuration.smallestScreenWidthDp >= 600)
+
+                if (!isLargeScreenOrMultiWindow) {
+                    activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                }
 
                 onDispose {
                     try {
@@ -626,11 +631,13 @@ fun BrowserScreen(
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                         window.attributes.layoutInDisplayCutoutMode = savedCutoutMode
                     }
-                    activity.requestedOrientation = if (savedOrientation != ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED &&
-                        savedOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
-                        savedOrientation
-                    } else {
-                        ActivityInfo.SCREEN_ORIENTATION_USER
+                    if (!isLargeScreenOrMultiWindow) {
+                        activity.requestedOrientation = if (savedOrientation != ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED &&
+                            savedOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+                            savedOrientation
+                        } else {
+                            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                        }
                     }
                     insetsController.show(WindowInsetsCompat.Type.systemBars())
                     insetsController.isAppearanceLightStatusBars = !colors.isDark

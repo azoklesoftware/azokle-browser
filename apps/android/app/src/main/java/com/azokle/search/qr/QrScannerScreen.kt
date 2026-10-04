@@ -4,8 +4,11 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.BitmapFactory
+import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.size.Precision
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -150,12 +153,18 @@ fun QrScannerScreen(
             scope.launch {
                 val resultText = withContext(Dispatchers.IO) {
                     try {
-                        context.contentResolver.openInputStream(uri)?.use { stream ->
-                            val bitmap = BitmapFactory.decodeStream(stream)
-                            if (bitmap != null) {
-                                QrCodeImageAnalyzer.decodeFromBitmap(bitmap)
-                            } else null
-                        }
+                        val loader = context.imageLoader
+                        val request = ImageRequest.Builder(context)
+                            .data(uri)
+                            .size(1024, 1024) // Downsamples huge 50MP+ camera photos to memory-safe 1024x1024
+                            .precision(Precision.INEXACT)
+                            .allowHardware(false) // Required for ZXing software pixel luminance extraction
+                            .build()
+                        val result = loader.execute(request)
+                        val bitmap = (result.drawable as? BitmapDrawable)?.bitmap
+                        if (bitmap != null) {
+                            QrCodeImageAnalyzer.decodeFromBitmap(bitmap)
+                        } else null
                     } catch (_: Exception) {
                         null
                     }
