@@ -141,11 +141,12 @@ object DataBurnEngine {
                 Log.w(TAG, "Error clearing search history: ${e.message}")
             }
 
-            // Layer 9: DNS-over-HTTPS & AdBlock Runtime Caches
+            // Layer 9: DNS-over-HTTPS, SafeBrowsing & AdBlock Runtime Caches
             try {
                 DnsOverHttpsManager.clearCnameCache()
                 AdClickManager.clearAll()
                 AdBlockStats.resetForPage("", "", true)
+                com.azokle.search.adblock.SafeBrowsingGuard.clearSessionBypasses()
             } catch (e: Exception) {
                 Log.w(TAG, "Error clearing DNS/AdBlock caches: ${e.message}")
             }

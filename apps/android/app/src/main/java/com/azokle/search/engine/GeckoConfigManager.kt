@@ -78,7 +78,8 @@ object GeckoConfigManager {
             appendLine("  network.dnsCacheEntries: 1024")
             appendLine("  network.dnsCacheExpiration: 3600")
 
-            // Quantum Engine TRR (Trusted Recursive Resolver - DNS-over-HTTPS)
+            // Quantum Engine TRR (Trusted Recursive Resolver - DNS-over-HTTPS) & Remote SOCKS DNS
+            appendLine("  network.proxy.socks_remote_dns: true")
             if (isDohEnabled) {
                 appendLine("  network.trr.mode: 2")
                 appendLine("  network.trr.uri: \"${provider.url}\"")
