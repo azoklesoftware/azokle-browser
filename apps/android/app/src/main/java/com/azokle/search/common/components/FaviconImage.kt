@@ -146,14 +146,17 @@ fun FaviconImage(
         contentAlignment = Alignment.Center
     ) {
         if (!isLoadFailed && activeFaviconUrl != null) {
-            AsyncImage(
-                model = ImageRequest.Builder(context)
+            val imageRequest = remember(context, activeFaviconUrl) {
+                ImageRequest.Builder(context)
                     .data(activeFaviconUrl)
                     .crossfade(60)
                     .memoryCachePolicy(CachePolicy.ENABLED)
                     .diskCachePolicy(CachePolicy.ENABLED)
                     .networkCachePolicy(CachePolicy.ENABLED)
-                    .build(),
+                    .build()
+            }
+            AsyncImage(
+                model = imageRequest,
                 contentDescription = null,
                 onError = {
                     if (activeFaviconUrl != fallbackFaviconUrl && fallbackFaviconUrl != null) {

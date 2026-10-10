@@ -11,36 +11,33 @@ data class HistoryItem(
     val isSearch: Boolean = false,
     val searchQuery: String? = null
 ) {
-    val cleanHost: String = run {
-        try {
-            val jHost = java.net.URI(url).host
-            if (!jHost.isNullOrBlank()) {
-                return@run jHost.removePrefix("www.")
-            }
-        } catch (_: Exception) {}
-
-        try {
-            val aHost = android.net.Uri.parse(url).host
-            if (!aHost.isNullOrBlank()) {
-                return@run aHost.removePrefix("www.")
-            }
-        } catch (_: Exception) {}
-
-        val stripped = url.substringAfter("://", url).substringBefore('/').substringBefore(':')
-        stripped.removePrefix("www.").ifBlank { url }
+    val cleanHost: String by lazy(LazyThreadSafetyMode.NONE) {
+        val withoutScheme = if (url.startsWith("https://", ignoreCase = true)) {
+            url.substring(8)
+        } else if (url.startsWith("http://", ignoreCase = true)) {
+            url.substring(7)
+        } else {
+            url.substringAfter("://", url)
+        }
+        val hostPart = withoutScheme.substringBefore('/').substringBefore('?').substringBefore(':')
+        hostPart.removePrefix("www.").ifBlank { url }
     }
 
-    val displayTitle: String = if (isSearch && !searchQuery.isNullOrBlank()) {
-        searchQuery
-    } else if (title.isNotBlank()) {
-        title
-    } else {
-        cleanHost
+    val displayTitle: String by lazy(LazyThreadSafetyMode.NONE) {
+        if (isSearch && !searchQuery.isNullOrBlank()) {
+            searchQuery
+        } else if (title.isNotBlank()) {
+            title
+        } else {
+            cleanHost
+        }
     }
 
-    val faviconUrl: String = "https://www.google.com/s2/favicons?domain=$cleanHost&sz=128"
+    val faviconUrl: String by lazy(LazyThreadSafetyMode.NONE) {
+        "https://www.google.com/s2/favicons?domain=$cleanHost&sz=128"
+    }
 
-    val formattedTime: String by lazy {
+    val formattedTime: String by lazy(LazyThreadSafetyMode.NONE) {
         try {
             val sdf = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
             sdf.format(java.util.Date(timestamp))

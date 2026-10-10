@@ -43,11 +43,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -133,29 +137,46 @@ fun HistoryScreen(
         }
     }
 
-    // Grouping by Date
-    val dateGroups = remember(filteredHistory) {
-        val todayStart = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }.timeInMillis
+    // Progressive windowing to ensure instant 0ms first frame render
+    var displayLimit by remember { mutableStateOf(50) }
 
-        val yesterdayStart = todayStart - (24 * 60 * 60 * 1000L)
-        val lastWeekStart = todayStart - (7 * 24 * 60 * 60 * 1000L)
+    LaunchedEffect(searchQuery, selectedFilter) {
+        displayLimit = 50
+    }
 
-        val groups = linkedMapOf<String, MutableList<HistoryItem>>()
-        for (item in filteredHistory) {
-            val groupKey = when {
-                item.timestamp >= todayStart -> "Today"
-                item.timestamp >= yesterdayStart -> "Yesterday"
-                item.timestamp >= lastWeekStart -> "Previous 7 Days"
-                else -> "Older"
+    val visibleHistory = remember(filteredHistory, displayLimit) {
+        if (filteredHistory.size <= displayLimit) filteredHistory
+        else filteredHistory.take(displayLimit)
+    }
+
+    // Grouping by Date computed off the main UI thread via Dispatchers.Default
+    val dateGroups by produceState<Map<String, List<HistoryItem>>>(
+        initialValue = emptyMap(),
+        key1 = visibleHistory
+    ) {
+        value = withContext(Dispatchers.Default) {
+            val todayStart = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+
+            val yesterdayStart = todayStart - (24 * 60 * 60 * 1000L)
+            val lastWeekStart = todayStart - (7 * 24 * 60 * 60 * 1000L)
+
+            val groups = linkedMapOf<String, MutableList<HistoryItem>>()
+            for (item in visibleHistory) {
+                val groupKey = when {
+                    item.timestamp >= todayStart -> "Today"
+                    item.timestamp >= yesterdayStart -> "Yesterday"
+                    item.timestamp >= lastWeekStart -> "Previous 7 Days"
+                    else -> "Older"
+                }
+                groups.getOrPut(groupKey) { mutableListOf() }.add(item)
             }
-            groups.getOrPut(groupKey) { mutableListOf() }.add(item)
+            groups
         }
-        groups
     }
 
     Box(
@@ -574,6 +595,14 @@ fun HistoryScreen(
                                     }
                                 )
                             }
+                        }
+                    }
+                    if (filteredHistory.size > displayLimit) {
+                        item(key = "load_more_trigger", contentType = "loader") {
+                            LaunchedEffect(Unit) {
+                                displayLimit = (displayLimit + 50).coerceAtMost(filteredHistory.size)
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
                         }
                     }
                     item(key = "bottom_spacer", contentType = "spacer") {

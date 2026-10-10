@@ -308,10 +308,21 @@ object HistoryManager {
                 _history.value = sqlList
             }
             if (!isIncinerating.get()) {
-                saveToDisk(context)
+                scheduleSaveToDisk(context)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to refresh history: ${e.message}")
+        }
+    }
+
+    private var saveJob: kotlinx.coroutines.Job? = null
+
+    private fun scheduleSaveToDisk(context: Context) {
+        if (isIncinerating.get()) return
+        saveJob?.cancel()
+        saveJob = scope.launch {
+            kotlinx.coroutines.delay(2000)
+            saveToDisk(context)
         }
     }
 
