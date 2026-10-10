@@ -31,8 +31,10 @@ jobs:
           test -f "$METADATA_DIR/title.txt" || (echo "Missing title.txt" && exit 1)
           test -f "$METADATA_DIR/short_description.txt" || (echo "Missing short_description.txt" && exit 1)
           test -f "$METADATA_DIR/full_description.txt" || (echo "Missing full_description.txt" && exit 1)
+          test -f "$METADATA_DIR/images/icon.png" || (echo "Missing icon.png" && exit 1)
+          test -d "$METADATA_DIR/images/phoneScreenshots" || (echo "Missing phoneScreenshots" && exit 1)
           test -f ".fdroid.yml" || (echo "Missing .fdroid.yml" && exit 1)
-          echo "All F-Droid metadata files are valid and present."
+          echo "All F-Droid metadata files, icon, and screenshots are valid and present."
 
       - name: Scan for Proprietary Tracking SDKs (Zero Anti-Features)
         run: |
