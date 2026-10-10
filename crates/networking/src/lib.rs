@@ -148,7 +148,11 @@ impl HtmlExtractor {
     }
 
     fn clean_text(text: &str) -> String {
-        let no_tags = text.replace("&nbsp;", " ").replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'");
+        let no_tags = text
+            .replace("&nbsp;", " ")
+            .replace("&amp;", "&")
+            .replace("&quot;", "\"")
+            .replace("&#39;", "'");
         no_tags.split_whitespace().collect::<Vec<_>>().join(" ")
     }
 }
@@ -172,7 +176,10 @@ impl SovereignNetworkingEngine {
         let dns = Arc::new(SovereignDnsResolver::new());
         let proxy = Arc::new(ProxyRouter::new());
         let http = Arc::new(SovereignHttpClient::new(dns.clone()));
-        let search_api = Arc::new(SearchApiClient::new(http.clone(), "https://search.azokle.com"));
+        let search_api = Arc::new(SearchApiClient::new(
+            http.clone(),
+            "https://search.azokle.com",
+        ));
 
         Self {
             dns,

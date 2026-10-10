@@ -21,7 +21,9 @@ impl ScriptletEngine {
     pub fn register_scriptlet(&self, domain: &str, script_content: &str) {
         let clean = domain.trim().to_lowercase();
         if !clean.is_empty() && !script_content.is_empty() {
-            self.domain_scriptlets.write().insert(clean, script_content.to_string());
+            self.domain_scriptlets
+                .write()
+                .insert(clean, script_content.to_string());
         }
     }
 
@@ -43,4 +45,3 @@ impl ScriptletEngine {
         None
     }
 }
-

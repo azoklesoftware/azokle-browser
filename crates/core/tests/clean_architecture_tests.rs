@@ -1,6 +1,6 @@
+use azokle_core::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use azokle_core::*;
 
 struct MockEnginePort {
     loaded_uris: Mutex<Vec<(TabId, String)>>,
@@ -16,7 +16,10 @@ impl MockEnginePort {
 
 impl EnginePort for MockEnginePort {
     fn load_uri(&self, tab_id: TabId, uri: &str) -> Result<(), String> {
-        self.loaded_uris.lock().unwrap().push((tab_id, uri.to_string()));
+        self.loaded_uris
+            .lock()
+            .unwrap()
+            .push((tab_id, uri.to_string()));
         Ok(())
     }
 
@@ -103,7 +106,8 @@ fn test_navigation_use_case_debounce_and_strip() {
 
     let req = NavigationRequest {
         tab_id: TabId(1),
-        target_url: "https://bounce-tracker.com?dest=https://example.com/page?fbclid=12345".to_string(),
+        target_url: "https://bounce-tracker.com?dest=https://example.com/page?fbclid=12345"
+            .to_string(),
         source_origin: None,
         request_type: "main_frame".to_string(),
         is_user_initiated: true,
@@ -150,7 +154,11 @@ fn test_navigation_use_case_shield_block() {
     }
 
     let loaded = mock_engine.loaded_uris.lock().unwrap();
-    assert_eq!(loaded.len(), 0, "Blocked requests must never reach the engine port");
+    assert_eq!(
+        loaded.len(),
+        0,
+        "Blocked requests must never reach the engine port"
+    );
 }
 
 #[test]
@@ -159,17 +167,43 @@ fn test_tab_use_case_private_mode_isolation() {
     let use_case = TabUseCase::new(Some(storage.clone()));
 
     // Normal Tab should be saved
-    let normal_tab = use_case.create_tab(TabId(101), "https://example.com".to_string(), false, false, 1000);
+    let normal_tab = use_case.create_tab(
+        TabId(101),
+        "https://example.com".to_string(),
+        false,
+        false,
+        1000,
+    );
     assert_eq!(normal_tab.state, TabState::Active);
     assert_eq!(storage.saved_tabs.lock().unwrap().len(), 1);
 
     // Private Tab must NEVER be persisted
-    let private_tab = use_case.create_tab(TabId(102), "https://secret.org".to_string(), true, false, 1001);
+    let private_tab = use_case.create_tab(
+        TabId(102),
+        "https://secret.org".to_string(),
+        true,
+        false,
+        1001,
+    );
     assert!(private_tab.is_private);
-    assert_eq!(storage.saved_tabs.lock().unwrap().len(), 1, "Private tab must not be persisted to storage port");
+    assert_eq!(
+        storage.saved_tabs.lock().unwrap().len(),
+        1,
+        "Private tab must not be persisted to storage port"
+    );
 
     // Tor Tab must NEVER be persisted
-    let tor_tab = use_case.create_tab(TabId(103), "http://onionaddress.onion".to_string(), false, true, 1002);
+    let tor_tab = use_case.create_tab(
+        TabId(103),
+        "http://onionaddress.onion".to_string(),
+        false,
+        true,
+        1002,
+    );
     assert!(tor_tab.is_tor);
-    assert_eq!(storage.saved_tabs.lock().unwrap().len(), 1, "Tor tab must not be persisted to storage port");
+    assert_eq!(
+        storage.saved_tabs.lock().unwrap().len(),
+        1,
+        "Tor tab must not be persisted to storage port"
+    );
 }

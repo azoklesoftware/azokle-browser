@@ -40,7 +40,14 @@ pub struct TabSession {
 
 impl TabSession {
     /// Constructs a new tab session initialized with defaults.
-    pub fn new(url: &str, title: &str, is_private: bool, is_tor: bool, group_id: Option<&str>, group_title: Option<&str>) -> Self {
+    pub fn new(
+        url: &str,
+        title: &str,
+        is_private: bool,
+        is_tor: bool,
+        group_id: Option<&str>,
+        group_title: Option<&str>,
+    ) -> Self {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_millis() as u64)
@@ -50,8 +57,16 @@ impl TabSession {
 
         Self {
             id,
-            url: if url.is_empty() { "https://search.azokle.com".to_string() } else { url.to_string() },
-            title: if title.is_empty() { "New Tab".to_string() } else { title.to_string() },
+            url: if url.is_empty() {
+                "https://search.azokle.com".to_string()
+            } else {
+                url.to_string()
+            },
+            title: if title.is_empty() {
+                "New Tab".to_string()
+            } else {
+                title.to_string()
+            },
             favicon_url: None,
             is_private,
             is_tor,
@@ -100,7 +115,14 @@ impl Default for TabManager {
 impl TabManager {
     /// Initializes a tab manager with a default home tab.
     pub fn new() -> Self {
-        let default_tab = TabSession::new("https://search.azokle.com", "New Tab", false, false, None, None);
+        let default_tab = TabSession::new(
+            "https://search.azokle.com",
+            "New Tab",
+            false,
+            false,
+            None,
+            None,
+        );
         let id = default_tab.id.clone();
 
         Self {
@@ -112,7 +134,15 @@ impl TabManager {
     }
 
     /// Spawns a new tab session and sets it as the active tab.
-    pub fn open_tab(&self, url: &str, title: &str, is_private: bool, is_tor: bool, group_id: Option<&str>, group_title: Option<&str>) -> TabSession {
+    pub fn open_tab(
+        &self,
+        url: &str,
+        title: &str,
+        is_private: bool,
+        is_tor: bool,
+        group_id: Option<&str>,
+        group_title: Option<&str>,
+    ) -> TabSession {
         let session = TabSession::new(url, title, is_private, is_tor, group_id, group_title);
         let id = session.id.clone();
 
@@ -180,7 +210,10 @@ impl TabManager {
     pub fn set_active_tab(&self, id: &str) -> bool {
         let exists = self.tabs.read().iter().any(|t| t.id == id);
         if exists {
-            let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
             let mut tabs = self.tabs.write();
             if let Some(tab) = tabs.iter_mut().find(|t| t.id == id) {
                 tab.last_accessed_at = now;
@@ -249,7 +282,8 @@ impl TabManager {
     /// Strictly filters out all private and Tor tabs before serialization.
     pub fn export_persistent_json(&self) -> String {
         let tabs = self.tabs.read();
-        let persistent_tabs: Vec<&TabSession> = tabs.iter().filter(|t| !t.is_private && !t.is_tor).collect();
+        let persistent_tabs: Vec<&TabSession> =
+            tabs.iter().filter(|t| !t.is_private && !t.is_tor).collect();
         serde_json::to_string(&persistent_tabs).unwrap_or_else(|_| "[]".to_string())
     }
 
@@ -318,7 +352,14 @@ mod tests {
     #[test]
     fn test_auto_domain_grouping() {
         let manager = TabManager::new();
-        manager.open_tab("https://www.youtube.com/watch?v=123", "Video", false, false, None, None);
+        manager.open_tab(
+            "https://www.youtube.com/watch?v=123",
+            "Video",
+            false,
+            false,
+            None,
+            None,
+        );
         manager.auto_group_by_domain();
 
         let tabs = manager.get_all_tabs();

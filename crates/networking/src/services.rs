@@ -31,7 +31,10 @@ pub struct SearchApiClient {
 
 impl Default for SearchApiClient {
     fn default() -> Self {
-        Self::new(Arc::new(SovereignHttpClient::default()), "https://search.azokle.com")
+        Self::new(
+            Arc::new(SovereignHttpClient::default()),
+            "https://search.azokle.com",
+        )
     }
 }
 
@@ -78,12 +81,17 @@ impl SearchApiClient {
     }
 
     /// Executes full Azokle Search API query.
-    pub fn execute_search(&self, query: &str, page: u32) -> Result<SearchApiResponse, NetworkError> {
+    pub fn execute_search(
+        &self,
+        query: &str,
+        page: u32,
+    ) -> Result<SearchApiResponse, NetworkError> {
         let clean = query.trim();
         let body_json = serde_json::json!({
             "query": clean,
             "page": page
-        }).to_string();
+        })
+        .to_string();
 
         let mut req = HttpRequest::post(
             &format!("{}/api/v1/search", self.base_url),
@@ -94,8 +102,8 @@ impl SearchApiClient {
         let response = self.http.execute(req)?;
         let body_str = response.body_as_string();
 
-        let parsed: SearchApiResponse = serde_json::from_str(&body_str)
-            .unwrap_or_else(|_| SearchApiResponse {
+        let parsed: SearchApiResponse =
+            serde_json::from_str(&body_str).unwrap_or_else(|_| SearchApiResponse {
                 query: clean.to_string(),
                 page,
                 results: Vec::new(),

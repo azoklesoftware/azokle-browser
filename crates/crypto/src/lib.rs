@@ -28,7 +28,8 @@ mod tests {
 
     #[test]
     fn test_sovereign_passkey_creation_and_signing() {
-        let (mut passkey, cred_id) = SovereignPasskey::create("github.com", "azokledev", b"user_12345").unwrap();
+        let (mut passkey, cred_id) =
+            SovereignPasskey::create("github.com", "azokledev", b"user_12345").unwrap();
         assert_eq!(passkey.rp_id, "github.com");
         assert_eq!(passkey.user_name, "azokledev");
         assert!(!passkey.public_key_der_b64.is_empty());

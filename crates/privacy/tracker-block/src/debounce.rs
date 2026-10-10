@@ -125,7 +125,8 @@ impl DebounceEngine {
                         if k.eq_ignore_ascii_case(&pat.param_name) {
                             let candidate = v.trim();
                             // If the candidate looks like a valid http/https URL, return it
-                            if (candidate.starts_with("http://") || candidate.starts_with("https://"))
+                            if (candidate.starts_with("http://")
+                                || candidate.starts_with("https://"))
                                 && Url::parse(candidate).is_ok()
                             {
                                 return Some(candidate.to_string());
@@ -162,7 +163,10 @@ mod tests {
 
         let bounce_url = "https://cc.zdnet.com/v1/otc/redirect?tracker=123&url=https%3A%2F%2Fexample.com%2Ftarget-product";
         let unwrapped = engine.unwrap_bounce_url(bounce_url);
-        assert_eq!(unwrapped, Some("https://example.com/target-product".to_string()));
+        assert_eq!(
+            unwrapped,
+            Some("https://example.com/target-product".to_string())
+        );
 
         let regular_url = "https://example.com/about?team=1";
         assert_eq!(engine.unwrap_bounce_url(regular_url), None);

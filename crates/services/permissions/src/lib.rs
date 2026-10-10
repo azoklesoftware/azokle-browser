@@ -140,7 +140,8 @@ impl PermissionsManager {
                 let host_clean = host.trim_matches('/').to_lowercase();
                 let port = parsed.port_or_known_default();
                 if let Some(p) = port {
-                    let is_default = (scheme == "http" && p == 80) || (scheme == "https" && p == 443);
+                    let is_default =
+                        (scheme == "http" && p == 80) || (scheme == "https" && p == 443);
                     if is_default {
                         format!("{}://{}", scheme, host_clean)
                     } else {
@@ -157,7 +158,13 @@ impl PermissionsManager {
         }
     }
 
-    pub fn set_permission(&self, origin: &str, perm: PermissionType, state: PermissionState, is_private: bool) {
+    pub fn set_permission(
+        &self,
+        origin: &str,
+        perm: PermissionType,
+        state: PermissionState,
+        is_private: bool,
+    ) {
         let canon = Self::canonicalize_origin(origin);
         if canon.is_empty() {
             return;
@@ -174,7 +181,12 @@ impl PermissionsManager {
         self.record_audit(&canon, perm, state, is_private);
     }
 
-    pub fn get_permission(&self, origin: &str, perm: PermissionType, is_private: bool) -> PermissionState {
+    pub fn get_permission(
+        &self,
+        origin: &str,
+        perm: PermissionType,
+        is_private: bool,
+    ) -> PermissionState {
         let canon = Self::canonicalize_origin(origin);
         if canon.is_empty() {
             return PermissionState::Prompt;
@@ -222,7 +234,13 @@ impl PermissionsManager {
     // Audit History & Security Logging
     // -------------------------------------------------------------------------
 
-    pub fn record_audit(&self, origin: &str, perm: PermissionType, state: PermissionState, is_private: bool) -> PermissionAuditRecord {
+    pub fn record_audit(
+        &self,
+        origin: &str,
+        perm: PermissionType,
+        state: PermissionState,
+        is_private: bool,
+    ) -> PermissionAuditRecord {
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as u64)
@@ -356,14 +374,24 @@ mod tests {
         let manager = PermissionsManager::new();
 
         // 1. Persistent partition
-        manager.set_permission("https://example.com", PermissionType::Camera, PermissionState::Allow, false);
+        manager.set_permission(
+            "https://example.com",
+            PermissionType::Camera,
+            PermissionState::Allow,
+            false,
+        );
         assert_eq!(
             manager.get_permission("https://example.com", PermissionType::Camera, false),
             PermissionState::Allow
         );
 
         // 2. Ephemeral Private partition
-        manager.set_permission("https://private.com", PermissionType::Microphone, PermissionState::Block, true);
+        manager.set_permission(
+            "https://private.com",
+            PermissionType::Microphone,
+            PermissionState::Block,
+            true,
+        );
         assert_eq!(
             manager.get_permission("https://private.com", PermissionType::Microphone, true),
             PermissionState::Block
@@ -389,8 +417,18 @@ mod tests {
     #[test]
     fn test_permission_audit_history() {
         let manager = PermissionsManager::new();
-        manager.set_permission("https://github.com", PermissionType::Geolocation, PermissionState::Allow, false);
-        manager.set_permission("https://tracker.com", PermissionType::Camera, PermissionState::Block, false);
+        manager.set_permission(
+            "https://github.com",
+            PermissionType::Geolocation,
+            PermissionState::Allow,
+            false,
+        );
+        manager.set_permission(
+            "https://tracker.com",
+            PermissionType::Camera,
+            PermissionState::Block,
+            false,
+        );
 
         let audit = manager.get_audit_history(10, 0);
         assert_eq!(audit.len(), 2);
@@ -405,7 +443,12 @@ mod tests {
     #[test]
     fn test_export_import_json() {
         let manager = PermissionsManager::new();
-        manager.set_permission("https://test.com", PermissionType::Geolocation, PermissionState::Allow, false);
+        manager.set_permission(
+            "https://test.com",
+            PermissionType::Geolocation,
+            PermissionState::Allow,
+            false,
+        );
 
         let json = manager.export_persistent_json();
         assert!(json.contains("Geolocation"));

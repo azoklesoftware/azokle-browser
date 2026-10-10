@@ -23,19 +23,60 @@ impl TrackerDb {
         let mut known_tracker_domains = HashSet::new();
         // Seed top tracker networks
         let seed_domains = [
-            "google-analytics.com", "ssl.google-analytics.com", "analytics.google.com",
-            "googletagmanager.com", "googletagservices.com", "tagmanager.google.com",
-            "pixel.facebook.com", "an.facebook.com", "connect.facebook.net", "analytics.facebook.com",
-            "tr.snapchat.com", "analytics.tiktok.com", "ads.tiktok.com", "ads-twitter.com",
-            "analytics.twitter.com", "t.co", "ads.linkedin.com", "snap.licdn.com",
-            "scorecardresearch.com", "pixel.quantserve.com", "quantcast.com", "moatads.com",
-            "clarity.ms", "c.bing.com", "bat.bing.com", "mc.yandex.ru", "hotjar.com",
-            "static.hotjar.com", "script.hotjar.com", "mouseflow.com", "crazyegg.com",
-            "fullstory.com", "segment.io", "segment.com", "mixpanel.com", "amplitude.com",
-            "heapanalytics.com", "branch.io", "appsflyer.com", "adjust.com", "kochava.com",
-            "singular.net", "logrocket.com", "chartbeat.com", "chartbeat.net", "parsely.com",
-            "optimizely.com", "statcounter.com", "sentry.io", "browser.sentry-cdn.com",
-            "telemetry.mozilla.org", "newrelic.com", "datadoghq.com", "bugsnag.com",
+            "google-analytics.com",
+            "ssl.google-analytics.com",
+            "analytics.google.com",
+            "googletagmanager.com",
+            "googletagservices.com",
+            "tagmanager.google.com",
+            "pixel.facebook.com",
+            "an.facebook.com",
+            "connect.facebook.net",
+            "analytics.facebook.com",
+            "tr.snapchat.com",
+            "analytics.tiktok.com",
+            "ads.tiktok.com",
+            "ads-twitter.com",
+            "analytics.twitter.com",
+            "t.co",
+            "ads.linkedin.com",
+            "snap.licdn.com",
+            "scorecardresearch.com",
+            "pixel.quantserve.com",
+            "quantcast.com",
+            "moatads.com",
+            "clarity.ms",
+            "c.bing.com",
+            "bat.bing.com",
+            "mc.yandex.ru",
+            "hotjar.com",
+            "static.hotjar.com",
+            "script.hotjar.com",
+            "mouseflow.com",
+            "crazyegg.com",
+            "fullstory.com",
+            "segment.io",
+            "segment.com",
+            "mixpanel.com",
+            "amplitude.com",
+            "heapanalytics.com",
+            "branch.io",
+            "appsflyer.com",
+            "adjust.com",
+            "kochava.com",
+            "singular.net",
+            "logrocket.com",
+            "chartbeat.com",
+            "chartbeat.net",
+            "parsely.com",
+            "optimizely.com",
+            "statcounter.com",
+            "sentry.io",
+            "browser.sentry-cdn.com",
+            "telemetry.mozilla.org",
+            "newrelic.com",
+            "datadoghq.com",
+            "bugsnag.com",
         ];
 
         for d in seed_domains {
@@ -48,7 +89,10 @@ impl TrackerDb {
         cname_cloaked_mappings.insert("cname.segment.io".to_string(), "segment.io".to_string());
         cname_cloaked_mappings.insert("sc.omtrdc.net".to_string(), "omtrdc.net".to_string());
         cname_cloaked_mappings.insert("cname.branch.io".to_string(), "branch.io".to_string());
-        cname_cloaked_mappings.insert("cname.appsflyer.com".to_string(), "appsflyer.com".to_string());
+        cname_cloaked_mappings.insert(
+            "cname.appsflyer.com".to_string(),
+            "appsflyer.com".to_string(),
+        );
 
         Self {
             known_tracker_domains,
@@ -58,10 +102,8 @@ impl TrackerDb {
 
     /// Registers an uncloaking alias mapping a pseudo-first-party hostname to its actual tracking destination.
     pub fn add_cname_mapping(&mut self, cloaked_host: &str, uncloaked_host: &str) {
-        self.cname_cloaked_mappings.insert(
-            cloaked_host.to_lowercase(),
-            uncloaked_host.to_lowercase(),
-        );
+        self.cname_cloaked_mappings
+            .insert(cloaked_host.to_lowercase(), uncloaked_host.to_lowercase());
     }
 
     /// Resolves the actual tracking hostname if the provided host is registered in the CNAME alias map.

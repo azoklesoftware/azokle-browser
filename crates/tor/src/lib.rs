@@ -118,8 +118,12 @@ impl TorController {
             .map_err(|e| format!("Invalid control address: {}", e))?;
 
         let timeout = Duration::from_millis(1500);
-        let mut stream = TcpStream::connect_timeout(&addr, timeout)
-            .map_err(|e| format!("Failed to connect to Tor control port {}: {}", control_port, e))?;
+        let mut stream = TcpStream::connect_timeout(&addr, timeout).map_err(|e| {
+            format!(
+                "Failed to connect to Tor control port {}: {}",
+                control_port, e
+            )
+        })?;
 
         let _ = stream.set_read_timeout(Some(timeout));
         let _ = stream.set_write_timeout(Some(timeout));
@@ -129,31 +133,42 @@ impl TorController {
             _ => "AUTHENTICATE \"\"\r\n".to_string(),
         };
 
-        stream.write_all(auth_cmd.as_bytes())
+        stream
+            .write_all(auth_cmd.as_bytes())
             .map_err(|e| format!("Control socket write error: {}", e))?;
 
         let mut buf = [0u8; 128];
-        let n = stream.read(&mut buf)
+        let n = stream
+            .read(&mut buf)
             .map_err(|e| format!("Control socket auth read error: {}", e))?;
 
         let response = String::from_utf8_lossy(&buf[..n]);
         if !response.starts_with("250") {
-            return Err(format!("Control port authentication rejected: {}", response.trim()));
+            return Err(format!(
+                "Control port authentication rejected: {}",
+                response.trim()
+            ));
         }
 
         // Send SIGNAL NEWNYM to switch to fresh onion circuits
-        stream.write_all(b"SIGNAL NEWNYM\r\n")
+        stream
+            .write_all(b"SIGNAL NEWNYM\r\n")
             .map_err(|e| format!("Failed to send SIGNAL NEWNYM: {}", e))?;
 
-        let n = stream.read(&mut buf)
+        let n = stream
+            .read(&mut buf)
             .map_err(|e| format!("Failed to read NEWNYM response: {}", e))?;
 
         let signal_resp = String::from_utf8_lossy(&buf[..n]);
         if signal_resp.starts_with("250") {
-            let circuit_id = format!("0x{:X}", std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_millis() & 0xFFFFFFFF);
+            let circuit_id = format!(
+                "0x{:X}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis()
+                    & 0xFFFFFFFF
+            );
             Ok(circuit_id)
         } else {
             Err(format!("SIGNAL NEWNYM rejected: {}", signal_resp.trim()))
@@ -165,14 +180,21 @@ impl TorController {
         let start = std::time::Instant::now();
         let is_ready = Self::probe_socks5_handshake(socks_port, 1000);
         if !is_ready {
-            return Err(format!("SOCKS5 proxy on port {} is not accepting connections", socks_port));
+            return Err(format!(
+                "SOCKS5 proxy on port {} is not accepting connections",
+                socks_port
+            ));
         }
         let latency_ms = start.elapsed().as_millis().max(1) as u32;
 
-        let circuit_id = format!("0x{:08X}", std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis() & 0xFFFFFFFF);
+        let circuit_id = format!(
+            "0x{:08X}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis()
+                & 0xFFFFFFFF
+        );
 
         Ok(TorExitInfo {
             is_tor: true,
@@ -258,9 +280,14 @@ mod tests {
         assert_eq!(tor.get_status(), TorStatus::Disabled);
 
         // 1. Onion URLs
-        assert!(TorController::is_onion_url("duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion"));
+        assert!(TorController::is_onion_url(
+            "duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion"
+        ));
         assert_eq!(
-            TorController::resolve_tor_url("duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion", "https://duckduckgo.com/?q="),
+            TorController::resolve_tor_url(
+                "duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion",
+                "https://duckduckgo.com/?q="
+            ),
             "http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion"
         );
 
@@ -276,7 +303,10 @@ mod tests {
 
         // 3. Search Queries
         assert_eq!(
-            TorController::resolve_tor_url("sovereign privacy browser", "https://duckduckgo.com/?q="),
+            TorController::resolve_tor_url(
+                "sovereign privacy browser",
+                "https://duckduckgo.com/?q="
+            ),
             "https://duckduckgo.com/?q=sovereign+privacy+browser"
         );
     }

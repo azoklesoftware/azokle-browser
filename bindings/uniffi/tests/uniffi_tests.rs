@@ -5,7 +5,8 @@ fn test_universal_browser_engine_lifecycle() {
     let engine = UniversalBrowserEngine::new();
 
     // 1. Check strip tracking params
-    let cleaned = engine.strip_tracking_params("https://example.com/?utm_source=test&utm_medium=cpc".to_string());
+    let cleaned = engine
+        .strip_tracking_params("https://example.com/?utm_source=test&utm_medium=cpc".to_string());
     assert!(!cleaned.contains("utm_source"));
 
     // 2. Check stats retrieval

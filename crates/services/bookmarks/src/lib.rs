@@ -57,7 +57,11 @@ impl BookmarkManager {
         let id = format!("bm_{}_{}", now_ms, self.items.read().len());
         let item = BookmarkItem {
             id,
-            title: if title.trim().is_empty() { url_str.to_string() } else { title.trim().to_string() },
+            title: if title.trim().is_empty() {
+                url_str.to_string()
+            } else {
+                title.trim().to_string()
+            },
             url: url_str.trim().to_string(),
             parent_folder_id: parent_folder_id.map(|s| s.to_string()),
             date_added: now_ms,
@@ -152,7 +156,10 @@ impl BookmarkManager {
         if clean.is_empty() {
             return false;
         }
-        self.items.read().iter().any(|b| !b.is_folder && b.url.to_lowercase() == clean)
+        self.items
+            .read()
+            .iter()
+            .any(|b| !b.is_folder && b.url.to_lowercase() == clean)
     }
 
     pub fn get_all(&self) -> Vec<BookmarkItem> {
@@ -221,7 +228,10 @@ mod tests {
         // 4. Update
         assert!(manager.update_item(&b1.id, Some("Azokle Sovereign"), None, None, None));
         let updated = manager.get_all();
-        assert_eq!(updated.iter().find(|b| b.id == b1.id).unwrap().title, "Azokle Sovereign");
+        assert_eq!(
+            updated.iter().find(|b| b.id == b1.id).unwrap().title,
+            "Azokle Sovereign"
+        );
 
         // 5. Remove folder deletes children
         assert!(manager.remove_item(&folder.id));

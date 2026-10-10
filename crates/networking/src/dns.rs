@@ -124,7 +124,9 @@ impl SovereignDnsResolver {
         // 4. Resolve via known bootstrap endpoints or system fallback
         let resolved = self.resolve_internal(&clean)?;
         if !resolved.is_empty() {
-            self.cache.write().insert(clean, (resolved.clone(), Instant::now()));
+            self.cache
+                .write()
+                .insert(clean, (resolved.clone(), Instant::now()));
         }
         Ok(resolved)
     }
@@ -146,7 +148,10 @@ impl SovereignDnsResolver {
         };
 
         if ips.is_empty() {
-            Err(NetworkError::DnsError(format!("No IP addresses found for {}", host)))
+            Err(NetworkError::DnsError(format!(
+                "No IP addresses found for {}",
+                host
+            )))
         } else {
             Ok(ips)
         }
@@ -164,7 +169,8 @@ mod tests {
     #[test]
     fn test_onion_dns_leak_shield() {
         let resolver = SovereignDnsResolver::new();
-        let result = resolver.resolve("duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion");
+        let result =
+            resolver.resolve("duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion");
         assert!(result.is_err());
         match result {
             Err(NetworkError::DnsLeakPrevented(_)) => {}
@@ -187,6 +193,9 @@ mod tests {
 
         resolver.set_provider(DnsProvider::Quad9);
         assert_eq!(resolver.get_provider(), DnsProvider::Quad9);
-        assert_eq!(resolver.get_provider().get_doh_url(), Some("https://dns.quad9.net/dns-query"));
+        assert_eq!(
+            resolver.get_provider().get_doh_url(),
+            Some("https://dns.quad9.net/dns-query")
+        );
     }
 }

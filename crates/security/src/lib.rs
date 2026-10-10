@@ -51,7 +51,9 @@ mod tests {
     #[test]
     fn test_cosmetic_rules_and_scriptlets() {
         let engine = ShieldEngine::new();
-        engine.load_cosmetic_rules("##.ad-banner\nnytimes.com##.special-sponsored\nnytimes.com#@#.allowed-promo");
+        engine.load_cosmetic_rules(
+            "##.ad-banner\nnytimes.com##.special-sponsored\nnytimes.com#@#.allowed-promo",
+        );
 
         let general_css = engine.get_cosmetic_css("example.com");
         assert!(general_css.contains(".ad-banner"));
@@ -65,8 +67,10 @@ mod tests {
         // Test declarative scriptlet registration and resolution
         engine.register_scriptlet("kick.com", "window.__kick_defused = true;");
         assert!(engine.get_scriptlets("kick.com").is_some());
-        assert_eq!(engine.get_scriptlets("kick.com").unwrap(), "window.__kick_defused = true;");
+        assert_eq!(
+            engine.get_scriptlets("kick.com").unwrap(),
+            "window.__kick_defused = true;"
+        );
         assert!(engine.get_scriptlets("example.com").is_none());
     }
 }
-

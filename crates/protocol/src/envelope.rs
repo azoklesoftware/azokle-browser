@@ -116,8 +116,12 @@ mod tests {
             group_title: None,
         });
 
-        let envelope = ProtocolEnvelope::new(MessageEndpoint::AndroidUI, MessageEndpoint::RustCore, payload)
-            .with_correlation("req_100");
+        let envelope = ProtocolEnvelope::new(
+            MessageEndpoint::AndroidUI,
+            MessageEndpoint::RustCore,
+            payload,
+        )
+        .with_correlation("req_100");
 
         let json = envelope.to_json().unwrap();
         let decoded = ProtocolEnvelope::from_json(&json).unwrap();
@@ -132,7 +136,8 @@ mod tests {
             query: "privacy browser".to_string(),
         });
 
-        let envelope = ProtocolEnvelope::new(MessageEndpoint::IosUI, MessageEndpoint::RustCore, payload);
+        let envelope =
+            ProtocolEnvelope::new(MessageEndpoint::IosUI, MessageEndpoint::RustCore, payload);
         let cbor = envelope.to_cbor().unwrap();
         let decoded = ProtocolEnvelope::from_cbor(&cbor).unwrap();
 

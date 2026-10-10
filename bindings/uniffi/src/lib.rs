@@ -1,9 +1,9 @@
 uniffi::setup_scaffolding!();
 
-use std::sync::Arc;
-use std::sync::atomic::Ordering;
 use azokle_core::AzokleCoreEngine;
 use azokle_core::BlockCategory;
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
 #[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UniversalFilterAction {
@@ -56,7 +56,12 @@ impl UniversalBrowserEngine {
         if let Some(ref src) = source_origin {
             if let Ok(src_url) = url::Url::parse(src) {
                 if let Some(src_host) = src_url.host_str() {
-                    if self.core.disabled_hosts.read().contains(&src_host.to_lowercase()) {
+                    if self
+                        .core
+                        .disabled_hosts
+                        .read()
+                        .contains(&src_host.to_lowercase())
+                    {
                         return UniversalFilterDecision {
                             action: UniversalFilterAction::Allow,
                             category: None,
@@ -68,21 +73,34 @@ impl UniversalBrowserEngine {
             }
         }
 
-        let decision = self.core.adblock.check_url(
-            &url,
-            source_origin.as_deref(),
-            is_third_party,
-        );
+        let decision = self
+            .core
+            .adblock
+            .check_url(&url, source_origin.as_deref(), is_third_party);
 
         if decision.should_block {
             self.core.stats_total.fetch_add(1, Ordering::Relaxed);
             match decision.category {
-                BlockCategory::Ad => { self.core.stats_ads.fetch_add(1, Ordering::Relaxed); }
-                BlockCategory::Tracker => { self.core.stats_trackers.fetch_add(1, Ordering::Relaxed); }
-                BlockCategory::Telemetry => { self.core.stats_telemetry.fetch_add(1, Ordering::Relaxed); }
-                BlockCategory::Fingerprinting => { self.core.stats_fingerprinting.fetch_add(1, Ordering::Relaxed); }
-                BlockCategory::Annoyance => { self.core.stats_annoyances.fetch_add(1, Ordering::Relaxed); }
-                BlockCategory::Cryptomining => { self.core.stats_cryptominers.fetch_add(1, Ordering::Relaxed); }
+                BlockCategory::Ad => {
+                    self.core.stats_ads.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Tracker => {
+                    self.core.stats_trackers.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Telemetry => {
+                    self.core.stats_telemetry.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Fingerprinting => {
+                    self.core
+                        .stats_fingerprinting
+                        .fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Annoyance => {
+                    self.core.stats_annoyances.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Cryptomining => {
+                    self.core.stats_cryptominers.fetch_add(1, Ordering::Relaxed);
+                }
                 _ => {}
             }
 
@@ -90,7 +108,9 @@ impl UniversalBrowserEngine {
                 action: UniversalFilterAction::Block,
                 category: Some(format!("{:?}", decision.category)),
                 redirect_url: None,
-                reason: decision.matched_rule.unwrap_or_else(|| "Blocked by Shield".to_string()),
+                reason: decision
+                    .matched_rule
+                    .unwrap_or_else(|| "Blocked by Shield".to_string()),
             }
         } else {
             UniversalFilterDecision {
@@ -125,7 +145,10 @@ impl UniversalBrowserEngine {
 
     pub fn set_host_shield_enabled(&self, host: String, enabled: bool) {
         if enabled {
-            self.core.disabled_hosts.write().remove(&host.to_lowercase());
+            self.core
+                .disabled_hosts
+                .write()
+                .remove(&host.to_lowercase());
         } else {
             self.core.disabled_hosts.write().insert(host.to_lowercase());
         }
@@ -133,7 +156,10 @@ impl UniversalBrowserEngine {
 
     /// Converts standard AdBlock Plus syntax into native Apple WebKit WKContentRuleList JSON for iOS.
     pub fn convert_rules_to_content_blocking(&self, rules: String) -> String {
-        self.core.adblock.convert_to_content_blocking(&rules).unwrap_or_else(|_| "[]".to_string())
+        self.core
+            .adblock
+            .convert_to_content_blocking(&rules)
+            .unwrap_or_else(|_| "[]".to_string())
     }
 
     /// Retrieves declarative cosmetic CSS selectors for a specific domain.
@@ -148,11 +174,16 @@ impl UniversalBrowserEngine {
 
     /// Loads filter rules into the native adblock engine.
     pub fn load_filter_rules(&self, rules: String) -> u32 {
-        self.core.adblock.load_rules_from_text(&rules, BlockCategory::Ad) as u32
+        self.core
+            .adblock
+            .load_rules_from_text(&rules, BlockCategory::Ad) as u32
     }
 
     /// Loads surrogate resources and scriptlets JSON into the native engine.
     pub fn load_resources_json(&self, resources_json: String) -> u32 {
-        self.core.adblock.load_resources_json(&resources_json).unwrap_or(0) as u32
+        self.core
+            .adblock
+            .load_resources_json(&resources_json)
+            .unwrap_or(0) as u32
     }
 }

@@ -28,7 +28,10 @@ impl NavigationUseCase {
     /// with the sanitized final URL loaded into the target session.
     pub fn execute(&self, request: NavigationRequest) -> NavigationOutcome {
         // Step 1: Check bounce-tracking redirect bypass
-        let effective_url = if let Some(direct_dest) = self.shield_port.check_debounce_redirect(&request.target_url) {
+        let effective_url = if let Some(direct_dest) = self
+            .shield_port
+            .check_debounce_redirect(&request.target_url)
+        {
             direct_dest
         } else {
             request.target_url.clone()
@@ -42,12 +45,15 @@ impl NavigationUseCase {
         eval_request.target_url = sanitized_url.clone();
 
         match self.shield_port.evaluate(&eval_request) {
-            ShieldEvaluation::Block { category, rule_source } => {
-                NavigationOutcome::Blocked {
-                    reason: format!("Blocked category {:?} by {}", category, rule_source),
-                }
-            }
-            ShieldEvaluation::Redirect { destination_url, .. } => {
+            ShieldEvaluation::Block {
+                category,
+                rule_source,
+            } => NavigationOutcome::Blocked {
+                reason: format!("Blocked category {:?} by {}", category, rule_source),
+            },
+            ShieldEvaluation::Redirect {
+                destination_url, ..
+            } => {
                 let _ = self.engine_port.load_uri(request.tab_id, &destination_url);
                 NavigationOutcome::Proceed {
                     final_url: destination_url,

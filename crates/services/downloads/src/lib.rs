@@ -93,22 +93,39 @@ impl DownloadManager {
         let clean = name.trim().replace("..", "_");
         let sanitized: String = clean
             .chars()
-            .map(|c| if c.is_alphanumeric() || c == '.' || c == '-' || c == '_' { c } else { '_' })
+            .map(|c| {
+                if c.is_alphanumeric() || c == '.' || c == '-' || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
             .collect();
         let result = sanitized.trim_start_matches('.').trim();
         if result.is_empty() {
-            format!("download_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0))
+            format!(
+                "download_{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0)
+            )
         } else {
             result.chars().take(128).collect()
         }
     }
 
     /// Extracts or infers a filename from URL path, Content-Disposition, or MIME type.
-    pub fn extract_filename(url_str: &str, content_disposition: Option<&str>, mime_type: Option<&str>) -> String {
+    pub fn extract_filename(
+        url_str: &str,
+        content_disposition: Option<&str>,
+        mime_type: Option<&str>,
+    ) -> String {
         if let Some(cd) = content_disposition {
             if let Some(pos) = cd.to_lowercase().find("filename=") {
                 let name_part = &cd[pos + 9..];
-                let clean_name = name_part.trim_matches(|c| c == '"' || c == '\'' || c == ' ' || c == ';');
+                let clean_name =
+                    name_part.trim_matches(|c| c == '"' || c == '\'' || c == ' ' || c == ';');
                 if !clean_name.is_empty() {
                     return Self::sanitize_filename(clean_name);
                 }
@@ -273,7 +290,11 @@ mod tests {
         );
 
         assert_eq!(
-            DownloadManager::extract_filename("https://example.com/api/download", Some("attachment; filename=\"report.csv\""), None),
+            DownloadManager::extract_filename(
+                "https://example.com/api/download",
+                Some("attachment; filename=\"report.csv\""),
+                None
+            ),
             "report.csv"
         );
     }
@@ -281,7 +302,13 @@ mod tests {
     #[test]
     fn test_download_lifecycle() {
         let manager = DownloadManager::new();
-        let item = manager.create_download("https://example.com/file.zip", Some("file.zip"), "/downloads/file.zip", 2048, Some("application/zip"));
+        let item = manager.create_download(
+            "https://example.com/file.zip",
+            Some("file.zip"),
+            "/downloads/file.zip",
+            2048,
+            Some("application/zip"),
+        );
         assert_eq!(item.state, DownloadState::Downloading);
 
         // Progress update

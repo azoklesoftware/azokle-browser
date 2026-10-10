@@ -46,7 +46,11 @@ impl CosmeticEngine {
         }
 
         // Security check: reject rules attempting CSS breakout or comment injection
-        if trimmed.contains('{') || trimmed.contains('}') || trimmed.contains("/*") || trimmed.contains("*/") {
+        if trimmed.contains('{')
+            || trimmed.contains('}')
+            || trimmed.contains("/*")
+            || trimmed.contains("*/")
+        {
             return false;
         }
 
@@ -115,7 +119,8 @@ impl CosmeticEngine {
 
     pub fn get_css_for_domain(&self, domain: &str) -> String {
         let clean_domain = domain.to_lowercase();
-        let mut selectors: HashSet<&str> = self.global_selectors.iter().map(|s| s.as_str()).collect();
+        let mut selectors: HashSet<&str> =
+            self.global_selectors.iter().map(|s| s.as_str()).collect();
 
         // Add domain-specific selectors
         if let Some(domain_set) = self.domain_selectors.get(&clean_domain) {

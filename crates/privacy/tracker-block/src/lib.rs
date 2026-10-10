@@ -48,7 +48,9 @@ impl TrackerEngine {
     }
 
     pub fn add_cname_mapping(&self, cloaked_host: &str, uncloaked_host: &str) {
-        self.db.write().add_cname_mapping(cloaked_host, uncloaked_host);
+        self.db
+            .write()
+            .add_cname_mapping(cloaked_host, uncloaked_host);
     }
 
     pub fn strip_tracking_params(&self, url: &str) -> String {
@@ -98,6 +100,9 @@ mod tests {
         ]"#;
         engine.load_debounce_rules(debounce_json).unwrap();
         let bounce = "https://cc.zdnet.com/v1/otc/click?url=https%3A%2F%2Fstore.com%2Fitem";
-        assert_eq!(engine.unwrap_bounce_url(bounce), Some("https://store.com/item".to_string()));
+        assert_eq!(
+            engine.unwrap_bounce_url(bounce),
+            Some("https://store.com/item".to_string())
+        );
     }
 }

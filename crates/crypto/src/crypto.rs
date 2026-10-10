@@ -1,6 +1,4 @@
-use argon2::{
-    password_hash::rand_core::OsRng, Algorithm, Argon2, Params, Version,
-};
+use argon2::{password_hash::rand_core::OsRng, Algorithm, Argon2, Params, Version};
 use chacha20poly1305::{
     aead::{Aead, KeyInit},
     ChaCha20Poly1305, Nonce,

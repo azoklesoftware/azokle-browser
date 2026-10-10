@@ -114,7 +114,9 @@ impl SettingsManager {
         }
 
         let mut guard = self.settings.write();
-        guard.recent_searches.retain(|q| !q.eq_ignore_ascii_case(clean));
+        guard
+            .recent_searches
+            .retain(|q| !q.eq_ignore_ascii_case(clean));
         guard.recent_searches.insert(0, clean.to_string());
         if guard.recent_searches.len() > self.max_recent_searches {
             guard.recent_searches.truncate(self.max_recent_searches);
@@ -123,7 +125,10 @@ impl SettingsManager {
 
     pub fn remove_recent_search(&self, query: &str) {
         let clean = query.trim();
-        self.settings.write().recent_searches.retain(|q| !q.eq_ignore_ascii_case(clean));
+        self.settings
+            .write()
+            .recent_searches
+            .retain(|q| !q.eq_ignore_ascii_case(clean));
     }
 
     pub fn clear_recent_searches(&self) {

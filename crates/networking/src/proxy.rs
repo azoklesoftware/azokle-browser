@@ -96,7 +96,10 @@ mod tests {
         router.set_tor_mode(false, 9050);
 
         // .onion always gets TorIsolated even if global Tor is off
-        let route = router.get_route_for_request("http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion", false);
+        let route = router.get_route_for_request(
+            "http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion",
+            false,
+        );
         assert_eq!(route, NetworkRoute::TorIsolated { socks_port: 9050 });
 
         // Regular site gets Direct when Tor is off

@@ -80,7 +80,8 @@ mod tests {
                     "TabCloseAll": { "include_private": false }
                 }
             }
-        }).to_string();
+        })
+        .to_string();
 
         let res = ProtocolEnvelope::from_json(&json);
         match res {

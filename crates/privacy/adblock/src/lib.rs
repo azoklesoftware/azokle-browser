@@ -1,18 +1,15 @@
 pub mod category;
 
-pub use category::BlockCategory;
 pub use azokle_common::{FilterDecision, SovereignWhitelist};
+pub use category::BlockCategory;
 
-use parking_lot::RwLock;
-use std::sync::Arc;
 use adblock::lists::{FilterSet, ParseOptions, RuleTypes};
 use adblock::resources::Resource;
+use parking_lot::RwLock;
+use std::sync::Arc;
 
 /// Builds an optimized Brave adblock Engine from filter lists and surrogate resources.
-fn rebuild_brave_engine(
-    lists: &[String],
-    resources: &[Resource],
-) -> adblock::Engine {
+fn rebuild_brave_engine(lists: &[String], resources: &[Resource]) -> adblock::Engine {
     let mut filter_set = FilterSet::new(true);
     for list in lists {
         filter_set.add_filter_list(list.clone(), ParseOptions::default());
@@ -41,9 +38,17 @@ fn infer_request_type(url: &str) -> &'static str {
         "image"
     } else if path.ends_with(".css") {
         "stylesheet"
-    } else if path.ends_with(".woff") || path.ends_with(".woff2") || path.ends_with(".ttf") || path.ends_with(".otf") {
+    } else if path.ends_with(".woff")
+        || path.ends_with(".woff2")
+        || path.ends_with(".ttf")
+        || path.ends_with(".otf")
+    {
         "font"
-    } else if path.ends_with(".mp4") || path.ends_with(".webm") || path.ends_with(".m3u8") || path.ends_with(".ts") {
+    } else if path.ends_with(".mp4")
+        || path.ends_with(".webm")
+        || path.ends_with(".m3u8")
+        || path.ends_with(".ts")
+    {
         "media"
     } else if lower.contains("/beacon") || lower.contains("/ping") || lower.contains("/collect") {
         "ping"
@@ -90,7 +95,10 @@ impl AdBlockEngine {
         let res = self.resources.read();
         let new_engine = rebuild_brave_engine(&lists, &res);
         *self.primary_engine.write() = new_engine;
-        content.lines().filter(|l| !l.trim().is_empty() && !l.starts_with('!') && !l.starts_with('#')).count()
+        content
+            .lines()
+            .filter(|l| !l.trim().is_empty() && !l.starts_with('!') && !l.starts_with('#'))
+            .count()
     }
 
     /// Loads multiple filter lists in bulk for maximum initialization efficiency.
@@ -98,7 +106,10 @@ impl AdBlockEngine {
         let mut count = 0;
         let mut lists = self.primary_lists.write();
         for content in list_contents {
-            count += content.lines().filter(|l| !l.trim().is_empty() && !l.starts_with('!') && !l.starts_with('#')).count();
+            count += content
+                .lines()
+                .filter(|l| !l.trim().is_empty() && !l.starts_with('!') && !l.starts_with('#'))
+                .count();
             lists.push(content);
         }
         let res = self.resources.read();
@@ -109,8 +120,8 @@ impl AdBlockEngine {
 
     /// Loads surrogate resources and scriptlets (from uBlock / Brave resources JSON format).
     pub fn load_resources_json(&self, json_str: &str) -> Result<usize, String> {
-        let parsed_resources: Vec<Resource> =
-            serde_json::from_str(json_str).map_err(|e| format!("Failed to parse resources JSON: {e}"))?;
+        let parsed_resources: Vec<Resource> = serde_json::from_str(json_str)
+            .map_err(|e| format!("Failed to parse resources JSON: {e}"))?;
         let count = parsed_resources.len();
 
         {
@@ -121,7 +132,9 @@ impl AdBlockEngine {
                 let new_engine = rebuild_brave_engine(&lists, &res_lock);
                 *self.primary_engine.write() = new_engine;
             } else {
-                self.primary_engine.write().use_resources(res_lock.iter().cloned());
+                self.primary_engine
+                    .write()
+                    .use_resources(res_lock.iter().cloned());
             }
         }
 
@@ -129,7 +142,11 @@ impl AdBlockEngine {
     }
 
     /// Loads multiple filter lists and surrogate resources in a single pass.
-    pub fn load_filter_lists_bulk(&self, lists: Vec<(String, BlockCategory)>, resources_json: Option<&str>) -> usize {
+    pub fn load_filter_lists_bulk(
+        &self,
+        lists: Vec<(String, BlockCategory)>,
+        resources_json: Option<&str>,
+    ) -> usize {
         let mut count = 0;
         let parsed_resources: Vec<Resource> = if let Some(res_str) = resources_json {
             serde_json::from_str(res_str).unwrap_or_default()
@@ -141,7 +158,10 @@ impl AdBlockEngine {
             let mut stored_lists = self.primary_lists.write();
             let mut stored_resources = self.resources.write();
             for (content, _) in &lists {
-                count += content.lines().filter(|l| !l.trim().is_empty() && !l.starts_with('!') && !l.starts_with('#')).count();
+                count += content
+                    .lines()
+                    .filter(|l| !l.trim().is_empty() && !l.starts_with('!') && !l.starts_with('#'))
+                    .count();
                 stored_lists.push(content.clone());
             }
             if !parsed_resources.is_empty() {
@@ -186,7 +206,10 @@ impl AdBlockEngine {
         // 1. URL normalization and sovereign domain check (Azokle, Cloudflare, Captchas are protected)
         let clean_url = if let Ok(mut parsed) = url::Url::parse(url) {
             let (is_sovereign, needs_trim) = if let Some(host) = parsed.host_str() {
-                (SovereignWhitelist::is_sovereign_domain(host), host.ends_with('.'))
+                (
+                    SovereignWhitelist::is_sovereign_domain(host),
+                    host.ends_with('.'),
+                )
             } else {
                 (false, false)
             };
@@ -216,7 +239,10 @@ impl AdBlockEngine {
             req.is_third_party = is_third_party;
 
             // Check primary engine first with force_check_exceptions = true
-            let res = self.primary_engine.read().check_network_request_subset(&req, false, true);
+            let res = self
+                .primary_engine
+                .read()
+                .check_network_request_subset(&req, false, true);
 
             if res.should_block() {
                 return FilterDecision {
@@ -248,7 +274,10 @@ impl AdBlockEngine {
             }
 
             // Check custom engine if not blocked by primary
-            let custom_res = self.custom_engine.read().check_network_request_subset(&req, false, true);
+            let custom_res = self
+                .custom_engine
+                .read()
+                .check_network_request_subset(&req, false, true);
             if custom_res.should_block() {
                 return FilterDecision {
                     should_block: true,
@@ -262,7 +291,10 @@ impl AdBlockEngine {
                 return FilterDecision {
                     should_block: false,
                     category: BlockCategory::None,
-                    matched_rule: custom_res.exception.as_ref().and_then(|f| f.raw_line.clone()),
+                    matched_rule: custom_res
+                        .exception
+                        .as_ref()
+                        .and_then(|f| f.raw_line.clone()),
                     is_exception: true,
                     redirect_url: None,
                     rewritten_url: custom_res.rewritten_url,
@@ -283,13 +315,21 @@ impl AdBlockEngine {
     }
 
     /// Fast-path network request classification using default request type inference.
-    pub fn check_url(&self, url: &str, source_origin: Option<&str>, is_third_party: bool) -> FilterDecision {
+    pub fn check_url(
+        &self,
+        url: &str,
+        source_origin: Option<&str>,
+        is_third_party: bool,
+    ) -> FilterDecision {
         self.check_network_request(url, source_origin, None, is_third_party)
     }
 
     /// Queries cosmetic resources (hide selectors, style selectors, injected scriptlets)
     /// for the given URL/origin across both primary and custom engines.
-    pub fn url_cosmetic_resources(&self, url: &str) -> adblock::cosmetic_filter_cache::UrlSpecificResources {
+    pub fn url_cosmetic_resources(
+        &self,
+        url: &str,
+    ) -> adblock::cosmetic_filter_cache::UrlSpecificResources {
         let full_url = if url.starts_with("http://") || url.starts_with("https://") {
             url.to_string()
         } else {
@@ -358,14 +398,17 @@ impl AdBlockEngine {
             },
         );
 
-        let (mut cb_rules, _) = filter_set.into_content_blocking().map_err(|e| format!("{e:?}"))?;
+        let (mut cb_rules, _) = filter_set
+            .into_content_blocking()
+            .map_err(|e| format!("{e:?}"))?;
         let rules_len = cb_rules.len();
         if rules_len > MAX_CB_LIST_SIZE {
             cb_rules.swap(rules_len - 1, MAX_CB_LIST_SIZE - 1);
             cb_rules.truncate(MAX_CB_LIST_SIZE);
         }
 
-        serde_json::to_string(&cb_rules).map_err(|e| format!("Failed to serialize content blocking JSON: {e}"))
+        serde_json::to_string(&cb_rules)
+            .map_err(|e| format!("Failed to serialize content blocking JSON: {e}"))
     }
 }
 
@@ -386,12 +429,20 @@ mod tests {
         engine.load_rules_from_text(rules, BlockCategory::Ad);
 
         // 1. Should block ad domain when third-party
-        let res1 = engine.check_url("https://ad.doubleclick.net/ad.js", Some("https://example.com"), true);
+        let res1 = engine.check_url(
+            "https://ad.doubleclick.net/ad.js",
+            Some("https://example.com"),
+            true,
+        );
         assert!(res1.should_block);
         assert_eq!(res1.category, BlockCategory::Ad);
 
         // 1b. Third-party rule should NOT block first-party requests
-        let res1_first_party = engine.check_url("https://ad.doubleclick.net/ad.js", Some("https://doubleclick.net"), false);
+        let res1_first_party = engine.check_url(
+            "https://ad.doubleclick.net/ad.js",
+            Some("https://doubleclick.net"),
+            false,
+        );
         assert!(!res1_first_party.should_block);
 
         // 2. Should block googleadservices
@@ -409,7 +460,11 @@ mod tests {
         assert!(res4.is_exception);
 
         // 5. Declarative video streaming CDN rule exemption
-        let res5 = engine.check_url("https://rr1---sn-4g5ednle.googlevideo.com/videoplayback?id=123", Some("https://youtube.com"), true);
+        let res5 = engine.check_url(
+            "https://rr1---sn-4g5ednle.googlevideo.com/videoplayback?id=123",
+            Some("https://youtube.com"),
+            true,
+        );
         assert!(!res5.should_block);
         assert!(res5.is_exception);
     }
@@ -425,9 +480,16 @@ mod tests {
         engine.load_rules_from_text(rules, BlockCategory::Ad);
 
         let css = engine.get_cosmetic_css("example.com");
-        assert!(css.contains(".ad-banner"), "Cosmetic CSS should contain .ad-banner: {css}");
+        assert!(
+            css.contains(".ad-banner"),
+            "Cosmetic CSS should contain .ad-banner: {css}"
+        );
 
-        let res = engine.check_url("https://analytics.example.com/collect", Some("https://example.com"), true);
+        let res = engine.check_url(
+            "https://analytics.example.com/collect",
+            Some("https://example.com"),
+            true,
+        );
         assert!(res.should_block || res.redirect_url.is_some());
     }
 
@@ -441,21 +503,41 @@ mod tests {
         engine.load_rules_from_text(rules, BlockCategory::Ad);
 
         let serialized = engine.serialize_to_dat();
-        assert!(!serialized.is_empty(), "Serialized dat file should not be empty");
+        assert!(
+            !serialized.is_empty(),
+            "Serialized dat file should not be empty"
+        );
 
         let restored_engine = AdBlockEngine::new();
         let res = restored_engine.deserialize_from_dat(&serialized);
         assert!(res.is_ok(), "Deserialization should succeed: {:?}", res);
 
-        let check = restored_engine.check_url("https://ad.doubleclick.net/ad.js", Some("https://test.com"), true);
-        assert!(check.should_block, "Restored engine should block doubleclick");
+        let check = restored_engine.check_url(
+            "https://ad.doubleclick.net/ad.js",
+            Some("https://test.com"),
+            true,
+        );
+        assert!(
+            check.should_block,
+            "Restored engine should block doubleclick"
+        );
 
         // Test attaching resources to deserialized engine without wiping rules
         let resource_json = r#"[{"name":"noopjs","aliases":[],"kind":{"mime":"application/javascript"},"content":"Ly8gbm9vcA=="}]"#;
         let res_attach = restored_engine.load_resources_json(resource_json);
-        assert!(res_attach.is_ok(), "Attaching resources to restored engine should succeed");
-        let check_after_res = restored_engine.check_url("https://ad.doubleclick.net/ad.js", Some("https://test.com"), true);
-        assert!(check_after_res.should_block, "Engine should STILL block doubleclick after attaching resources");
+        assert!(
+            res_attach.is_ok(),
+            "Attaching resources to restored engine should succeed"
+        );
+        let check_after_res = restored_engine.check_url(
+            "https://ad.doubleclick.net/ad.js",
+            Some("https://test.com"),
+            true,
+        );
+        assert!(
+            check_after_res.should_block,
+            "Engine should STILL block doubleclick after attaching resources"
+        );
     }
 
     #[test]
@@ -466,8 +548,15 @@ mod tests {
             @@||allowed.com^
         "#;
         let result = engine.convert_to_content_blocking(rules);
-        assert!(result.is_ok(), "Content blocking conversion failed: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "Content blocking conversion failed: {:?}",
+            result
+        );
         let json = result.unwrap();
-        assert!(json.contains("url-filter"), "JSON should contain url-filter: {json}");
+        assert!(
+            json.contains("url-filter"),
+            "JSON should contain url-filter: {json}"
+        );
     }
 }

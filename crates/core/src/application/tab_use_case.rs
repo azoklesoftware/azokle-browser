@@ -20,7 +20,14 @@ impl TabUseCase {
     ///
     /// If `is_private` or `is_tor` is true, the tab is kept exclusively in volatile memory
     /// and will never be dispatched to the `StoragePort`.
-    pub fn create_tab(&self, id: TabId, url: String, is_private: bool, is_tor: bool, now_ms: u64) -> Tab {
+    pub fn create_tab(
+        &self,
+        id: TabId,
+        url: String,
+        is_private: bool,
+        is_tor: bool,
+        now_ms: u64,
+    ) -> Tab {
         let tab = Tab::new(id, url, is_private, is_tor, now_ms);
         // Invariant: Private or Tor tabs are strictly never persisted to storage
         if !is_private && !is_tor {

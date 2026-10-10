@@ -1,6 +1,4 @@
-use azokle_core::{
-    AzokleCoreEngine, BlockCategory,
-};
+use azokle_core::{AzokleCoreEngine, BlockCategory};
 use jni::objects::{JByteArray, JClass, JString};
 use jni::sys::{jboolean, jbyteArray, jint, jlong, jstring, JNI_FALSE, JNI_TRUE};
 use jni::JNIEnv;
@@ -11,7 +9,9 @@ static INIT_LOGGER: Once = Once::new();
 static GLOBAL_CORE: OnceLock<Arc<AzokleCoreEngine>> = OnceLock::new();
 
 fn get_core() -> Arc<AzokleCoreEngine> {
-    GLOBAL_CORE.get_or_init(|| Arc::new(AzokleCoreEngine::new())).clone()
+    GLOBAL_CORE
+        .get_or_init(|| Arc::new(AzokleCoreEngine::new()))
+        .clone()
 }
 
 #[inline]
@@ -215,7 +215,10 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_loadSerializedEngi
         let bytes = match env.convert_byte_array(&data) {
             Ok(b) => b,
             Err(e) => {
-                log::error!("Failed to convert byte array for engine deserialize: {:?}", e);
+                log::error!(
+                    "Failed to convert byte array for engine deserialize: {:?}",
+                    e
+                );
                 return JNI_FALSE;
             }
         };
@@ -245,7 +248,9 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_checkUrl(
         };
 
         let source_str: Option<String> = if !source_origin.is_null() {
-            env.get_string(&source_origin).ok().map(|s| String::from(s.to_str().unwrap_or("")))
+            env.get_string(&source_origin)
+                .ok()
+                .map(|s| String::from(s.to_str().unwrap_or("")))
         } else {
             None
         };
@@ -256,7 +261,11 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_checkUrl(
         if let Some(ref src) = source_str {
             if let Ok(src_url) = url::Url::parse(src) {
                 if let Some(src_host) = src_url.host_str() {
-                    if core.disabled_hosts.read().contains(&src_host.to_lowercase()) {
+                    if core
+                        .disabled_hosts
+                        .read()
+                        .contains(&src_host.to_lowercase())
+                    {
                         let res = serde_json::json!({
                             "should_block": false,
                             "category": 0,
@@ -269,11 +278,9 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_checkUrl(
             }
         }
 
-        let decision = core.adblock.check_url(
-            &url_str,
-            source_str.as_deref(),
-            is_third_party == JNI_TRUE,
-        );
+        let decision =
+            core.adblock
+                .check_url(&url_str, source_str.as_deref(), is_third_party == JNI_TRUE);
 
         if decision.should_block {
             core.stats_total.fetch_add(1, Ordering::Relaxed);
@@ -322,13 +329,17 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_checkNetworkReques
         };
 
         let source_str: Option<String> = if !source_origin.is_null() {
-            env.get_string(&source_origin).ok().map(|s| String::from(s.to_str().unwrap_or("")))
+            env.get_string(&source_origin)
+                .ok()
+                .map(|s| String::from(s.to_str().unwrap_or("")))
         } else {
             None
         };
 
         let req_type_str: Option<String> = if !request_type.is_null() {
-            env.get_string(&request_type).ok().map(|s| String::from(s.to_str().unwrap_or("")))
+            env.get_string(&request_type)
+                .ok()
+                .map(|s| String::from(s.to_str().unwrap_or("")))
         } else {
             None
         };
@@ -339,7 +350,11 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_checkNetworkReques
         if let Some(ref src) = source_str {
             if let Ok(src_url) = url::Url::parse(src) {
                 if let Some(src_host) = src_url.host_str() {
-                    if core.disabled_hosts.read().contains(&src_host.to_lowercase()) {
+                    if core
+                        .disabled_hosts
+                        .read()
+                        .contains(&src_host.to_lowercase())
+                    {
                         let res = serde_json::json!({
                             "should_block": false,
                             "category": 0,
@@ -412,7 +427,9 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_checkUrlFast(
         };
 
         let source_str: Option<String> = if !source_origin.is_null() {
-            env.get_string(&source_origin).ok().map(|s| String::from(s.to_str().unwrap_or("")))
+            env.get_string(&source_origin)
+                .ok()
+                .map(|s| String::from(s.to_str().unwrap_or("")))
         } else {
             None
         };
@@ -423,18 +440,20 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_checkUrlFast(
         if let Some(ref src) = source_str {
             if let Ok(src_url) = url::Url::parse(src) {
                 if let Some(src_host) = src_url.host_str() {
-                    if core.disabled_hosts.read().contains(&src_host.to_lowercase()) {
+                    if core
+                        .disabled_hosts
+                        .read()
+                        .contains(&src_host.to_lowercase())
+                    {
                         return 0;
                     }
                 }
             }
         }
 
-        let decision = core.adblock.check_url(
-            &url_str,
-            source_str.as_deref(),
-            is_third_party == JNI_TRUE,
-        );
+        let decision =
+            core.adblock
+                .check_url(&url_str, source_str.as_deref(), is_third_party == JNI_TRUE);
 
         if decision.should_block {
             core.stats_total.fetch_add(1, Ordering::Relaxed);
@@ -530,7 +549,10 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_getScriptlets(
     };
 
     let brave_scriptlet = get_core().adblock.get_scriptlets(&domain_str);
-    let shield_scriptlet = get_core().shield.get_scriptlets(&domain_str).unwrap_or_default();
+    let shield_scriptlet = get_core()
+        .shield
+        .get_scriptlets(&domain_str)
+        .unwrap_or_default();
     let combined = if brave_scriptlet.is_empty() {
         shield_scriptlet
     } else if shield_scriptlet.is_empty() {
@@ -656,7 +678,11 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_torProbeSocks5(
     timeout_ms: jint,
 ) -> jboolean {
     let ok = azokle_core::TorController::probe_socks5_handshake(port as u16, timeout_ms as u64);
-    if ok { JNI_TRUE } else { JNI_FALSE }
+    if ok {
+        JNI_TRUE
+    } else {
+        JNI_FALSE
+    }
 }
 
 #[no_mangle]
@@ -671,7 +697,8 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_torRotateCircuit(
         Err(_) => String::new(),
     };
 
-    let res = match azokle_core::TorController::rotate_circuit(control_port as u16, Some(&auth_str)) {
+    let res = match azokle_core::TorController::rotate_circuit(control_port as u16, Some(&auth_str))
+    {
         Ok(circuit_id) => serde_json::json!({ "success": true, "circuit_id": circuit_id }),
         Err(err) => serde_json::json!({ "success": false, "error": err }),
     };
@@ -755,7 +782,9 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_dnsGetDoHEndpoint(
     };
 
     let provider = azokle_core::DnsProvider::from_id(&name);
-    let url = provider.get_doh_url().unwrap_or("https://cloudflare-dns.com/dns-query");
+    let url = provider
+        .get_doh_url()
+        .unwrap_or("https://cloudflare-dns.com/dns-query");
     safe_jstring(&mut env, url)
 }
 
@@ -787,7 +816,9 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permSet(
 
     if let Some(perm) = azokle_core::PermissionType::from_str_name(&pt) {
         let state = azokle_core::PermissionState::from_str_name(&st);
-        get_core().permissions.set_permission(&o, perm, state, is_private == JNI_TRUE);
+        get_core()
+            .permissions
+            .set_permission(&o, perm, state, is_private == JNI_TRUE);
     }
 }
 
@@ -809,7 +840,9 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permGet(
     };
 
     if let Some(perm) = azokle_core::PermissionType::from_str_name(&pt) {
-        let state = get_core().permissions.get_permission(&o, perm, is_private == JNI_TRUE);
+        let state = get_core()
+            .permissions
+            .get_permission(&o, perm, is_private == JNI_TRUE);
         safe_jstring(&mut env, state.to_str_name())
     } else {
         safe_jstring(&mut env, "PROMPT")
@@ -856,7 +889,9 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permGetSitePermiss
         Ok(s) => String::from(s.to_str().unwrap_or("")),
         Err(_) => return safe_jstring(&mut env, "{}"),
     };
-    let json = get_core().permissions.get_site_permissions_json(&o, is_private == JNI_TRUE);
+    let json = get_core()
+        .permissions
+        .get_site_permissions_json(&o, is_private == JNI_TRUE);
     safe_jstring(&mut env, &json)
 }
 
@@ -916,7 +951,9 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permRecordAudit(
 
     if let Some(perm) = azokle_core::PermissionType::from_str_name(&pt) {
         let state = azokle_core::PermissionState::from_str_name(&st);
-        let record = get_core().permissions.record_audit(&o, perm, state, is_private == JNI_TRUE);
+        let record = get_core()
+            .permissions
+            .record_audit(&o, perm, state, is_private == JNI_TRUE);
         let json = serde_json::to_string(&record).unwrap_or_else(|_| "null".to_string());
         return safe_jstring(&mut env, &json);
     }
@@ -930,7 +967,9 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permGetAuditHistor
     limit: jint,
     offset: jint,
 ) -> jstring {
-    let list = get_core().permissions.get_audit_history(limit as usize, offset as usize);
+    let list = get_core()
+        .permissions
+        .get_audit_history(limit as usize, offset as usize);
     let json = serde_json::to_string(&list).unwrap_or_else(|_| "[]".to_string());
     safe_jstring(&mut env, &json)
 }
@@ -979,7 +1018,9 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyRecordVisit
         Err(_) => String::new(),
     };
 
-    let entry = get_core().history.record_visit(&t, &u, is_private == JNI_TRUE);
+    let entry = get_core()
+        .history
+        .record_visit(&t, &u, is_private == JNI_TRUE);
     let json = serde_json::to_string(&entry).unwrap_or_else(|_| "null".to_string());
     safe_jstring(&mut env, &json)
 }
@@ -1001,7 +1042,9 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyRecordTyped
         Err(_) => String::new(),
     };
 
-    let entry = get_core().history.record_typed_visit(&t, &u, is_private == JNI_TRUE);
+    let entry = get_core()
+        .history
+        .record_typed_visit(&t, &u, is_private == JNI_TRUE);
     let json = serde_json::to_string(&entry).unwrap_or_else(|_| "null".to_string());
     safe_jstring(&mut env, &json)
 }
@@ -1077,7 +1120,9 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyGetRecent(
     limit: jint,
     offset: jint,
 ) -> jstring {
-    let results = get_core().history.get_recent(limit as usize, offset as usize);
+    let results = get_core()
+        .history
+        .get_recent(limit as usize, offset as usize);
     let json = serde_json::to_string(&results).unwrap_or_else(|_| "[]".to_string());
     safe_jstring(&mut env, &json)
 }
@@ -1092,7 +1137,11 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyDeleteEntry
         Ok(s) => String::from(s.to_str().unwrap_or("")),
         Err(_) => return JNI_FALSE,
     };
-    if get_core().history.delete_entry(&i) { JNI_TRUE } else { JNI_FALSE }
+    if get_core().history.delete_entry(&i) {
+        JNI_TRUE
+    } else {
+        JNI_FALSE
+    }
 }
 
 #[no_mangle]
@@ -1105,7 +1154,11 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyDeleteUrl(
         Ok(s) => String::from(s.to_str().unwrap_or("")),
         Err(_) => return JNI_FALSE,
     };
-    if get_core().history.delete_url(&u) { JNI_TRUE } else { JNI_FALSE }
+    if get_core().history.delete_url(&u) {
+        JNI_TRUE
+    } else {
+        JNI_FALSE
+    }
 }
 
 #[no_mangle]
@@ -1115,7 +1168,9 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyClearRange(
     from_ms: jlong,
     to_ms: jlong,
 ) -> jint {
-    get_core().history.clear_time_range(from_ms as u64, to_ms as u64) as jint
+    get_core()
+        .history
+        .clear_time_range(from_ms as u64, to_ms as u64) as jint
 }
 
 #[no_mangle]
@@ -1172,19 +1227,29 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_bookmarkAdd(
     let p = match env.get_string(&parent_folder) {
         Ok(s) => {
             let str_val = String::from(s.to_str().unwrap_or(""));
-            if str_val.is_empty() { None } else { Some(str_val) }
+            if str_val.is_empty() {
+                None
+            } else {
+                Some(str_val)
+            }
         }
         Err(_) => None,
     };
     let f = match env.get_string(&favicon_url) {
         Ok(s) => {
             let str_val = String::from(s.to_str().unwrap_or(""));
-            if str_val.is_empty() { None } else { Some(str_val) }
+            if str_val.is_empty() {
+                None
+            } else {
+                Some(str_val)
+            }
         }
         Err(_) => None,
     };
 
-    let item = get_core().bookmarks.add_bookmark(&t, &u, p.as_deref(), f.as_deref());
+    let item = get_core()
+        .bookmarks
+        .add_bookmark(&t, &u, p.as_deref(), f.as_deref());
     let json = serde_json::to_string(&item).unwrap_or_else(|_| "null".to_string());
     safe_jstring(&mut env, &json)
 }
@@ -1203,7 +1268,11 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_bookmarkCreateFold
     let p = match env.get_string(&parent_folder) {
         Ok(s) => {
             let str_val = String::from(s.to_str().unwrap_or(""));
-            if str_val.is_empty() { None } else { Some(str_val) }
+            if str_val.is_empty() {
+                None
+            } else {
+                Some(str_val)
+            }
         }
         Err(_) => None,
     };
@@ -1223,7 +1292,11 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_bookmarkRemove(
         Ok(s) => String::from(s.to_str().unwrap_or("")),
         Err(_) => return JNI_FALSE,
     };
-    if get_core().bookmarks.remove_item(&i) { JNI_TRUE } else { JNI_FALSE }
+    if get_core().bookmarks.remove_item(&i) {
+        JNI_TRUE
+    } else {
+        JNI_FALSE
+    }
 }
 
 #[no_mangle]
@@ -1236,7 +1309,11 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_bookmarkIsBookmark
         Ok(s) => String::from(s.to_str().unwrap_or("")),
         Err(_) => return JNI_FALSE,
     };
-    if get_core().bookmarks.is_bookmarked(&u) { JNI_TRUE } else { JNI_FALSE }
+    if get_core().bookmarks.is_bookmarked(&u) {
+        JNI_TRUE
+    } else {
+        JNI_FALSE
+    }
 }
 
 #[no_mangle]
@@ -1307,7 +1384,11 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_downloadCreate(
     let fn_val = match env.get_string(&filename) {
         Ok(s) => {
             let str_val = String::from(s.to_str().unwrap_or(""));
-            if str_val.is_empty() { None } else { Some(str_val) }
+            if str_val.is_empty() {
+                None
+            } else {
+                Some(str_val)
+            }
         }
         Err(_) => None,
     };
@@ -1318,12 +1399,22 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_downloadCreate(
     let mime = match env.get_string(&mime_type) {
         Ok(s) => {
             let str_val = String::from(s.to_str().unwrap_or(""));
-            if str_val.is_empty() { None } else { Some(str_val) }
+            if str_val.is_empty() {
+                None
+            } else {
+                Some(str_val)
+            }
         }
         Err(_) => None,
     };
 
-    let item = get_core().downloads.create_download(&u, fn_val.as_deref(), &dest, total_bytes as u64, mime.as_deref());
+    let item = get_core().downloads.create_download(
+        &u,
+        fn_val.as_deref(),
+        &dest,
+        total_bytes as u64,
+        mime.as_deref(),
+    );
     let json = serde_json::to_string(&item).unwrap_or_else(|_| "null".to_string());
     safe_jstring(&mut env, &json)
 }
@@ -1347,7 +1438,10 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_downloadUpdateProg
     };
 
     let state = azokle_core::DownloadState::from_str_name(&st);
-    if get_core().downloads.update_progress(&i, downloaded_bytes as u64, total_bytes as u64, state) {
+    if get_core()
+        .downloads
+        .update_progress(&i, downloaded_bytes as u64, total_bytes as u64, state)
+    {
         JNI_TRUE
     } else {
         JNI_FALSE
@@ -1374,7 +1468,11 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_downloadDeleteItem
         Ok(s) => String::from(s.to_str().unwrap_or("")),
         Err(_) => return JNI_FALSE,
     };
-    if get_core().downloads.delete_item(&i) { JNI_TRUE } else { JNI_FALSE }
+    if get_core().downloads.delete_item(&i) {
+        JNI_TRUE
+    } else {
+        JNI_FALSE
+    }
 }
 
 #[no_mangle]
@@ -1392,14 +1490,22 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_downloadExtractFil
     let cd = match env.get_string(&content_disposition) {
         Ok(s) => {
             let str_val = String::from(s.to_str().unwrap_or(""));
-            if str_val.is_empty() { None } else { Some(str_val) }
+            if str_val.is_empty() {
+                None
+            } else {
+                Some(str_val)
+            }
         }
         Err(_) => None,
     };
     let mime = match env.get_string(&mime_type) {
         Ok(s) => {
             let str_val = String::from(s.to_str().unwrap_or(""));
-            if str_val.is_empty() { None } else { Some(str_val) }
+            if str_val.is_empty() {
+                None
+            } else {
+                Some(str_val)
+            }
         }
         Err(_) => None,
     };
@@ -1484,7 +1590,11 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_settingsImportJson
         Ok(s) => String::from(s.to_str().unwrap_or("")),
         Err(_) => return JNI_FALSE,
     };
-    if get_core().settings.import_json(&data) { JNI_TRUE } else { JNI_FALSE }
+    if get_core().settings.import_json(&data) {
+        JNI_TRUE
+    } else {
+        JNI_FALSE
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -1513,19 +1623,34 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabOpen(
     let gid = match env.get_string(&group_id) {
         Ok(s) => {
             let str_val = String::from(s.to_str().unwrap_or(""));
-            if str_val.is_empty() { None } else { Some(str_val) }
+            if str_val.is_empty() {
+                None
+            } else {
+                Some(str_val)
+            }
         }
         Err(_) => None,
     };
     let gtitle = match env.get_string(&group_title) {
         Ok(s) => {
             let str_val = String::from(s.to_str().unwrap_or(""));
-            if str_val.is_empty() { None } else { Some(str_val) }
+            if str_val.is_empty() {
+                None
+            } else {
+                Some(str_val)
+            }
         }
         Err(_) => None,
     };
 
-    let session = get_core().tabs.open_tab(&u, &t, is_private == JNI_TRUE, is_tor == JNI_TRUE, gid.as_deref(), gtitle.as_deref());
+    let session = get_core().tabs.open_tab(
+        &u,
+        &t,
+        is_private == JNI_TRUE,
+        is_tor == JNI_TRUE,
+        gid.as_deref(),
+        gtitle.as_deref(),
+    );
     let json = serde_json::to_string(&session).unwrap_or_else(|_| "null".to_string());
     safe_jstring(&mut env, &json)
 }
@@ -1575,7 +1700,11 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabSetActive(
         Ok(s) => String::from(s.to_str().unwrap_or("")),
         Err(_) => return JNI_FALSE,
     };
-    if get_core().tabs.set_active_tab(&i) { JNI_TRUE } else { JNI_FALSE }
+    if get_core().tabs.set_active_tab(&i) {
+        JNI_TRUE
+    } else {
+        JNI_FALSE
+    }
 }
 
 #[no_mangle]
@@ -1598,7 +1727,11 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabUpdate(
         Ok(s) => String::from(s.to_str().unwrap_or("")),
         Err(_) => String::new(),
     };
-    if get_core().tabs.update_tab_url_and_title(&i, &u, &t) { JNI_TRUE } else { JNI_FALSE }
+    if get_core().tabs.update_tab_url_and_title(&i, &u, &t) {
+        JNI_TRUE
+    } else {
+        JNI_FALSE
+    }
 }
 
 #[no_mangle]
@@ -1676,7 +1809,9 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_protocolDispatch(
     match azokle_core::ProtocolEnvelope::from_json(&json_str) {
         Ok(incoming_envelope) => {
             let response_envelope = get_core().dispatch_protocol(incoming_envelope);
-            let response_json = response_envelope.to_json().unwrap_or_else(|_| "{}".to_string());
+            let response_json = response_envelope
+                .to_json()
+                .unwrap_or_else(|_| "{}".to_string());
             safe_jstring(&mut env, &response_json)
         }
         Err(e) => {
@@ -1685,7 +1820,9 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_protocolDispatch(
                 azokle_core::MessageEndpoint::AndroidUI,
                 azokle_core::MessagePayload::Error(e),
             );
-            let response_json = error_envelope.to_json().unwrap_or_else(|_| "{}".to_string());
+            let response_json = error_envelope
+                .to_json()
+                .unwrap_or_else(|_| "{}".to_string());
             safe_jstring(&mut env, &response_json)
         }
     }
@@ -1710,11 +1847,10 @@ mod tests {
         assert!(decision.should_block);
         let json_str = serde_json::to_string(&decision).unwrap();
         assert!(json_str.contains("\"should_block\":true"));
-        assert!(json_str.contains("\"category\":1"), "Serialized JSON should have numeric category: {}", json_str);
+        assert!(
+            json_str.contains("\"category\":1"),
+            "Serialized JSON should have numeric category: {}",
+            json_str
+        );
     }
 }
-
-
-
-
-

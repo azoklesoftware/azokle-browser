@@ -1,28 +1,28 @@
-pub use azokle_common::*;
 pub use azokle_adblock::*;
-pub use azokle_tracker_block::*;
-pub use azokle_crypto::*;
-pub use azokle_security::*;
-pub use azokle_tor::*;
-pub use azokle_permissions::*;
-pub use azokle_history::*;
 pub use azokle_bookmarks::*;
+pub use azokle_common::*;
+pub use azokle_crypto::*;
 pub use azokle_downloads::*;
-pub use azokle_storage::*;
+pub use azokle_history::*;
 pub use azokle_networking::*;
-pub use azokle_tabs::*;
+pub use azokle_permissions::*;
 pub use azokle_protocol::{
     CommandPayload, EventPayload, MessageEndpoint, MessagePayload, ProtocolEnvelope, ProtocolError,
     ProtocolVersion, RequestPayload, ResponsePayload,
 };
+pub use azokle_security::*;
+pub use azokle_storage::*;
+pub use azokle_tabs::*;
+pub use azokle_tor::*;
+pub use azokle_tracker_block::*;
 
+pub mod application;
 pub mod domain;
 pub mod ports;
-pub mod application;
 
+pub use application::*;
 pub use domain::*;
 pub use ports::*;
-pub use application::*;
 
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -124,13 +124,30 @@ impl AzokleCoreEngine {
     /// Inbound messages are processed according to schema contracts, and outbound envelopes
     /// maintain strict correlation IDs for asynchronous matching.
     pub fn dispatch_protocol(&self, envelope: ProtocolEnvelope) -> ProtocolEnvelope {
-        let correlation = envelope.correlation_id.clone().unwrap_or_else(|| envelope.message_id.clone());
+        let correlation = envelope
+            .correlation_id
+            .clone()
+            .unwrap_or_else(|| envelope.message_id.clone());
         let source = envelope.source;
 
         let response_payload = match envelope.payload {
             MessagePayload::Command(cmd) => match cmd {
-                CommandPayload::TabOpen { url, title, is_private, is_tor, group_id, group_title } => {
-                    let tab = self.tabs.open_tab(&url, &title, is_private, is_tor, group_id.as_deref(), group_title.as_deref());
+                CommandPayload::TabOpen {
+                    url,
+                    title,
+                    is_private,
+                    is_tor,
+                    group_id,
+                    group_title,
+                } => {
+                    let tab = self.tabs.open_tab(
+                        &url,
+                        &title,
+                        is_private,
+                        is_tor,
+                        group_id.as_deref(),
+                        group_title.as_deref(),
+                    );
                     let json = serde_json::to_string(&tab).unwrap_or_default();
                     MessagePayload::Response(ResponsePayload::TabSessionJson(json))
                 }
@@ -141,38 +158,54 @@ impl AzokleCoreEngine {
                 }
                 CommandPayload::TabSetActive { tab_id } => {
                     let ok = self.tabs.set_active_tab(&tab_id);
-                    MessagePayload::Response(ResponsePayload::Success { action: format!("setActive: {}", ok) })
+                    MessagePayload::Response(ResponsePayload::Success {
+                        action: format!("setActive: {}", ok),
+                    })
                 }
                 CommandPayload::TabRestoreRecentlyClosed => {
                     let tab = self.tabs.restore_recently_closed();
                     let json = serde_json::to_string(&tab).unwrap_or_default();
                     MessagePayload::Response(ResponsePayload::TabSessionJson(json))
                 }
-                CommandPayload::PermissionSet { origin, permission_type, state, is_private } => {
+                CommandPayload::PermissionSet {
+                    origin,
+                    permission_type,
+                    state,
+                    is_private,
+                } => {
                     if let Some(pt) = PermissionType::from_str_name(&permission_type) {
                         let st = PermissionState::from_str_name(&state);
                         self.permissions.set_permission(&origin, pt, st, is_private);
                     }
-                    MessagePayload::Response(ResponsePayload::Success { action: "permissionSet".to_string() })
-                }
-                _ => MessagePayload::Response(ResponsePayload::Success { action: "commandExecuted".to_string() }),
-            },
-            MessagePayload::Request(req) => match req {
-                RequestPayload::CapabilityNegotiate { client_version: _, features: _ } => {
-                    MessagePayload::Response(ResponsePayload::CapabilityNegotiate {
-                        server_version: ProtocolVersion::CURRENT,
-                        supported_features: vec![
-                            "tabs_v1".to_string(),
-                            "permissions_v1".to_string(),
-                            "history_v1".to_string(),
-                            "tor_v3".to_string(),
-                            "doh_rfc8484".to_string(),
-                            "chacha20_vault".to_string(),
-                        ],
+                    MessagePayload::Response(ResponsePayload::Success {
+                        action: "permissionSet".to_string(),
                     })
                 }
+                _ => MessagePayload::Response(ResponsePayload::Success {
+                    action: "commandExecuted".to_string(),
+                }),
+            },
+            MessagePayload::Request(req) => match req {
+                RequestPayload::CapabilityNegotiate {
+                    client_version: _,
+                    features: _,
+                } => MessagePayload::Response(ResponsePayload::CapabilityNegotiate {
+                    server_version: ProtocolVersion::CURRENT,
+                    supported_features: vec![
+                        "tabs_v1".to_string(),
+                        "permissions_v1".to_string(),
+                        "history_v1".to_string(),
+                        "tor_v3".to_string(),
+                        "doh_rfc8484".to_string(),
+                        "chacha20_vault".to_string(),
+                    ],
+                }),
                 RequestPayload::AutosuggestQuery { query } => {
-                    let suggestions = self.networking.search_api.get_autosuggestions(&query).unwrap_or_default();
+                    let suggestions = self
+                        .networking
+                        .search_api
+                        .get_autosuggestions(&query)
+                        .unwrap_or_default();
                     MessagePayload::Response(ResponsePayload::Autosuggest { query, suggestions })
                 }
                 RequestPayload::TabGetActive => {
@@ -186,13 +219,22 @@ impl AzokleCoreEngine {
                     MessagePayload::Response(ResponsePayload::TabListJson(json))
                 }
                 RequestPayload::DnsResolve { host } => {
-                    let ips = self.networking.dns.resolve(&host).map(|ips| ips.into_iter().map(|ip| ip.to_string()).collect()).unwrap_or_default();
+                    let ips = self
+                        .networking
+                        .dns
+                        .resolve(&host)
+                        .map(|ips| ips.into_iter().map(|ip| ip.to_string()).collect())
+                        .unwrap_or_default();
                     MessagePayload::Response(ResponsePayload::DnsResolve { host, ips })
                 }
-                _ => MessagePayload::Response(ResponsePayload::Success { action: "requestHandled".to_string() }),
+                _ => MessagePayload::Response(ResponsePayload::Success {
+                    action: "requestHandled".to_string(),
+                }),
             },
             MessagePayload::Error(err) => MessagePayload::Error(err),
-            _ => MessagePayload::Response(ResponsePayload::Success { action: "noop".to_string() }),
+            _ => MessagePayload::Response(ResponsePayload::Success {
+                action: "noop".to_string(),
+            }),
         };
 
         ProtocolEnvelope::new(MessageEndpoint::RustCore, source, response_payload)

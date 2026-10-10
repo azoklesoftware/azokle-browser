@@ -31,20 +31,35 @@ impl SearchEngine {
         }
 
         // Sovereign Azokle Search URL
-        format!("https://search.azokle.com/search?q={}", urlencoding_simple(trimmed))
+        format!(
+            "https://search.azokle.com/search?q={}",
+            urlencoding_simple(trimmed)
+        )
     }
 
     /// Resolves standard bang prefix commands (e.g. `!gh`, `!g`, `!w`, `!yt`) to target services.
     pub fn resolve_bang(query: &str) -> Option<String> {
         let trimmed = query.trim();
         if let Some(rest) = trimmed.strip_prefix("!g ") {
-            Some(format!("https://www.google.com/search?q={}", urlencoding_simple(rest)))
+            Some(format!(
+                "https://www.google.com/search?q={}",
+                urlencoding_simple(rest)
+            ))
         } else if let Some(rest) = trimmed.strip_prefix("!gh ") {
-            Some(format!("https://github.com/search?q={}", urlencoding_simple(rest)))
+            Some(format!(
+                "https://github.com/search?q={}",
+                urlencoding_simple(rest)
+            ))
         } else if let Some(rest) = trimmed.strip_prefix("!w ") {
-            Some(format!("https://en.wikipedia.org/wiki/Special:Search?search={}", urlencoding_simple(rest)))
+            Some(format!(
+                "https://en.wikipedia.org/wiki/Special:Search?search={}",
+                urlencoding_simple(rest)
+            ))
         } else if let Some(rest) = trimmed.strip_prefix("!yt ") {
-            Some(format!("https://www.youtube.com/results?search_query={}", urlencoding_simple(rest)))
+            Some(format!(
+                "https://www.youtube.com/results?search_query={}",
+                urlencoding_simple(rest)
+            ))
         } else {
             None
         }
@@ -61,9 +76,21 @@ mod tests {
 
     #[test]
     fn test_search_resolution() {
-        assert_eq!(SearchEngine::build_query_url("rustlang"), "https://search.azokle.com/search?q=rustlang");
-        assert_eq!(SearchEngine::build_query_url("github.com"), "https://github.com");
-        assert_eq!(SearchEngine::build_query_url("https://example.com"), "https://example.com");
-        assert_eq!(SearchEngine::resolve_bang("!gh tokio").unwrap(), "https://github.com/search?q=tokio");
+        assert_eq!(
+            SearchEngine::build_query_url("rustlang"),
+            "https://search.azokle.com/search?q=rustlang"
+        );
+        assert_eq!(
+            SearchEngine::build_query_url("github.com"),
+            "https://github.com"
+        );
+        assert_eq!(
+            SearchEngine::build_query_url("https://example.com"),
+            "https://example.com"
+        );
+        assert_eq!(
+            SearchEngine::resolve_bang("!gh tokio").unwrap(),
+            "https://github.com/search?q=tokio"
+        );
     }
 }

@@ -16,7 +16,12 @@ use url::Url;
 /// - Type Bonus:
 ///   - Typed visits: 2,000 points per typed navigation
 ///   - Standard visits: 1,000 points per visit
-pub fn compute_frecency(visit_count: u32, typed_count: u32, last_visit_ms: u64, now_ms: u64) -> i64 {
+pub fn compute_frecency(
+    visit_count: u32,
+    typed_count: u32,
+    last_visit_ms: u64,
+    now_ms: u64,
+) -> i64 {
     let delta_ms = now_ms.saturating_sub(last_visit_ms);
     let delta_days = delta_ms / (1000 * 60 * 60 * 24);
     let recency_multiplier: i64 = match delta_days {
@@ -101,16 +106,32 @@ impl HistoryManager {
     }
 
     /// Records a standard page visit.
-    pub fn record_visit(&self, title: &str, url_str: &str, is_private: bool) -> Option<HistoryEntry> {
+    pub fn record_visit(
+        &self,
+        title: &str,
+        url_str: &str,
+        is_private: bool,
+    ) -> Option<HistoryEntry> {
         self.record_visit_internal(title, url_str, is_private, false)
     }
 
     /// Records a typed visit (explicit user omnibox input) with enhanced frecency weight.
-    pub fn record_typed_visit(&self, title: &str, url_str: &str, is_private: bool) -> Option<HistoryEntry> {
+    pub fn record_typed_visit(
+        &self,
+        title: &str,
+        url_str: &str,
+        is_private: bool,
+    ) -> Option<HistoryEntry> {
         self.record_visit_internal(title, url_str, is_private, true)
     }
 
-    fn record_visit_internal(&self, title: &str, url_str: &str, is_private: bool, is_typed: bool) -> Option<HistoryEntry> {
+    fn record_visit_internal(
+        &self,
+        title: &str,
+        url_str: &str,
+        is_private: bool,
+        is_typed: bool,
+    ) -> Option<HistoryEntry> {
         if is_private || url_str.trim().is_empty() {
             return None;
         }
@@ -153,7 +174,12 @@ impl HistoryManager {
             if !title.trim().is_empty() {
                 existing.title = clean_title;
             }
-            existing.frecency = compute_frecency(existing.visit_count, existing.typed_count, existing.visit_time, now_ms);
+            existing.frecency = compute_frecency(
+                existing.visit_count,
+                existing.typed_count,
+                existing.visit_time,
+                now_ms,
+            );
             list.push_front(existing.clone());
             Some(existing)
         } else {

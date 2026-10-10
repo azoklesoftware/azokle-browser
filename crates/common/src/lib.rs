@@ -157,9 +157,14 @@ mod tests {
 
     #[test]
     fn test_block_category_numeric_serialization() {
-        let decision = FilterDecision::block(BlockCategory::Ad, Some("||doubleclick.net^".to_string()));
+        let decision =
+            FilterDecision::block(BlockCategory::Ad, Some("||doubleclick.net^".to_string()));
         let json = serde_json::to_string(&decision).unwrap();
-        assert!(json.contains("\"category\":1"), "Expected category:1 in {}", json);
+        assert!(
+            json.contains("\"category\":1"),
+            "Expected category:1 in {}",
+            json
+        );
 
         // Deserializing from numeric
         let parsed: FilterDecision = serde_json::from_str(&json).unwrap();

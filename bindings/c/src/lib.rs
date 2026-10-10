@@ -1,6 +1,4 @@
-use azokle_core::{
-    AzokleCoreEngine, BlockCategory, SovereignPasskey,
-};
+use azokle_core::{AzokleCoreEngine, BlockCategory, SovereignPasskey};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -10,7 +8,9 @@ use std::sync::{Arc, OnceLock};
 static GLOBAL_CORE: OnceLock<Arc<AzokleCoreEngine>> = OnceLock::new();
 
 fn get_core() -> Arc<AzokleCoreEngine> {
-    GLOBAL_CORE.get_or_init(|| Arc::new(AzokleCoreEngine::new())).clone()
+    GLOBAL_CORE
+        .get_or_init(|| Arc::new(AzokleCoreEngine::new()))
+        .clone()
 }
 
 #[repr(C)]
@@ -59,7 +59,11 @@ pub extern "C" fn azokle_core_check_url(
         if let Some(src) = origin_str {
             if let Ok(src_url) = url::Url::parse(src) {
                 if let Some(src_host) = src_url.host_str() {
-                    if core.disabled_hosts.read().contains(&src_host.to_lowercase()) {
+                    if core
+                        .disabled_hosts
+                        .read()
+                        .contains(&src_host.to_lowercase())
+                    {
                         return AzokleFilterDecision {
                             should_block: false,
                             category: 0,
@@ -76,18 +80,32 @@ pub extern "C" fn azokle_core_check_url(
         if decision.should_block {
             core.stats_total.fetch_add(1, Ordering::Relaxed);
             match decision.category {
-                BlockCategory::Ad => { core.stats_ads.fetch_add(1, Ordering::Relaxed); }
-                BlockCategory::Tracker => { core.stats_trackers.fetch_add(1, Ordering::Relaxed); }
-                BlockCategory::Telemetry => { core.stats_telemetry.fetch_add(1, Ordering::Relaxed); }
-                BlockCategory::Fingerprinting => { core.stats_fingerprinting.fetch_add(1, Ordering::Relaxed); }
-                BlockCategory::Annoyance => { core.stats_annoyances.fetch_add(1, Ordering::Relaxed); }
-                BlockCategory::Cryptomining => { core.stats_cryptominers.fetch_add(1, Ordering::Relaxed); }
+                BlockCategory::Ad => {
+                    core.stats_ads.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Tracker => {
+                    core.stats_trackers.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Telemetry => {
+                    core.stats_telemetry.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Fingerprinting => {
+                    core.stats_fingerprinting.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Annoyance => {
+                    core.stats_annoyances.fetch_add(1, Ordering::Relaxed);
+                }
+                BlockCategory::Cryptomining => {
+                    core.stats_cryptominers.fetch_add(1, Ordering::Relaxed);
+                }
                 _ => {}
             }
         }
 
         let rule_ptr = match decision.matched_rule {
-            Some(r) => CString::new(r).map(|c| c.into_raw()).unwrap_or(std::ptr::null_mut()),
+            Some(r) => CString::new(r)
+                .map(|c| c.into_raw())
+                .unwrap_or(std::ptr::null_mut()),
             None => std::ptr::null_mut(),
         };
 
@@ -110,7 +128,9 @@ pub extern "C" fn azokle_core_clean_url(url: *const c_char) -> *mut c_char {
     let result = catch_unwind(AssertUnwindSafe(|| {
         let url_str = unsafe { CStr::from_ptr(url).to_str().unwrap_or("") };
         let cleaned = get_core().trackers.strip_tracking_params(url_str);
-        CString::new(cleaned).map(|c| c.into_raw()).unwrap_or(std::ptr::null_mut())
+        CString::new(cleaned)
+            .map(|c| c.into_raw())
+            .unwrap_or(std::ptr::null_mut())
     }));
     result.unwrap_or(std::ptr::null_mut())
 }
@@ -123,7 +143,9 @@ pub extern "C" fn azokle_core_get_cosmetic_css(domain: *const c_char) -> *mut c_
     let result = catch_unwind(AssertUnwindSafe(|| {
         let domain_str = unsafe { CStr::from_ptr(domain).to_str().unwrap_or("") };
         let css = get_core().shield.get_cosmetic_css(domain_str);
-        CString::new(css).map(|c| c.into_raw()).unwrap_or(std::ptr::null_mut())
+        CString::new(css)
+            .map(|c| c.into_raw())
+            .unwrap_or(std::ptr::null_mut())
     }));
     result.unwrap_or(std::ptr::null_mut())
 }
@@ -135,8 +157,13 @@ pub extern "C" fn azokle_core_get_scriptlets(domain: *const c_char) -> *mut c_ch
     }
     let result = catch_unwind(AssertUnwindSafe(|| {
         let domain_str = unsafe { CStr::from_ptr(domain).to_str().unwrap_or("") };
-        let scriptlet = get_core().shield.get_scriptlets(domain_str).unwrap_or_default();
-        CString::new(scriptlet).map(|c| c.into_raw()).unwrap_or(std::ptr::null_mut())
+        let scriptlet = get_core()
+            .shield
+            .get_scriptlets(domain_str)
+            .unwrap_or_default();
+        CString::new(scriptlet)
+            .map(|c| c.into_raw())
+            .unwrap_or(std::ptr::null_mut())
     }));
     result.unwrap_or(std::ptr::null_mut())
 }
@@ -190,7 +217,9 @@ pub extern "C" fn azokle_core_get_stats_json() -> *mut c_char {
     let result = catch_unwind(AssertUnwindSafe(|| {
         let stats = get_core().get_stats();
         let json_str = serde_json::to_string(&stats).unwrap_or_else(|_| "{}".to_string());
-        CString::new(json_str).map(|c| c.into_raw()).unwrap_or(std::ptr::null_mut())
+        CString::new(json_str)
+            .map(|c| c.into_raw())
+            .unwrap_or(std::ptr::null_mut())
     }));
     result.unwrap_or(std::ptr::null_mut())
 }
@@ -201,12 +230,24 @@ pub extern "C" fn azokle_core_record_block(_host: *const c_char, category_id: u8
         let core = get_core();
         core.stats_total.fetch_add(1, Ordering::Relaxed);
         match BlockCategory::from_u8(category_id) {
-            BlockCategory::Ad => { core.stats_ads.fetch_add(1, Ordering::Relaxed); }
-            BlockCategory::Tracker => { core.stats_trackers.fetch_add(1, Ordering::Relaxed); }
-            BlockCategory::Telemetry => { core.stats_telemetry.fetch_add(1, Ordering::Relaxed); }
-            BlockCategory::Fingerprinting => { core.stats_fingerprinting.fetch_add(1, Ordering::Relaxed); }
-            BlockCategory::Annoyance => { core.stats_annoyances.fetch_add(1, Ordering::Relaxed); }
-            BlockCategory::Cryptomining => { core.stats_cryptominers.fetch_add(1, Ordering::Relaxed); }
+            BlockCategory::Ad => {
+                core.stats_ads.fetch_add(1, Ordering::Relaxed);
+            }
+            BlockCategory::Tracker => {
+                core.stats_trackers.fetch_add(1, Ordering::Relaxed);
+            }
+            BlockCategory::Telemetry => {
+                core.stats_telemetry.fetch_add(1, Ordering::Relaxed);
+            }
+            BlockCategory::Fingerprinting => {
+                core.stats_fingerprinting.fetch_add(1, Ordering::Relaxed);
+            }
+            BlockCategory::Annoyance => {
+                core.stats_annoyances.fetch_add(1, Ordering::Relaxed);
+            }
+            BlockCategory::Cryptomining => {
+                core.stats_cryptominers.fetch_add(1, Ordering::Relaxed);
+            }
             _ => {}
         }
     }));
@@ -230,7 +271,9 @@ pub extern "C" fn azokle_passkey_create(
         match SovereignPasskey::create(rp_str, user_str, handle_slice) {
             Ok((passkey, _cred_id)) => {
                 let json = serde_json::to_string(&passkey).unwrap_or_default();
-                CString::new(json).map(|c| c.into_raw()).unwrap_or(std::ptr::null_mut())
+                CString::new(json)
+                    .map(|c| c.into_raw())
+                    .unwrap_or(std::ptr::null_mut())
             }
             Err(_) => std::ptr::null_mut(),
         }
@@ -249,7 +292,9 @@ pub extern "C" fn azokle_protocol_dispatch(envelope_json: *const c_char) -> *mut
             Ok(incoming) => {
                 let response = get_core().dispatch_protocol(incoming);
                 let res_json = response.to_json().unwrap_or_else(|_| "{}".to_string());
-                CString::new(res_json).map(|c| c.into_raw()).unwrap_or(std::ptr::null_mut())
+                CString::new(res_json)
+                    .map(|c| c.into_raw())
+                    .unwrap_or(std::ptr::null_mut())
             }
             Err(e) => {
                 let err_env = azokle_core::ProtocolEnvelope::new(
@@ -258,7 +303,9 @@ pub extern "C" fn azokle_protocol_dispatch(envelope_json: *const c_char) -> *mut
                     azokle_core::MessagePayload::Error(e),
                 );
                 let err_json = err_env.to_json().unwrap_or_else(|_| "{}".to_string());
-                CString::new(err_json).map(|c| c.into_raw()).unwrap_or(std::ptr::null_mut())
+                CString::new(err_json)
+                    .map(|c| c.into_raw())
+                    .unwrap_or(std::ptr::null_mut())
             }
         }
     }));
@@ -272,7 +319,9 @@ pub extern "C" fn azokle_core_load_filter_rules(rules: *const c_char) -> i32 {
     }
     let result = catch_unwind(AssertUnwindSafe(|| {
         let rules_str = unsafe { CStr::from_ptr(rules).to_str().unwrap_or("") };
-        get_core().adblock.load_filter_lists(vec![rules_str.to_string()]) as i32
+        get_core()
+            .adblock
+            .load_filter_lists(vec![rules_str.to_string()]) as i32
     }));
     result.unwrap_or(0)
 }
@@ -308,7 +357,9 @@ pub extern "C" fn azokle_core_serialize_engine(out_len: *mut usize) -> *mut u8 {
     }
     let result = catch_unwind(AssertUnwindSafe(|| {
         let bytes = get_core().adblock.serialize_to_dat();
-        unsafe { *out_len = bytes.len(); }
+        unsafe {
+            *out_len = bytes.len();
+        }
         let mut boxed = bytes.into_boxed_slice();
         let ptr = boxed.as_mut_ptr();
         std::mem::forget(boxed);
@@ -357,7 +408,9 @@ pub extern "C" fn azokle_core_fetch_page_json(url: *const c_char, is_tor: bool) 
         match azokle_networking::HttpClient::fetch_url(url_str, is_tor) {
             Ok(page) => {
                 let json = serde_json::to_string(&page).unwrap_or_default();
-                CString::new(json).map(|c| c.into_raw()).unwrap_or(std::ptr::null_mut())
+                CString::new(json)
+                    .map(|c| c.into_raw())
+                    .unwrap_or(std::ptr::null_mut())
             }
             Err(_e) => {
                 let fallback = serde_json::json!({
@@ -375,7 +428,9 @@ pub extern "C" fn azokle_core_fetch_page_json(url: *const c_char, is_tor: bool) 
                         ["DuckDuckGo (.onion)", "https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion"]
                     ]
                 });
-                CString::new(fallback.to_string()).map(|c| c.into_raw()).unwrap_or(std::ptr::null_mut())
+                CString::new(fallback.to_string())
+                    .map(|c| c.into_raw())
+                    .unwrap_or(std::ptr::null_mut())
             }
         }
     }));
