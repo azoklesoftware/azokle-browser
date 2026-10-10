@@ -1,0 +1,13 @@
+Azokle Browser is a fast, sovereign, and privacy-first web browser for Android, engineered around the Mozilla GeckoView engine and a high-performance native Rust core.
+
+Key Features:
+• Zero Telemetry: Completely free from tracking SDKs, surveillance analytics, and behavioral data harvesting.
+• Azokle Shield: Built-in native ad, tracker, cryptomining, and fingerprinting block engine.
+• Native Tor Integration: Anonymous browsing mode with automatic SOCKS5 proxy routing and onion domain resolution.
+• Post-Quantum Cryptography: Kyber768 key exchange and Encrypted Client Hello (ECH) for future-proof transport security.
+• DNS-over-HTTPS (DoH): Strict TRR mode with configurable secure resolvers and CNAME uncloaking defense.
+• Hardware-Backed Vault: Military-grade AES-256 local password manager with biometric authentication and eTLD+1 origin isolation.
+• Forensic Incineration: 12-layer deep data burn that cryptographically shreds cookies, tabs, caches, and storage.
+• PWA & Web Standards: Full Progressive Web App support with sandboxed process management.
+
+100% Free and Open Source Software (FOSS). Built for users who value true privacy and digital sovereignty.

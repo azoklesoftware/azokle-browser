@@ -1,0 +1,27 @@
+Categories:
+  - Internet
+  - Security
+
+License: Apache-2.0
+AuthorName: Azokle Software
+AuthorEmail: security@azokle.com
+AuthorWebSite: https://azokle.com
+SourceCode: https://github.com/azoklesoftware/azokle-browser
+IssueTracker: https://github.com/azoklesoftware/azokle-browser/issues
+Changelog: https://github.com/azoklesoftware/azokle-browser/releases
+
+AutoUpdateMode: Version %v
+UpdateCheckMode: Tags
+CurrentVersion: 2.0.6
+CurrentVersionCode: 17
+
+Builds:
+  - versionName: 2.0.6
+    versionCode: 17
+    commit: v2.0.6
+    subdir: apps/android
+    gradle:
+      - assembleRelease
+    prebuild:
+      - chmod +x gradlew
+    output: app/build/outputs/apk/release/app-release-unsigned.apk
