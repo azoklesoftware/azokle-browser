@@ -38,14 +38,18 @@ android {
 
     signingConfigs {
         create("release") {
-            val storeFilePath = System.getenv("KEYSTORE_PATH")
+            val storeFilePath = System.getenv("ANDROID_KEYSTORE_PATH")
+                ?: System.getenv("KEYSTORE_PATH")
                 ?: keystoreProperties.getProperty("storeFile")
                 ?: "${System.getProperty("user.home")}/.android/keystore/azokle-search.jks"
-            val storePass = System.getenv("KEYSTORE_PASSWORD")
+            val storePass = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                ?: System.getenv("KEYSTORE_PASSWORD")
                 ?: keystoreProperties.getProperty("storePassword")
-            val keyUserAlias = System.getenv("KEY_ALIAS")
+            val keyUserAlias = System.getenv("ANDROID_KEY_ALIAS")
+                ?: System.getenv("KEY_ALIAS")
                 ?: keystoreProperties.getProperty("keyAlias")
-            val keyPass = System.getenv("KEY_PASSWORD")
+            val keyPass = System.getenv("ANDROID_KEY_PASSWORD")
+                ?: System.getenv("KEY_PASSWORD")
                 ?: keystoreProperties.getProperty("keyPassword")
 
             if (file(storeFilePath).exists() && !storePass.isNullOrBlank()) {

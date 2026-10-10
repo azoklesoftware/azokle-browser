@@ -20,7 +20,12 @@ This document details the multi-platform packaging matrices, release artifact ge
 
 1. **Android APK/AAB**:
    - Must be signed with a production v2/v3 signing key (`apksigner`).
-   - `build.gradle.kts` dynamically reads release keystore parameters from environment variables (`KEYSTORE_PATH`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`).
+   - GitHub Actions workflows and Gradle dynamically consume the following secrets/environment variables:
+     - `ANDROID_KEYSTORE_BASE64`: Base64-encoded `.jks` release keystore file.
+     - `ANDROID_KEYSTORE_PASSWORD`: Master password for the release keystore.
+     - `ANDROID_KEY_ALIAS`: Key alias name (e.g. `azokle-search`).
+     - `ANDROID_KEY_PASSWORD`: Password for the designated key alias.
+     - Fallbacks for local building: `key.properties` file or `~/.android/keystore/azokle-search.jks`.
 2. **Apple (macOS/iOS)**:
    - macOS binaries must be signed with an Apple Developer ID certificate and notarized via `xcrun notarytool`.
    - Hardened runtime capability must be enabled.
