@@ -2,7 +2,7 @@
 agp = "9.3.2"
 kotlin = "2.2.10"
 coreKtx = "1.13.1"
-coreSplashscreen = "1.0.1"
+coreSplashscreen = "1.2.0"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
