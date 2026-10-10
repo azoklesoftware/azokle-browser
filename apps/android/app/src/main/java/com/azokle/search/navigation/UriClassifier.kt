@@ -25,7 +25,7 @@ object UriClassifier {
     )
 
     val DANGEROUS_SCHEMES = setOf(
-        "file", "content", "chrome", "resource"
+        "file", "content", "chrome", "resource", "jar", "view-source"
     )
 
     val TELEPHONY_SCHEMES = setOf(

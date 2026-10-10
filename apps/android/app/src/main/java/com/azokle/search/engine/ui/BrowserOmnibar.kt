@@ -143,11 +143,11 @@ fun BrowserOmnibar(
 
     // RFC 3986 Anti-Spoofing Host Extraction:
     // Strips embedded credentials/user-info prefixes (e.g. https://brand.com@evil.com -> evil.com)
+    // and neutralizes BiDi overrides and zero-width characters (CWE-451 UI Spoofing)
     val cleanHost = remember(url, uri) {
         try {
-            val extracted = uri?.host?.removePrefix("www.")?.trim()
-            if (!extracted.isNullOrBlank()) {
-                extracted
+            val raw = if (!uri?.host.isNullOrBlank()) {
+                uri.host!!.removePrefix("www.").trim()
             } else {
                 url.removePrefix("https://")
                     .removePrefix("http://")
@@ -156,6 +156,7 @@ fun BrowserOmnibar(
                     .removePrefix("www.")
                     .trim()
             }
+            raw.replace(Regex("[\u200B-\u200D\uFEFF\u202A-\u202E\u2066-\u2069\u200E\u200F]"), "")
         } catch (e: Exception) {
             url
         }
