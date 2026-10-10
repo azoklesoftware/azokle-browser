@@ -1,473 +1,205 @@
 <div align="center">
 
+<img src="assets/ic_launcher/play_store_512.png" width="128" height="128" alt="Azokle Browser Logo" style="border-radius: 24px;" />
+
 # 🛡️ Azokle Browser
 
-### *The High-Performance, Privacy-First, Cross-Platform Web Browser*
+### *The Super-Fast, Ad-Free & Truly Private Web Browser ✨*
 
-[![Rust 1.75+](https://img.shields.io/badge/Rust-1.75%2B-orange.svg?style=for-the-badge&logo=rust)](https://www.rust-lang.org)
-[![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg?style=for-the-badge&logo=c%2B%2B)](https://isocpp.org)
-[![Android GeckoView](https://img.shields.io/badge/Android-GeckoView%20154%2B-red.svg?style=for-the-badge&logo=android)](https://developer.android.com)
-[![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4.svg?style=for-the-badge&logo=android)](https://developer.android.com/jetpack/compose)
-[![Audit Checklist](https://img.shields.io/badge/Audit-80%2F80%20Verified%20(100%25)-success.svg?style=for-the-badge)](docs/operations/azokle_browser_implementation_report.md)
-[![Contributing](https://img.shields.io/badge/Contributing-Guide-blueviolet.svg?style=for-the-badge)](CONTRIBUTING.md)
-[![Code of Conduct](https://img.shields.io/badge/Code%20of%20Conduct-v2.1-ff69b4.svg?style=for-the-badge)](CODE_OF_CONDUCT.md)
-[![Security Policy](https://img.shields.io/badge/Security-Policy-red.svg?style=for-the-badge)](SECURITY.md)
+**Browse freely. No creepy trackers. No annoying popups. Just pure, joyful internet.**
+
 [![License: MIT / Apache-2.0](https://img.shields.io/badge/License-MIT%20%2F%20Apache--2.0-blue.svg?style=for-the-badge)](LICENSE)
+[![Android GeckoView](https://img.shields.io/badge/Engine-Mozilla%20GeckoView-ff7139.svg?style=for-the-badge&logo=firefox)](https://developer.android.com)
+[![Rust Core](https://img.shields.io/badge/Powered%20By-Rust%20Engine-black.svg?style=for-the-badge&logo=rust)](https://www.rust-lang.org)
+[![F-Droid Ready](https://img.shields.io/badge/F--Droid-Metadata%20Ready-34a853.svg?style=for-the-badge&logo=f-droid)](fastlane/metadata/android/en-US)
+[![Zero Telemetry](https://img.shields.io/badge/Telemetry-0%25%20Absolute%20Zero-success.svg?style=for-the-badge)](#-why-youll-love-azokle-browser-)
 
-*Built around a shared, memory-safe Rust Core engine, GeckoView & WebKit browser-engine runtimes, FIDO2 WebAuthn Passkeys, 3-Hop Tor Onion Circuits, Binary Flatbuffer AdBlock filtering, and zero third-party telemetry.*
+---
+
+<p align="center">
+  <a href="#-sneak-peek">📸 Screenshots</a> •
+  <a href="#-why-youll-love-azokle-browser-">💖 Why Azokle?</a> •
+  <a href="#-get-the-app">📲 Download</a> •
+  <a href="#-under-the-hood-for-developers">🛠️ Under The Hood</a> •
+  <a href="#-join-the-fun--contribute">🤝 Contribute</a>
+</p>
 
 ---
 
 </div>
 
-## 📖 Table of Contents
+## 📸 Sneak Peek
 
-1. [Executive Summary & Core Principles](#-executive-summary--core-principles)
-2. [Complete System Architecture](#-complete-system-architecture)
-3. [Repository Directory Blueprint](#-repository-directory-blueprint)
-4. [Rust Workspace & Subsystem Deep-Dive](#-rust-workspace--subsystem-deep-dive)
-5. [Cross-Platform Bindings Layer (`azokle-jni`, `azokle-c-bridge`, `azokle-uniffi`)](#-cross-platform-bindings-layer)
-6. [Client Applications Architecture](#-client-applications-architecture)
-   - [Android Application (`apps/android`)](#-android-application-appsandroid)
-   - [Linux Desktop Application (`apps/linux`)](#-linux-desktop-application-appslinux)
-7. [Comprehensive Build & Compilation Guide](#-comprehensive-build--compilation-guide)
-   - [Prerequisites for All Platforms](#prerequisites-for-all-platforms)
-   - [1. Building the Rust Core Workspace](#1-building-the-rust-core-workspace)
-   - [2. Building Android JNI Binaries (`libazokle_core.so`)](#2-building-android-jni-binaries-libazokle_coreso)
-   - [3. Building and Installing the Android App](#3-building-and-installing-the-android-app)
-   - [4. Building the Linux Desktop App (CMake / GTK)](#4-building-the-linux-desktop-app-cmake--gtk)
-   - [5. macOS & Windows Development Guide](#5-macos--windows-development-guide)
-8. [Advanced Diagnostics, Debugging & Profiling](#-advanced-diagnostics-debugging--profiling)
-9. [Security, Privacy & Threat Mitigations](#-security-privacy--threat-mitigations)
-10. [Testing & Quality Verification](#-testing--quality-verification)
-11. [Contributing & Security Guidelines](#-contributing--security-guidelines)
-12. [License & Community](#-license--community)
+See Azokle Browser in action — smooth, stylish, and built to keep your personal life personal!
+
+<div align="center">
+<table>
+  <tr>
+    <td align="center" width="20%">
+      <img src="assets/screenshot/1.png" alt="Privacy by Design Search" width="100%" /><br/>
+      <b>✨ Zero Clutter Home</b><br/>
+      <sub>Clean bookmarks & private search</sub>
+    </td>
+    <td align="center" width="20%">
+      <img src="assets/screenshot/2.png" alt="Azokle Shield Ad Blocker" width="100%" /><br/>
+      <b>🛡️ Azokle Shield</b><br/>
+      <sub>Block ads & enjoy video uninterrupted</sub>
+    </td>
+    <td align="center" width="20%">
+      <img src="assets/screenshot/3.png" alt="Zero-Knowledge Search Results" width="100%" /><br/>
+      <b>⚡ Instant Answers</b><br/>
+      <sub>Zero-knowledge search with no logs</sub>
+    </td>
+    <td align="center" width="20%">
+      <img src="assets/screenshot/4.png" alt="Private Voice Search" width="100%" /><br/>
+      <b>🎙️ Private Voice</b><br/>
+      <sub>Search by voice without eavesdropping</sub>
+    </td>
+    <td align="center" width="20%">
+      <img src="assets/screenshot/5.png" alt="Tor Mode Anywhere" width="100%" /><br/>
+      <b>🧅 One-Tap Tor</b><br/>
+      <sub>Triple-layer encryption anywhere</sub>
+    </td>
+  </tr>
+</table>
+</div>
 
 ---
 
-## 🧭 Executive Summary & Core Principles
+## 💖 Why You'll Love Azokle Browser 
 
-**Azokle Browser** is engineered from the ground up to protect user privacy, eliminate tracking, and deliver desktop-grade web performance on mobile and desktop platforms. Unlike traditional browsers that bundle third-party telemetry, ad-networks, or fragile JavaScript monkey-patching, Azokle enforces strict browser-engine boundaries:
+Most browsers spy on you, sell your search history, and let websites flood your screen with flashing ads. **Azokle Browser changes the game!**
 
-1. **Native Engine Boundaries**: Browser responsibilities belong to the browser engine (GeckoView / WebKit). Ad-blocking and privacy filtering operate strictly at the native network/Rust layer before bytes reach the layout renderer.
-2. **Zero Telemetry Guarantee**: No analytics SDKs, no tracking pings, no unique hardware identifiers, and no telemetry pings.
-3. **Memory Safety by Construction**: All filter parsing, cryptographic vaults, URL sanitizers, Tor SOCKS5 sockets, and download pipelines are written in memory-safe Rust with `#![forbid(unsafe_code)]` boundaries.
-4. **Resilience & Fault Isolation**: Every JNI and C-ABI boundary implements explicit exception and `Throwable` safety barriers, preventing native crashes from crashing user interfaces.
-5. **Decentralized & Multi-Hop Privacy**: Native Tor 3-Hop Onion routing with circuit node visualizer and `.onion` hidden service resolution out of the box.
+### 🚫 1. Bye-Bye, Annoying Ads! (Azokle Shield)
+No banners, no video interruptions, no popup traps. Azokle Shield stops ads before they even download, which saves your battery and keeps your mobile data light and fast.
+
+### 🕵️ 2. Zero Creepy Trackers (Zero Telemetry)
+We don't know who you are, what you search, or what you click — and we like it that way! We have **zero analytics SDKs**, zero tracking pixels, and zero background telemetry.
+
+### 🧅 3. Secret Agent Stealth (One-Tap Tor)
+Need next-level privacy? Flip on **Tor Mode** to bounce your connection across three encrypted hops across the globe. Seamlessly explore `.onion` sites with total anonymity!
+
+### ⚡ 4. Supercharged Speed
+Powered by Mozilla's high-octane **GeckoView** engine and ultra-fast **Rust** under the hood. Heavy websites load in the blink of an eye with buttery smooth scrolling.
+
+### 🔥 5. The Magic Incinerator Button
+Done with a private session? Tap the flame button and watch cookies, tabs, history, and cache vanish into thin air. Poof! Not a single trace left behind.
+
+### 🔐 6. Hardware-Grade Password & Passkey Vault
+Ditch weak passwords! Save passkeys and credentials locked safely behind your phone's biometric hardware (fingerprint & face unlock).
 
 ---
 
-## 🏛️ Complete System Architecture
+## 📲 Get The App
+
+| Channel | Status | How to install |
+| :--- | :--- | :--- |
+| **GitHub Releases** | Available Now | Grab the latest `.apk` from the [Releases](https://github.com/azoklesoftware/azokle-browser/releases) tab. |
+| **F-Droid Store** | Publishing | Built directly from 100% open-source code via our automated [F-Droid Pipeline](.github/workflows/fdroid.yml). |
+| **Build from Source** | Always Available | Clone the repo and run `./gradlew assembleDebug` in 2 minutes! |
+
+---
+
+## 🛠️ Under The Hood (For Developers & Curious Geeks)
+
+Azokle is engineered with clean boundaries: high-performance Rust core, Kotlin Jetpack Compose for the UI, and Mozilla GeckoView for the web runtime.
 
 ```mermaid
 graph TD
-    subgraph ClientApps ["Client Applications Layer (apps/)"]
-        ANDROID["📱 apps/android<br/>• Jetpack Compose & Material 3<br/>• Mozilla GeckoView 134+ Engine<br/>• Anti-Flash Surface Compositor<br/>• Fast Tab & Group Manager<br/>• Biometric Keystore Vault"]
-        LINUX["🐧 apps/linux<br/>• C++20 & GTK 3/4 Chrome<br/>• Embedded WebKitGTK / GeckoEngine<br/>• Internal Pages: azokle://*<br/>• Custom Omnibar & Fast Tabs"]
+    UI["📱 Modern Android UI<br/>(Jetpack Compose + Material 3)"] --> ENGINE["🌐 Web Runtime<br/>(Mozilla GeckoView 134+)"]
+    UI --> JNI["☕ Kotlin JNI Bridge<br/>(libazokle_core.so)"]
+    JNI --> RUST["🛡️ Rust Core Engine"]
+    
+    subgraph RustSubsystems ["Memory-Safe Rust Workspace"]
+        RUST --> SHIELD["🛡️ Azokle Shield (Adblock & Tracker Defusers)"]
+        RUST --> TORNET["🧅 Tor SOCKS5 & Onion Circuits"]
+        RUST --> VAULT["🔑 FIDO2 / Passkeys & Hardware Crypto"]
+        RUST --> FREC["⚡ Mozilla Frecency History Engine"]
     end
-
-    subgraph EngineLayer ["Engine Abstraction Layer (engine/)"]
-        ENG["⚙️ engine/include/azokle/engine<br/>• IBrowserEngine / IGeckoEngine<br/>• IGeckoSession & IGeckoDelegate<br/>• Platform Web Engine Bridges"]
-    end
-
-    subgraph BindingsLayer ["Bindings Layer (bindings/)"]
-        JNI["☕ bindings/kotlin (azokle-jni)<br/>• JNI Native Bridge (libazokle_core.so)<br/>• Targets: arm64-v8a, armeabi-v7a, x86_64, x86<br/>• Safe Throwable Exception Boundaries"]
-        CABI["🔌 bindings/c (azokle-c-bridge)<br/>• Stable C-ABI Headers (azokle.h)<br/>• Static Library (libazokle_c.a)"]
-        UNIF["🌐 bindings/uniffi (azokle-uniffi)<br/>• Multi-language FFI (Swift/iOS, Python, C#)"]
-    end
-
-    subgraph RustCore ["Rust Core Workspace (crates/)"]
-        CORE["🛡️ crates/core (azokle-core facade)<br/>Central Orchestrator Singleton"]
-        
-        subgraph PrivacySubsystem ["Privacy & Shield Subsystem"]
-            AD["privacy/adblock<br/>• Flatbuffers Binary Filter Cache<br/>• Brave Surrogates & Defusers"]
-            ADR["privacy/adblock-rust<br/>• uBlock & Brave syntax parser"]
-            TB["privacy/tracker-block<br/>• Bounce Tracking Redirect Defuser<br/>• URL Query Tracker Stripper"]
-        end
-
-        subgraph CoreServices ["Core Browser Services"]
-            HIST["services/history<br/>• Mozilla Frecency Engine<br/>• Chronological Grouped Timeline<br/>• SQLite FTS Search"]
-            PERM["services/permissions<br/>• Per-Origin Permission Controller"]
-            DOWN["services/downloads<br/>• Resumable Range-206 Engine<br/>• Sandboxed Private/Tor Vault"]
-            TABS["services/tabs<br/>• Tab Containers (Standard, Private, Tor)"]
-            BOOK["services/bookmarks<br/>• Encrypted Bookmark Tree"]
-            SYNC["services/sync<br/>• E2EE Multi-Device Sync Protocol"]
-            SRCH["services/search<br/>• Bangs (!g, !yt, !w) & Suggest"]
-        end
-
-        subgraph SecurityCrypto ["Security & Cryptography"]
-            CRYP["crypto<br/>• FIDO2 / WebAuthn P-256 Passkeys<br/>• ChaCha20-Poly1305 & Argon2id"]
-            SEC["security<br/>• TLS Cert Inspector & Host Sanitizer"]
-            STOR["storage<br/>• Encrypted SQLite & Atomic JSON Engine"]
-            TOR["tor<br/>• SOCKS5 Proxy Daemon & Onion Circuits"]
-            NET["networking<br/>• DNS-over-HTTPS (DoH) Client"]
-            PROT["protocol<br/>• Custom Schemes (azokle://, about:*)"]
-        end
-    end
-
-    AD --> CORE
-    ADR --> CORE
-    TB --> CORE
-    HIST --> CORE
-    PERM --> CORE
-    DOWN --> CORE
-    TABS --> CORE
-    BOOK --> CORE
-    SYNC --> CORE
-    SRCH --> CORE
-    CRYP --> CORE
-    SEC --> CORE
-    STOR --> CORE
-    TOR --> CORE
-    NET --> CORE
-    PROT --> CORE
-
-    CORE --> JNI
-    CORE --> CABI
-    CORE --> UNIF
-    JNI --> ANDROID
-    CABI --> ENG
-    ENG --> LINUX
 ```
 
----
-
-## 📂 Repository Directory Blueprint
+<details>
+<summary><b>📂 Repository Blueprint (Click to expand)</b></summary>
 
 ```text
 azokle-browser/
-├── Cargo.toml                         # Cargo workspace root definition
-├── CMakeLists.txt                     # CMake root configuration for C++20 and GTK
-├── README.md                          # Master architectural documentation and guide
-│
-├── apps/                              # Client applications
-│   ├── android/                       # Native Android application
-│   │   ├── app/
-│   │   │   ├── build.gradle.kts       # Android build script (GeckoView, Compose, NDK)
-│   │   │   ├── src/main/
-│   │   │   │   ├── AndroidManifest.xml
-│   │   │   │   ├── java/com/azokle/search/
-│   │   │   │   │   ├── core/          # AzokleCore Kotlin JNI bridge
-│   │   │   │   │   ├── engine/        # GeckoEngineManager, GeckoBrowserView, Delegates
-│   │   │   │   │   ├── engine/ui/     # BrowserScreen, Omnibar, UrlEditSheet, Anti-Flash
-│   │   │   │   │   ├── tabs/          # TabManager, TabSession, TabThumbnailCache
-│   │   │   │   │   ├── history/       # AzokleHistoryDatabase & HistoryManager
-│   │   │   │   │   ├── downloads/     # DownloadManager & Sandboxed Download Vault
-│   │   │   │   │   ├── vault/         # EncryptedVaultManager (Passkeys, Bookmarks)
-│   │   │   │   │   ├── tor/           # TorCircuitManager & Visualizer
-│   │   │   │   │   └── search/        # SearchBarCapsule, EngineSelector, VoiceModal
-│   │   │   │   ├── jniLibs/           # Pre-compiled native libraries (.so) per ABI
-│   │   │   │   │   ├── arm64-v8a/     # 64-bit ARM (aarch64-linux-android)
-│   │   │   │   │   ├── armeabi-v7a/   # 32-bit ARM (armv7-linux-androideabi)
-│   │   │   │   │   ├── x86_64/        # 64-bit x86 (x86_64-linux-android)
-│   │   │   │   │   └── x86/           # 32-bit x86 (i686-linux-android)
-│   │   │   │   └── assets/            # Flatbuffers rule cache, WebExtensions, configs
-│   │   │   └── src/test/              # JUnit & Security Unit Test Suite
-│   │   └── build.gradle.kts           # Root Gradle build script
-│   │
-│   └── linux/                         # Native Linux desktop application
-│       ├── CMakeLists.txt             # Linux app CMake configuration
-│       ├── resources/                 # Web assets for internal pages (HTML/CSS/JS)
-│       │   ├── newtab/                # Brave-style New Tab dashboard
-│       │   └── pages/                 # Settings, History, Downloads, Bookmarks
-│       └── src/                       # C++20 GTK Window, Omnibar, Tabs, Engine bridge
-│
-├── bindings/                          # Native language bindings
-│   ├── kotlin/                        # Rust JNI crate (azokle-jni -> libazokle_core.so)
-│   │   ├── Cargo.toml
-│   │   └── src/lib.rs                 # JNI export functions
-│   ├── c/                             # C-ABI bridge crate (azokle-c-bridge -> libazokle_c.a)
-│   │   ├── Cargo.toml
-│   │   └── src/lib.rs                 # C-ABI extern "C" functions
-│   └── uniffi/                        # UniFFI interface definitions for iOS/macOS
-│
-├── crates/                            # 17 Modular Rust workspace crates
-│   ├── common/                        # Common utilities, errors, and URL helpers
-│   ├── core/                          # Central AzokleCore singleton facade
-│   ├── privacy/
-│   │   ├── adblock/                   # Network filter matcher, Flatbuffers compiler
-│   │   ├── adblock-rust/              # Brave/uBlock syntax rule parser
-│   │   └── tracker-block/             # Bounce tracker defusal, Query stripper
-│   ├── services/
-│   │   ├── history/                   # Mozilla Frecency scoring & timeline engine
-│   │   ├── permissions/               # Per-origin permission controller
-│   │   ├── downloads/                 # Resumable Range-206 download engine
-│   │   ├── tabs/                      # Tab container & snapshotting manager
-│   │   ├── bookmarks/                 # Hierarchical bookmark tree
-│   │   ├── search/                    # Search providers & bangs (!g, !yt, !w)
-│   │   └── sync/                      # E2E encrypted device sync
-│   ├── crypto/                        # FIDO2 / WebAuthn P-256 & Argon2id vault
-│   ├── security/                      # TLS inspector, Anti-spoofing host validator
-│   ├── storage/                       # Encrypted SQLite storage & atomic backups
-│   ├── tor/                           # SOCKS5 proxy daemon & Onion routing
-│   ├── networking/                    # DNS-over-HTTPS (DoH) & connection pooling
-│   └── protocol/                      # Custom scheme router (azokle://, about:*)
-│
-└── engine/                            # Abstract C++20 Browser Engine interface
-    ├── CMakeLists.txt
-    └── include/azokle/engine/
-        ├── IBrowserEngine.hpp         # Abstract browser engine interface
-        └── IGeckoEngine.hpp           # Gecko / WebKit session delegates
+├── apps/
+│   ├── android/             # Android app (Jetpack Compose + GeckoView)
+│   │   ├── app/src/main/
+│   │   │   ├── java/        # UI, Tab Management, Incinerator, Settings
+│   │   │   ├── jniLibs/     # Pre-compiled Rust binaries (arm64, v7a, x86_64)
+│   │   │   └── assets/      # Adblock filters & WebExtensions
+│   │   └── fastlane/        # F-Droid store listings, screenshots & icons
+│   └── linux/               # Native Linux GTK desktop application
+├── bindings/
+│   ├── kotlin/              # Rust JNI bindings (azokle-jni)
+│   └── c/                   # C-ABI static library for desktop (azokle-c-bridge)
+├── crates/                  # 17 Modular, Memory-Safe Rust crates
+│   ├── privacy/             # Adblocking Flatbuffers & tracker defusers
+│   ├── crypto/              # FIDO2 Passkeys & ChaCha20-Poly1305 storage
+│   ├── tor/                 # Native SOCKS5 daemon & onion routing
+│   └── services/            # History, Bookmarks, Downloads, Search bangs
+└── .github/workflows/       # Automated CI, Security scans & F-Droid builds
 ```
 
----
+</details>
 
-## 🔬 Rust Workspace & Subsystem Deep-Dive
+<details>
+<summary><b>💻 Quick Build Guide (Click to expand)</b></summary>
 
-### 1. Privacy & Shield Engine (`crates/privacy/`)
-- **Flatbuffer Binary Filter Cache**: Compiles hundreds of thousands of EasyList, EasyPrivacy, and uBlock filter rules into a memory-mapped binary Flatbuffer cache, enabling sub-millisecond network request matching.
-- **Brave Surrogates & Defusers**: Injects neutral mock objects for tracking scripts (`google-analytics.js`, `fbevents.js`, `tagmanager.js`) to prevent website breakages while stopping telemetry.
-- **Bounce-Tracking Interceptor**: Detects intermediate bounce-tracking domains and defuses redirects directly to clean target URLs.
-- **Query Parameter Stripper**: Strips surveillance query tokens (`utm_source`, `utm_medium`, `fbclid`, `gclid`, `msclkid`, `mc_eid`, `_ga`, etc.) from all clicked links.
+### 1. Requirements
+- **Rust 1.75+** (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`)
+- **Android SDK & NDK 27+**
+- **Cargo NDK**: `cargo install cargo-ndk`
 
-### 2. Mozilla-Standard Frecency History (`crates/services/history/`)
-Azokle calculates destination relevance using Mozilla's proven **Frecency** algorithm:
-$$\text{Frecency Score} = \sum (\text{Visit Weight} \times \text{Recency Bucket Factor}) + (\text{Typed Count} \times 2000)$$
-- Results are ranked in real time to power the Top Sites grid and Omnibar autosuggestions with zero disk latency.
-
-### 3. FIDO2 / WebAuthn Passkeys (`crates/crypto/`)
-- Generates hardware-backed ECDSA P-256 keypairs with CBOR encoding for passwordless FIDO2 authentication.
-- Securely stores credentials encrypted via ChaCha20-Poly1305 with Argon2id-derived key encryption keys (KEK).
-
-### 4. Tor Onion Multi-Hop Routing (`crates/tor/`)
-- Native SOCKS5 daemon routing traffic across 3-Hop Tor onion circuits (`Entry Guard` &rarr; `Middle Relay` &rarr; `Exit Node`).
-- Seamlessly resolves `.onion` hidden service domains with end-to-end cryptographic isolation.
-
----
-
-## 🔌 Cross-Platform Bindings Layer
-
-### `azokle-jni` (`bindings/kotlin/`)
-The Android application communicates with the Rust engine through high-performance JNI bindings compiled into `libazokle_core.so`:
-- **Safe Throwable Error Boundaries**: All JNI invocations in [`AzokleCore.kt`](apps/android/app/src/main/java/com/azokle/search/core/AzokleCore.kt) are enclosed in `catch (e: Throwable)` blocks, ensuring that even link errors or missing native methods fallback gracefully without crashing the app.
-- **Direct String & Flatbuffer Streaming**: Native buffers pass directly between JNI and Kotlin memory without unnecessary JSON allocations.
-
-### `azokle-c-bridge` (`bindings/c/`)
-Exposes C-compatible symbol definitions (`azokle_core_init`, `azokle_adblock_matches`, `azokle_history_record_visit`) compiled into static library `libazokle_c.a` for C++20 and GTK applications.
-
-### `azokle-uniffi` (`bindings/uniffi/`)
-UniFFI interface definitions for cross-platform expansion (Swift / iOS, Python CLI, C# bindings).
-
----
-
-## 📱 Client Applications Architecture
-
-### 📱 Android Application (`apps/android/`)
-- **GeckoView 134+ Runtime**: Embedded Mozilla Gecko engine with full WebExtension APIs, sandboxed cookie jars, and hardware-accelerated WebGL.
-- **Anti-Flash Compositor**:
-  - `PageLoadingTransitionSurface` completely masks stale framebuffers and viewport reflow jumps during URL navigations and Desktop/Mobile mode toggles.
-  - Smooth 180ms crossfade on `onProgressChange >= 20` or `onPageStop`.
-- **Sandboxed Download Vault**:
-  - Private Mode and Tor downloads are saved into isolated, application-private directories without leaking to the public MediaStore.
-  - One-tap Fire Incinerator shreds and deletes all private downloads and browsing state atomically.
-- **Interactive Omnibar Sheet**:
-  - Live search engine switching (Azokle Search, DuckDuckGo, Brave, Startpage, Mojeek).
-  - One-tap "Paste & Go" clipboard pill with domain validation.
-  - Frecency history suggestions and live search queries.
-
-### 🐧 Linux Desktop Application (`apps/linux/`)
-- **C++20 & GTK 3/4**: Ultra-lightweight native Linux desktop shell.
-- **Internal Scheme Pages**:
-  - `azokle://newtab`: Local dashboard with live privacy metrics.
-  - `azokle://settings`: Comprehensive Shield, Passkey, Search, and Tor controls.
-  - `azokle://history`: Instant queryable chronological history timeline.
-  - `azokle://downloads` & `azokle://bookmarks`: Built-in management surfaces.
-
----
-
-## 🛠️ Comprehensive Build & Compilation Guide
-
-### Prerequisites for All Platforms
-
-1. **Rust Toolchain (1.75.0+)**:
-   ```bash
-   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-   rustup default stable
-   rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
-   ```
-2. **Cargo NDK (for Android builds)**:
-   ```bash
-   cargo install cargo-ndk
-   ```
-3. **Android SDK & NDK (for Android builds)**:
-   - Android SDK API Level 34+ (Android 14)
-   - Android NDK Version `27.0.12077973` or `28.x`
-   - Set environment variables in your shell configuration (`~/.bashrc` / `~/.zshrc`):
-     ```bash
-     export ANDROID_HOME=$HOME/Android/Sdk
-     export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.0.12077973
-     export PATH=$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin
-     ```
-4. **Linux Build Dependencies (for Linux desktop builds)**:
-   ```bash
-   sudo apt update && sudo apt install -y \
-       build-essential gcc g++ clang cmake pkg-config ninja-build \
-       libgtk-3-dev libgtk-4-dev libwebkit2gtk-4.1-dev \
-       libssl-dev libsqlite3-dev
-   ```
-
----
-
-### 1. Building the Rust Core Workspace
-
+### 2. Testing the Rust Core
 ```bash
-# Clone the repository
-git clone https://github.com/azoklesoftware/azokle-browser.git
-cd azokle-browser
-
-# Verify and check entire workspace
 cargo check --workspace
-
-# Run all unit tests across all 17 crates
 cargo test --workspace
-
-# Run tests with live stdout
-cargo test --workspace -- --nocapture
-
-# Build release desktop libraries
-cargo build --workspace --release
 ```
 
----
-
-### 2. Building Android JNI Binaries (`libazokle_core.so`)
-
-Compile the native JNI libraries for all Android architectures using `cargo ndk`:
-
+### 3. Building the Android App
 ```bash
-# From the repository root:
-ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.0.12077973 cargo ndk \
-    -t arm64-v8a \
-    -t armeabi-v7a \
-    -t x86_64 \
-    -o apps/android/app/src/main/jniLibs \
-    build --release -p azokle-jni
-```
+# Build Rust native libraries for Android:
+cargo ndk -t arm64-v8a -t x86_64 -o apps/android/app/src/main/jniLibs build --release -p azokle-jni
 
-*Verify that native symbols are properly exported:*
-```bash
-nm -D apps/android/app/src/main/jniLibs/arm64-v8a/libazokle_core.so | grep -i historyGetTopFrecency
-```
-
----
-
-### 3. Building and Installing the Android App
-
-```bash
+# Build the Debug APK:
 cd apps/android
-
-# Run unit tests
-./gradlew testDebugUnitTest
-
-# Build Debug APK
 ./gradlew assembleDebug
-
-# Build Release APK
-./gradlew assembleRelease
-
-# Install directly to connected device / emulator
-./gradlew installDebug
 ```
 
----
-
-### 4. Building the Linux Desktop App (CMake / GTK)
-
-```bash
-# 1. Build the C-Bridge static library
-cargo build -p azokle-c-bridge --release
-
-# 2. Configure and build CMake project
-cmake -B build_linux -S . -DCMAKE_BUILD_TYPE=Release
-cmake --build build_linux --parallel $(nproc)
-
-# 3. Run Linux Desktop App
-./build_linux/apps/linux/azokle-browser-linux
-
-# Run with GTK debug logs
-G_MESSAGES_DEBUG=all ./build_linux/apps/linux/azokle-browser-linux
-```
+</details>
 
 ---
 
-### 5. macOS & Windows Development Guide
+## 🔒 Privacy & Security Guarantees
 
-- **macOS**:
-  ```bash
-  cargo test --workspace
-  cargo build -p azokle-uniffi
-  ```
-- **Windows (MSVC)**:
-  - Requires Visual Studio 2022 with C++20 toolset and `x86_64-pc-windows-msvc` target.
-  ```powershell
-  cargo test --workspace
-  ```
+We take safety seriously so you don't have to worry:
+
+- **100% Rust Core**: Untrusted network filters and data parsers run in memory-safe Rust with `#![forbid(unsafe_code)]`.
+- **Sandboxed Downloads**: Files downloaded in Private and Tor modes stay locked in private vaults and never leak to public storage.
+- **No Anti-Features**: Zero proprietary analytics, zero tracking SDKs, and zero bloat.
+- **Security Audited**: Verified against 80+ security benchmarks (XSS, intent sanitization, DNS leak prevention). See our full [Security Audit Report](docs/operations/azokle_browser_implementation_report.md).
 
 ---
 
-## 🔍 Advanced Diagnostics, Debugging & Profiling
+## 🤝 Join The Fun & Contribute!
 
-### Android Logcat & Crash Inspection
-```bash
-# Live filter for Azokle runtime events, crashes, and GeckoView engine logs
-adb logcat -v color | grep -E "(Azokle|Gecko|FATAL EXCEPTION|AndroidRuntime)"
+Azokle Browser is 100% open source and made with ❤️ for the community. We'd love your help making it even better!
 
-# Inspect crash buffer immediately
-adb logcat -d -b crash
-```
-
-### AddressSanitizer & Memory Leak Analysis (Desktop)
-```bash
-# Run Rust tests under AddressSanitizer (nightly)
-RUSTFLAGS="-Zsanitizer=address" cargo +nightly test --target x86_64-unknown-linux-gnu
-
-# Build Linux desktop app with ASan
-cmake -B build_asan -S . -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN=ON
-cmake --build build_asan
-```
+- 🐛 **Found a bug?** Open an [Issue](https://github.com/azoklesoftware/azokle-browser/issues).
+- 💡 **Got a cool idea?** Start a discussion!
+- 👩‍💻 **Want to write code?** Check out our [Contributing Guide](CONTRIBUTING.md) and submit a Pull Request.
+- ⭐ **Love what we're building?** Don't forget to **Star this repository** — it helps more people discover private browsing!
 
 ---
 
-## 🔒 Security, Privacy & Threat Mitigations
+## 📜 License
 
-| Security Domain | Mitigation Architecture |
-| :--- | :--- |
-| **Memory Safety** | 100% Rust core with `#![forbid(unsafe_code)]` on untrusted parsers and network filters. |
-| **Zero Telemetry** | Absolute zero third-party telemetry, metrics, or identifier collection. |
-| **Download Security** | Sandboxed Private/Tor downloads isolated from public MediaStore; HTTP Range-206 safety checks. |
-| **Passkey Protection** | Hardware Keystore-backed ECDSA P-256 WebAuthn keys encrypted with ChaCha20-Poly1305. |
-| **Tor Isolation** | Strict SOCKS5 socket isolation per tab container with zero local IP leakage. |
-| **Anti-Spoofing** | Unicode homoglyph detection and strict domain extraction preventing URL bar phishing. |
-| **Nuclear Incinerator** | One-tap atomic destruction of cookies, local storage, private downloads, and SQLite history. |
-
----
-
-## 🧪 Testing & Quality Verification
-
-- **Rust Workspace Unit Tests**: `cargo test --workspace` (100% passing across all 17 crates).
-- **Android Unit Tests**: `./gradlew testDebugUnitTest` (42 comprehensive test suites passing at 100%).
-- **SBOM Generation**: `./gradlew generateSbom` (CycloneDX 1.5 JSON cataloging 151 dependencies).
-- **Android Assembly**: `./gradlew assembleDebug` (Clean compilation & packaging).
-- **Makefile Automation**: Run `make help` from the repository root for one-liner developer tasks (`make rust-test`, `make android-test`, `make android-build`).
-
----
-
-## 🤝 Contributing & Community Standards
-
-- **Contributing Guide**: Please review [CONTRIBUTING.md](CONTRIBUTING.md) for branch strategy (`development` branch), Kotlin/Rust coding style, and PR requirements.
-- **Code of Conduct**: Azokle adheres to the [Contributor Covenant v2.1](CODE_OF_CONDUCT.md).
-- **Security Policy**: For responsible vulnerability reporting, security invariants, and disclosure guidelines, see [SECURITY.md](SECURITY.md).
-- **Architecture & Implementation Audit**: See our complete 80-point verification report in [docs/operations/azokle_browser_implementation_report.md](docs/operations/azokle_browser_implementation_report.md).
-- **Changelog**: Detailed release logs and updates are documented in [CHANGELOG.md](CHANGELOG.md) and [.azokle/changelog/android/v-2.0.6.md](.azokle/changelog/android/v-2.0.6.md).
-
----
-
-## 📄 License & Community
-
-Azokle Browser is open source software dual-licensed under both the **MIT License** and the **Apache License (Version 2.0)**. See the complete [LICENSE](LICENSE) file for terms and conditions.
+Azokle Browser is proudly open-source, dual-licensed under both the **MIT License** and the **Apache License (Version 2.0)**. See the [LICENSE](LICENSE) file for details.
 
 <div align="center">
 
-**Azokle Browser — Built for Uncompromised Speed and Privacy.**
+**Made with 💜 for a free, open, and private internet.**
 
 </div>
