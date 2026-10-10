@@ -1,0 +1,6 @@
+• Enterprise Password Manager hardening with Public Suffix eTLD+1 origin isolation (CWE-346)
+• Biometric step-up authentication barrier before revealing, copying, or exporting passwords
+• Sensitive clipboard isolation with automated 45-second RAM wiping watchdog
+• Omnibar Address Bar defense against BiDi direction overrides and zero-width spoofing
+• Reinforced SOCKS5 remote DNS resolution and deep anti-forensics threat clearing
+• Performance optimizations and latest security rule definitions

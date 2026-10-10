@@ -1,0 +1,38 @@
+default_platform(:android)
+
+platform :android do
+  desc "Run full unit & security regression test suite"
+  lane :test do
+    gradle(task: "testDebugUnitTest")
+  end
+
+  desc "Build release APK/AAB and generate SBOM"
+  lane :build_release do
+    gradle(task: "bundleRelease")
+    gradle(task: "generateSbom")
+  end
+
+  desc "Deploy staged rollout to Google Play Track"
+  lane :deploy_staged do |options|
+    user_fraction = options[:fraction] || "0.10" # Default 10% rollout
+    track_name = options[:track] || "production"
+
+    upload_to_play_store(
+      track: track_name,
+      rollout: user_fraction,
+      skip_upload_metadata: false,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "Promote staged rollout to 100%"
+  lane :promote_full do |options|
+    track_name = options[:track] || "production"
+    upload_to_play_store(
+      track: track_name,
+      rollout: "1.0",
+      skip_upload_metadata: true
+    )
+  end
+end
