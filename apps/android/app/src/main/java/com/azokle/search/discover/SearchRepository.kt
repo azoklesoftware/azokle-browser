@@ -96,7 +96,7 @@ class SearchRepository(
 
             client.newCall(request).executeCancellably().use { response ->
                 if (!response.isSuccessful) return@withContext emptyList()
-                val bodyStr = response.body?.string() ?: return@withContext emptyList()
+                val bodyStr = response.body.string()
 
                 val jsonArray = JSONArray(bodyStr)
                 if (jsonArray.length() >= 2) {
@@ -152,7 +152,7 @@ class SearchRepository(
                 .build()
 
             client.newCall(request).executeCancellably().use { response ->
-                val bodyStr = response.body?.string() ?: ""
+                val bodyStr = response.body.string()
                 if (!response.isSuccessful) {
                     return@withContext SearchResultResponse(
                         query = trimmed,

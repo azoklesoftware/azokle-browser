@@ -49,7 +49,7 @@ class AzokleSelectionDelegate(
         session: GeckoSession,
         perm: SelectionActionDelegate.ClipboardPermission
     ): GeckoResult<AllowOrDeny>? {
-        val uriStr = perm.uri ?: ""
+        val uriStr = perm.uri
         val scheme = try { android.net.Uri.parse(uriStr).scheme?.lowercase() ?: "" } catch (e: Exception) { "" }
         val host = try { android.net.Uri.parse(uriStr).host ?: uriStr } catch (e: Exception) { uriStr }
 
@@ -98,7 +98,7 @@ class AzokleSelectionDelegate(
         val isEditable = (flags and SelectionActionDelegate.FLAG_IS_EDITABLE) != 0
         val isCollapsed = (flags and SelectionActionDelegate.FLAG_IS_COLLAPSED) != 0
 
-        val rawText = selection.text ?: ""
+        val rawText = selection.text
         val trimmedText = rawText.trim()
         val rect = selection.screenRect ?: android.graphics.RectF(0f, 0f, 0f, 0f)
 

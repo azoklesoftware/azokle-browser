@@ -105,7 +105,7 @@ object PwaManager {
                             .build()
                         val res = httpClient.newCall(req).execute()
                         if (res.isSuccessful) {
-                            val bodyStr = res.body?.string()
+                            val bodyStr = res.body.string()
                             if (!bodyStr.isNullOrBlank()) {
                                 parsedManifest = WebAppManifest.parse(
                                     jsonString = bodyStr,

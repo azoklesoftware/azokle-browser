@@ -70,6 +70,7 @@ fun AboutAzokleScreen(
 ) {
     val context = LocalContext.current
     val colors = AzokleTheme.colors
+    @Suppress("DEPRECATION")
     val clipboardManager = LocalClipboardManager.current
     val haptic = LocalHapticFeedback.current
 

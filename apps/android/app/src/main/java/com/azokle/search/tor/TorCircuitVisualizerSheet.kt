@@ -318,6 +318,7 @@ private fun ConnectedCircuitContent(
 ) {
     val colors = AzokleTheme.colors
     val haptic = LocalHapticFeedback.current
+    @Suppress("DEPRECATION")
     val clipboardManager = LocalClipboardManager.current
     var isRotating by remember { mutableStateOf(false) }
     var copyConfirmed by remember { mutableStateOf(false) }

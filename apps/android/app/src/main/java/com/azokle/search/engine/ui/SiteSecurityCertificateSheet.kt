@@ -115,6 +115,7 @@ fun SiteSecurityCertificateSheet(
     onReload: () -> Unit
 ) {
     val context = LocalContext.current
+    @Suppress("DEPRECATION")
     val clipboardManager = LocalClipboardManager.current
     val colors = AzokleTheme.colors
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -142,7 +143,7 @@ fun SiteSecurityCertificateSheet(
     val permUpdateTick by permManager.updatesFlow.collectAsState()
     val sitePerms = remember(host, permUpdateTick) { permManager.getHostPermissions(host) }
 
-    val cert = securityInfo?.certificate as? X509Certificate
+    val cert = securityInfo?.certificate
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
 
     // Parse X.509 Certificate Metadata

@@ -155,7 +155,7 @@ class AzokleProgressDelegate(
                 var copyDispatched = false
                 if (textureView != null) {
                     try {
-                        val texBmp = textureView?.getBitmap(targetW, targetH)
+                        val texBmp = textureView.getBitmap(targetW, targetH)
                         if (texBmp != null) {
                             if (tabId != null) TabManager.updateTabThumbnail(tabId, texBmp)
                             else TabManager.updateActiveTabThumbnail(texBmp)
@@ -163,10 +163,11 @@ class AzokleProgressDelegate(
                         }
                     } catch (e: Exception) {}
                 }
-                if (!copyDispatched && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && surfaceView?.holder?.surface?.isValid == true) {
+                val currentSurfaceView = surfaceView
+                if (!copyDispatched && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && currentSurfaceView?.holder?.surface?.isValid == true) {
                     try {
                         PixelCopy.request(
-                            surfaceView!!,
+                            currentSurfaceView,
                             bitmap,
                             { copyResult ->
                                 if (copyResult == PixelCopy.SUCCESS) {

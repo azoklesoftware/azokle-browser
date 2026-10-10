@@ -267,7 +267,7 @@ object TorCircuitManager {
                     val netStart = System.currentTimeMillis()
                     client.newCall(request).execute().use { response ->
                         if (response.isSuccessful) {
-                            val body = response.body?.string() ?: ""
+                            val body = response.body.string()
                             if (body.isNotBlank()) {
                                 val netLatency = (System.currentTimeMillis() - netStart).toInt().coerceAtLeast(1)
                                 val json = JSONObject(body)

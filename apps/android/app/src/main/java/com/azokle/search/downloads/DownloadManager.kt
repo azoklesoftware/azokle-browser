@@ -321,7 +321,7 @@ object DownloadManager {
                     downloaded = 0L // Reset if server sent full file from byte 0
                 }
 
-                val body = response.body ?: throw Exception("Empty response body from server")
+                val body = response.body
                 val bodyLen = body.contentLength()
                 val totalLength = if (isRange206) {
                     downloaded + bodyLen
@@ -818,7 +818,7 @@ object DownloadManager {
                 }
                 val pendingIntent = if (uri != null) {
                     val openIntent = Intent(Intent.ACTION_VIEW).apply {
-                        setDataAndType(uri, item.mimeType ?: "application/octet-stream")
+                        setDataAndType(uri, item.mimeType)
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
                     }
                     android.app.PendingIntent.getActivity(

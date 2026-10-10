@@ -224,10 +224,12 @@ class AzoklePermissionDelegate(
         val hasAllAndroidPerms = requestedTypes.all { it.hasAndroidPermissions(context) }
 
         if (isAllAllowed && hasAllAndroidPerms) {
-            val selectedVideo = if (hasScreen) {
-                video?.firstOrNull { it.source == GeckoSession.PermissionDelegate.MediaSource.SOURCE_SCREEN } ?: video?.firstOrNull()
-            } else {
-                video?.firstOrNull { it.source == GeckoSession.PermissionDelegate.MediaSource.SOURCE_CAMERA } ?: video?.firstOrNull()
+            val selectedVideo = video?.let { v ->
+                if (hasScreen) {
+                    v.firstOrNull { it.source == GeckoSession.PermissionDelegate.MediaSource.SOURCE_SCREEN } ?: v.firstOrNull()
+                } else {
+                    v.firstOrNull { it.source == GeckoSession.PermissionDelegate.MediaSource.SOURCE_CAMERA } ?: v.firstOrNull()
+                }
             }
             val selectedAudio = audio?.firstOrNull()
             callback.grant(selectedVideo, selectedAudio)

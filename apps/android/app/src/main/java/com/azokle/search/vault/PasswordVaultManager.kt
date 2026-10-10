@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.azokle.search.vault
 
 import android.content.Context

@@ -163,7 +163,7 @@ object DnsOverHttpsManager {
                     cnameCache[cleanHost] = CnameCacheEntry(null, now + 60_000)
                     return null
                 }
-                val body = response.body?.string() ?: return null
+                val body = response.body.string()
                 val json = org.json.JSONObject(body)
                 val answers = json.optJSONArray("Answer")
                 if (answers != null && answers.length() > 0) {

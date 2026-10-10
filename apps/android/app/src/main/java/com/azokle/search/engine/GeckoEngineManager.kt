@@ -97,7 +97,7 @@ object GeckoEngineManager {
             r.webExtensionController.list().then({ installedList ->
                 val stale = installedList?.find { ext ->
                     ext.id == "undefined" || (ext.id != "shield@azokle.com" &&
-                        ext.metaData?.let { meta ->
+                        ext.metaData.let { meta ->
                             meta.name?.contains("Azokle", ignoreCase = true) == true
                         } == true)
                 }

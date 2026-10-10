@@ -161,7 +161,7 @@ object ReaderExtractor {
 
             val clientToUse = getClient(isTor || url.contains(".onion"), socksPort)
             val rawHtml = clientToUse.newCall(request).execute().use { response ->
-                response.body?.string() ?: ""
+                response.body.string()
             }
 
             if (rawHtml.isBlank()) {

@@ -1,3 +1,5 @@
+@file:Suppress("USELESS_ELVIS", "UNNECESSARY_SAFE_CALL")
+
 package com.azokle.search.engine
 
 import android.app.Activity

@@ -45,8 +45,15 @@ class ReaderTextToSpeech(context: Context) : TextToSpeech.OnInitListener {
                 }
             }
 
+            @Deprecated("Deprecated in Java")
+            @Suppress("DEPRECATION")
             override fun onError(utteranceId: String?) {
                 Log.e("ReaderTextToSpeech", "TTS utterance error on ID: $utteranceId")
+                _state.value = State.IDLE
+            }
+
+            override fun onError(utteranceId: String?, errorCode: Int) {
+                Log.e("ReaderTextToSpeech", "TTS utterance error on ID: $utteranceId, code: $errorCode")
                 _state.value = State.IDLE
             }
         })

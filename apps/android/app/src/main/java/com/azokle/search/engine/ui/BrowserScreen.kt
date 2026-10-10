@@ -515,15 +515,15 @@ fun BrowserScreen(
         } else if (showTabGridSheet) {
             showTabGridSheet = false
         } else if (homeUiState?.isSearchEngineSheetOpen == true) {
-            viewModel?.setSearchEngineSheetOpen(false)
+            viewModel.setSearchEngineSheetOpen(false)
         } else if (homeUiState?.isLanguageSheetOpen == true) {
-            viewModel?.setLanguageSheetOpen(false)
+            viewModel.setLanguageSheetOpen(false)
         } else if (homeUiState?.isPrivacyModalOpen == true) {
-            viewModel?.setPrivacyModalOpen(false)
+            viewModel.setPrivacyModalOpen(false)
         } else if (homeUiState?.isTermsModalOpen == true) {
-            viewModel?.setTermsModalOpen(false)
+            viewModel.setTermsModalOpen(false)
         } else if (homeUiState?.isAboutModalOpen == true) {
-            viewModel?.setAboutModalOpen(false)
+            viewModel.setAboutModalOpen(false)
         } else if (showSettingsSheet) {
             showSettingsSheet = false
         } else if (showSecurityCertSheet) {
