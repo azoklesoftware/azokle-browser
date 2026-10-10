@@ -22,7 +22,7 @@ geckoview = "154.0.20260824154132"
 androidxMedia = "1.7.0"
 torAndroid = "0.4.9.6"
 camerax = "1.4.1"
-zxing = "3.5.3"
+zxing = "3.5.4"
 json = "20240303"
 
 [libraries]
