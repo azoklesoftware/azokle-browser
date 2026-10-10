@@ -285,7 +285,11 @@ fun BrowserModalOverlaysHost(
     }
 
     // Dedicated History Screen Overlay
-    if (showHistoryScreen) {
+    AnimatedVisibility(
+        visible = showHistoryScreen,
+        enter = fadeIn(tween(160)),
+        exit = fadeOut(tween(140))
+    ) {
         HistoryScreen(
             viewModel = viewModel ?: viewModel(),
             onHistoryQueryClick = onHistoryQueryClick,

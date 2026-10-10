@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -50,8 +51,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -63,6 +68,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.azokle.search.common.components.FaviconImage
@@ -106,20 +112,24 @@ fun HistoryScreen(
         selectedIds = emptySet()
     }
 
-    val timeFormatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
-
     val filteredHistory = remember(historyList, searchQuery, selectedFilter) {
-        historyList.filter { item ->
-            val matchesFilter = when (selectedFilter) {
-                HistoryFilter.ALL -> true
-                HistoryFilter.PAGES -> !item.isSearch
-                HistoryFilter.SEARCHES -> item.isSearch
+        if (searchQuery.isBlank() && selectedFilter == HistoryFilter.ALL) {
+            historyList
+        } else {
+            val query = searchQuery.trim()
+            historyList.filter { item ->
+                val matchesFilter = when (selectedFilter) {
+                    HistoryFilter.ALL -> true
+                    HistoryFilter.PAGES -> !item.isSearch
+                    HistoryFilter.SEARCHES -> item.isSearch
+                }
+                if (!matchesFilter) return@filter false
+                if (query.isBlank()) return@filter true
+
+                item.title.contains(query, ignoreCase = true) ||
+                        item.url.contains(query, ignoreCase = true) ||
+                        (item.searchQuery?.contains(query, ignoreCase = true) == true)
             }
-            val matchesQuery = searchQuery.isBlank() ||
-                    item.title.contains(searchQuery, ignoreCase = true) ||
-                    item.url.contains(searchQuery, ignoreCase = true) ||
-                    (item.searchQuery?.contains(searchQuery, ignoreCase = true) == true)
-            matchesFilter && matchesQuery
         }
     }
 
@@ -504,69 +514,71 @@ fun HistoryScreen(
                         .fillMaxWidth()
                         .weight(1f)
                         .padding(horizontal = 16.dp, vertical = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
                     dateGroups.forEach { (groupTitle, items) ->
-                        item(key = "header_$groupTitle") {
+                        item(key = "header_$groupTitle", contentType = "header") {
                             Text(
                                 text = groupTitle.uppercase(),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = colors.textMuted,
                                 letterSpacing = 0.5.sp,
-                                modifier = Modifier.padding(start = 2.dp, bottom = 6.dp)
+                                modifier = Modifier.padding(start = 2.dp, top = 14.dp, bottom = 6.dp)
                             )
+                        }
 
-                            Column(
+                        itemsIndexed(
+                            items = items,
+                            key = { _, item -> item.id },
+                            contentType = { _, _ -> "history_item" }
+                        ) { index, item ->
+                            val isFirst = index == 0
+                            val isLast = index == items.size - 1
+                            val isSelected = selectedIds.contains(item.id)
+
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(AzokleRadius.lg)
-                                    .background(colors.surfaceElevated)
-                                    .border(0.8.dp, colors.borderSubtle, AzokleRadius.lg)
-                            ) {
-                                items.forEachIndexed { index, item ->
-                                    val isSelected = selectedIds.contains(item.id)
-
-                                    HistoryItemRow(
-                                        item = item,
-                                        isSelectionMode = isSelectionMode,
-                                        isSelected = isSelected,
-                                        timeFormatter = timeFormatter,
-                                        colors = colors,
-                                        onClick = {
-                                            if (isSelectionMode) {
-                                                selectedIds = if (isSelected) selectedIds - item.id else selectedIds + item.id
-                                            } else {
-                                                if (item.isSearch && item.searchQuery != null) {
-                                                    onHistoryQueryClick(item.searchQuery)
-                                                } else if (onOpenUrl != null) {
-                                                    onOpenUrl(item.url)
-                                                } else {
-                                                    onHistoryQueryClick(item.url)
-                                                }
-                                            }
-                                        },
-                                        onLongClick = {
-                                            isSelectionMode = true
-                                            selectedIds = selectedIds + item.id
-                                        },
-                                        onDelete = {
-                                            HistoryManager.deleteEntry(item.id)
-                                        }
+                                    .historyCardItem(
+                                        isFirst = isFirst,
+                                        isLast = isLast,
+                                        borderColor = colors.borderSubtle,
+                                        backgroundColor = colors.surfaceElevated
                                     )
-
-                                    if (index < items.size - 1) {
-                                        HorizontalDivider(
-                                            color = colors.borderSubtle,
-                                            thickness = 0.5.dp,
-                                            modifier = Modifier.padding(start = 50.dp)
-                                        )
+                            ) {
+                                HistoryItemRow(
+                                    item = item,
+                                    isSelectionMode = isSelectionMode,
+                                    isSelected = isSelected,
+                                    colors = colors,
+                                    onClick = {
+                                        if (isSelectionMode) {
+                                            selectedIds = if (isSelected) selectedIds - item.id else selectedIds + item.id
+                                        } else {
+                                            if (item.isSearch && item.searchQuery != null) {
+                                                onHistoryQueryClick(item.searchQuery)
+                                            } else if (onOpenUrl != null) {
+                                                onOpenUrl(item.url)
+                                            } else {
+                                                onHistoryQueryClick(item.url)
+                                            }
+                                        }
+                                    },
+                                    onLongClick = {
+                                        isSelectionMode = true
+                                        selectedIds = selectedIds + item.id
+                                    },
+                                    onDelete = {
+                                        HistoryManager.deleteEntry(item.id)
                                     }
-                                }
+                                )
                             }
                         }
                     }
-                    item { Spacer(modifier = Modifier.height(20.dp)) }
+                    item(key = "bottom_spacer", contentType = "spacer") {
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
                 }
             }
         }
@@ -618,7 +630,6 @@ private fun HistoryItemRow(
     item: HistoryItem,
     isSelectionMode: Boolean,
     isSelected: Boolean,
-    timeFormatter: SimpleDateFormat,
     colors: com.azokle.search.common.theme.AzokleThemeColors,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -712,12 +723,14 @@ private fun HistoryItemRow(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
                 )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "• ${timeFormatter.format(Date(item.timestamp))}",
-                    fontSize = 10.5.sp,
-                    color = colors.textMuted
-                )
+                if (item.formattedTime.isNotBlank()) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "• ${item.formattedTime}",
+                        fontSize = 10.5.sp,
+                        color = colors.textMuted
+                    )
+                }
                 if (item.visitCount > 1) {
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
@@ -758,3 +771,55 @@ private fun HistoryItemRow(
         }
     }
 }
+
+private fun Modifier.historyCardItem(
+    isFirst: Boolean,
+    isLast: Boolean,
+    borderColor: Color,
+    backgroundColor: Color,
+    cornerRadius: Dp = 16.dp,
+    borderWidth: Dp = 0.8.dp
+): Modifier = this
+    .clip(
+        when {
+            isFirst && isLast -> RoundedCornerShape(cornerRadius)
+            isFirst -> RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius)
+            isLast -> RoundedCornerShape(bottomStart = cornerRadius, bottomEnd = cornerRadius)
+            else -> RoundedCornerShape(0.dp)
+        }
+    )
+    .background(backgroundColor)
+    .drawBehind {
+        val stroke = borderWidth.toPx()
+        val halfStroke = stroke / 2f
+        val r = cornerRadius.toPx()
+        val w = size.width
+        val h = size.height
+
+        if (isFirst && isLast) {
+            drawRoundRect(
+                color = borderColor,
+                topLeft = Offset(halfStroke, halfStroke),
+                size = Size(w - stroke, h - stroke),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r),
+                style = Stroke(stroke)
+            )
+        } else if (isFirst) {
+            drawLine(borderColor, Offset(r, halfStroke), Offset(w - r, halfStroke), strokeWidth = stroke)
+            drawArc(borderColor, 180f, 90f, false, Offset(halfStroke, halfStroke), Size(r * 2 - stroke, r * 2 - stroke), style = Stroke(stroke))
+            drawArc(borderColor, 270f, 90f, false, Offset(w - r * 2 + halfStroke, halfStroke), Size(r * 2 - stroke, r * 2 - stroke), style = Stroke(stroke))
+            drawLine(borderColor, Offset(halfStroke, r), Offset(halfStroke, h), strokeWidth = stroke)
+            drawLine(borderColor, Offset(w - halfStroke, r), Offset(w - halfStroke, h), strokeWidth = stroke)
+            drawLine(borderColor, Offset(50.dp.toPx(), h - stroke / 2f), Offset(w, h - stroke / 2f), strokeWidth = 0.5.dp.toPx())
+        } else if (isLast) {
+            drawLine(borderColor, Offset(halfStroke, 0f), Offset(halfStroke, h - r), strokeWidth = stroke)
+            drawLine(borderColor, Offset(w - halfStroke, 0f), Offset(w - halfStroke, h - r), strokeWidth = stroke)
+            drawArc(borderColor, 90f, 90f, false, Offset(halfStroke, h - r * 2 + halfStroke), Size(r * 2 - stroke, r * 2 - stroke), style = Stroke(stroke))
+            drawArc(borderColor, 0f, 90f, false, Offset(w - r * 2 + halfStroke, h - r * 2 + halfStroke), Size(r * 2 - stroke, r * 2 - stroke), style = Stroke(stroke))
+            drawLine(borderColor, Offset(r, h - halfStroke), Offset(w - r, h - halfStroke), strokeWidth = stroke)
+        } else {
+            drawLine(borderColor, Offset(halfStroke, 0f), Offset(halfStroke, h), strokeWidth = stroke)
+            drawLine(borderColor, Offset(w - halfStroke, 0f), Offset(w - halfStroke, h), strokeWidth = stroke)
+            drawLine(borderColor, Offset(50.dp.toPx(), h - stroke / 2f), Offset(w, h - stroke / 2f), strokeWidth = 0.5.dp.toPx())
+        }
+    }

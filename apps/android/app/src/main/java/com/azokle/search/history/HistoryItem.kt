@@ -39,4 +39,13 @@ data class HistoryItem(
     }
 
     val faviconUrl: String = "https://www.google.com/s2/favicons?domain=$cleanHost&sz=128"
+
+    val formattedTime: String by lazy {
+        try {
+            val sdf = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
+            sdf.format(java.util.Date(timestamp))
+        } catch (_: Exception) {
+            ""
+        }
+    }
 }
