@@ -6,10 +6,11 @@
 
 [![Rust 1.75+](https://img.shields.io/badge/Rust-1.75%2B-orange.svg?style=for-the-badge&logo=rust)](https://www.rust-lang.org)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg?style=for-the-badge&logo=c%2B%2B)](https://isocpp.org)
-[![Android GeckoView](https://img.shields.io/badge/Android-GeckoView%20134%2B-red.svg?style=for-the-badge&logo=android)](https://developer.android.com)
+[![Android GeckoView](https://img.shields.io/badge/Android-GeckoView%20154%2B-red.svg?style=for-the-badge&logo=android)](https://developer.android.com)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4.svg?style=for-the-badge&logo=android)](https://developer.android.com/jetpack/compose)
-[![GTK 3/4](https://img.shields.io/badge/GTK-3%2F4-green.svg?style=for-the-badge&logo=gnome)](https://www.gtk.org)
-[![Tor Onion](https://img.shields.io/badge/Tor-3--Hop%20Onion%20Routing-purple.svg?style=for-the-badge&logo=torproject)](https://www.torproject.org)
+[![Audit Checklist](https://img.shields.io/badge/Audit-80%2F80%20Verified%20(100%25)-success.svg?style=for-the-badge)](docs/operations/azokle_browser_implementation_report.md)
+[![Contributing](https://img.shields.io/badge/Contributing-Guide-blueviolet.svg?style=for-the-badge)](CONTRIBUTING.md)
+[![Security Policy](https://img.shields.io/badge/Security-Policy-red.svg?style=for-the-badge)](SECURITY.md)
 [![License: MIT / Apache-2.0](https://img.shields.io/badge/License-MIT%20%2F%20Apache--2.0-blue.svg?style=for-the-badge)](LICENSE)
 
 *Built around a shared, memory-safe Rust Core engine, GeckoView & WebKit browser-engine runtimes, FIDO2 WebAuthn Passkeys, 3-Hop Tor Onion Circuits, Binary Flatbuffer AdBlock filtering, and zero third-party telemetry.*
@@ -38,7 +39,8 @@
 8. [Advanced Diagnostics, Debugging & Profiling](#-advanced-diagnostics-debugging--profiling)
 9. [Security, Privacy & Threat Mitigations](#-security-privacy--threat-mitigations)
 10. [Testing & Quality Verification](#-testing--quality-verification)
-11. [License & Community](#-license--community)
+11. [Contributing & Security Guidelines](#-contributing--security-guidelines)
+12. [License & Community](#-license--community)
 
 ---
 
@@ -309,7 +311,7 @@ UniFFI interface definitions for cross-platform expansion (Swift / iOS, Python C
 
 ```bash
 # Clone the repository
-git clone https://github.com/azokle/azokle-browser.git
+git clone https://github.com/azoklesoftware/azokle-browser.git
 cd azokle-browser
 
 # Verify and check entire workspace
@@ -442,14 +444,24 @@ cmake --build build_asan
 ## 🧪 Testing & Quality Verification
 
 - **Rust Workspace Unit Tests**: `cargo test --workspace` (100% passing across all 17 crates).
-- **Android Unit Tests**: `./gradlew testDebugUnitTest` (Comprehensive JUnit test coverage).
+- **Android Unit Tests**: `./gradlew testDebugUnitTest` (42 comprehensive test suites passing at 100%).
+- **SBOM Generation**: `./gradlew generateSbom` (CycloneDX 1.5 JSON cataloging 151 dependencies).
 - **Android Assembly**: `./gradlew assembleDebug` (Clean compilation & packaging).
+
+---
+
+## 🤝 Contributing & Security Guidelines
+
+- **Contributing**: Please review [CONTRIBUTING.md](CONTRIBUTING.md) for branch strategy (`development` branch), Kotlin/Rust coding style, and PR requirements.
+- **Security Policy**: For responsible vulnerability reporting, security invariants, and disclosure guidelines, see [SECURITY.md](SECURITY.md).
+- **Architecture & Implementation Audit**: See our complete 80-point verification report in [docs/operations/azokle_browser_implementation_report.md](docs/operations/azokle_browser_implementation_report.md).
+- **Changelog**: Detailed release logs and updates can be reviewed in [.azokle/changelog/android/v-2.0.6.md](.azokle/changelog/android/v-2.0.6.md).
 
 ---
 
 ## 📄 License & Community
 
-Azokle Browser is licensed under the **MIT License** and the **Apache 2.0 License**. See [LICENSE](LICENSE) for full details.
+Azokle Browser is open source software dual-licensed under both the **MIT License** and the **Apache License (Version 2.0)**. See the complete [LICENSE](LICENSE) file for terms and conditions.
 
 <div align="center">
 
