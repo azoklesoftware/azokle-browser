@@ -731,22 +731,23 @@ class GeckoPromptDelegateImpl(
         val option = request.options?.firstOrNull() ?: return GeckoResult.fromValue(request.dismiss())
         val entry = option.value
         val username = entry.username ?: ""
-        val origin = entry.origin ?: ""
+        val rawOrigin = entry.origin ?: ""
+        val cleanOrigin = com.azokle.search.vault.OriginMatcher.extractHost(rawOrigin).ifEmpty { rawOrigin }
 
         val result = GeckoResult<PromptResponse>()
         mainHandler.post {
             val activity = unwrapActivity(context)
             if (isActivityUsable(activity)) {
                 val message = if (username.isNotBlank()) {
-                    "Save password for $username on $origin?"
+                    "Save password for $username on $cleanOrigin?"
                 } else {
-                    "Save password for $origin?"
+                    "Save password for $cleanOrigin?"
                 }
                 val dialog = MaterialAlertDialogBuilder(activity!!)
                     .setTitle("Save Password")
                     .setMessage(message)
                     .setPositiveButton("Save") { _, _ ->
-                        com.azokle.search.vault.PasswordVaultManager.saveLogin(origin, username, entry.password ?: "")
+                        com.azokle.search.vault.PasswordVaultManager.saveLogin(cleanOrigin, username, entry.password ?: "")
                         result.complete(request.confirm(option))
                     }
                     .setNegativeButton("Never") { _, _ ->

@@ -1,8 +1,11 @@
 package com.azokle.search.vault
 
 import android.content.ClipData
+import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.Build
+import android.os.PersistableBundle
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -10,7 +13,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,8 +38,10 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
@@ -58,6 +62,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -72,9 +77,51 @@ import androidx.compose.ui.unit.sp
 import com.azokle.search.common.components.ToastManager
 import com.azokle.search.common.theme.AzokleTheme
 import com.azokle.search.common.theme.adaptiveContentWidth
+import com.azokle.search.core.BiometricAuthManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+/**
+ * Copies sensitive credentials to the system clipboard with Android 13+ EXTRA_IS_SENSITIVE
+ * concealment and an automated 45-second RAM/clipboard wiping watchdog.
+ */
+internal fun copySensitiveToClipboard(
+    context: Context,
+    label: String,
+    content: String,
+    coroutineScope: CoroutineScope
+) {
+    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val clip = ClipData.newPlainText(label, content)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val extras = PersistableBundle().apply {
+            putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)
+        }
+        clip.description.extras = extras
+    }
+    cm.setPrimaryClip(clip)
+
+    coroutineScope.launch {
+        delay(45_000L)
+        try {
+            val currentClip = cm.primaryClip
+            if (currentClip != null && currentClip.itemCount > 0) {
+                val currentText = currentClip.getItemAt(0)?.text?.toString()
+                if (currentText == content) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        cm.clearPrimaryClip()
+                    } else {
+                        cm.setPrimaryClip(ClipData.newPlainText("", ""))
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+    }
+}
 
 @Composable
 fun PasswordManagerScreen(
@@ -84,11 +131,14 @@ fun PasswordManagerScreen(
     BackHandler(onBack = onDismiss)
 
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val colors = AzokleTheme.colors
     val allLogins by PasswordVaultManager.loginsFlow.collectAsState()
 
+    var isVaultUnlocked by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var showAddDialog by remember { mutableStateOf(false) }
+    var loginToEdit by remember { mutableStateOf<SavedLogin?>(null) }
     var loginToDelete by remember { mutableStateOf<SavedLogin?>(null) }
 
     val filteredLogins = remember(allLogins, searchQuery) {
@@ -145,11 +195,44 @@ fun PasswordManagerScreen(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Vault Lock/Unlock Toggle
                     IconButton(onClick = {
-                        val json = EncryptedVaultManager.getInstance(context).exportFullBackupJson()
-                        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        cm.setPrimaryClip(ClipData.newPlainText("Azokle Vault Backup", json))
-                        ToastManager.showSuccess("Encrypted backup copied to clipboard")
+                        if (isVaultUnlocked) {
+                            isVaultUnlocked = false
+                            ToastManager.showSuccess("Vault locked")
+                        } else {
+                            BiometricAuthManager.authenticate(
+                                context = context,
+                                title = "Unlock Password Vault",
+                                subtitle = "Authenticate to access credentials",
+                                onAuthenticated = {
+                                    isVaultUnlocked = true
+                                    ToastManager.showSuccess("Vault unlocked")
+                                },
+                                onDenied = { ToastManager.showError("Authentication required") }
+                            )
+                        }
+                    }) {
+                        Icon(
+                            imageVector = if (isVaultUnlocked) Icons.Default.LockOpen else Icons.Default.Lock,
+                            contentDescription = if (isVaultUnlocked) "Lock Vault" else "Unlock Vault",
+                            tint = if (isVaultUnlocked) colors.statusSuccess else colors.textMuted
+                        )
+                    }
+
+                    // Secure Export
+                    IconButton(onClick = {
+                        BiometricAuthManager.authenticate(
+                            context = context,
+                            title = "Export Passwords",
+                            subtitle = "Authenticate to copy password backup",
+                            onAuthenticated = {
+                                val json = PasswordVaultManager.exportVaultJson()
+                                copySensitiveToClipboard(context, "Azokle Passwords Backup", json, coroutineScope)
+                                ToastManager.showSuccess("Vault exported (clipboard clears in 45s)")
+                            },
+                            onDenied = { ToastManager.showError("Authentication required to export credentials") }
+                        )
                     }) {
                         Icon(
                             imageVector = Icons.Default.Download,
@@ -157,6 +240,8 @@ fun PasswordManagerScreen(
                             tint = colors.textSecondary
                         )
                     }
+
+                    // Add Password
                     IconButton(onClick = { showAddDialog = true }) {
                         Icon(
                             imageVector = Icons.Default.Add,
@@ -185,25 +270,29 @@ fun PasswordManagerScreen(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
-                            .background(colors.statusSuccess.copy(alpha = 0.15f)),
+                            .background(
+                                (if (isVaultUnlocked) colors.statusSuccess else colors.actionPrimaryBg).copy(alpha = 0.15f)
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Security,
+                            imageVector = if (isVaultUnlocked) Icons.Default.LockOpen else Icons.Default.Security,
                             contentDescription = null,
-                            tint = colors.statusSuccess,
+                            tint = if (isVaultUnlocked) colors.statusSuccess else colors.actionPrimaryBg,
                             modifier = Modifier.size(16.dp)
                         )
                     }
                     Column {
                         Text(
-                            text = "Hardware AES-256 Vault",
+                            text = if (isVaultUnlocked) "Vault Unlocked (Session Active)" else "Hardware AES-256 Vault (Locked)",
                             color = colors.textPrimary,
                             fontSize = 12.5.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Logins are isolated, encrypted with Keystore MasterKey, and never synced to external servers.",
+                            text = if (isVaultUnlocked)
+                                "Passwords can be revealed and copied. Tap the lock icon to lock anytime."
+                            else "Logins are isolated, encrypted with Keystore MasterKey, and protected by biometric authentication.",
                             color = colors.textMuted,
                             fontSize = 11.sp,
                             lineHeight = 14.sp
@@ -336,6 +425,20 @@ fun PasswordManagerScreen(
                     items(filteredLogins, key = { it.id }) { login ->
                         PasswordCard(
                             login = login,
+                            isVaultUnlocked = isVaultUnlocked,
+                            onRequireUnlock = { onUnlocked ->
+                                BiometricAuthManager.authenticate(
+                                    context = context,
+                                    title = "Unlock Password Vault",
+                                    subtitle = "Authenticate to view or copy sensitive credentials",
+                                    onAuthenticated = {
+                                        isVaultUnlocked = true
+                                        onUnlocked()
+                                    },
+                                    onDenied = { ToastManager.showError("Authentication required") }
+                                )
+                            },
+                            onEdit = { loginToEdit = login },
                             onDelete = { loginToDelete = login },
                             onCopyUsername = {
                                 val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -343,9 +446,8 @@ fun PasswordManagerScreen(
                                 ToastManager.showSuccess("Username copied")
                             },
                             onCopyPassword = {
-                                val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                cm.setPrimaryClip(ClipData.newPlainText("Password", login.password))
-                                ToastManager.showSuccess("Password copied to clipboard")
+                                copySensitiveToClipboard(context, "Password", login.password, coroutineScope)
+                                ToastManager.showSuccess("Password copied (auto-clears in 45s)")
                             }
                         )
                     }
@@ -356,12 +458,26 @@ fun PasswordManagerScreen(
 
     // Add Credential Dialog
     if (showAddDialog) {
-        AddLoginDialog(
+        AddOrEditLoginDialog(
+            existingLogin = null,
             onDismiss = { showAddDialog = false },
             onSave = { origin, username, password ->
                 PasswordVaultManager.saveLogin(origin, username, password)
                 showAddDialog = false
                 ToastManager.showSuccess("Credential saved to vault")
+            }
+        )
+    }
+
+    // Edit Credential Dialog
+    loginToEdit?.let { login ->
+        AddOrEditLoginDialog(
+            existingLogin = login,
+            onDismiss = { loginToEdit = null },
+            onSave = { origin, username, password ->
+                PasswordVaultManager.updateLogin(login.id, origin, username, password)
+                loginToEdit = null
+                ToastManager.showSuccess("Credential updated")
             }
         )
     }
@@ -403,6 +519,9 @@ fun PasswordManagerScreen(
 @Composable
 private fun PasswordCard(
     login: SavedLogin,
+    isVaultUnlocked: Boolean,
+    onRequireUnlock: (onUnlocked: () -> Unit) -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
     onCopyUsername: () -> Unit,
     onCopyPassword: () -> Unit
@@ -417,11 +536,7 @@ private fun PasswordCard(
     }
 
     val displayOrigin = remember(login.origin) {
-        login.origin
-            .removePrefix("https://")
-            .removePrefix("http://")
-            .removePrefix("www.")
-            .removeSuffix("/")
+        OriginMatcher.extractHost(login.origin).ifEmpty { login.origin }
     }
 
     val domainInitial = remember(displayOrigin) {
@@ -444,7 +559,8 @@ private fun PasswordCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Box(
                         modifier = Modifier
@@ -492,6 +608,17 @@ private fun PasswordCard(
                         )
                     }
                     IconButton(
+                        onClick = onEdit,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit Login",
+                            tint = colors.textMuted,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
+                    IconButton(
                         onClick = onDelete,
                         modifier = Modifier.size(32.dp)
                     ) {
@@ -517,29 +644,46 @@ private fun PasswordCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val isRevealed = isVaultUnlocked && showPassword
                 Text(
-                    text = if (showPassword) login.password else "••••••••••••",
+                    text = if (isRevealed) login.password else "••••••••••••",
                     color = colors.textPrimary,
                     fontSize = 13.5.sp,
-                    fontFamily = if (showPassword) FontFamily.Monospace else FontFamily.Default,
+                    fontFamily = if (isRevealed) FontFamily.Monospace else FontFamily.Default,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
-                        onClick = { showPassword = !showPassword },
+                        onClick = {
+                            if (isVaultUnlocked) {
+                                showPassword = !showPassword
+                            } else {
+                                onRequireUnlock {
+                                    showPassword = true
+                                }
+                            }
+                        },
                         modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
-                            imageVector = if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = if (showPassword) "Hide password" else "Show password",
+                            imageVector = if (isRevealed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = if (isRevealed) "Hide password" else "Show password",
                             tint = colors.textMuted,
                             modifier = Modifier.size(15.dp)
                         )
                     }
                     IconButton(
-                        onClick = onCopyPassword,
+                        onClick = {
+                            if (isVaultUnlocked) {
+                                onCopyPassword()
+                            } else {
+                                onRequireUnlock {
+                                    onCopyPassword()
+                                }
+                            }
+                        },
                         modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
@@ -565,20 +709,28 @@ private fun PasswordCard(
 }
 
 @Composable
-private fun AddLoginDialog(
+private fun AddOrEditLoginDialog(
+    existingLogin: SavedLogin?,
     onDismiss: () -> Unit,
     onSave: (origin: String, username: String, password: String) -> Unit
 ) {
     val colors = AzokleTheme.colors
-    var origin by remember { mutableStateOf("") }
-    var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    var origin by remember { mutableStateOf(existingLogin?.origin ?: "") }
+    var username by remember { mutableStateOf(existingLogin?.username ?: "") }
+    var password by remember { mutableStateOf(existingLogin?.password ?: "") }
     var showPassword by remember { mutableStateOf(false) }
+
+    val isEditing = existingLogin != null
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(text = "Add Saved Login", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text(
+                text = if (isEditing) "Edit Saved Login" else "Add Saved Login",
+                color = colors.textPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp
+            )
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -617,7 +769,7 @@ private fun AddLoginDialog(
                     shape = RoundedCornerShape(10.dp)
                 )
 
-                // Generator Pill Button
+                // Generator Button
                 OutlinedButton(
                     onClick = {
                         password = PasswordVaultManager.generateStrongPassword(16, true)
@@ -655,7 +807,7 @@ private fun AddLoginDialog(
                 ),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text(text = "Save", fontWeight = FontWeight.Bold)
+                Text(text = if (isEditing) "Update" else "Save", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
