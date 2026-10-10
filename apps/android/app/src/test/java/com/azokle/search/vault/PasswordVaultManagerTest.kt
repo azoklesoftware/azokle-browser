@@ -31,4 +31,12 @@ class PasswordVaultManagerTest {
         assertTrue(matchesOrigin("github.com", "https://github.com/login"))
         assertFalse(matchesOrigin("https://gitlab.com", "github.com"))
     }
+
+    @Test
+    fun testGenerateStrongPassword() {
+        val pw = PasswordVaultManager.generateStrongPassword(20, true)
+        assertEquals(20, pw.length)
+        val pwShort = PasswordVaultManager.generateStrongPassword(4, true)
+        assertEquals(8, pwShort.length) // coerced to min 8
+    }
 }

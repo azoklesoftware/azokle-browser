@@ -65,7 +65,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import com.azokle.search.vault.PasswordVaultManager
-import com.azokle.search.vault.PasswordVaultSheet
+import com.azokle.search.vault.PasswordManagerScreen
 import com.azokle.search.vault.EncryptedVaultManager
 import com.azokle.search.common.util.AppUpdateChecker
 import com.azokle.search.BuildConfig
@@ -164,7 +164,7 @@ fun SettingsScreen(
     var showClearCacheDialog by remember { mutableStateOf(false) }
     var showClearHistoryDialog by remember { mutableStateOf(false) }
     var showIncinerateDialog by remember { mutableStateOf(false) }
-    var showPasswordVaultSheet by remember { mutableStateOf(false) }
+    var showPasswordManagerScreen by remember { mutableStateOf(false) }
     var isCheckingUpdates by remember { mutableStateOf(false) }
 
     // Dynamic preferences states
@@ -174,8 +174,8 @@ fun SettingsScreen(
 
     // Hardware & system back button handler
     BackHandler(enabled = true) {
-        if (showPasswordVaultSheet) {
-            showPasswordVaultSheet = false
+        if (showPasswordManagerScreen) {
+            showPasswordManagerScreen = false
         } else if (showSiteSettingsSheet) {
             showSiteSettingsSheet = false
         } else if (showPasskeySheet) {
@@ -539,7 +539,7 @@ fun SettingsScreen(
                             title = "Saved Passwords & Logins",
                             trailingText = "${PasswordVaultManager.getAllLogins().size}",
                             trailingIcon = Icons.Default.ChevronRight,
-                            onClick = { showPasswordVaultSheet = true }
+                            onClick = { showPasswordManagerScreen = true }
                         )
 
                         ItemDivider()
@@ -688,8 +688,8 @@ fun SettingsScreen(
     }
 
     // Overlays & Dialogs
-    if (showPasswordVaultSheet) {
-        PasswordVaultSheet(onDismiss = { showPasswordVaultSheet = false })
+    if (showPasswordManagerScreen) {
+        PasswordManagerScreen(onDismiss = { showPasswordManagerScreen = false })
     }
 
     if (showSiteSettingsSheet) {

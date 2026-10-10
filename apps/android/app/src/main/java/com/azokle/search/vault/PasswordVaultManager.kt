@@ -138,4 +138,16 @@ object PasswordVaultManager {
     fun clearAllLogins() {
         persistLogins(emptyList())
     }
+
+    fun generateStrongPassword(length: Int = 16, includeSymbols: Boolean = true): String {
+        val upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        val lower = "abcdefghijklmnopqrstuvwxyz"
+        val digits = "0123456789"
+        val symbols = "!@#$%^&*()-_=+[]{}<>?"
+        val charset = if (includeSymbols) upper + lower + digits + symbols else upper + lower + digits
+        val secureRandom = java.security.SecureRandom()
+        return (1..length.coerceIn(8, 64))
+            .map { charset[secureRandom.nextInt(charset.length)] }
+            .joinToString("")
+    }
 }
