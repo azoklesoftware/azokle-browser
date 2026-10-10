@@ -23,7 +23,7 @@ androidxMedia = "1.7.0"
 torAndroid = "0.4.9.6"
 camerax = "1.4.1"
 zxing = "3.5.4"
-json = "20240303"
+json = "20260814"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
