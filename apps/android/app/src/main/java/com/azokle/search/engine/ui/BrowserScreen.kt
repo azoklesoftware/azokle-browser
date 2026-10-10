@@ -442,6 +442,11 @@ fun BrowserScreen(
                 geckoSession?.exitFullScreen()
             } catch (e: Exception) {}
         }
+        showTabGridSheet = false
+        showMenuSheet = false
+        showSettingsSheet = false
+        showDiscoverScreen = false
+        showGroupDetailSheet = false
         barVisibilityStateMachine.forceShow()
         val tab = TabManager.activeTab
         if (tab != null) {
@@ -461,6 +466,9 @@ fun BrowserScreen(
     }
 
     LaunchedEffect(currentUrl, isPageTransitioning) {
+        activeLinkContextTarget = null
+        activeTextSelection?.onDismiss?.invoke()
+        activeTextSelection = null
         if ((currentUrl.isBlank() || currentUrl == "about:home" || currentUrl == "about:blank" || currentUrl.startsWith("about:")) && !isPageTransitioning) {
             barVisibilityStateMachine.forceShow()
             AdBlockStats.resetForPage("", "", true)
@@ -531,6 +539,9 @@ fun BrowserScreen(
             showDiscoverScreen = false
         } else if (currentError != null) {
             currentError = null
+            activeLinkContextTarget = null
+            activeTextSelection?.onDismiss?.invoke()
+            activeTextSelection = null
             if (canGoBack) {
                 geckoSession?.goBack()
             } else {
@@ -547,8 +558,14 @@ fun BrowserScreen(
                 geckoSession?.stop()
             }
         } else if (canGoBack) {
+            activeLinkContextTarget = null
+            activeTextSelection?.onDismiss?.invoke()
+            activeTextSelection = null
             geckoSession?.goBack()
         } else if (currentUrl.isNotBlank() && currentUrl != "about:home" && currentUrl != "about:blank") {
+            activeLinkContextTarget = null
+            activeTextSelection?.onDismiss?.invoke()
+            activeTextSelection = null
             currentUrl = ""
             currentTitle = "New Tab"
             isPageTransitioning = false
@@ -950,13 +967,17 @@ fun BrowserScreen(
                 onSelectSearchEngine = { engineId -> viewModel?.setSearchEngine(engineId) },
                 onCloseDiscoverScreen = { showDiscoverScreen = false },
                 onUrlChanged = { newUrl ->
-                    currentUrl = newUrl
-                    currentError = null
-                    TabManager.updateActiveTab(newUrl, currentTitle)
+                    if (!isBurningData && !com.azokle.search.incineration.DataBurnEngine.isBurning()) {
+                        currentUrl = newUrl
+                        currentError = null
+                        TabManager.updateActiveTab(newUrl, currentTitle)
+                    }
                 },
                 onTitleChanged = { t ->
-                    currentTitle = t
-                    TabManager.updateActiveTab(currentUrl, t)
+                    if (!isBurningData && !com.azokle.search.incineration.DataBurnEngine.isBurning()) {
+                        currentTitle = t
+                        TabManager.updateActiveTab(currentUrl, t)
+                    }
                 },
                 onProgressChanged = { p ->
                     progress = p / 100f
@@ -1759,7 +1780,35 @@ fun BrowserScreen(
             onDismissGroupDetailSheet = { showGroupDetailSheet = false },
             showBurnConfirmationSheet = showBurnConfirmationSheet,
             onConfirmBurnData = {
+                currentUrl = ""
+                currentTitle = "New Tab"
+                targetLoadingUrl = ""
+                isPageTransitioning = false
+                currentError = null
+                isLoading = false
+                progress = 0f
+
                 showBurnConfirmationSheet = false
+                showMenuSheet = false
+                showTabGridSheet = false
+                showGroupDetailSheet = false
+                showSettingsSheet = false
+                showBookmarksScreen = false
+                showHistoryScreen = false
+                showDownloadsScreen = false
+                showDiscoverScreen = false
+                showUrlEditSheet = false
+                showVoiceModal = false
+                showQrScanner = false
+                showShareSheet = false
+                activeArticleReader = null
+                activeSharePayload = null
+                pendingThreatAssessment = null
+                activePermissionRequest = null
+
+                geckoSession = null
+                geckoView = null
+
                 isBurningData = true
                 scope.launch {
                     com.azokle.search.incineration.DataBurnEngine.executeFullDeepBurn(context)
@@ -1768,24 +1817,23 @@ fun BrowserScreen(
             onDismissBurnConfirmation = { showBurnConfirmationSheet = false },
             isBurningData = isBurningData,
             onCompleteBurnData = {
-                scope.launch {
-                    com.azokle.search.incineration.DataBurnEngine.executeFullDeepBurn(context)
+                currentUrl = ""
+                currentTitle = "New Tab"
+                currentError = null
+                targetLoadingUrl = ""
+                isPageTransitioning = false
+                isLoading = false
+                progress = 0f
+                showDiscoverScreen = false
+                showTabGridSheet = false
+                showGroupDetailSheet = false
+                showMenuSheet = false
+                showSettingsSheet = false
+                showBurnConfirmationSheet = false
+                activeArticleReader = null
+                isBurningData = false
 
-                    val newTabId = TabManager.openTab("", "New Tab")
-                    TabManager.selectTab(newTabId)
-
-                    currentUrl = ""
-                    currentTitle = "New Tab"
-                    currentError = null
-                    showDiscoverScreen = false
-                    showTabGridSheet = false
-                    showGroupDetailSheet = false
-                    showMenuSheet = false
-                    showBurnConfirmationSheet = false
-                    isBurningData = false
-
-                    ToastManager.showSuccess("All browsing data erased permanently")
-                }
+                ToastManager.showSuccess("All browsing data erased permanently")
             },
             activePermissionRequest = activePermissionRequest,
             onAllowAlwaysPermission = { req -> handleAllowPermission(req, true) },

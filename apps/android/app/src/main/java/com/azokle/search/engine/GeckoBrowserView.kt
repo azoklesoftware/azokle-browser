@@ -274,9 +274,11 @@ fun GeckoBrowserView(
                     onCanGoForwardChanged = onCanGoForwardChanged
                 )
 
-                // 7. Prompt Delegate (JavaScript alerts, confirms, prompts, HTTP Auth, Popups)
+                // 7. Prompt Delegate (JavaScript alerts, confirms, prompts, HTTP Auth, Popups, Form Controls)
                 session.promptDelegate = GeckoPromptDelegateImpl(
                     context = context,
+                    isPrivate = isPrivate,
+                    isTor = isTor,
                     hasRecentUserInteraction = { this@apply.hasRecentUserInteraction() },
                     onPopupRequested = { targetUri ->
                         val scheme = UrlHelper.extractScheme(targetUri)
@@ -346,6 +348,7 @@ fun GeckoBrowserView(
         },
         onRelease = { swipeRefresh ->
             try {
+                (session.promptDelegate as? GeckoPromptDelegateImpl)?.dismissAllPendingDialogs()
                 swipeRefresh.targetNestedGeckoView = null
                 for (i in 0 until swipeRefresh.childCount) {
                     val child = swipeRefresh.getChildAt(i)

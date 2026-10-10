@@ -48,6 +48,12 @@ class AzokleNavigationDelegate(
         perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>,
         hasUserGesture: Boolean
     ) {
+        if (com.azokle.search.incineration.DataBurnEngine.isBurning() ||
+            com.azokle.search.history.HistoryManager.isIncinerating()
+        ) {
+            return
+        }
+
         url?.let {
             if (it.isNotBlank() && !it.equals("about:blank", ignoreCase = true)) {
                 lastLoadedUrl = it
@@ -100,24 +106,12 @@ class AzokleNavigationDelegate(
             }
         }
 
-        // 3. Android AppLinks for HTTP/HTTPS with explicit user click/tap (e.g. YouTube, Play Store, Reddit)
+        // 3. Android AppLinks for HTTP/HTTPS with explicit user click/tap (e.g. YouTube, Maps, Play Store, Reddit, Instagram)
         if ((scheme == "http" || scheme == "https") && request.hasUserGesture && !isTor && !isPrivate) {
-            val targetUri = try { Uri.parse(uriStr) } catch (e: Exception) { null }
-            if (targetUri != null) {
-                val viewIntent = Intent(Intent.ACTION_VIEW, targetUri).apply {
-                    addCategory(Intent.CATEGORY_BROWSABLE)
-                }
-                if (IntentResolver.hasNativeAppHandler(context, viewIntent)) {
-                    val launched = ExternalAppLauncher.launch(
-                        context = context,
-                        intent = viewIntent,
-                        fallbackUrl = uriStr,
-                        session = session,
-                        showToastOnError = false
-                    )
-                    if (launched == ExternalAppLauncher.LaunchResult.SUCCESS) {
-                        return GeckoResult.fromValue(AllowOrDeny.DENY)
-                    }
+            if (com.azokle.search.navigation.AppLinkHandler.hasSpecializedNativeHandler(context, uriStr)) {
+                val launched = com.azokle.search.navigation.AppLinkHandler.openInNativeApp(context, uriStr)
+                if (launched) {
+                    return GeckoResult.fromValue(AllowOrDeny.DENY)
                 }
             }
         }

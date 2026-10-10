@@ -50,7 +50,9 @@ object IntentParser {
             val intent = Intent.parseUri(uriStr, Intent.URI_INTENT_SCHEME)
             intent.apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                addCategory(Intent.CATEGORY_BROWSABLE)
+                if (scheme == "http" || scheme == "https") {
+                    addCategory(Intent.CATEGORY_BROWSABLE)
+                }
                 if (pkg != null) {
                     `package` = pkg
                 }
@@ -69,7 +71,7 @@ object IntentParser {
         return ParsedIntent(
             uri = null,
             action = Intent.ACTION_VIEW,
-            categories = setOf(Intent.CATEGORY_BROWSABLE),
+            categories = if (scheme == "http" || scheme == "https") setOf(Intent.CATEGORY_BROWSABLE) else emptySet(),
             packageName = pkg,
             componentName = null, // strictly stripped
             fallbackUrl = safeFallback,
@@ -96,7 +98,7 @@ object IntentParser {
             val uri = Uri.parse(uriStr)
             Intent(action, uri).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                if (action == Intent.ACTION_VIEW) {
+                if (action == Intent.ACTION_VIEW && (scheme == "http" || scheme == "https")) {
                     addCategory(Intent.CATEGORY_BROWSABLE)
                 }
             }
@@ -107,7 +109,7 @@ object IntentParser {
         return ParsedIntent(
             uri = null,
             action = action,
-            categories = if (action == Intent.ACTION_VIEW) setOf(Intent.CATEGORY_BROWSABLE) else emptySet(),
+            categories = if (action == Intent.ACTION_VIEW && (scheme == "http" || scheme == "https")) setOf(Intent.CATEGORY_BROWSABLE) else emptySet(),
             packageName = null,
             componentName = null,
             fallbackUrl = null,

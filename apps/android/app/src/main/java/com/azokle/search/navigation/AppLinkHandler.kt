@@ -49,9 +49,7 @@ object AppLinkHandler {
         val nonBrowserHandlers = getNativeAppHandlers(context, url)
         if (nonBrowserHandlers.isEmpty()) return false
 
-        if (nonBrowserHandlers.size == 1) {
-            intent.`package` = nonBrowserHandlers.first()
-        }
+        intent.`package` = nonBrowserHandlers.first()
 
         return ExternalAppLauncher.launch(
             context = context,

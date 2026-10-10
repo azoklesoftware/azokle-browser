@@ -40,6 +40,7 @@ import java.io.FileOutputStream
  */
 object DataBurnEngine {
     private const val TAG = "DataBurnEngine"
+    private const val AZOKLE_TABS_STATE_FILE = "azokle_tabs_state_v1.json"
     private const val TABS_STATE_FILE = "tabs_state.json"
     private const val HISTORY_FILE = "azokle_browser_history.json"
     private const val LEGACY_HISTORY_FILE = "history.json"
@@ -72,9 +73,13 @@ object DataBurnEngine {
 
             // Layer 3: Hard Shred of Disk Tab State Backup
             try {
-                val tabsFile = File(context.filesDir, TABS_STATE_FILE)
-                if (tabsFile.exists()) {
-                    shredFile(tabsFile)
+                val currentTabsFile = File(context.filesDir, AZOKLE_TABS_STATE_FILE)
+                if (currentTabsFile.exists()) {
+                    shredFile(currentTabsFile)
+                }
+                val legacyTabsFile = File(context.filesDir, TABS_STATE_FILE)
+                if (legacyTabsFile.exists()) {
+                    shredFile(legacyTabsFile)
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Error shredding tabs state file: ${e.message}")

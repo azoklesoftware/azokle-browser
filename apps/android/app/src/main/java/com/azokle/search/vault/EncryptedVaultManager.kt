@@ -282,6 +282,73 @@ class EncryptedVaultManager(context: Context) {
         return arr.toString(2)
     }
 
+    fun exportFullBackupJson(): String {
+        val root = JSONObject()
+        root.put("version", 1)
+        root.put("timestamp", System.currentTimeMillis())
+
+        val bookmarksArr = JSONArray()
+        for (b in _bookmarksFlow.value) {
+            bookmarksArr.put(JSONObject().apply {
+                put("id", b.id)
+                put("title", b.title)
+                put("url", b.url)
+                put("dateAdded", b.dateAdded)
+            })
+        }
+        root.put("bookmarks", bookmarksArr)
+
+        val quickLinksArr = JSONArray()
+        for (q in _quickLinksFlow.value) {
+            quickLinksArr.put(JSONObject().apply {
+                put("id", q.id)
+                put("title", q.title)
+                put("url", q.url)
+            })
+        }
+        root.put("quickLinks", quickLinksArr)
+        return root.toString(2)
+    }
+
+    fun importBackupJson(jsonString: String): Result<Int> {
+        return try {
+            val root = JSONObject(jsonString)
+            var count = 0
+            if (root.has("bookmarks")) {
+                val arr = root.getJSONArray("bookmarks")
+                val existing = _bookmarksFlow.value.toMutableList()
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    val url = obj.getString("url")
+                    val title = obj.optString("title", url)
+                    if (existing.none { it.url.equals(url, ignoreCase = true) }) {
+                        existing.add(BookmarkItem(url = url, title = title, dateAdded = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())))
+                        count++
+                    }
+                }
+                _bookmarksFlow.value = existing
+                saveBookmarksToPrefs(existing)
+            }
+            if (root.has("quickLinks")) {
+                val arr = root.getJSONArray("quickLinks")
+                val existingQ = _quickLinksFlow.value.toMutableList()
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    val url = obj.getString("url")
+                    val title = obj.optString("title", url)
+                    if (existingQ.none { it.url.equals(url, ignoreCase = true) }) {
+                        existingQ.add(QuickLinkItem(url = url, title = title))
+                    }
+                }
+                _quickLinksFlow.value = existingQ
+                saveQuickLinksToPrefs(existingQ)
+            }
+            Result.success(count)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     fun clearVault() {
         prefs.edit().clear().apply()
         _bookmarksFlow.value = emptyList()

@@ -103,7 +103,70 @@ import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
 
-class PwaActivity : FragmentActivity() {
+import android.app.Activity
+import androidx.activity.result.contract.ActivityResultContracts
+import com.azokle.search.engine.FilePromptHost
+
+class PwaActivity : FragmentActivity(), FilePromptHost {
+
+    private var pendingFilePrompt: Pair<GeckoSession.PromptDelegate.FilePrompt, GeckoResult<GeckoSession.PromptDelegate.PromptResponse>>? = null
+
+    private val filePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { res ->
+        val pending = pendingFilePrompt
+        pendingFilePrompt = null
+        if (pending == null) return@registerForActivityResult
+        val (prompt, result) = pending
+
+        if (res.resultCode == Activity.RESULT_OK) {
+            val data = res.data
+            val singleUri = data?.data
+            val clipData = data?.clipData
+            if (clipData != null && clipData.itemCount > 0) {
+                val uris = Array(clipData.itemCount) { clipData.getItemAt(it).uri }
+                result.complete(prompt.confirm(this, uris))
+            } else if (singleUri != null) {
+                result.complete(prompt.confirm(this, singleUri))
+            } else {
+                result.complete(prompt.dismiss())
+            }
+        } else {
+            result.complete(prompt.dismiss())
+        }
+    }
+
+    override fun launchFilePicker(
+        prompt: GeckoSession.PromptDelegate.FilePrompt,
+        result: GeckoResult<GeckoSession.PromptDelegate.PromptResponse>
+    ) {
+        pendingFilePrompt = Pair(prompt, result)
+        try {
+            val intent = if (prompt.type == GeckoSession.PromptDelegate.FilePrompt.Type.FOLDER) {
+                Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+            } else {
+                Intent(Intent.ACTION_GET_CONTENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    val types = prompt.mimeTypes?.filter { it.isNotBlank() }
+                    if (!types.isNullOrEmpty()) {
+                        type = types.first()
+                        if (types.size > 1) {
+                            putExtra(Intent.EXTRA_MIME_TYPES, types.toTypedArray())
+                        }
+                    } else {
+                        type = "*/*"
+                    }
+                    if (prompt.type == GeckoSession.PromptDelegate.FilePrompt.Type.MULTIPLE) {
+                        putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                    }
+                }
+            }
+            filePickerLauncher.launch(Intent.createChooser(intent, "Select File"))
+        } catch (e: Exception) {
+            pendingFilePrompt = null
+            result.complete(prompt.dismiss())
+        }
+    }
 
     private var geckoSession: GeckoSession? = null
     private var pwaId: String = ""
@@ -752,6 +815,8 @@ fun PwaContainerScreen(
 
                         session.promptDelegate = com.azokle.search.engine.GeckoPromptDelegateImpl(
                             context = ctx,
+                            isPrivate = isTor,
+                            isTor = isTor,
                             onPopupRequested = { targetUri ->
                                 val scheme = com.azokle.search.common.util.UrlHelper.extractScheme(targetUri)
                                 val dangerousSchemes = setOf("file", "content", "chrome", "resource", "javascript", "data")
@@ -770,6 +835,7 @@ fun PwaContainerScreen(
                 },
                 onRelease = { view ->
                     try {
+                        (session.promptDelegate as? com.azokle.search.engine.GeckoPromptDelegateImpl)?.dismissAllPendingDialogs()
                         view.releaseSession()
                     } catch (e: Exception) {}
                 },

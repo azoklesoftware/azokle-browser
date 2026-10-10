@@ -62,10 +62,12 @@ class AzokleApplication : Application(), ImageLoaderFactory {
         com.azokle.search.core.AzokleCore.initialize(this)
         com.azokle.search.adblock.AdBlockStats.init(this)
 
-        // Initialize History, Download & Tab systems
+        // Initialize History, Download, Tab & Password Vault systems
         com.azokle.search.history.HistoryManager.init(this)
         com.azokle.search.downloads.DownloadManager.init(this)
         com.azokle.search.tabs.TabManager.init(this)
+        com.azokle.search.vault.PasswordVaultManager.init(this)
+        com.azokle.search.engine.EnterprisePolicyManager.init(this)
 
         // Automatically track active FragmentActivity for BiometricPrompt window binding
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {

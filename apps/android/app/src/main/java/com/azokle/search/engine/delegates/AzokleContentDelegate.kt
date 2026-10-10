@@ -57,6 +57,12 @@ class AzokleContentDelegate(
     private var lastCrashTime = 0L
 
     override fun onTitleChange(session: GeckoSession, title: String?) {
+        if (com.azokle.search.incineration.DataBurnEngine.isBurning() ||
+            com.azokle.search.history.HistoryManager.isIncinerating()
+        ) {
+            return
+        }
+
         title?.let {
             onTitleChanged(it)
             TabManager.updateActiveTab("", it)
@@ -87,6 +93,25 @@ class AzokleContentDelegate(
         screenY: Int,
         element: GeckoSession.ContentDelegate.ContextElement
     ) {
+        if (com.azokle.search.incineration.DataBurnEngine.isBurning() ||
+            com.azokle.search.history.HistoryManager.isIncinerating()
+        ) {
+            return
+        }
+
+        // 1. Guard against inactive background tabs
+        if (tabId != null && TabManager.activeTabId.value != null && tabId != TabManager.activeTabId.value) {
+            return
+        }
+
+        // 2. Guard against edge back gestures (Android system gesture navigation zone: left/right edge within 32dp)
+        val displayMetrics = context.resources.displayMetrics
+        val edgeThresholdPx = (32 * displayMetrics.density).toInt()
+        val isEdgeBackGesture = screenX <= edgeThresholdPx || screenX >= (displayMetrics.widthPixels - edgeThresholdPx)
+        if (isEdgeBackGesture) {
+            return
+        }
+
         val baseUri = element.baseUri
         val rawLink = element.linkUri
         val srcUri = element.srcUri
@@ -140,6 +165,13 @@ class AzokleContentDelegate(
                 mediaSrc = srcUri
             )
             mainHandler.post {
+                // Ensure tab and session are still active before displaying context popup
+                if (tabId != null && TabManager.activeTabId.value != null && tabId != TabManager.activeTabId.value) {
+                    return@post
+                }
+                if (!session.isOpen) {
+                    return@post
+                }
                 try {
                     viewProvider()?.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                 } catch (e: Exception) {}

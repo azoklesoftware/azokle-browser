@@ -1,0 +1,50 @@
+name: Security & Vulnerability Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 4 * * 1' # Weekly security audit on Mondays
+
+jobs:
+  dependency-scan:
+    name: Dependency Vulnerability & SBOM Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant Execute Permissions
+        run: chmod +x apps/android/gradlew
+
+      - name: Generate Software Bill of Materials (SBOM)
+        working-directory: apps/android
+        run: ./gradlew generateSbom
+
+      - name: Upload SBOM Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cyclonedx-sbom
+          path: apps/android/app/build/reports/sbom.json
+
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'apps/android'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Run Android Unit & Security Tests
+        working-directory: apps/android
+        run: ./gradlew testDebugUnitTest

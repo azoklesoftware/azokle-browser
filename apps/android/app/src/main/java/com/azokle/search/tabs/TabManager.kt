@@ -667,6 +667,8 @@ object TabManager {
             }
         }
         sessionMap.clear()
+        sessionStateMap.clear()
+        loadedUrls.clear()
         _recentlyClosed.clear()
         _groups.value = emptyList()
         TabThumbnailCache.clear()

@@ -26,6 +26,7 @@ fun SettingsSheet(
     onReplayTour: (() -> Unit)? = null,
     onReplayHomeTour: (() -> Unit)? = null,
     onReplayTabsTour: (() -> Unit)? = null,
+    onBurnData: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     SettingsScreen(
@@ -45,6 +46,7 @@ fun SettingsSheet(
         onReplayTour = onReplayTour,
         onReplayHomeTour = onReplayHomeTour,
         onReplayTabsTour = onReplayTabsTour,
+        onBurnData = onBurnData,
         modifier = modifier
     )
 }

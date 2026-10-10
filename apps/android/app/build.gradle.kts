@@ -24,8 +24,8 @@ android {
         applicationId = "com.azokle.search"
         minSdk = 26
         targetSdk = 36
-        versionCode = 16
-        versionName = "2.0.5"
+        versionCode = 17
+        versionName = "2.0.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -94,6 +94,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
@@ -200,4 +201,47 @@ dependencies {
     testImplementation(libs.json)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+}
+
+tasks.register("generateSbom") {
+    description = "Generates a CycloneDX/SPDX-compliant Software Bill of Materials (SBOM)"
+    group = "reporting"
+    notCompatibleWithConfigurationCache("Resolves classpath configurations dynamically")
+    doLast {
+        val outputFile = file("${layout.buildDirectory.get()}/reports/sbom.json")
+        outputFile.parentFile.mkdirs()
+        val components = mutableListOf<String>()
+
+        configurations.findByName("releaseRuntimeClasspath")?.resolvedConfiguration?.resolvedArtifacts?.forEach { artifact ->
+            val id = artifact.moduleVersion.id
+            components.add(
+                """    {
+      "type": "library",
+      "group": "${id.group}",
+      "name": "${id.name}",
+      "version": "${id.version}",
+      "purl": "pkg:maven/${id.group}/${id.name}@${id.version}"
+    }"""
+            )
+        }
+
+        val sbomJson = """{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "name": "Azokle Browser",
+      "type": "application",
+      "version": "${android.defaultConfig.versionName}"
+    }
+  },
+  "components": [
+${components.joinToString(",\n")}
+  ]
+}"""
+
+        outputFile.writeText(sbomJson)
+        println("Generated SBOM at: ${outputFile.absolutePath} with ${components.size} components.")
+    }
 }

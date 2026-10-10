@@ -36,7 +36,9 @@ import com.azokle.search.common.theme.AzokleSearchTheme
 import com.azokle.search.common.util.LocaleHelper
 import com.azokle.search.search.HomeViewModel
 
-class MainActivity : FragmentActivity() {
+import com.azokle.search.engine.FilePromptHost
+
+class MainActivity : FragmentActivity(), FilePromptHost {
     private val viewModel: HomeViewModel by viewModels()
 
     override fun attachBaseContext(newBase: Context) {
@@ -94,25 +96,29 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    fun launchFilePicker(
+    override fun launchFilePicker(
         prompt: org.mozilla.geckoview.GeckoSession.PromptDelegate.FilePrompt,
         result: org.mozilla.geckoview.GeckoResult<org.mozilla.geckoview.GeckoSession.PromptDelegate.PromptResponse>
     ) {
         pendingFilePrompt = Pair(prompt, result)
         try {
-            val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE)
-                val types = prompt.mimeTypes?.filter { it.isNotBlank() }
-                if (!types.isNullOrEmpty()) {
-                    type = types.first()
-                    if (types.size > 1) {
-                        putExtra(Intent.EXTRA_MIME_TYPES, types.toTypedArray())
+            val intent = if (prompt.type == org.mozilla.geckoview.GeckoSession.PromptDelegate.FilePrompt.Type.FOLDER) {
+                Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+            } else {
+                Intent(Intent.ACTION_GET_CONTENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    val types = prompt.mimeTypes?.filter { it.isNotBlank() }
+                    if (!types.isNullOrEmpty()) {
+                        type = types.first()
+                        if (types.size > 1) {
+                            putExtra(Intent.EXTRA_MIME_TYPES, types.toTypedArray())
+                        }
+                    } else {
+                        type = "*/*"
                     }
-                } else {
-                    type = "*/*"
-                }
-                if (prompt.type == org.mozilla.geckoview.GeckoSession.PromptDelegate.FilePrompt.Type.MULTIPLE) {
-                    putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                    if (prompt.type == org.mozilla.geckoview.GeckoSession.PromptDelegate.FilePrompt.Type.MULTIPLE) {
+                        putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                    }
                 }
             }
             filePickerLauncher.launch(Intent.createChooser(intent, "Select File"))

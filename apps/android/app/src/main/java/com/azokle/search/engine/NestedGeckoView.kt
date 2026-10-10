@@ -68,9 +68,11 @@ class NestedGeckoView @JvmOverloads constructor(
 
     private val density = context.resources.displayMetrics.density
     private val maxPullDownOriginPx = (180 * density).toInt()
+    private val edgeGestureThresholdPx = (32 * density).toInt()
 
     @Volatile
     private var lastUserTouchTimestamp: Long = 0L
+    private var initialDownX: Float = 0f
 
     /**
      * True if the user interacted with the viewport via touch within the last 5 seconds.
@@ -88,22 +90,30 @@ class NestedGeckoView @JvmOverloads constructor(
             lastUserTouchTimestamp = android.os.SystemClock.uptimeMillis()
         }
 
+        val screenWidth = resources.displayMetrics.widthPixels
+
         when (action) {
             MotionEvent.ACTION_DOWN -> {
                 nestedOffsetY = 0
                 lastY = ev.y.toInt()
                 initialDownY = ev.y
+                initialDownX = ev.x
 
-                // If touch originates outside the top pull-to-refresh zone (e.g. playlist sheet, overlays, comments, drawer),
-                // immediately disallow parent interception to give web elements full gesture authority.
-                if (initialDownY > maxPullDownOriginPx) {
+                val isEdgeBackGestureZone = initialDownX < edgeGestureThresholdPx || initialDownX > (screenWidth - edgeGestureThresholdPx)
+
+                // If touch originates outside top pull-to-refresh zone and NOT in the system edge back gesture zone,
+                // disallow parent interception to give web elements full gesture authority.
+                // In the edge zone, allow parent/system to intercept for back gesture navigation without APZ long-press conflict.
+                if (initialDownY > maxPullDownOriginPx && !isEdgeBackGestureZone) {
                     parent?.requestDisallowInterceptTouchEvent(true)
                 }
             }
             MotionEvent.ACTION_MOVE -> {
                 val deltaY = ev.y - initialDownY
-                // If gesture started in page content or scrolling upwards, disallow parent interception
-                if (initialDownY > maxPullDownOriginPx || deltaY < -15) {
+                val isEdgeBackGestureZone = initialDownX < edgeGestureThresholdPx || initialDownX > (screenWidth - edgeGestureThresholdPx)
+
+                // If gesture started in page content or scrolling upwards, disallow parent interception unless in edge zone
+                if ((initialDownY > maxPullDownOriginPx || deltaY < -15) && !isEdgeBackGestureZone) {
                     parent?.requestDisallowInterceptTouchEvent(true)
                 }
             }

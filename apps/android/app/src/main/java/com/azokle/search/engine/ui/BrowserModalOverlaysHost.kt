@@ -359,7 +359,8 @@ fun BrowserModalOverlaysHost(
             onOpenPrivacyPolicy = { viewModel?.setPrivacyModalOpen(true) },
             onOpenTerms = { viewModel?.setTermsModalOpen(true) },
             onOpenAbout = { viewModel?.setAboutModalOpen(true) },
-            onOpenUrl = onOpenUrlFromSettings
+            onOpenUrl = onOpenUrlFromSettings,
+            onBurnData = onConfirmBurnData
         )
     }
 

@@ -37,7 +37,7 @@ This guide outlines the system prerequisites, developer toolchains, and environm
 
 Clone the repository and inspect the workspace:
 ```bash
-git clone https://github.com/azoklesearch/azokle-browser.git
+git clone https://github.com/azoklesoftware/azokle-browser.git
 cd azokle-browser
 
 # Verify Rust workspace compilation

@@ -422,7 +422,6 @@ object ExternalNavigationHandler {
         val uri = try { Uri.parse(uriStr) } catch (e: Exception) { return false }
         val intent = Intent(Intent.ACTION_VIEW, uri).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            addCategory(Intent.CATEGORY_BROWSABLE)
         }
 
         return ExternalAppLauncher.launch(

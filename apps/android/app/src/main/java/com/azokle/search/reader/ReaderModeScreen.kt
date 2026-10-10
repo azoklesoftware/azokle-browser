@@ -25,11 +25,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -69,6 +74,16 @@ fun ReaderModeScreen(
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val tts = remember { ReaderTextToSpeech(context) }
+    val ttsState by tts.state.collectAsState()
+
+    DisposableEffect(Unit) {
+        onDispose {
+            tts.release()
+        }
+    }
+
     val currentTheme = AzokleTheme.colors
     var selectedReaderTheme by remember {
         mutableStateOf(if (currentTheme.isDark) ReaderTheme.DARK else ReaderTheme.LIGHT)
@@ -173,6 +188,46 @@ fun ReaderModeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    // Read Aloud (Text-to-Speech) Button
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (ttsState != ReaderTextToSpeech.State.IDLE) AzokleTheme.colors.actionPrimaryBg.copy(alpha = 0.2f) else selectedReaderTheme.bg)
+                            .border(0.8.dp, selectedReaderTheme.border, RoundedCornerShape(8.dp))
+                            .clickable {
+                                when (ttsState) {
+                                    ReaderTextToSpeech.State.IDLE -> tts.startReading(article)
+                                    ReaderTextToSpeech.State.PLAYING -> tts.pause()
+                                    ReaderTextToSpeech.State.PAUSED -> tts.resume()
+                                }
+                            }
+                            .padding(horizontal = 8.dp, vertical = 5.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Icon(
+                                imageVector = when (ttsState) {
+                                    ReaderTextToSpeech.State.PLAYING -> Icons.Default.Pause
+                                    ReaderTextToSpeech.State.PAUSED -> Icons.Default.PlayArrow
+                                    ReaderTextToSpeech.State.IDLE -> Icons.AutoMirrored.Filled.VolumeUp
+                                },
+                                contentDescription = "Read Aloud",
+                                tint = if (ttsState != ReaderTextToSpeech.State.IDLE) AzokleTheme.colors.actionPrimaryBg else selectedReaderTheme.text,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = when (ttsState) {
+                                    ReaderTextToSpeech.State.PLAYING -> "Pause"
+                                    ReaderTextToSpeech.State.PAUSED -> "Resume"
+                                    ReaderTextToSpeech.State.IDLE -> "Listen"
+                                },
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (ttsState != ReaderTextToSpeech.State.IDLE) AzokleTheme.colors.actionPrimaryBg else selectedReaderTheme.text
+                            )
+                        }
+                    }
+
                     // Serif / Sans Toggle Pill
                     Box(
                         modifier = Modifier

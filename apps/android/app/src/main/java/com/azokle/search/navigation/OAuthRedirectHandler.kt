@@ -81,7 +81,10 @@ object OAuthRedirectHandler {
 
         val intent = Intent(Intent.ACTION_VIEW, uri).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            addCategory(Intent.CATEGORY_BROWSABLE)
+            val scheme = uri.scheme?.lowercase()
+            if (scheme == "http" || scheme == "https") {
+                addCategory(Intent.CATEGORY_BROWSABLE)
+            }
         }
 
         return ExternalAppLauncher.launch(

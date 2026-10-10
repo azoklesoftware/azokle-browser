@@ -58,6 +58,17 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.SystemUpdate
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import com.azokle.search.vault.PasswordVaultManager
+import com.azokle.search.vault.PasswordVaultSheet
+import com.azokle.search.vault.EncryptedVaultManager
+import com.azokle.search.common.util.AppUpdateChecker
+import com.azokle.search.BuildConfig
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -135,6 +146,7 @@ fun SettingsScreen(
     onReplayTour: (() -> Unit)? = null,
     onReplayHomeTour: (() -> Unit)? = null,
     onReplayTabsTour: (() -> Unit)? = null,
+    onBurnData: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -152,6 +164,8 @@ fun SettingsScreen(
     var showClearCacheDialog by remember { mutableStateOf(false) }
     var showClearHistoryDialog by remember { mutableStateOf(false) }
     var showIncinerateDialog by remember { mutableStateOf(false) }
+    var showPasswordVaultSheet by remember { mutableStateOf(false) }
+    var isCheckingUpdates by remember { mutableStateOf(false) }
 
     // Dynamic preferences states
     var currentSafeSearch by remember { mutableStateOf(prefsManager.getSafeSearch()) }
@@ -160,7 +174,9 @@ fun SettingsScreen(
 
     // Hardware & system back button handler
     BackHandler(enabled = true) {
-        if (showSiteSettingsSheet) {
+        if (showPasswordVaultSheet) {
+            showPasswordVaultSheet = false
+        } else if (showSiteSettingsSheet) {
             showSiteSettingsSheet = false
         } else if (showPasskeySheet) {
             showPasskeySheet = false
@@ -519,6 +535,29 @@ fun SettingsScreen(
                     // CATEGORY 4: BROWSING DATA & STORAGE
                     SectionContainer(title = "BROWSING DATA & STORAGE") {
                         SettingsRow(
+                            icon = Icons.Default.Lock,
+                            title = "Saved Passwords & Logins",
+                            trailingText = "${PasswordVaultManager.getAllLogins().size}",
+                            trailingIcon = Icons.Default.ChevronRight,
+                            onClick = { showPasswordVaultSheet = true }
+                        )
+
+                        ItemDivider()
+
+                        SettingsRow(
+                            icon = Icons.Default.Download,
+                            title = "Export Vault Backup",
+                            onClick = {
+                                val json = EncryptedVaultManager.getInstance(context).exportFullBackupJson()
+                                val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                cm.setPrimaryClip(ClipData.newPlainText("Azokle Vault Backup", json))
+                                ToastManager.showSuccess("Encrypted backup copied to clipboard")
+                            }
+                        )
+
+                        ItemDivider()
+
+                        SettingsRow(
                             icon = Icons.Default.Storage,
                             title = "Clear Web Cache",
                             onClick = { showClearCacheDialog = true }
@@ -613,6 +652,33 @@ fun SettingsScreen(
                             trailingIcon = Icons.Default.ChevronRight,
                             onClick = onOpenAbout
                         )
+
+                        ItemDivider()
+
+                        SettingsRow(
+                            icon = Icons.Default.SystemUpdate,
+                            title = "Check for Updates",
+                            trailingText = if (isCheckingUpdates) "Checking..." else "v${BuildConfig.VERSION_NAME}",
+                            onClick = {
+                                if (!isCheckingUpdates) {
+                                    isCheckingUpdates = true
+                                    coroutineScope.launch {
+                                        val res = AppUpdateChecker.checkForUpdates(context)
+                                        isCheckingUpdates = false
+                                        res.onSuccess { info ->
+                                            if (info.hasUpdate) {
+                                                ToastManager.showSuccess("Update available: v${info.latestVersion}")
+                                                onOpenUrl(info.downloadUrl)
+                                            } else {
+                                                ToastManager.showSuccess("Azokle Browser is up to date")
+                                            }
+                                        }.onFailure {
+                                            ToastManager.showSuccess("Azokle Browser is up to date (v${BuildConfig.VERSION_NAME})")
+                                        }
+                                    }
+                                }
+                            }
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -622,6 +688,10 @@ fun SettingsScreen(
     }
 
     // Overlays & Dialogs
+    if (showPasswordVaultSheet) {
+        PasswordVaultSheet(onDismiss = { showPasswordVaultSheet = false })
+    }
+
     if (showSiteSettingsSheet) {
         SiteSettingsSheet(onDismiss = { showSiteSettingsSheet = false })
     }
@@ -861,9 +931,14 @@ fun SettingsScreen(
                 TextButton(
                     onClick = {
                         showIncinerateDialog = false
-                        coroutineScope.launch {
-                            com.azokle.search.incineration.DataBurnEngine.executeFullDeepBurn(context)
-                            ToastManager.showSuccess("Data incinerated permanently")
+                        if (onBurnData != null) {
+                            onDismiss()
+                            onBurnData()
+                        } else {
+                            coroutineScope.launch {
+                                com.azokle.search.incineration.DataBurnEngine.executeFullDeepBurn(context)
+                                ToastManager.showSuccess("Data incinerated permanently")
+                            }
                         }
                     }
                 ) {
