@@ -142,6 +142,13 @@ object GeckoConfigManager {
             appendLine("  dom.maxHardwareConcurrency: 4")
             appendLine("  privacy.reduceTimerPrecision: true")
             appendLine("  privacy.reduceTimerPrecision.microseconds: 2000")
+
+            // 9. Post-Quantum Cryptography & Encrypted Client Hello (ECH)
+            appendLine("  security.tls.enable_kyber: true")
+            appendLine("  network.dns.echconfig.enabled: true")
+            appendLine("  network.dns.echconfig.fallback_to_origin_when_ech_fails: false")
+            appendLine("  network.http.referer.trimmingPolicy: 2")
+            appendLine("  network.http.referer.XOriginPolicy: 1")
         }
     }
 }

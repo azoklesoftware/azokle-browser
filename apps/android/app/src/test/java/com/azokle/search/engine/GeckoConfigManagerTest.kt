@@ -60,6 +60,11 @@ class GeckoConfigManagerTest {
         assertTrue(yaml.contains("network.trr.bootstrapAddress: \"1.1.1.1\""))
         assertTrue(yaml.contains("network.trr.max-fails: 5"))
         assertTrue(yaml.contains("network.trr.clear-cache-on-mode-change: true"))
+
+        // Post-Quantum Kyber768 & Encrypted Client Hello (ECH)
+        assertTrue(yaml.contains("security.tls.enable_kyber: true"))
+        assertTrue(yaml.contains("network.dns.echconfig.enabled: true"))
+        assertTrue(yaml.contains("network.http.referer.trimmingPolicy: 2"))
     }
 
     @Test
