@@ -1,0 +1,36 @@
+name: ✨ Feature Request
+description: Suggest an idea or enhancement for Azokle Browser.
+title: "[Feature]: "
+labels: ["enhancement", "proposal"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Is your feature request related to a problem?
+      description: A clear description of what the problem or limitation is.
+      placeholder: I am always frustrated when...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the solution you'd like
+      description: A clear and concise description of what you want to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Describe alternatives you've considered
+      description: Any alternative solutions or features considered.
+  - type: dropdown
+    id: target
+    attributes:
+      label: Target Subsystem
+      options:
+        - "User Experience & UI (Compose)"
+        - "Privacy Shield & Filter Engine"
+        - "Engine Performance & GeckoView"
+        - "Tor Circuitry & Networking"
+        - "Vault & Credentials"
+        - "Desktop / Cross-Platform"

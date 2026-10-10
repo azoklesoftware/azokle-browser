@@ -2,9 +2,9 @@ name: Security & Vulnerability Scan
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, development ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, development ]
   schedule:
     - cron: '0 4 * * 1' # Weekly security audit on Mondays
 

@@ -1,0 +1,60 @@
+version: 2
+updates:
+  # Maintain dependencies for Rust Core workspace
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Etc/UTC"
+    target-branch: "development"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "rust"
+    commit-message:
+      prefix: "chore(deps-rust)"
+    groups:
+      rust-dependencies:
+        patterns:
+          - "*"
+
+  # Maintain dependencies for Android application (Gradle & AndroidX / GeckoView)
+  - package-ecosystem: "gradle"
+    directory: "/apps/android"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Etc/UTC"
+    target-branch: "development"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "android"
+    commit-message:
+      prefix: "chore(deps-android)"
+    groups:
+      compose-dependencies:
+        patterns:
+          - "androidx.compose.*"
+      lifecycle-dependencies:
+        patterns:
+          - "androidx.lifecycle.*"
+
+  # Maintain GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Etc/UTC"
+    target-branch: "development"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "chore(deps-actions)"

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🔒 Security Vulnerability Reporting
+    url: https://github.com/azoklesoftware/azokle-browser/security/advisories/new
+    about: Please report security vulnerabilities privately. Do not open public issues for security exploits or privacy leaks.
+  - name: 💬 Developer Community Discussions
+    url: https://github.com/azoklesoftware/azokle-browser/discussions
+    about: Ask questions, share ideas, and discuss browser architecture.

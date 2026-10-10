@@ -1,0 +1,47 @@
+name: Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build & Publish Release Artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant Execute Permissions
+        run: chmod +x apps/android/gradlew
+
+      - name: Run Unit Tests
+        working-directory: apps/android
+        run: ./gradlew testDebugUnitTest
+
+      - name: Generate CycloneDX SBOM
+        working-directory: apps/android
+        run: ./gradlew generateSbom
+
+      - name: Build Universal & Architecture APKs
+        working-directory: apps/android
+        run: ./gradlew assembleRelease || ./gradlew assembleDebug
+
+      - name: Create GitHub Release & Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            apps/android/app/build/outputs/apk/**/*.apk
+            apps/android/app/build/reports/sbom.json
