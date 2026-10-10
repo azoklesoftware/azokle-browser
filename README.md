@@ -4,7 +4,7 @@
 
 # 🛡️ Azokle Browser
 
-### *The Super-Fast, Ad-Free & Truly Private Web Browser ✨*
+### *The Super-Fast, Ad-Free & Truly Private Web Browser*
 
 **Browse freely. No creepy trackers. No annoying popups. Just pure, joyful internet.**
 
