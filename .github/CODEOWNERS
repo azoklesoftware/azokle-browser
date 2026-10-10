@@ -1,0 +1,16 @@
+# Global code ownership
+* @azoklesoftware
+
+# Core engine and crates
+/crates/ @azoklesoftware
+/bindings/ @azoklesoftware
+
+# Android client application
+/apps/android/ @azoklesoftware
+
+# Linux client application
+/apps/linux/ @azoklesoftware
+
+# Security, Privacy & Documentation
+/docs/ @azoklesoftware
+/.github/ @azoklesoftware

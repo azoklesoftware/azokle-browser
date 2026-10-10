@@ -16,7 +16,7 @@ build_*/
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
-Makefile
+!/Makefile
 
 # Android build artifacts
 .gradle/

@@ -10,6 +10,7 @@
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4.svg?style=for-the-badge&logo=android)](https://developer.android.com/jetpack/compose)
 [![Audit Checklist](https://img.shields.io/badge/Audit-80%2F80%20Verified%20(100%25)-success.svg?style=for-the-badge)](docs/operations/azokle_browser_implementation_report.md)
 [![Contributing](https://img.shields.io/badge/Contributing-Guide-blueviolet.svg?style=for-the-badge)](CONTRIBUTING.md)
+[![Code of Conduct](https://img.shields.io/badge/Code%20of%20Conduct-v2.1-ff69b4.svg?style=for-the-badge)](CODE_OF_CONDUCT.md)
 [![Security Policy](https://img.shields.io/badge/Security-Policy-red.svg?style=for-the-badge)](SECURITY.md)
 [![License: MIT / Apache-2.0](https://img.shields.io/badge/License-MIT%20%2F%20Apache--2.0-blue.svg?style=for-the-badge)](LICENSE)
 
@@ -447,15 +448,17 @@ cmake --build build_asan
 - **Android Unit Tests**: `./gradlew testDebugUnitTest` (42 comprehensive test suites passing at 100%).
 - **SBOM Generation**: `./gradlew generateSbom` (CycloneDX 1.5 JSON cataloging 151 dependencies).
 - **Android Assembly**: `./gradlew assembleDebug` (Clean compilation & packaging).
+- **Makefile Automation**: Run `make help` from the repository root for one-liner developer tasks (`make rust-test`, `make android-test`, `make android-build`).
 
 ---
 
-## 🤝 Contributing & Security Guidelines
+## 🤝 Contributing & Community Standards
 
-- **Contributing**: Please review [CONTRIBUTING.md](CONTRIBUTING.md) for branch strategy (`development` branch), Kotlin/Rust coding style, and PR requirements.
+- **Contributing Guide**: Please review [CONTRIBUTING.md](CONTRIBUTING.md) for branch strategy (`development` branch), Kotlin/Rust coding style, and PR requirements.
+- **Code of Conduct**: Azokle adheres to the [Contributor Covenant v2.1](CODE_OF_CONDUCT.md).
 - **Security Policy**: For responsible vulnerability reporting, security invariants, and disclosure guidelines, see [SECURITY.md](SECURITY.md).
 - **Architecture & Implementation Audit**: See our complete 80-point verification report in [docs/operations/azokle_browser_implementation_report.md](docs/operations/azokle_browser_implementation_report.md).
-- **Changelog**: Detailed release logs and updates can be reviewed in [.azokle/changelog/android/v-2.0.6.md](.azokle/changelog/android/v-2.0.6.md).
+- **Changelog**: Detailed release logs and updates are documented in [CHANGELOG.md](CHANGELOG.md) and [.azokle/changelog/android/v-2.0.6.md](.azokle/changelog/android/v-2.0.6.md).
 
 ---
 

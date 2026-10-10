@@ -16,9 +16,11 @@ int main(int argc, char* argv[]) {
 
     // 2. Initialize Gecko Rendering Engine
     auto engine = std::make_shared<azokle::engine::gecko::GeckoEngineBridge>();
+    const char* homeEnv = std::getenv("HOME");
+    std::string homeDir = homeEnv ? homeEnv : ".";
     azokle::engine::EngineProfileConfig config{
-        "/home/azokledeveloper/.azokle/profile",
-        "/home/azokledeveloper/.azokle/cache",
+        homeDir + "/.azokle/profile",
+        homeDir + "/.azokle/cache",
         false,
         9050,
         false,

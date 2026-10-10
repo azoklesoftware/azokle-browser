@@ -40,7 +40,7 @@ android {
         create("release") {
             val storeFilePath = System.getenv("KEYSTORE_PATH")
                 ?: keystoreProperties.getProperty("storeFile")
-                ?: "/home/azokledeveloper/.android/keystore/azokle-search.jks"
+                ?: "${System.getProperty("user.home")}/.android/keystore/azokle-search.jks"
             val storePass = System.getenv("KEYSTORE_PASSWORD")
                 ?: keystoreProperties.getProperty("storePassword")
             val keyUserAlias = System.getenv("KEY_ALIAS")

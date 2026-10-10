@@ -3,15 +3,23 @@
 #include "../ui/AzokleTheme.hpp"
 #include <iostream>
 #include <sstream>
+#include <filesystem>
+#include <cstdlib>
 
 namespace azokle::linux_app {
 
-const char* CHROME_DESKTOP_URL = "file:///home/azokledeveloper/azokledeveloper/azokle-software/azokle-browser/ui/dist/index.html";
-const char* NEWTAB_LOCAL_URL = "file:///home/azokledeveloper/azokledeveloper/azokle-software/azokle-browser/ui/dist/pages/newtab/index.html";
-const char* SETTINGS_LOCAL_URL = "file:///home/azokledeveloper/azokledeveloper/azokle-software/azokle-browser/ui/dist/pages/settings/index.html";
-const char* HISTORY_LOCAL_URL = "file:///home/azokledeveloper/azokledeveloper/azokle-software/azokle-browser/apps/linux/resources/pages/history.html";
-const char* DOWNLOADS_LOCAL_URL = "file:///home/azokledeveloper/azokledeveloper/azokle-software/azokle-browser/apps/linux/resources/pages/downloads.html";
-const char* BOOKMARKS_LOCAL_URL = "file:///home/azokledeveloper/azokledeveloper/azokle-software/azokle-browser/apps/linux/resources/pages/bookmarks.html";
+static std::string GetResourceUrl(const std::string& subPath) {
+    const char* baseEnv = std::getenv("AZOKLE_BROWSER_ROOT");
+    std::filesystem::path rootPath = baseEnv ? std::filesystem::path(baseEnv) : std::filesystem::current_path();
+    return "file://" + (rootPath / subPath).string();
+}
+
+static const std::string CHROME_DESKTOP_URL = GetResourceUrl("ui/dist/index.html");
+static const std::string NEWTAB_LOCAL_URL = GetResourceUrl("ui/dist/pages/newtab/index.html");
+static const std::string SETTINGS_LOCAL_URL = GetResourceUrl("ui/dist/pages/settings/index.html");
+static const std::string HISTORY_LOCAL_URL = GetResourceUrl("apps/linux/resources/pages/history.html");
+static const std::string DOWNLOADS_LOCAL_URL = GetResourceUrl("apps/linux/resources/pages/downloads.html");
+static const std::string BOOKMARKS_LOCAL_URL = GetResourceUrl("apps/linux/resources/pages/bookmarks.html");
 
 void BrowserWindowDelegate::OnLocationChange(const std::string& url) {
     if (m_window) m_window->UpdateUrlBar(url);
