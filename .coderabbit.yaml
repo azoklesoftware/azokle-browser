@@ -1,0 +1,86 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+early_access: false
+
+tone_instructions: |
+  You are a senior systems, Android security, and privacy architect reviewing changes for Azokle Browser.
+  Azokle is a high-performance, privacy-first Android and multiplatform browser built with Mozilla GeckoView,
+  Jetpack Compose, Kotlin Coroutines, and a high-performance Rust core workspace with UniFFI/C-FFI bindings.
+
+  Review Principles:
+  1. Privacy & Zero-Telemetry: Strictly reject any unconsented telemetry, analytics SDKs, device fingerprinting, or network leaks.
+  2. Memory & Thread Safety: Scrutinize concurrency in both Kotlin (Coroutine dispatchers) and Rust (parking_lot RwLock/Mutex, deadlock prevention).
+  3. FFI & Memory Leaks: Verify raw pointer safety, Box allocation/deallocation symmetry, and Android context leak prevention.
+  4. High-Signal Feedback: Be concise, constructive, and prioritize critical security, correctness, and performance issues over trivial styling preferences.
+
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - "main"
+      - "development"
+
+  path_filters:
+    - "!**/target/**"
+    - "!**/build/**"
+    - "!**/.gradle/**"
+    - "!**/.idea/**"
+    - "!assets/**"
+    - "!**/*.png"
+    - "!**/*.jpg"
+    - "!**/*.jpeg"
+    - "!**/*.webp"
+    - "!**/*.ico"
+    - "!**/*.svg"
+    - "!**/*.jar"
+    - "!**/*.aar"
+    - "!**/*.bin"
+
+  path_instructions:
+    - path: "apps/android/**"
+      instructions: |
+        - Kotlin & Jetpack Compose:
+          * Ensure Compose composables avoid expensive re-evaluations; use `remember`, `derivedStateOf`, and `produceState` dispatched on appropriate coroutine contexts.
+          * Disallow blocking network or disk I/O on `Dispatchers.Main`; ensure `Dispatchers.IO` is used for I/O and `Dispatchers.Default` for CPU-intensive data transformations.
+          * Watch out for memory leaks: never pass or retain Activity `Context` inside long-lived singletons or ViewModel delegates. Use `Application` context or lifecycle-scoped references.
+        - GeckoView & WebExtension Security:
+          * Verify proper isolation of private browsing sessions (no disk persistence for private tabs, cookies, or cache).
+          * Enforce strict input validation on native-to-web messaging protocols and Gecko prompt delegates.
+          * Ensure hardware-backed keystore protection for sensitive biometric and password vault stores (`MasterKey`, `EncryptedSharedPreferences`).
+
+    - path: "crates/**"
+      instructions: |
+        - Rust Core & Performance:
+          * Enforce memory safety, explicit error handling via `Result`/`Option`, and prohibit panics (`unwrap()`, `expect()`, `panic!()`) in production paths.
+          * Verify locking order and concurrency safety using `parking_lot::RwLock` or `Mutex` to prevent deadlocks.
+          * Ensure anti-tracking, adblocking, and DNS resolution paths never leak requests outside the configured DNS/Tor proxy boundary.
+
+    - path: "bindings/**"
+      instructions: |
+        - FFI Safety (C-ABI, UniFFI, JNI):
+          * Check every raw pointer dereference: ensure non-null pointer checks and catch panics using `std::panic::catch_unwind`.
+          * Verify proper memory cleanup: ensure every buffer or string allocated across the FFI boundary has a corresponding free function and avoids double-free or dangling pointers.
+          * Keep UniFFI and JNI signatures in exact synchronization with Rust core abstractions.
+
+    - path: ".github/workflows/**"
+      instructions: |
+        - CI/CD Security:
+          * Verify all GitHub Actions use pinned, reputable actions.
+          * Ensure minimal workflow permissions (`contents: read`, etc.) and prevent untrusted secret leakage.
+
+  tools:
+    shellcheck:
+      enabled: true
+    markdownlint:
+      enabled: true
+
+chat:
+  auto_reply: true
