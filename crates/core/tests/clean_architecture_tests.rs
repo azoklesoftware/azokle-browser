@@ -1,3 +1,17 @@
+// Copyright (c) 2026 The Azokle Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use azokle_core::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -7,6 +21,7 @@ struct MockEnginePort {
 }
 
 impl MockEnginePort {
+    /// Creates a new instance with default configuration.
     fn new() -> Self {
         Self {
             loaded_uris: Mutex::new(Vec::new()),
@@ -15,6 +30,7 @@ impl MockEnginePort {
 }
 
 impl EnginePort for MockEnginePort {
+    /// Performs load uri operation.
     fn load_uri(&self, tab_id: TabId, uri: &str) -> Result<(), String> {
         self.loaded_uris
             .lock()
@@ -23,10 +39,12 @@ impl EnginePort for MockEnginePort {
         Ok(())
     }
 
+    /// Performs close session operation.
     fn close_session(&self, _tab_id: TabId) -> Result<(), String> {
         Ok(())
     }
 
+    /// Performs reload operation.
     fn reload(&self, _tab_id: TabId, _bypass_cache: bool) -> Result<(), String> {
         Ok(())
     }
@@ -37,6 +55,7 @@ struct MockShieldPort {
 }
 
 impl ShieldPort for MockShieldPort {
+    /// Performs evaluate operation.
     fn evaluate(&self, _request: &NavigationRequest) -> ShieldEvaluation {
         if self.should_block.load(Ordering::Relaxed) {
             ShieldEvaluation::Block {
@@ -48,6 +67,7 @@ impl ShieldPort for MockShieldPort {
         }
     }
 
+    /// Performs strip tracking params operation.
     fn strip_tracking_params(&self, url: &str) -> String {
         // Strip ?fbclid=...
         if let Some(idx) = url.find("?fbclid=") {
@@ -57,6 +77,7 @@ impl ShieldPort for MockShieldPort {
         }
     }
 
+    /// Validates debounce redirect against security and filtering rules.
     fn check_debounce_redirect(&self, url: &str) -> Option<String> {
         if url.contains("bounce-tracker.com?dest=") {
             let dest = url.split("dest=").nth(1)?;
@@ -72,6 +93,7 @@ struct MockStoragePort {
 }
 
 impl MockStoragePort {
+    /// Creates a new instance with default configuration.
     fn new() -> Self {
         Self {
             saved_tabs: Mutex::new(Vec::new()),
@@ -80,16 +102,19 @@ impl MockStoragePort {
 }
 
 impl StoragePort for MockStoragePort {
+    /// Performs save tab operation.
     fn save_tab(&self, tab: &Tab) -> Result<(), String> {
         self.saved_tabs.lock().unwrap().push(tab.clone());
         Ok(())
     }
 
+    /// Removes the specified tab.
     fn delete_tab(&self, tab_id: u64) -> Result<(), String> {
         self.saved_tabs.lock().unwrap().retain(|t| t.id.0 != tab_id);
         Ok(())
     }
 
+    /// Performs load all tabs operation.
     fn load_all_tabs(&self) -> Result<Vec<Tab>, String> {
         Ok(self.saved_tabs.lock().unwrap().clone())
     }

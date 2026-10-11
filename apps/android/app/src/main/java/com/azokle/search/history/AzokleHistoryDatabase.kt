@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.history
 
 import android.content.ContentValues
@@ -117,6 +133,9 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         @Volatile
         private var instance: AzokleHistoryDatabase? = null
 
+        /**
+         * Retrieves the instance.
+         */
         fun getInstance(context: Context): AzokleHistoryDatabase {
             return instance ?: synchronized(this) {
                 instance ?: AzokleHistoryDatabase(context).also { instance = it }
@@ -124,12 +143,18 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         }
     }
 
+    /**
+     * Handles on configure events.
+     */
     override fun onConfigure(db: SQLiteDatabase) {
         super.onConfigure(db)
         db.enableWriteAheadLogging()
         db.setForeignKeyConstraintsEnabled(true)
     }
 
+    /**
+     * Initializes dependencies and components when created.
+     */
     override fun onCreate(db: SQLiteDatabase) {
         // 1. Create Master Places Table
         db.execSQL(
@@ -309,6 +334,9 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_downloads_time ON $TABLE_DOWNLOADS($COL_DL_TIMESTAMP DESC);")
     }
 
+    /**
+     * Handles on upgrade events.
+     */
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) {
             db.execSQL(
@@ -546,6 +574,9 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         return list
     }
 
+    /**
+     * Removes the specified place.
+     */
     fun deletePlace(id: String): Boolean {
         return try {
             writableDatabase.delete(TABLE_PLACES, "$COL_ID = ?", arrayOf(id)) > 0
@@ -554,6 +585,9 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         }
     }
 
+    /**
+     * Removes the specified place by url.
+     */
     fun deletePlaceByUrl(url: String): Boolean {
         return try {
             writableDatabase.delete(TABLE_PLACES, "$COL_URL = ?", arrayOf(url)) > 0
@@ -562,6 +596,9 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         }
     }
 
+    /**
+     * Removes the specified places by domain.
+     */
     fun deletePlacesByDomain(domain: String): Int {
         val d = domain.trim().lowercase().removePrefix("www.")
         return try {
@@ -571,6 +608,9 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         }
     }
 
+    /**
+     * Clears all time range.
+     */
     fun clearTimeRange(fromMs: Long, toMs: Long): Int {
         return try {
             writableDatabase.delete(TABLE_PLACES, "$COL_LAST_VISIT_TIME BETWEEN ? AND ?", arrayOf(fromMs.toString(), toMs.toString()))
@@ -636,6 +676,9 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         }
     }
 
+    /**
+     * Retrieves the all downloads.
+     */
     fun getAllDownloads(limit: Int = 200): List<com.azokle.search.downloads.DownloadItem> {
         val list = mutableListOf<com.azokle.search.downloads.DownloadItem>()
         var cursor: Cursor? = null
@@ -682,6 +725,9 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         return list
     }
 
+    /**
+     * Removes the specified download.
+     */
     fun deleteDownload(id: String): Boolean {
         return try {
             writableDatabase.delete(TABLE_DOWNLOADS, "$COL_DL_ID = ?", arrayOf(id)) > 0
@@ -690,6 +736,9 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         }
     }
 
+    /**
+     * Clears all downloads.
+     */
     fun clearDownloads() {
         try {
             writableDatabase.delete(TABLE_DOWNLOADS, null, null)
@@ -766,6 +815,9 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         }
     }
 
+    /**
+     * Loads tabs session.
+     */
     fun loadTabsSession(): Triple<List<TabSession>, List<TabGroup>, String?> {
         val restoredTabs = mutableListOf<TabSession>()
         val restoredGroups = mutableListOf<TabGroup>()
@@ -850,6 +902,9 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         return Triple(restoredTabs, restoredGroups, activeTabId)
     }
 
+    /**
+     * Clears all tabs session.
+     */
     fun clearTabsSession() {
         try {
             val db = writableDatabase
@@ -888,6 +943,9 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         }
     }
 
+    /**
+     * Retrieves the permission audit history.
+     */
     fun getPermissionAuditHistory(limit: Int = 50): List<PermissionAuditItem> {
         val list = mutableListOf<PermissionAuditItem>()
         var cursor: Cursor? = null
@@ -921,6 +979,9 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         return list
     }
 
+    /**
+     * Retrieves the permission audit for origin.
+     */
     fun getPermissionAuditForOrigin(origin: String): List<PermissionAuditItem> {
         val list = mutableListOf<PermissionAuditItem>()
         val clean = origin.trim()
@@ -956,6 +1017,9 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         return list
     }
 
+    /**
+     * Clears all permission audit.
+     */
     fun clearPermissionAudit() {
         try {
             writableDatabase.delete(TABLE_PERMISSION_AUDIT, null, null)
@@ -964,6 +1028,9 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         }
     }
 
+    /**
+     * Executes the cursor to history item operation.
+     */
     private fun cursorToHistoryItem(cursor: Cursor): HistoryItem {
         return HistoryItem(
             id = cursor.getLong(0).toString(),

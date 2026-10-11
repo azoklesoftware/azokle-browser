@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.media
 
 import android.os.Handler
@@ -20,6 +36,9 @@ class GeckoMediaSessionBridge(
     private val mainHandler = Handler(Looper.getMainLooper())
     private var activeMediaSession: MediaSession? = null
 
+    /**
+     * Checks whether background playback host.
+     */
     private fun isBackgroundPlaybackHost(url: String?): Boolean {
         if (url.isNullOrBlank()) return false
         val uri = try { android.net.Uri.parse(url) } catch (e: Exception) { null }
@@ -39,6 +58,9 @@ class GeckoMediaSessionBridge(
                host.endsWith(".twitch.tv")
     }
 
+    /**
+     * Handles on activated events.
+     */
     override fun onActivated(session: GeckoSession, mediaSession: MediaSession) {
         activeMediaSession = mediaSession
         try {
@@ -53,6 +75,9 @@ class GeckoMediaSessionBridge(
         }
     }
 
+    /**
+     * Handles on deactivated events.
+     */
     override fun onDeactivated(session: GeckoSession, mediaSession: MediaSession) {
         if (activeMediaSession == mediaSession) {
             activeMediaSession = null
@@ -62,6 +87,9 @@ class GeckoMediaSessionBridge(
         }
     }
 
+    /**
+     * Handles on metadata events.
+     */
     override fun onMetadata(
         session: GeckoSession,
         mediaSession: MediaSession,
@@ -134,6 +162,9 @@ class GeckoMediaSessionBridge(
         }
     }
 
+    /**
+     * Handles on play events.
+     */
     override fun onPlay(session: GeckoSession, mediaSession: MediaSession) {
         try {
             session.settings.suspendMediaWhenInactive = false
@@ -143,6 +174,9 @@ class GeckoMediaSessionBridge(
         }
     }
 
+    /**
+     * Handles on pause events.
+     */
     override fun onPause(session: GeckoSession, mediaSession: MediaSession) {
         val currentUrl = currentUrlProvider?.invoke()
         val isBgHost = isBackgroundPlaybackHost(currentUrl)
@@ -151,12 +185,18 @@ class GeckoMediaSessionBridge(
         }
     }
 
+    /**
+     * Handles on stop events.
+     */
     override fun onStop(session: GeckoSession, mediaSession: MediaSession) {
         mainHandler.post {
             MediaPlaybackManager.updatePlaybackStatus(tabId, PlaybackStatus.STOPPED)
         }
     }
 
+    /**
+     * Handles on position state events.
+     */
     override fun onPositionState(
         session: GeckoSession,
         mediaSession: MediaSession,
@@ -176,6 +216,9 @@ class GeckoMediaSessionBridge(
         }
     }
 
+    /**
+     * Handles on fullscreen events.
+     */
     override fun onFullscreen(
         session: GeckoSession,
         mediaSession: MediaSession,
@@ -201,19 +244,31 @@ class GeckoMediaSessionBridge(
         activeMediaSession?.play()
     }
 
+    /**
+     * Executes the pause operation.
+     */
     fun pause() {
         activeMediaSession?.pause()
     }
 
+    /**
+     * Executes the stop operation.
+     */
     fun stop() {
         activeMediaSession?.stop()
     }
 
+    /**
+     * Executes the seek to operation.
+     */
     fun seekTo(positionMs: Long) {
         val seconds = positionMs / 1000.0
         activeMediaSession?.seekTo(seconds, false)
     }
 
+    /**
+     * Executes the fast forward operation.
+     */
     fun fastForward(offsetMs: Long = 10000L) {
         val current = MediaPlaybackManager.currentPositionMs
         val duration = MediaPlaybackManager.currentDurationMs
@@ -221,16 +276,25 @@ class GeckoMediaSessionBridge(
         seekTo(target)
     }
 
+    /**
+     * Executes the rewind operation.
+     */
     fun rewind(offsetMs: Long = 10000L) {
         val current = MediaPlaybackManager.currentPositionMs
         val target = (current - offsetMs).coerceAtLeast(0L)
         seekTo(target)
     }
 
+    /**
+     * Executes the next track operation.
+     */
     fun nextTrack() {
         activeMediaSession?.nextTrack()
     }
 
+    /**
+     * Executes the previous track operation.
+     */
     fun previousTrack() {
         activeMediaSession?.previousTrack()
     }

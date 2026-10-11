@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 @file:Suppress("DEPRECATION")
 
 package com.azokle.search.media
@@ -39,6 +55,9 @@ class MediaPlaybackService : Service() {
         const val ACTION_FORWARD = "com.azokle.search.media.FORWARD"
         const val ACTION_STOP = "com.azokle.search.media.STOP"
 
+        /**
+         * Executes the start operation.
+         */
         fun start(context: Context) {
             try {
                 val intent = Intent(context, MediaPlaybackService::class.java)
@@ -52,6 +71,9 @@ class MediaPlaybackService : Service() {
             }
         }
 
+        /**
+         * Executes the stop operation.
+         */
         fun stop(context: Context) {
             try {
                 val intent = Intent(context, MediaPlaybackService::class.java)
@@ -62,6 +84,9 @@ class MediaPlaybackService : Service() {
         }
     }
 
+    /**
+     * Initializes dependencies and components when created.
+     */
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
@@ -81,11 +106,17 @@ class MediaPlaybackService : Service() {
         }
     }
 
+    /**
+     * Cleans up resources and listeners when destroyed.
+     */
     override fun onDestroy() {
         releaseLocks()
         super.onDestroy()
     }
 
+    /**
+     * Executes the acquire locks operation.
+     */
     private fun acquireLocks() {
         try {
             if (wakeLock?.isHeld != true) {
@@ -124,6 +155,9 @@ class MediaPlaybackService : Service() {
         }
     }
 
+    /**
+     * Executes the release locks operation.
+     */
     private fun releaseLocks() {
         try {
             if (wakeLock?.isHeld == true) {
@@ -137,6 +171,9 @@ class MediaPlaybackService : Service() {
         } catch (e: Exception) {}
     }
 
+    /**
+     * Handles on start command events.
+     */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         try {
             val currentNotification = buildNotification()
@@ -178,8 +215,14 @@ class MediaPlaybackService : Service() {
         return START_STICKY
     }
 
+    /**
+     * Handles on bind events.
+     */
     override fun onBind(intent: Intent?): IBinder? = null
 
+    /**
+     * Executes the build notification operation.
+     */
     @Suppress("DEPRECATION")
     private fun buildNotification(): Notification {
         val state = MediaPlaybackManager.mediaState.value
@@ -267,6 +310,9 @@ class MediaPlaybackService : Service() {
         return builder.build()
     }
 
+    /**
+     * Updates notification.
+     */
     fun updateNotification() {
         try {
             val state = MediaPlaybackManager.mediaState.value
@@ -299,6 +345,9 @@ class MediaPlaybackService : Service() {
         }
     }
 
+    /**
+     * Executes the create notification channel operation.
+     */
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(

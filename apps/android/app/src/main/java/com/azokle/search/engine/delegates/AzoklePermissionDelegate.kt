@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.engine.delegates
 
 import android.content.Context
@@ -33,6 +49,9 @@ class AzoklePermissionDelegate(
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    /**
+     * Handles on content permission request events.
+     */
     override fun onContentPermissionRequest(
         session: GeckoSession,
         permRequest: GeckoSession.PermissionDelegate.ContentPermission
@@ -142,6 +161,9 @@ class AzoklePermissionDelegate(
         return geckoResult
     }
 
+    /**
+     * Handles on android permissions request events.
+     */
     override fun onAndroidPermissionsRequest(
         session: GeckoSession,
         permissions: Array<out String>?,
@@ -178,6 +200,9 @@ class AzoklePermissionDelegate(
         }
     }
 
+    /**
+     * Handles on media permission request events.
+     */
     override fun onMediaPermissionRequest(
         session: GeckoSession,
         uri: String,
@@ -251,6 +276,9 @@ class AzoklePermissionDelegate(
         }
     }
 
+    /**
+     * Executes the unwrap activity operation.
+     */
     private fun unwrapActivity(ctx: Context): android.app.Activity? {
         var c = ctx
         while (c is android.content.ContextWrapper) {

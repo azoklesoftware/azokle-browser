@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.pwa
 
 import android.content.Context
@@ -31,6 +47,9 @@ data class InstalledPwa(
     val iconPath: String? = null,
     val installedAt: Long = System.currentTimeMillis()
 ) {
+    /**
+     * Retrieves the icon bitmap.
+     */
     fun getIconBitmap(reqWidth: Int = 192, reqHeight: Int = 192): Bitmap? {
         if (!iconPath.isNullOrBlank()) {
             try {
@@ -67,6 +86,9 @@ data class InstalledPwa(
         }
     }
 
+    /**
+     * Executes the to json operation.
+     */
     fun toJson(): JSONObject {
         return JSONObject().apply {
             put("id", id)
@@ -83,6 +105,9 @@ data class InstalledPwa(
     }
 
     companion object {
+        /**
+         * Executes the from json operation.
+         */
         fun fromJson(json: JSONObject): InstalledPwa {
             return InstalledPwa(
                 id = json.optString("id", UUID.randomUUID().toString()),
@@ -98,6 +123,9 @@ data class InstalledPwa(
             )
         }
 
+        /**
+         * Calculates in sample size.
+         */
         fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
             val height = options.outHeight
             val width = options.outWidth
@@ -129,6 +157,9 @@ class PwaStorageManager private constructor(private val context: Context) {
         loadFromDisk()
     }
 
+    /**
+     * Executes the sync with system shortcuts operation.
+     */
     fun syncWithSystemShortcuts() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             try {
@@ -161,6 +192,9 @@ class PwaStorageManager private constructor(private val context: Context) {
         }
     }
 
+    /**
+     * Loads from disk.
+     */
     private fun loadFromDisk() {
         try {
             val jsonStr = prefs.getString(KEY_PWAS, null) ?: return
@@ -178,6 +212,9 @@ class PwaStorageManager private constructor(private val context: Context) {
         }
     }
 
+    /**
+     * Persists to disk to storage.
+     */
     @Synchronized
     private fun saveToDisk() {
         try {
@@ -192,6 +229,9 @@ class PwaStorageManager private constructor(private val context: Context) {
         }
     }
 
+    /**
+     * Persists icon to file to storage.
+     */
     fun saveIconToFile(pwaId: String, bitmap: Bitmap): String? {
         return try {
             val dir = File(context.applicationContext.filesDir, "pwa_icons").apply { if (!exists()) mkdirs() }
@@ -206,16 +246,25 @@ class PwaStorageManager private constructor(private val context: Context) {
         }
     }
 
+    /**
+     * Executes the record installed operation.
+     */
     fun recordInstalled(item: InstalledPwa) {
         pwaMap[item.id] = item
         saveToDisk()
     }
 
+    /**
+     * Retrieves the pwa by id.
+     */
     fun getPwaById(id: String): InstalledPwa? {
         syncWithSystemShortcuts()
         return pwaMap[id]
     }
 
+    /**
+     * Finds matching pwa for url.
+     */
     fun findPwaForUrl(url: String): InstalledPwa? {
         if (url.isBlank()) return null
         syncWithSystemShortcuts()
@@ -224,6 +273,9 @@ class PwaStorageManager private constructor(private val context: Context) {
         }
     }
 
+    /**
+     * Executes the uninstall pwa operation.
+     */
     fun uninstallPwa(id: String, clearSiteData: Boolean = true) {
         val pwa = pwaMap[id]
         if (pwa != null && clearSiteData) {
@@ -244,6 +296,9 @@ class PwaStorageManager private constructor(private val context: Context) {
         removePwa(id)
     }
 
+    /**
+     * Removes the specified pwa.
+     */
     fun removePwa(id: String) {
         val removed = pwaMap.remove(id)
         if (removed != null) {
@@ -262,6 +317,9 @@ class PwaStorageManager private constructor(private val context: Context) {
         @Volatile
         private var INSTANCE: PwaStorageManager? = null
 
+        /**
+         * Retrieves the instance.
+         */
         fun getInstance(context: Context): PwaStorageManager {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: PwaStorageManager(context.applicationContext).also { INSTANCE = it }

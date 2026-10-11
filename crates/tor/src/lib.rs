@@ -1,3 +1,17 @@
+// Copyright (c) 2026 The Azokle Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
@@ -42,6 +56,7 @@ pub struct TorConfig {
 }
 
 impl Default for TorConfig {
+    /// Returns the default instance.
     fn default() -> Self {
         Self {
             socks_port: 9050,
@@ -61,6 +76,7 @@ pub struct TorController {
 }
 
 impl Default for TorController {
+    /// Returns the default instance.
     fn default() -> Self {
         Self::new()
     }
@@ -249,22 +265,27 @@ impl TorController {
         format!("{}{}", search_engine_query_url, encoded)
     }
 
+    /// Returns the status.
     pub fn get_status(&self) -> TorStatus {
         *self.status.read()
     }
 
+    /// Updates the status.
     pub fn set_status(&self, new_status: TorStatus) {
         *self.status.write() = new_status;
     }
 
+    /// Returns the socks proxy.
     pub fn get_socks_proxy(&self) -> String {
         format!("socks5://127.0.0.1:{}", self.config.read().socks_port)
     }
 
+    /// Returns the socks port.
     pub fn get_socks_port(&self) -> u16 {
         self.config.read().socks_port
     }
 
+    /// Updates the socks port.
     pub fn set_socks_port(&self, port: u16) {
         self.config.write().socks_port = port;
     }

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.engine
 
 import android.content.Context
@@ -21,6 +37,9 @@ object EnterprisePolicyManager {
     private var blockedDomains: Set<String> = emptySet()
     private var enforcedHomeUrl: String? = null
 
+    /**
+     * Initializes .
+     */
     fun init(context: Context) {
         try {
             // 1. Android Enterprise Restrictions (MDM)
@@ -72,10 +91,25 @@ object EnterprisePolicyManager {
         }
     }
 
+    /**
+     * Checks whether enterprise managed.
+     */
     fun isEnterpriseManaged(): Boolean = isManaged
+    /**
+     * Checks whether private browsing disabled.
+     */
     fun isPrivateBrowsingDisabled(): Boolean = disablePrivateBrowsing
+    /**
+     * Retrieves the enforced doh.
+     */
     fun getEnforcedDoh(): String? = enforcedDohProvider
+    /**
+     * Retrieves the enforced home url.
+     */
     fun getEnforcedHomeUrl(): String? = enforcedHomeUrl
+    /**
+     * Checks whether domain blocked by policy.
+     */
     fun isDomainBlockedByPolicy(host: String): Boolean {
         if (blockedDomains.isEmpty() || host.isBlank()) return false
         val lowerHost = host.lowercase()

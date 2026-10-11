@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.widget
 
 import android.app.PendingIntent
@@ -16,6 +32,9 @@ import com.azokle.search.R
  */
 class AzokleTorSearchWidgetProvider : AppWidgetProvider() {
 
+    /**
+     * Handles on receive events.
+     */
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         val action = intent.action
@@ -28,6 +47,9 @@ class AzokleTorSearchWidgetProvider : AppWidgetProvider() {
         }
     }
 
+    /**
+     * Handles on update events.
+     */
     override fun onUpdate(
         context: Context,
         appWidgetManager: AppWidgetManager,
@@ -43,6 +65,9 @@ class AzokleTorSearchWidgetProvider : AppWidgetProvider() {
         const val EXTRA_START_VOICE = "com.azokle.search.EXTRA_START_VOICE"
         const val EXTRA_OPEN_TOR = "com.azokle.search.EXTRA_OPEN_TOR"
 
+        /**
+         * Updates all widgets.
+         */
         fun updateAllWidgets(context: Context) {
             try {
                 val appWidgetManager = AppWidgetManager.getInstance(context)
@@ -58,6 +83,9 @@ class AzokleTorSearchWidgetProvider : AppWidgetProvider() {
             }
         }
 
+        /**
+         * Checks whether widget dark.
+         */
         private fun isWidgetDark(context: Context): Boolean {
             return try {
                 val prefs = com.azokle.search.common.util.PreferencesManager(context)
@@ -76,6 +104,9 @@ class AzokleTorSearchWidgetProvider : AppWidgetProvider() {
             }
         }
 
+        /**
+         * Updates app widget.
+         */
         fun updateAppWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,

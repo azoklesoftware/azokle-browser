@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 @file:Suppress("DEPRECATION")
 
 package com.azokle.search.vault
@@ -117,6 +133,9 @@ object PasswordVaultManager {
     private var isInitialized = false
     private lateinit var encryptedPrefs: android.content.SharedPreferences
 
+    /**
+     * Initializes .
+     */
     @Synchronized
     fun init(context: Context) {
         if (isInitialized) return
@@ -159,6 +178,9 @@ object PasswordVaultManager {
         }
     }
 
+    /**
+     * Loads logins.
+     */
     private fun loadLogins() {
         val rawJson = encryptedPrefs.getString(KEY_LOGINS, null) ?: return
         try {
@@ -180,6 +202,9 @@ object PasswordVaultManager {
         } catch (_: Exception) {}
     }
 
+    /**
+     * Executes the persist logins operation.
+     */
     private fun persistLogins(list: List<SavedLogin>) {
         _loginsFlow.value = list
         try {
@@ -197,6 +222,9 @@ object PasswordVaultManager {
         } catch (_: Exception) {}
     }
 
+    /**
+     * Persists login to storage.
+     */
     @Synchronized
     fun saveLogin(origin: String, username: String, password: String) {
         if (origin.isBlank() || username.isBlank() || password.isBlank()) return
@@ -224,6 +252,9 @@ object PasswordVaultManager {
         persistLogins(current)
     }
 
+    /**
+     * Updates login.
+     */
     @Synchronized
     fun updateLogin(id: String, origin: String, username: String, password: String) {
         if (origin.isBlank() || username.isBlank() || password.isBlank()) return
@@ -241,6 +272,9 @@ object PasswordVaultManager {
         }
     }
 
+    /**
+     * Retrieves the logins for origin.
+     */
     fun getLoginsForOrigin(origin: String): List<SavedLogin> {
         if (origin.isBlank()) return emptyList()
         return _loginsFlow.value.filter {
@@ -248,19 +282,31 @@ object PasswordVaultManager {
         }
     }
 
+    /**
+     * Retrieves the all logins.
+     */
     fun getAllLogins(): List<SavedLogin> = _loginsFlow.value
 
+    /**
+     * Removes the specified login.
+     */
     @Synchronized
     fun deleteLogin(id: String) {
         val updated = _loginsFlow.value.filterNot { it.id == id }
         persistLogins(updated)
     }
 
+    /**
+     * Clears all all logins.
+     */
     @Synchronized
     fun clearAllLogins() {
         persistLogins(emptyList())
     }
 
+    /**
+     * Executes the export vault json operation.
+     */
     fun exportVaultJson(): String {
         val arr = JSONArray()
         for (l in _loginsFlow.value) {
@@ -275,6 +321,9 @@ object PasswordVaultManager {
         return arr.toString(2)
     }
 
+    /**
+     * Executes the generate strong password operation.
+     */
     fun generateStrongPassword(length: Int = 16, includeSymbols: Boolean = true): String {
         val upper = "ABCDEFGHJKLMNPQRSTUVWXYZ" // exclude ambiguous O, I
         val lower = "abcdefghijkmnopqrstuvwxyz" // exclude ambiguous l

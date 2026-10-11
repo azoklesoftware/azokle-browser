@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 @file:Suppress("DEPRECATION")
 
 package com.azokle.search.passkey
@@ -34,12 +50,18 @@ class PasskeyVaultManager private constructor(context: Context) {
         var isEncryptedStoreActive: Boolean = false
             private set
 
+        /**
+         * Retrieves the instance.
+         */
         fun getInstance(context: Context): PasskeyVaultManager {
             return instance ?: synchronized(this) {
                 instance ?: PasskeyVaultManager(context.applicationContext).also { instance = it }
             }
         }
 
+        /**
+         * Executes the create encrypted prefs operation.
+         */
         private fun createEncryptedPrefs(context: Context): SharedPreferences {
             var lastException: Exception? = null
             for (attempt in 1..3) {
@@ -81,6 +103,9 @@ class PasskeyVaultManager private constructor(context: Context) {
         loadPasskeys()
     }
 
+    /**
+     * Loads passkeys.
+     */
     private fun loadPasskeys() {
         val rawStr = prefs.getString(KEY_PASSKEYS, null)
         if (rawStr.isNullOrBlank()) {
@@ -111,6 +136,9 @@ class PasskeyVaultManager private constructor(context: Context) {
         }
     }
 
+    /**
+     * Executes the record passkey operation.
+     */
     fun recordPasskey(rpId: String, userName: String, userHandle: String = "", isSovereign: Boolean = false) {
         val current = _passkeysFlow.value.toMutableList()
         val existingIdx = current.indexOfFirst { it.rpId.equals(rpId, ignoreCase = true) && it.userName.equals(userName, ignoreCase = true) }
@@ -138,12 +166,18 @@ class PasskeyVaultManager private constructor(context: Context) {
         savePasskeys(current)
     }
 
+    /**
+     * Removes the specified passkey.
+     */
     fun deletePasskey(id: String) {
         val updated = _passkeysFlow.value.filter { it.id != id }
         _passkeysFlow.value = updated
         savePasskeys(updated)
     }
 
+    /**
+     * Retrieves the passkeys for domain.
+     */
     fun getPasskeysForDomain(domain: String): List<PasskeyItem> {
         val clean = domain.lowercase().trim()
         return _passkeysFlow.value.filter {
@@ -151,6 +185,9 @@ class PasskeyVaultManager private constructor(context: Context) {
         }
     }
 
+    /**
+     * Persists passkeys to storage.
+     */
     private fun savePasskeys(list: List<PasskeyItem>) {
         try {
             val arr = JSONArray()

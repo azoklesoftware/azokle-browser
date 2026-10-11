@@ -1,3 +1,17 @@
+// Copyright (c) 2026 The Azokle Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 uniffi::setup_scaffolding!();
 
 use azokle_core::AzokleCoreEngine;
@@ -37,6 +51,7 @@ pub struct UniversalBrowserEngine {
 }
 
 impl Default for UniversalBrowserEngine {
+    /// Returns the default instance.
     fn default() -> Self {
         Self::new()
     }
@@ -44,6 +59,7 @@ impl Default for UniversalBrowserEngine {
 
 #[uniffi::export]
 impl UniversalBrowserEngine {
+    /// Creates a new instance with default configuration.
     #[uniffi::constructor]
     pub fn new() -> Self {
         Self {
@@ -51,6 +67,7 @@ impl UniversalBrowserEngine {
         }
     }
 
+    /// Performs should block operation.
     pub fn should_block(
         &self,
         url: String,
@@ -128,14 +145,17 @@ impl UniversalBrowserEngine {
         }
     }
 
+    /// Performs strip tracking params operation.
     pub fn strip_tracking_params(&self, url: String) -> String {
         self.core.trackers.strip_tracking_params(&url)
     }
 
+    /// Validates debounce against security and filtering rules.
     pub fn check_debounce(&self, url: String) -> Option<String> {
         self.core.trackers.unwrap_bounce_url(&url)
     }
 
+    /// Returns the stats.
     pub fn get_stats(&self) -> UniversalShieldStats {
         let stats = self.core.get_stats();
         UniversalShieldStats {
@@ -149,6 +169,7 @@ impl UniversalBrowserEngine {
         }
     }
 
+    /// Updates the host shield enabled.
     pub fn set_host_shield_enabled(&self, host: String, enabled: bool) {
         if enabled {
             self.core

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.reader
 
 import android.content.Context
@@ -31,10 +47,16 @@ class ReaderTextToSpeech(context: Context) : TextToSpeech.OnInitListener {
 
     init {
         tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            /**
+             * Handles on start events.
+             */
             override fun onStart(utteranceId: String?) {
                 _state.value = State.PLAYING
             }
 
+            /**
+             * Handles on done events.
+             */
             override fun onDone(utteranceId: String?) {
                 currentIndex++
                 if (currentIndex < paragraphs.size) {
@@ -45,6 +67,9 @@ class ReaderTextToSpeech(context: Context) : TextToSpeech.OnInitListener {
                 }
             }
 
+            /**
+             * Handles on error events.
+             */
             @Deprecated("Deprecated in Java")
             @Suppress("DEPRECATION")
             override fun onError(utteranceId: String?) {
@@ -52,6 +77,9 @@ class ReaderTextToSpeech(context: Context) : TextToSpeech.OnInitListener {
                 _state.value = State.IDLE
             }
 
+            /**
+             * Handles on error events.
+             */
             override fun onError(utteranceId: String?, errorCode: Int) {
                 Log.e("ReaderTextToSpeech", "TTS utterance error on ID: $utteranceId, code: $errorCode")
                 _state.value = State.IDLE
@@ -59,6 +87,9 @@ class ReaderTextToSpeech(context: Context) : TextToSpeech.OnInitListener {
         })
     }
 
+    /**
+     * Handles on init events.
+     */
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             isInitialized = true
@@ -69,6 +100,9 @@ class ReaderTextToSpeech(context: Context) : TextToSpeech.OnInitListener {
         }
     }
 
+    /**
+     * Executes the start reading operation.
+     */
     fun startReading(article: ArticleContent) {
         val allText = buildList {
             if (article.title.isNotBlank()) add(article.title)
@@ -93,6 +127,9 @@ class ReaderTextToSpeech(context: Context) : TextToSpeech.OnInitListener {
         }
     }
 
+    /**
+     * Executes the speak paragraph operation.
+     */
     private fun speakParagraph(index: Int) {
         if (!isInitialized || index !in paragraphs.indices) return
         val text = paragraphs[index]
@@ -100,6 +137,9 @@ class ReaderTextToSpeech(context: Context) : TextToSpeech.OnInitListener {
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "reader_p_$index")
     }
 
+    /**
+     * Executes the pause operation.
+     */
     fun pause() {
         if (_state.value == State.PLAYING) {
             tts?.stop()
@@ -107,18 +147,27 @@ class ReaderTextToSpeech(context: Context) : TextToSpeech.OnInitListener {
         }
     }
 
+    /**
+     * Executes the resume operation.
+     */
     fun resume() {
         if (_state.value == State.PAUSED) {
             speakParagraph(currentIndex)
         }
     }
 
+    /**
+     * Executes the stop operation.
+     */
     fun stop() {
         tts?.stop()
         currentIndex = 0
         _state.value = State.IDLE
     }
 
+    /**
+     * Executes the release operation.
+     */
     fun release() {
         stop()
         tts?.shutdown()

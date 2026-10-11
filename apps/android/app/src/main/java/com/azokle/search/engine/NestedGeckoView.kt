@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.engine
 
 import android.annotation.SuppressLint
@@ -82,6 +98,9 @@ class NestedGeckoView @JvmOverloads constructor(
         return (android.os.SystemClock.uptimeMillis() - lastUserTouchTimestamp) < 5000L
     }
 
+    /**
+     * Handles on touch event events.
+     */
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(ev: MotionEvent): Boolean {
         val action = ev.actionMasked
@@ -130,14 +149,29 @@ class NestedGeckoView @JvmOverloads constructor(
         childHelper.isNestedScrollingEnabled = enabled
     }
 
+    /**
+     * Checks whether nested scrolling enabled.
+     */
     override fun isNestedScrollingEnabled(): Boolean = childHelper.isNestedScrollingEnabled
 
+    /**
+     * Executes the start nested scroll operation.
+     */
     override fun startNestedScroll(axes: Int): Boolean = childHelper.startNestedScroll(axes)
 
+    /**
+     * Executes the stop nested scroll operation.
+     */
     override fun stopNestedScroll() = childHelper.stopNestedScroll()
 
+    /**
+     * Checks if nested scrolling parent exists.
+     */
     override fun hasNestedScrollingParent(): Boolean = childHelper.hasNestedScrollingParent()
 
+    /**
+     * Executes the dispatch nested scroll operation.
+     */
     override fun dispatchNestedScroll(
         dxConsumed: Int,
         dyConsumed: Int,
@@ -146,6 +180,9 @@ class NestedGeckoView @JvmOverloads constructor(
         offsetInWindow: IntArray?
     ): Boolean = childHelper.dispatchNestedScroll(dxConsumed, dyConsumed, dxUnconsumed, dyUnconsumed, offsetInWindow)
 
+    /**
+     * Executes the dispatch nested pre scroll operation.
+     */
     override fun dispatchNestedPreScroll(
         dx: Int,
         dy: Int,
@@ -153,12 +190,18 @@ class NestedGeckoView @JvmOverloads constructor(
         offsetInWindow: IntArray?
     ): Boolean = childHelper.dispatchNestedPreScroll(dx, dy, consumed, offsetInWindow)
 
+    /**
+     * Executes the dispatch nested fling operation.
+     */
     override fun dispatchNestedFling(
         velocityX: Float,
         velocityY: Float,
         consumed: Boolean
     ): Boolean = childHelper.dispatchNestedFling(velocityX, velocityY, consumed)
 
+    /**
+     * Executes the dispatch nested pre fling operation.
+     */
     override fun dispatchNestedPreFling(
         velocityX: Float,
         velocityY: Float

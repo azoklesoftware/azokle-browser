@@ -1,3 +1,17 @@
+// Copyright (c) 2026 The Azokle Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::error::NetworkError;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -63,6 +77,7 @@ pub struct SovereignDnsResolver {
 }
 
 impl Default for SovereignDnsResolver {
+    /// Returns the default instance.
     fn default() -> Self {
         Self::new()
     }
@@ -134,6 +149,7 @@ impl SovereignDnsResolver {
         Ok(resolved)
     }
 
+    /// Performs resolve internal operation.
     fn resolve_internal(&self, host: &str) -> Result<Vec<IpAddr>, NetworkError> {
         // Fast hardcoded resolution for known Azokle endpoints to guarantee bootstrap speed
         if host == "search.azokle.com" || host == "api.azokle.com" {
@@ -160,6 +176,7 @@ impl SovereignDnsResolver {
         }
     }
 
+    /// Performs clear cache operation.
     pub fn clear_cache(&self) {
         self.cache.write().clear();
     }

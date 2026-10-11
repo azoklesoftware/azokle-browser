@@ -1,3 +1,17 @@
+// Copyright (c) 2026 The Azokle Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
@@ -83,6 +97,7 @@ pub struct HistoryManager {
 }
 
 impl Default for HistoryManager {
+    /// Returns the default instance.
     fn default() -> Self {
         Self::new()
     }
@@ -125,6 +140,7 @@ impl HistoryManager {
         self.record_visit_internal(title, url_str, is_private, true)
     }
 
+    /// Performs record visit internal operation.
     fn record_visit_internal(
         &self,
         title: &str,
@@ -303,6 +319,7 @@ impl HistoryManager {
         timeline
     }
 
+    /// Returns the recent.
     pub fn get_recent(&self, limit: usize, offset: usize) -> Vec<HistoryEntry> {
         self.entries
             .read()
@@ -313,6 +330,7 @@ impl HistoryManager {
             .collect()
     }
 
+    /// Removes the specified entry.
     pub fn delete_entry(&self, id: &str) -> bool {
         let mut list = self.entries.write();
         if let Some(pos) = list.iter().position(|e| e.id == id) {
@@ -323,6 +341,7 @@ impl HistoryManager {
         }
     }
 
+    /// Removes the specified url.
     pub fn delete_url(&self, url_str: &str) -> bool {
         let mut list = self.entries.write();
         let initial_len = list.len();
@@ -330,6 +349,7 @@ impl HistoryManager {
         list.len() < initial_len
     }
 
+    /// Removes the specified domain.
     pub fn delete_domain(&self, domain: &str) -> usize {
         let d_clean = domain.trim().to_lowercase();
         let mut list = self.entries.write();
@@ -338,6 +358,7 @@ impl HistoryManager {
         initial_len - list.len()
     }
 
+    /// Performs clear time range operation.
     pub fn clear_time_range(&self, from_ms: u64, to_ms: u64) -> usize {
         let mut list = self.entries.write();
         let initial_len = list.len();
@@ -345,18 +366,22 @@ impl HistoryManager {
         initial_len - list.len()
     }
 
+    /// Performs clear all operation.
     pub fn clear_all(&self) {
         self.entries.write().clear();
     }
 
+    /// Performs total count operation.
     pub fn total_count(&self) -> usize {
         self.entries.read().len()
     }
 
+    /// Performs export json operation.
     pub fn export_json(&self) -> String {
         serde_json::to_string(&*self.entries.read()).unwrap_or_else(|_| "[]".to_string())
     }
 
+    /// Performs import json operation.
     pub fn import_json(&self, json_str: &str) -> usize {
         if json_str.trim().is_empty() {
             return 0;

@@ -1,3 +1,17 @@
+// Copyright (c) 2026 The Azokle Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use azokle_core::{AzokleCoreEngine, BlockCategory};
 use jni::objects::{JByteArray, JClass, JString};
 use jni::sys::{jboolean, jbyteArray, jint, jlong, jstring, JNI_FALSE, JNI_TRUE};
@@ -8,12 +22,14 @@ use std::sync::{Arc, Once, OnceLock};
 static INIT_LOGGER: Once = Once::new();
 static GLOBAL_CORE: OnceLock<Arc<AzokleCoreEngine>> = OnceLock::new();
 
+/// Returns the core.
 fn get_core() -> Arc<AzokleCoreEngine> {
     GLOBAL_CORE
         .get_or_init(|| Arc::new(AzokleCoreEngine::new()))
         .clone()
 }
 
+/// Performs safe jstring operation.
 #[inline]
 fn safe_jstring(env: &mut JNIEnv, s: &str) -> jstring {
     match env.new_string(s) {
@@ -73,6 +89,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_initNative(
     });
 }
 
+/// Performs Java com azokle search core AzokleCore loadFilterRules operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_loadFilterRules(
     mut env: JNIEnv,
@@ -91,6 +108,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_loadFilterRules(
     })
 }
 
+/// Performs Java com azokle search core AzokleCore loadTrackerList operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_loadTrackerList(
     mut env: JNIEnv,
@@ -107,6 +125,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_loadTrackerList(
     })
 }
 
+/// Performs Java com azokle search core AzokleCore loadCosmeticRules operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_loadCosmeticRules(
     mut env: JNIEnv,
@@ -123,6 +142,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_loadCosmeticRules(
     })
 }
 
+/// Performs Java com azokle search core AzokleCore loadResources operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_loadResources(
     mut env: JNIEnv,
@@ -144,6 +164,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_loadResources(
     })
 }
 
+/// Performs Java com azokle search core AzokleCore loadDebounceRules operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_loadDebounceRules(
     mut env: JNIEnv,
@@ -165,6 +186,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_loadDebounceRules(
     })
 }
 
+/// Performs Java com azokle search core AzokleCore unwrapBounceUrl operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_unwrapBounceUrl(
     mut env: JNIEnv,
@@ -185,6 +207,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_unwrapBounceUrl(
     })
 }
 
+/// Performs Java com azokle search core AzokleCore serializeEngine operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_serializeEngine(
     env: JNIEnv,
@@ -202,6 +225,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_serializeEngine(
     })
 }
 
+/// Performs Java com azokle search core AzokleCore loadSerializedEngine operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_loadSerializedEngine(
     env: JNIEnv,
@@ -232,6 +256,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_loadSerializedEngi
     })
 }
 
+/// Performs Java com azokle search core AzokleCore checkUrl operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_checkUrl(
     mut env: JNIEnv,
@@ -312,6 +337,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_checkUrl(
     })
 }
 
+/// Performs Java com azokle search core AzokleCore checkNetworkRequest operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_checkNetworkRequest(
     mut env: JNIEnv,
@@ -499,6 +525,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_checkUrlFast(
     })
 }
 
+/// Performs Java com azokle search core AzokleCore cleanUrl operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_cleanUrl(
     mut env: JNIEnv,
@@ -514,6 +541,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_cleanUrl(
     safe_jstring(&mut env, &cleaned)
 }
 
+/// Performs Java com azokle search core AzokleCore getCosmeticCss operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_getCosmeticCss(
     mut env: JNIEnv,
@@ -537,6 +565,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_getCosmeticCss(
     safe_jstring(&mut env, &combined)
 }
 
+/// Performs Java com azokle search core AzokleCore getScriptlets operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_getScriptlets(
     mut env: JNIEnv,
@@ -563,6 +592,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_getScriptlets(
     safe_jstring(&mut env, &combined)
 }
 
+/// Performs Java com azokle search core AzokleCore isTracker operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_isTracker(
     mut env: JNIEnv,
@@ -581,6 +611,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_isTracker(
     }
 }
 
+/// Performs Java com azokle search core AzokleCore toggleHostShield operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_toggleHostShield(
     mut env: JNIEnv,
@@ -604,6 +635,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_toggleHostShield(
     }
 }
 
+/// Performs Java com azokle search core AzokleCore isHostShieldEnabled operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_isHostShieldEnabled(
     mut env: JNIEnv,
@@ -622,6 +654,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_isHostShieldEnable
     }
 }
 
+/// Performs Java com azokle search core AzokleCore getShieldStats operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_getShieldStats(
     mut env: JNIEnv,
@@ -634,6 +667,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_getShieldStats(
     safe_jstring(&mut env, &json_str)
 }
 
+/// Performs Java com azokle search core AzokleCore recordBlock operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_recordBlock(
     _env: JNIEnv,
@@ -685,6 +719,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_torProbeSocks5(
     }
 }
 
+/// Performs Java com azokle search core AzokleCore torRotateCircuit operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_torRotateCircuit(
     mut env: JNIEnv,
@@ -706,6 +741,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_torRotateCircuit(
     safe_jstring(&mut env, &res.to_string())
 }
 
+/// Performs Java com azokle search core AzokleCore torVerifyExitIp operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_torVerifyExitIp(
     mut env: JNIEnv,
@@ -732,6 +768,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_torVerifyExitIp(
     safe_jstring(&mut env, &res.to_string())
 }
 
+/// Performs Java com azokle search core AzokleCore torResolveUrl operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_torResolveUrl(
     mut env: JNIEnv,
@@ -752,6 +789,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_torResolveUrl(
     safe_jstring(&mut env, &resolved)
 }
 
+/// Performs Java com azokle search core AzokleCore torIsOnionUrl operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_torIsOnionUrl(
     mut env: JNIEnv,
@@ -770,6 +808,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_torIsOnionUrl(
     }
 }
 
+/// Performs Java com azokle search core AzokleCore dnsGetDoHEndpoint operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_dnsGetDoHEndpoint(
     mut env: JNIEnv,
@@ -822,6 +861,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permSet(
     }
 }
 
+/// Performs Java com azokle search core AzokleCore permGet operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permGet(
     mut env: JNIEnv,
@@ -849,6 +889,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permGet(
     }
 }
 
+/// Performs Java com azokle search core AzokleCore permClearForOrigin operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permClearForOrigin(
     mut env: JNIEnv,
@@ -862,6 +903,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permClearForOrigin
     get_core().permissions.clear_for_origin(&o);
 }
 
+/// Performs Java com azokle search core AzokleCore permClearAll operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permClearAll(
     _env: JNIEnv,
@@ -870,6 +912,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permClearAll(
     get_core().permissions.clear_all();
 }
 
+/// Performs Java com azokle search core AzokleCore permClearEphemeral operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permClearEphemeral(
     _env: JNIEnv,
@@ -878,6 +921,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permClearEphemeral
     get_core().permissions.clear_ephemeral();
 }
 
+/// Performs Java com azokle search core AzokleCore permGetSitePermissionsJson operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permGetSitePermissionsJson(
     mut env: JNIEnv,
@@ -895,6 +939,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permGetSitePermiss
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore permGetAllCustomizedOrigins operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permGetAllCustomizedOrigins(
     mut env: JNIEnv,
@@ -905,6 +950,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permGetAllCustomiz
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore permExportJson operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permExportJson(
     mut env: JNIEnv,
@@ -914,6 +960,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permExportJson(
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore permImportJson operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permImportJson(
     mut env: JNIEnv,
@@ -927,6 +974,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permImportJson(
     get_core().permissions.import_persistent_json(&data) as jint
 }
 
+/// Performs Java com azokle search core AzokleCore permRecordAudit operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permRecordAudit(
     mut env: JNIEnv,
@@ -960,6 +1008,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permRecordAudit(
     safe_jstring(&mut env, "null")
 }
 
+/// Performs Java com azokle search core AzokleCore permGetAuditHistory operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permGetAuditHistory(
     mut env: JNIEnv,
@@ -974,6 +1023,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permGetAuditHistor
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore permGetAuditHistoryForOrigin operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permGetAuditHistoryForOrigin(
     mut env: JNIEnv,
@@ -989,6 +1039,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permGetAuditHistor
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore permClearAuditHistory operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_permClearAuditHistory(
     _env: JNIEnv,
@@ -1025,6 +1076,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyRecordVisit
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore historyRecordTypedVisit operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyRecordTypedVisit(
     mut env: JNIEnv,
@@ -1049,6 +1101,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyRecordTyped
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore historySearch operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historySearch(
     mut env: JNIEnv,
@@ -1065,6 +1118,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historySearch(
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore historySearchFrecency operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historySearchFrecency(
     mut env: JNIEnv,
@@ -1081,6 +1135,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historySearchFrece
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore historyGetTopFrecency operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyGetTopFrecency(
     mut env: JNIEnv,
@@ -1092,6 +1147,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyGetTopFrece
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore historyGetTopDomains operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyGetTopDomains(
     mut env: JNIEnv,
@@ -1103,6 +1159,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyGetTopDomai
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore historyGetGroupedTimeline operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyGetGroupedTimeline(
     mut env: JNIEnv,
@@ -1113,6 +1170,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyGetGroupedT
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore historyGetRecent operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyGetRecent(
     mut env: JNIEnv,
@@ -1127,6 +1185,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyGetRecent(
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore historyDeleteEntry operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyDeleteEntry(
     mut env: JNIEnv,
@@ -1144,6 +1203,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyDeleteEntry
     }
 }
 
+/// Performs Java com azokle search core AzokleCore historyDeleteUrl operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyDeleteUrl(
     mut env: JNIEnv,
@@ -1161,6 +1221,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyDeleteUrl(
     }
 }
 
+/// Performs Java com azokle search core AzokleCore historyClearRange operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyClearRange(
     _env: JNIEnv,
@@ -1173,6 +1234,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyClearRange(
         .clear_time_range(from_ms as u64, to_ms as u64) as jint
 }
 
+/// Performs Java com azokle search core AzokleCore historyClearAll operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyClearAll(
     _env: JNIEnv,
@@ -1181,6 +1243,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyClearAll(
     get_core().history.clear_all();
 }
 
+/// Performs Java com azokle search core AzokleCore historyExportJson operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyExportJson(
     mut env: JNIEnv,
@@ -1190,6 +1253,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyExportJson(
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore historyImportJson operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyImportJson(
     mut env: JNIEnv,
@@ -1254,6 +1318,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_bookmarkAdd(
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore bookmarkCreateFolder operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_bookmarkCreateFolder(
     mut env: JNIEnv,
@@ -1282,6 +1347,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_bookmarkCreateFold
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore bookmarkRemove operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_bookmarkRemove(
     mut env: JNIEnv,
@@ -1299,6 +1365,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_bookmarkRemove(
     }
 }
 
+/// Performs Java com azokle search core AzokleCore bookmarkIsBookmarked operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_bookmarkIsBookmarked(
     mut env: JNIEnv,
@@ -1316,6 +1383,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_bookmarkIsBookmark
     }
 }
 
+/// Performs Java com azokle search core AzokleCore bookmarkGetAll operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_bookmarkGetAll(
     mut env: JNIEnv,
@@ -1326,6 +1394,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_bookmarkGetAll(
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore bookmarkSearch operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_bookmarkSearch(
     mut env: JNIEnv,
@@ -1341,6 +1410,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_bookmarkSearch(
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore bookmarkExportJson operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_bookmarkExportJson(
     mut env: JNIEnv,
@@ -1350,6 +1420,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_bookmarkExportJson
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore bookmarkImportJson operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_bookmarkImportJson(
     mut env: JNIEnv,
@@ -1419,6 +1490,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_downloadCreate(
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore downloadUpdateProgress operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_downloadUpdateProgress(
     mut env: JNIEnv,
@@ -1448,6 +1520,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_downloadUpdateProg
     }
 }
 
+/// Performs Java com azokle search core AzokleCore downloadGetAll operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_downloadGetAll(
     mut env: JNIEnv,
@@ -1458,6 +1531,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_downloadGetAll(
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore downloadDeleteItem operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_downloadDeleteItem(
     mut env: JNIEnv,
@@ -1475,6 +1549,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_downloadDeleteItem
     }
 }
 
+/// Performs Java com azokle search core AzokleCore downloadExtractFilename operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_downloadExtractFilename(
     mut env: JNIEnv,
@@ -1527,6 +1602,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_settingsGetSearchE
     safe_jstring(&mut env, &engine)
 }
 
+/// Performs Java com azokle search core AzokleCore settingsSetSearchEngine operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_settingsSetSearchEngine(
     mut env: JNIEnv,
@@ -1540,6 +1616,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_settingsSetSearchE
     get_core().settings.set_search_engine(&e);
 }
 
+/// Performs Java com azokle search core AzokleCore settingsGetRecentSearches operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_settingsGetRecentSearches(
     mut env: JNIEnv,
@@ -1550,6 +1627,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_settingsGetRecentS
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore settingsAddRecentSearch operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_settingsAddRecentSearch(
     mut env: JNIEnv,
@@ -1563,6 +1641,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_settingsAddRecentS
     get_core().settings.add_recent_search(&q);
 }
 
+/// Performs Java com azokle search core AzokleCore settingsClearRecentSearches operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_settingsClearRecentSearches(
     _env: JNIEnv,
@@ -1571,6 +1650,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_settingsClearRecen
     get_core().settings.clear_recent_searches();
 }
 
+/// Performs Java com azokle search core AzokleCore settingsExportJson operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_settingsExportJson(
     mut env: JNIEnv,
@@ -1580,6 +1660,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_settingsExportJson
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore settingsImportJson operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_settingsImportJson(
     mut env: JNIEnv,
@@ -1655,6 +1736,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabOpen(
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore tabClose operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabClose(
     mut env: JNIEnv,
@@ -1670,6 +1752,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabClose(
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore tabRestoreRecentlyClosed operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabRestoreRecentlyClosed(
     mut env: JNIEnv,
@@ -1680,6 +1763,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabRestoreRecently
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore tabGetActive operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabGetActive(
     mut env: JNIEnv,
@@ -1690,6 +1774,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabGetActive(
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore tabSetActive operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabSetActive(
     mut env: JNIEnv,
@@ -1707,6 +1792,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabSetActive(
     }
 }
 
+/// Performs Java com azokle search core AzokleCore tabUpdate operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabUpdate(
     mut env: JNIEnv,
@@ -1734,6 +1820,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabUpdate(
     }
 }
 
+/// Performs Java com azokle search core AzokleCore tabGetAll operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabGetAll(
     mut env: JNIEnv,
@@ -1744,6 +1831,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabGetAll(
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore tabCloseAll operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabCloseAll(
     _env: JNIEnv,
@@ -1753,6 +1841,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabCloseAll(
     get_core().tabs.close_all_tabs(include_private == JNI_TRUE);
 }
 
+/// Performs Java com azokle search core AzokleCore tabClosePrivate operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabClosePrivate(
     _env: JNIEnv,
@@ -1761,6 +1850,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabClosePrivate(
     get_core().tabs.close_private_tabs();
 }
 
+/// Performs Java com azokle search core AzokleCore tabAutoGroupByDomain operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabAutoGroupByDomain(
     _env: JNIEnv,
@@ -1769,6 +1859,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabAutoGroupByDoma
     get_core().tabs.auto_group_by_domain();
 }
 
+/// Performs Java com azokle search core AzokleCore tabExportJson operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabExportJson(
     mut env: JNIEnv,
@@ -1778,6 +1869,7 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabExportJson(
     safe_jstring(&mut env, &json)
 }
 
+/// Performs Java com azokle search core AzokleCore tabImportJson operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_tabImportJson(
     mut env: JNIEnv,

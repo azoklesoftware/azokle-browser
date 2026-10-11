@@ -1,3 +1,17 @@
+// Copyright (c) 2026 The Azokle Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -28,6 +42,7 @@ pub struct BookmarkManager {
 }
 
 impl Default for BookmarkManager {
+    /// Returns the default instance.
     fn default() -> Self {
         Self::new()
     }
@@ -73,6 +88,7 @@ impl BookmarkManager {
         item
     }
 
+    /// Performs create folder operation.
     pub fn create_folder(&self, title: &str, parent_folder_id: Option<&str>) -> BookmarkItem {
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -94,6 +110,7 @@ impl BookmarkManager {
         item
     }
 
+    /// Removes the specified item.
     pub fn remove_item(&self, id: &str) -> bool {
         let mut list = self.items.write();
         if let Some(pos) = list.iter().position(|b| b.id == id) {
@@ -109,6 +126,7 @@ impl BookmarkManager {
         }
     }
 
+    /// Updates the item.
     pub fn update_item(
         &self,
         id: &str,
@@ -137,6 +155,7 @@ impl BookmarkManager {
         }
     }
 
+    /// Performs search operation.
     pub fn search(&self, query: &str) -> Vec<BookmarkItem> {
         let q = query.trim().to_lowercase();
         if q.is_empty() {
@@ -151,6 +170,7 @@ impl BookmarkManager {
             .collect()
     }
 
+    /// Checks whether bookmarked is satisfied.
     pub fn is_bookmarked(&self, url_str: &str) -> bool {
         let clean = url_str.trim().to_lowercase();
         if clean.is_empty() {
@@ -162,10 +182,12 @@ impl BookmarkManager {
             .any(|b| !b.is_folder && b.url.to_lowercase() == clean)
     }
 
+    /// Returns the all.
     pub fn get_all(&self) -> Vec<BookmarkItem> {
         self.items.read().clone()
     }
 
+    /// Returns the folder items.
     pub fn get_folder_items(&self, folder_id: Option<&str>) -> Vec<BookmarkItem> {
         self.items
             .read()
@@ -175,14 +197,17 @@ impl BookmarkManager {
             .collect()
     }
 
+    /// Performs clear all operation.
     pub fn clear_all(&self) {
         self.items.write().clear();
     }
 
+    /// Performs export json operation.
     pub fn export_json(&self) -> String {
         serde_json::to_string(&*self.items.read()).unwrap_or_else(|_| "[]".to_string())
     }
 
+    /// Performs import json operation.
     pub fn import_json(&self, json_str: &str) -> usize {
         if json_str.trim().is_empty() {
             return 0;

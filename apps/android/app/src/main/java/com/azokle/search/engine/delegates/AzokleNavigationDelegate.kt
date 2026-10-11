@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.engine.delegates
 
 import android.content.Context
@@ -42,6 +58,9 @@ class AzokleNavigationDelegate(
     var lastLoadedUrl: String = ""
         private set
 
+    /**
+     * Handles on location change events.
+     */
     override fun onLocationChange(
         session: GeckoSession,
         url: String?,
@@ -124,14 +143,23 @@ class AzokleNavigationDelegate(
         return GeckoResult.fromValue(AllowOrDeny.DENY)
     }
 
+    /**
+     * Handles on can go back events.
+     */
     override fun onCanGoBack(session: GeckoSession, canGoBack: Boolean) {
         onCanGoBackChanged(canGoBack)
     }
 
+    /**
+     * Handles on can go forward events.
+     */
     override fun onCanGoForward(session: GeckoSession, canGoForward: Boolean) {
         onCanGoForwardChanged(canGoForward)
     }
 
+    /**
+     * Handles on new session events.
+     */
     override fun onNewSession(session: GeckoSession, uri: String): GeckoResult<GeckoSession>? {
         if (uri.isNotBlank()) {
             val scheme = UrlHelper.extractScheme(uri)?.lowercase()
@@ -187,6 +215,9 @@ class AzokleNavigationDelegate(
         }
     }
 
+    /**
+     * Handles on load error events.
+     */
     override fun onLoadError(
         session: GeckoSession,
         uri: String?,
@@ -219,7 +250,13 @@ class AzokleNavigationDelegate(
         return null
     }
 
+    /**
+     * Checks whether page reload.
+     */
     private fun isPageReload(uriStr: String, request: GeckoSession.NavigationDelegate.LoadRequest): Boolean {
+        /**
+         * Executes the normalize operation.
+         */
         fun normalize(url: String?): String {
             if (url.isNullOrBlank()) return ""
             return url.substringBefore('#').trimEnd('/')
@@ -246,7 +283,13 @@ class AzokleNavigationDelegate(
         return false
     }
 
+    /**
+     * Checks whether internal platform navigation.
+     */
     private fun isInternalPlatformNavigation(uriStr: String, request: GeckoSession.NavigationDelegate.LoadRequest): Boolean {
+        /**
+         * Executes the extract domain operation.
+         */
         fun extractDomain(url: String?): String? {
             if (url.isNullOrBlank()) return null
             return try {
@@ -266,6 +309,9 @@ class AzokleNavigationDelegate(
         val lastDomain = extractDomain(lastLoadedUrl)
         val tabDomain = extractDomain(tabId?.let { TabManager.getTab(it)?.url })
 
+        /**
+         * Executes the matches target operation.
+         */
         fun matchesTarget(d: String?): Boolean {
             if (d == null) return false
             if (targetDomain == "youtube.com" || targetDomain == "youtu.be") {

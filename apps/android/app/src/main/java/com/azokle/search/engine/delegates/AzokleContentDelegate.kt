@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.engine.delegates
 
 import android.content.Context
@@ -56,6 +72,9 @@ class AzokleContentDelegate(
     private var crashCount = 0
     private var lastCrashTime = 0L
 
+    /**
+     * Handles on title change events.
+     */
     override fun onTitleChange(session: GeckoSession, title: String?) {
         if (com.azokle.search.incineration.DataBurnEngine.isBurning() ||
             com.azokle.search.history.HistoryManager.isIncinerating()
@@ -75,6 +94,9 @@ class AzokleContentDelegate(
         }
     }
 
+    /**
+     * Handles on full screen events.
+     */
     override fun onFullScreen(session: GeckoSession, fullScreen: Boolean) {
         mainHandler.post {
             swipeRefreshProvider()?.isFullScreen = fullScreen
@@ -87,6 +109,9 @@ class AzokleContentDelegate(
         }
     }
 
+    /**
+     * Handles on context menu events.
+     */
     override fun onContextMenu(
         session: GeckoSession,
         screenX: Int,
@@ -180,6 +205,9 @@ class AzokleContentDelegate(
         }
     }
 
+    /**
+     * Handles on external response events.
+     */
     override fun onExternalResponse(session: GeckoSession, response: WebResponse) {
         val downloadUrl = response.uri
         val contentType = response.headers["Content-Type"] ?: response.headers["content-type"]
@@ -245,6 +273,9 @@ class AzokleContentDelegate(
         }
     }
 
+    /**
+     * Handles on crash events.
+     */
     override fun onCrash(session: GeckoSession) {
         Log.w("AzokleContentDelegate", "Gecko content process crashed.")
         val now = System.currentTimeMillis()
@@ -274,6 +305,9 @@ class AzokleContentDelegate(
         plugins.forEach { it.onCrash(session) }
     }
 
+    /**
+     * Handles on kill events.
+     */
     override fun onKill(session: GeckoSession) {
         Log.w("AzokleContentDelegate", "Gecko content process killed by OS due to memory pressure.")
         mainHandler.post {
@@ -283,11 +317,17 @@ class AzokleContentDelegate(
         plugins.forEach { it.onKill(session) }
     }
 
+    /**
+     * Handles on slow script events.
+     */
     override fun onSlowScript(session: GeckoSession, scriptFileName: String): GeckoResult<SlowScriptResponse>? {
         Log.w("AzokleContentDelegate", "Slow script detected: $scriptFileName, stopping execution to prevent ANR")
         return GeckoResult.fromValue(SlowScriptResponse.STOP)
     }
 
+    /**
+     * Handles on close request events.
+     */
     override fun onCloseRequest(session: GeckoSession) {
         mainHandler.post {
             if (tabId != null) {
@@ -296,6 +336,9 @@ class AzokleContentDelegate(
         }
     }
 
+    /**
+     * Handles on web app manifest events.
+     */
     override fun onWebAppManifest(session: GeckoSession, manifest: JSONObject) {
         mainHandler.post {
             try {

@@ -1,3 +1,17 @@
+// Copyright (c) 2026 The Azokle Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use std::collections::{HashMap, HashSet};
 
 pub struct CosmeticEngine {
@@ -7,12 +21,14 @@ pub struct CosmeticEngine {
 }
 
 impl Default for CosmeticEngine {
+    /// Returns the default instance.
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl CosmeticEngine {
+    /// Creates a new instance with default configuration.
     pub fn new() -> Self {
         let mut global_selectors = HashSet::new();
         // Built-in safe standard ad provider tags & verified classes
@@ -39,6 +55,7 @@ impl CosmeticEngine {
         }
     }
 
+    /// Parses rule line from the given input.
     pub fn parse_rule_line(&mut self, line: &str) -> bool {
         let trimmed = line.trim();
         if trimmed.is_empty() || trimmed.starts_with('!') || trimmed.starts_with('[') {
@@ -107,6 +124,7 @@ impl CosmeticEngine {
         false
     }
 
+    /// Performs load from text operation.
     pub fn load_from_text(&mut self, content: &str) -> usize {
         let mut count = 0;
         for line in content.lines() {
@@ -117,6 +135,7 @@ impl CosmeticEngine {
         count
     }
 
+    /// Returns the css for domain.
     pub fn get_css_for_domain(&self, domain: &str) -> String {
         let clean_domain = domain.to_lowercase();
         let mut selectors: HashSet<&str> =

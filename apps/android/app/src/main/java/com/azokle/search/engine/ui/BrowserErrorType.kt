@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.engine.ui
 
 import androidx.compose.material.icons.Icons
@@ -35,6 +51,9 @@ data class BrowserErrorType(
     val canBypass: Boolean = false
 ) {
     companion object {
+        /**
+         * Executes the no internet operation.
+         */
         fun noInternet(failedUrl: String) = BrowserErrorType(
             category = BrowserErrorCategory.NETWORK,
             errorCode = "ERR_INTERNET_DISCONNECTED",
@@ -49,6 +68,9 @@ data class BrowserErrorType(
             )
         )
 
+        /**
+         * Executes the dns not found operation.
+         */
         fun dnsNotFound(failedUrl: String) = BrowserErrorType(
             category = BrowserErrorCategory.DNS,
             errorCode = "ERR_NAME_NOT_RESOLVED",
@@ -63,6 +85,9 @@ data class BrowserErrorType(
             )
         )
 
+        /**
+         * Executes the timeout operation.
+         */
         fun timeout(failedUrl: String) = BrowserErrorType(
             category = BrowserErrorCategory.TIMEOUT,
             errorCode = "ERR_CONNECTION_TIMED_OUT",
@@ -77,6 +102,9 @@ data class BrowserErrorType(
             )
         )
 
+        /**
+         * Executes the connection refused operation.
+         */
         fun connectionRefused(failedUrl: String) = BrowserErrorType(
             category = BrowserErrorCategory.REFUSED,
             errorCode = "ERR_CONNECTION_REFUSED",
@@ -91,6 +119,9 @@ data class BrowserErrorType(
             )
         )
 
+        /**
+         * Executes the ssl warning operation.
+         */
         fun sslWarning(failedUrl: String) = BrowserErrorType(
             category = BrowserErrorCategory.SSL,
             errorCode = "ERR_CERT_AUTHORITY_INVALID",
@@ -106,6 +137,9 @@ data class BrowserErrorType(
             canBypass = true
         )
 
+        /**
+         * Executes the redirect loop operation.
+         */
         fun redirectLoop(failedUrl: String) = BrowserErrorType(
             category = BrowserErrorCategory.SERVER,
             errorCode = "ERR_TOO_MANY_REDIRECTS",
@@ -120,6 +154,9 @@ data class BrowserErrorType(
             )
         )
 
+        /**
+         * Executes the port blocked operation.
+         */
         fun portBlocked(failedUrl: String) = BrowserErrorType(
             category = BrowserErrorCategory.REFUSED,
             errorCode = "ERR_UNSAFE_PORT",
@@ -134,6 +171,9 @@ data class BrowserErrorType(
             )
         )
 
+        /**
+         * Executes the server error operation.
+         */
         fun serverError(failedUrl: String, statusCode: Int = 500) = BrowserErrorType(
             category = BrowserErrorCategory.SERVER,
             errorCode = "HTTP_ERROR_$statusCode",
@@ -148,6 +188,9 @@ data class BrowserErrorType(
             )
         )
 
+        /**
+         * Executes the generic operation.
+         */
         fun generic(failedUrl: String, code: String = "ERR_LOAD_FAILED") = BrowserErrorType(
             category = BrowserErrorCategory.GENERIC,
             errorCode = code,

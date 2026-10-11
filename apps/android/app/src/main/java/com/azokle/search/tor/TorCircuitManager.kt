@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.tor
 
 import android.content.BroadcastReceiver
@@ -58,6 +74,9 @@ sealed class TorConnectionState {
  * Forces SOCKS5 proxy command 0x03 (DOMAINNAME remote resolution) to ensure ISP never sees queries.
  */
 object TorRemoteDns : Dns {
+    /**
+     * Executes the lookup operation.
+     */
     override fun lookup(hostname: String): List<InetAddress> {
         return try {
             listOf(InetAddress.getByAddress(hostname, byteArrayOf(0, 0, 0, 0)))
@@ -86,6 +105,9 @@ object TorCircuitManager {
     private var connectionJob: Job? = null
 
     private val serviceConnection = object : ServiceConnection {
+        /**
+         * Handles on service connected events.
+         */
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             try {
                 val binder = service as? TorService.LocalBinder
@@ -99,11 +121,17 @@ object TorCircuitManager {
             }
         }
 
+        /**
+         * Handles on service disconnected events.
+         */
         override fun onServiceDisconnected(name: ComponentName?) {
             torServiceInstance = null
         }
     }
 
+    /**
+     * Executes the start tor service operation.
+     */
     fun startTorService(context: Context) {
         val appContext = context.applicationContext
         setTorMode(true)
@@ -137,6 +165,9 @@ object TorCircuitManager {
     }
 
     private val statusReceiver = object : BroadcastReceiver() {
+        /**
+         * Handles on receive events.
+         */
         override fun onReceive(context: Context?, intent: Intent?) {
             val action = intent?.action
             if (action == TorService.ACTION_STATUS) {
@@ -163,6 +194,9 @@ object TorCircuitManager {
         }
     }
 
+    /**
+     * Executes the start tor connection operation.
+     */
     fun startTorConnection() {
         connectionJob?.cancel()
         connectionJob = scope.launch {
@@ -241,6 +275,9 @@ object TorCircuitManager {
         }
     }
 
+    /**
+     * Executes the fetch real tor exit ip operation.
+     */
     private fun fetchRealTorExitIp(port: Int): Triple<String, Boolean, Int>? {
         val callStart = System.currentTimeMillis()
         val rustVerification = AzokleCore.verifyTorExit(port)
@@ -288,6 +325,9 @@ object TorCircuitManager {
         return null
     }
 
+    /**
+     * Executes the request new circuit operation.
+     */
     fun requestNewCircuit() {
         scope.launch {
             _connectionState.value = TorConnectionState.Bootstrapping(50, "Building New 3-Hop Onion Circuit...")
@@ -302,6 +342,9 @@ object TorCircuitManager {
         }
     }
 
+    /**
+     * Executes the verify and establish circuit operation.
+     */
     private fun verifyAndEstablishCircuit() {
         scope.launch {
             val exitResult = withContext(Dispatchers.IO) {
@@ -328,6 +371,9 @@ object TorCircuitManager {
         }
     }
 
+    /**
+     * Executes the resolve tor url operation.
+     */
     fun resolveTorUrl(
         rawInput: String,
         searchEngineQueryUrl: String = "https://duckduckgo.com/?q="
@@ -335,6 +381,9 @@ object TorCircuitManager {
         return AzokleCore.resolveTorUrl(rawInput, searchEngineQueryUrl)
     }
 
+    /**
+     * Executes the resolve tor url operation.
+     */
     fun resolveTorUrl(
         context: Context?,
         rawInput: String
@@ -346,6 +395,9 @@ object TorCircuitManager {
         return resolveTorUrl(rawInput, queryUrl)
     }
 
+    /**
+     * Executes the stop tor service operation.
+     */
     fun stopTorService(context: Context) {
         val appContext = context.applicationContext
         setTorMode(false)
@@ -378,6 +430,9 @@ object TorCircuitManager {
         }
     }
 
+    /**
+     * Updates the tor mode.
+     */
     fun setTorMode(enabled: Boolean) {
         isTorActive = enabled
         try {

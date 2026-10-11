@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.adblock
 
 import java.net.URI
@@ -182,12 +198,18 @@ object AdClickManager {
         return cleanTarget == advHost || cleanTarget.endsWith(".$advHost") || ATTRIBUTION_HOSTS.any { cleanTarget == it || cleanTarget.endsWith(".$it") }
     }
 
+    /**
+     * Retrieves the active exemptions.
+     */
     fun getActiveExemptions(): List<AdClickExemption> {
         val now = System.currentTimeMillis()
         activeExemptions.values.removeIf { now > it.expiresAtMs }
         return activeExemptions.values.toList()
     }
 
+    /**
+     * Executes the sync to web extension operation.
+     */
     private fun syncToWebExtension() {
         try {
             com.azokle.search.engine.GeckoEngineManager.notifyAdClickExemptionsChanged(getActiveExemptions())
@@ -196,15 +218,24 @@ object AdClickManager {
         }
     }
 
+    /**
+     * Clears all attribution.
+     */
     fun clearAttribution(tabId: String) {
         clearTab(tabId)
     }
 
+    /**
+     * Clears all tab.
+     */
     fun clearTab(tabId: String) {
         activeExemptions.keys.removeIf { it.startsWith("$tabId:") }
         syncToWebExtension()
     }
 
+    /**
+     * Clears all expired.
+     */
     fun clearExpired() {
         val now = System.currentTimeMillis()
         val removed = activeExemptions.values.removeIf { now > it.expiresAtMs }
@@ -213,6 +244,9 @@ object AdClickManager {
         }
     }
 
+    /**
+     * Clears all all.
+     */
     fun clearAll() {
         activeExemptions.clear()
         syncToWebExtension()

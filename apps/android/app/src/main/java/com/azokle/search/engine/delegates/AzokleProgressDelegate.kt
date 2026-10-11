@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.engine.delegates
 
 import android.app.Activity
@@ -45,6 +61,9 @@ class AzokleProgressDelegate(
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    /**
+     * Handles on page start events.
+     */
     override fun onPageStart(session: GeckoSession, url: String) {
         val swipeRefresh = swipeRefreshProvider()
         swipeRefresh?.isPageLoading = true
@@ -77,6 +96,9 @@ class AzokleProgressDelegate(
         plugins.forEach { it.onPageStart(session, url) }
     }
 
+    /**
+     * Handles on page stop events.
+     */
     override fun onPageStop(session: GeckoSession, success: Boolean) {
         val swipeRefresh = swipeRefreshProvider()
         swipeRefresh?.isPageLoading = false
@@ -101,6 +123,9 @@ class AzokleProgressDelegate(
         plugins.forEach { it.onPageStop(session, success) }
     }
 
+    /**
+     * Handles on progress change events.
+     */
     override fun onProgressChange(session: GeckoSession, progress: Int) {
         if (progress >= 20) {
             mainHandler.post {
@@ -124,10 +149,16 @@ class AzokleProgressDelegate(
         plugins.forEach { it.onProgressChange(session, progress) }
     }
 
+    /**
+     * Handles on security change events.
+     */
     override fun onSecurityChange(session: GeckoSession, securityInfo: SecurityInformation) {
         onSecurityChanged(securityInfo)
     }
 
+    /**
+     * Executes the capture thumbnail operation.
+     */
     private fun captureThumbnail() {
         mainHandler.postDelayed({
             try {
@@ -142,6 +173,9 @@ class AzokleProgressDelegate(
 
                 var surfaceView: SurfaceView? = null
                 var textureView: TextureView? = null
+                /**
+                 * Finds matching views.
+                 */
                 fun findViews(parent: ViewGroup) {
                     for (i in 0 until parent.childCount) {
                         val child = parent.getChildAt(i)

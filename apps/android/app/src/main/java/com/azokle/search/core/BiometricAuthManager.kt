@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.core
 
 import android.app.KeyguardManager
@@ -19,10 +35,16 @@ object BiometricAuthManager {
     @Volatile
     private var activeActivityRef: WeakReference<FragmentActivity>? = null
 
+    /**
+     * Updates the current activity.
+     */
     fun setCurrentActivity(activity: FragmentActivity?) {
         activeActivityRef = if (activity != null) WeakReference(activity) else null
     }
 
+    /**
+     * Handles on activity destroyed events.
+     */
     fun onActivityDestroyed(activity: FragmentActivity) {
         if (activeActivityRef?.get() == activity) {
             activeActivityRef = null
@@ -105,12 +127,18 @@ object BiometricAuthManager {
 
             val executor = ContextCompat.getMainExecutor(activity)
             val callback = object : BiometricPrompt.AuthenticationCallback() {
+                /**
+                 * Handles on authentication succeeded events.
+                 */
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     super.onAuthenticationSucceeded(result)
                     Log.d(TAG, "Biometric authentication SUCCEEDED: $title")
                     onAuthenticated()
                 }
 
+                /**
+                 * Handles on authentication error events.
+                 */
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                     super.onAuthenticationError(errorCode, errString)
                     Log.w(TAG, "Biometric authentication ERROR ($errorCode): $errString")
@@ -124,6 +152,9 @@ object BiometricAuthManager {
                     }
                 }
 
+                /**
+                 * Handles on authentication failed events.
+                 */
                 override fun onAuthenticationFailed() {
                     super.onAuthenticationFailed()
                     Log.w(TAG, "Biometric attempt failed - user may retry on prompt.")

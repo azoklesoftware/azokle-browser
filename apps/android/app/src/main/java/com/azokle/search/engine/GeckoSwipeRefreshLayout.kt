@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.engine
 
 import android.content.Context
@@ -97,6 +113,9 @@ class GeckoSwipeRefreshLayout @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Checks whether at top.
+     */
     fun isAtTop(): Boolean {
         return isContentAtTop && currentScrollY <= 5
     }
@@ -118,14 +137,23 @@ class GeckoSwipeRefreshLayout @JvmOverloads constructor(
         return isAtTop()
     }
 
+    /**
+     * Updates enabled state.
+     */
     private fun updateEnabledState() {
         isEnabled = !isFullScreen
     }
 
+    /**
+     * Executes the request disallow intercept touch event operation.
+     */
     override fun requestDisallowInterceptTouchEvent(b: Boolean) {
         super.requestDisallowInterceptTouchEvent(b)
     }
 
+    /**
+     * Handles on intercept touch event events.
+     */
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         // 1. Guard against inactive or fullscreen conditions
         if (!isEnabled || isFullScreen) {
@@ -202,6 +230,9 @@ class GeckoSwipeRefreshLayout @JvmOverloads constructor(
         return super.onInterceptTouchEvent(ev)
     }
 
+    /**
+     * Handles on touch event events.
+     */
     override fun onTouchEvent(ev: MotionEvent): Boolean {
         if (ev.pointerCount > 1) {
             isMultiTouchDetected = true

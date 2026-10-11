@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.core
 
 import android.content.Context
@@ -72,10 +88,16 @@ object DnsOverHttpsManager {
     @Volatile
     var activeProviderId: String = "cloudflare"
 
+    /**
+     * Retrieves the provider.
+     */
     fun getProvider(providerId: String): DohProvider {
         return PROVIDERS.find { it.id.equals(providerId, ignoreCase = true) } ?: PROVIDERS.first()
     }
 
+    /**
+     * Retrieves the dns for provider.
+     */
     fun getDnsForProvider(providerId: String): Dns {
         if (providerId.equals("system", ignoreCase = true)) return Dns.SYSTEM
         return providerDnsMap.getOrPut(providerId) {
@@ -107,6 +129,9 @@ object DnsOverHttpsManager {
     }
 
     val sharedDns: Dns = object : Dns {
+        /**
+         * Executes the lookup operation.
+         */
         override fun lookup(hostname: String): List<InetAddress> {
             val dns = getDnsForProvider(activeProviderId)
             return try {
@@ -190,10 +215,16 @@ object DnsOverHttpsManager {
         }
     }
 
+    /**
+     * Clears all cname cache.
+     */
     fun clearCnameCache() {
         cnameCache.clear()
     }
 
+    /**
+     * Executes the create doh dns operation.
+     */
     fun createDohDns(context: Context): Dns {
         val prefs = PreferencesManager(context)
         val selectedId = prefs.getDohProvider()

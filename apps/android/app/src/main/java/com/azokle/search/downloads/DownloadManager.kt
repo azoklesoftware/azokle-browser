@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.downloads
 
 import android.content.Context
@@ -47,6 +63,9 @@ object DownloadManager {
         "content-encoding", "vary", "age", "etag", "last-modified"
     )
 
+    /**
+     * Initializes .
+     */
     fun init(context: Context) {
         if (isInitialized) return
         isInitialized = true
@@ -188,6 +207,9 @@ object DownloadManager {
         return item.id
     }
 
+    /**
+     * Executes the start download job operation.
+     */
     private fun startDownloadJob(
         context: Context,
         item: DownloadItem,
@@ -376,6 +398,9 @@ object DownloadManager {
         activeJobs[item.id] = job
     }
 
+    /**
+     * Updates item status.
+     */
     private fun updateItemStatus(
         id: String,
         status: DownloadStatus,
@@ -397,6 +422,9 @@ object DownloadManager {
         }
     }
 
+    /**
+     * Executes the pause download operation.
+     */
     fun pauseDownload(context: Context, id: String) {
         activeJobs[id]?.cancel()
         activeJobs.remove(id)
@@ -406,6 +434,9 @@ object DownloadManager {
         saveHistory(context)
     }
 
+    /**
+     * Executes the resume download operation.
+     */
     fun resumeDownload(context: Context, id: String) {
         val item = _downloads.value.find { it.id == id } ?: return
         _downloads.update { list ->
@@ -414,6 +445,9 @@ object DownloadManager {
         startDownloadJob(context, item)
     }
 
+    /**
+     * Executes the retry download operation.
+     */
     fun retryDownload(context: Context, id: String) {
         val item = _downloads.value.find { it.id == id } ?: return
         val targetFile = File(item.filePath)
@@ -424,6 +458,9 @@ object DownloadManager {
         startDownloadJob(context, item.copy(downloadedBytes = 0L))
     }
 
+    /**
+     * Executes the cancel download operation.
+     */
     fun cancelDownload(context: Context, id: String) {
         activeJobs[id]?.cancel()
         activeJobs.remove(id)
@@ -438,6 +475,9 @@ object DownloadManager {
         saveHistory(context)
     }
 
+    /**
+     * Removes the specified download.
+     */
     fun deleteDownload(context: Context, id: String, deleteFile: Boolean = true) {
         activeJobs[id]?.cancel()
         activeJobs.remove(id)
@@ -453,6 +493,9 @@ object DownloadManager {
         saveHistory(context)
     }
 
+    /**
+     * Clears all all history.
+     */
     fun clearAllHistory(context: Context) {
         activeJobs.values.forEach { it.cancel() }
         activeJobs.clear()
@@ -501,6 +544,9 @@ object DownloadManager {
         }
     }
 
+    /**
+     * Executes the record completed download operation.
+     */
     fun recordCompletedDownload(
         context: Context,
         url: String,
@@ -584,6 +630,9 @@ object DownloadManager {
         return sourceFile.absolutePath
     }
 
+    /**
+     * Executes the generate unique file operation.
+     */
     private fun generateUniqueFile(directory: File, fileName: String): File {
         var target = File(directory, fileName)
         if (!target.exists()) return target
@@ -653,6 +702,9 @@ object DownloadManager {
         }
     }
 
+    /**
+     * Executes the resolve effective mime type operation.
+     */
     private fun resolveEffectiveMimeType(file: File, fallbackMime: String): String {
         if (fallbackMime.isNotBlank() && fallbackMime != "application/octet-stream" && fallbackMime != "*/*") {
             return fallbackMime
@@ -667,6 +719,9 @@ object DownloadManager {
         return fallbackMime.ifBlank { "application/octet-stream" }
     }
 
+    /**
+     * Persists history to storage.
+     */
     private fun saveHistory(context: Context) {
         scope.launch {
             try {
@@ -711,6 +766,9 @@ object DownloadManager {
         }
     }
 
+    /**
+     * Loads history.
+     */
     private fun loadHistory(context: Context) {
         scope.launch(Dispatchers.IO) {
             try {
@@ -767,6 +825,9 @@ object DownloadManager {
     private const val NOTIFICATION_CHANNEL_ID = "azokle_downloads"
     private const val NOTIFICATION_CHANNEL_NAME = "Browser Downloads"
 
+    /**
+     * Executes the ensure notification channel operation.
+     */
     private fun ensureNotificationChannel(context: Context) {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
@@ -782,6 +843,9 @@ object DownloadManager {
         }
     }
 
+    /**
+     * Executes the post progress notification operation.
+     */
     private fun postProgressNotification(context: Context, item: DownloadItem, progress: Int, isIndeterminate: Boolean = false) {
         try {
             ensureNotificationChannel(context)
@@ -803,6 +867,9 @@ object DownloadManager {
         }
     }
 
+    /**
+     * Executes the post completion notification operation.
+     */
     private fun postCompletionNotification(context: Context, item: DownloadItem, isSuccess: Boolean) {
         try {
             ensureNotificationChannel(context)

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.engine.ui
 
 import android.content.ClipData
@@ -87,6 +103,9 @@ class LinkContextTarget(
     val isMedia: Boolean
         get() = mediaType != ContextMediaType.NONE || isImage || !mediaSrc.isNullOrBlank()
 
+    /**
+     * Executes the equals operation.
+     */
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is LinkContextTarget) return false
@@ -98,6 +117,9 @@ class LinkContextTarget(
                 mediaSrc == other.mediaSrc
     }
 
+    /**
+     * Checks if h code exists.
+     */
     override fun hashCode(): Int {
         var result = url.hashCode()
         result = 31 * result + title.hashCode()
@@ -528,6 +550,9 @@ fun LinkContextMenuPopup(
     }
 }
 
+/**
+ * Composable that renders the minimal action row UI component.
+ */
 @Composable
 private fun MinimalActionRow(
     icon: ImageVector,

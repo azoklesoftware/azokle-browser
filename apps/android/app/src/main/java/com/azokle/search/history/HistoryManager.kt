@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.history
 
 import android.content.Context
@@ -41,12 +57,21 @@ object HistoryManager {
     private var appContext: Context? = null
     private var database: AzokleHistoryDatabase? = null
 
+    /**
+     * Updates the incinerating.
+     */
     fun setIncinerating(active: Boolean) {
         isIncinerating.set(active)
     }
 
+    /**
+     * Checks whether incinerating.
+     */
     fun isIncinerating(): Boolean = isIncinerating.get()
 
+    /**
+     * Initializes .
+     */
     fun init(context: Context) {
         if (isInitialized) return
         isInitialized = true
@@ -190,6 +215,9 @@ object HistoryManager {
         return list
     }
 
+    /**
+     * Removes the specified entry.
+     */
     fun deleteEntry(id: String) {
         val context = appContext ?: return
         scope.launch {
@@ -199,6 +227,9 @@ object HistoryManager {
         }
     }
 
+    /**
+     * Removes the specified entries.
+     */
     fun deleteEntries(ids: List<String>) {
         val context = appContext ?: return
         scope.launch {
@@ -210,6 +241,9 @@ object HistoryManager {
         }
     }
 
+    /**
+     * Clears all today.
+     */
     fun clearToday() {
         val context = appContext ?: return
         val calendar = Calendar.getInstance().apply {
@@ -227,10 +261,16 @@ object HistoryManager {
         }
     }
 
+    /**
+     * Clears all in memory history.
+     */
     fun clearInMemoryHistory() {
         _history.value = emptyList()
     }
 
+    /**
+     * Clears all all sync.
+     */
     fun clearAllSync(context: Context) {
         isIncinerating.set(true)
         try {
@@ -253,6 +293,9 @@ object HistoryManager {
         } catch (_: Exception) {}
     }
 
+    /**
+     * Clears all all.
+     */
     fun clearAll() {
         val context = appContext ?: return
         clearInMemoryHistory()
@@ -262,6 +305,9 @@ object HistoryManager {
         }
     }
 
+    /**
+     * Checks whether ignored scheme.
+     */
     private fun isIgnoredScheme(url: String): Boolean {
         val lower = url.lowercase().trim()
         return lower.startsWith("about:") ||
@@ -275,6 +321,9 @@ object HistoryManager {
                 lower.startsWith("intent:")
     }
 
+    /**
+     * Parses history item from the input data.
+     */
     private fun parseHistoryItem(obj: JSONObject): HistoryItem {
         val url = obj.optString("url", "")
         val isSearch = url.contains("search.azokle.com") || url.contains("duckduckgo.com")
@@ -291,6 +340,9 @@ object HistoryManager {
         )
     }
 
+    /**
+     * Executes the refresh from rust operation.
+     */
     private fun refreshFromRust(context: Context) {
         if (isIncinerating.get()) return
         try {
@@ -317,6 +369,9 @@ object HistoryManager {
 
     private var saveJob: kotlinx.coroutines.Job? = null
 
+    /**
+     * Executes the schedule save to disk operation.
+     */
     private fun scheduleSaveToDisk(context: Context) {
         if (isIncinerating.get()) return
         saveJob?.cancel()
@@ -326,6 +381,9 @@ object HistoryManager {
         }
     }
 
+    /**
+     * Persists to disk to storage.
+     */
     private fun saveToDisk(context: Context) {
         if (isIncinerating.get()) return
         try {
@@ -343,6 +401,9 @@ object HistoryManager {
         }
     }
 
+    /**
+     * Loads history.
+     */
     private fun loadHistory(context: Context) {
         if (isIncinerating.get()) return
         scope.launch(Dispatchers.IO) {

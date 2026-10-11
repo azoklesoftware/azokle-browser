@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 @file:Suppress("DEPRECATION")
 
 package com.azokle.search.common.util
@@ -39,12 +55,18 @@ class PreferencesManager(private val context: Context) {
         @Volatile
         private var homeTourCompletedCache: Boolean? = null
 
+        /**
+         * Retrieves the instance.
+         */
         fun getInstance(context: Context): PreferencesManager {
             return instance ?: synchronized(this) {
                 instance ?: PreferencesManager(context.applicationContext).also { instance = it }
             }
         }
 
+        /**
+         * Retrieves the or create encrypted prefs.
+         */
         private fun getOrCreateEncryptedPrefs(context: Context): SharedPreferences {
             cachedPrefs?.let { return it }
             return synchronized(this) {
@@ -54,6 +76,9 @@ class PreferencesManager(private val context: Context) {
             }
         }
 
+        /**
+         * Executes the create encrypted prefs operation.
+         */
         private fun createEncryptedPrefs(context: Context): SharedPreferences {
             val encPrefs = try {
                 val masterKey = MasterKey.Builder(context)
@@ -115,6 +140,9 @@ class PreferencesManager(private val context: Context) {
         )
     }
 
+    /**
+     * Retrieves the recent searches.
+     */
     fun getRecentSearches(): List<String> {
         val jsonStr = prefs.getString(KEY_RECENT_SEARCHES, null) ?: return emptyList()
         return try {
@@ -129,6 +157,9 @@ class PreferencesManager(private val context: Context) {
         }
     }
 
+    /**
+     * Persists recent search to storage.
+     */
     fun saveRecentSearch(query: String) {
         val clean = query.trim()
         if (clean.isEmpty()) return
@@ -142,12 +173,18 @@ class PreferencesManager(private val context: Context) {
         prefs.edit().putString(KEY_RECENT_SEARCHES, jsonArray.toString()).apply()
     }
 
+    /**
+     * Persists recent searches to storage.
+     */
     fun saveRecentSearches(list: List<String>) {
         val trimmed = if (list.size > MAX_RECENT) list.take(MAX_RECENT) else list
         val jsonArray = JSONArray(trimmed)
         prefs.edit().putString(KEY_RECENT_SEARCHES, jsonArray.toString()).apply()
     }
 
+    /**
+     * Clears all recent searches.
+     */
     fun clearRecentSearches() {
         prefs.edit().remove(KEY_RECENT_SEARCHES).apply()
         try {
@@ -158,26 +195,44 @@ class PreferencesManager(private val context: Context) {
         } catch (_: Exception) {}
     }
 
+    /**
+     * Retrieves the safe search.
+     */
     fun getSafeSearch(): String {
         return prefs.getString(KEY_SAFE_SEARCH, "Moderate") ?: "Moderate"
     }
 
+    /**
+     * Updates the safe search.
+     */
     fun setSafeSearch(mode: String) {
         prefs.edit().putString(KEY_SAFE_SEARCH, mode).apply()
     }
 
+    /**
+     * Retrieves the location.
+     */
     fun getLocation(): String {
         return prefs.getString(KEY_LOCATION, "All Regions") ?: "All Regions"
     }
 
+    /**
+     * Updates the location.
+     */
     fun setLocation(locationName: String) {
         prefs.edit().putString(KEY_LOCATION, locationName).apply()
     }
 
+    /**
+     * Retrieves the theme mode.
+     */
     fun getThemeMode(): String {
         return prefs.getString(KEY_THEME, "system") ?: "system"
     }
 
+    /**
+     * Updates the theme mode.
+     */
     fun setThemeMode(theme: String) {
         prefs.edit().putString(KEY_THEME, theme.lowercase()).apply()
         try {
@@ -189,26 +244,44 @@ class PreferencesManager(private val context: Context) {
         }
     }
 
+    /**
+     * Checks if completed onboarding exists.
+     */
     fun hasCompletedOnboarding(): Boolean {
         return prefs.getBoolean("has_completed_onboarding", false)
     }
 
+    /**
+     * Updates the onboarding completed.
+     */
     fun setOnboardingCompleted(completed: Boolean) {
         prefs.edit().putBoolean("has_completed_onboarding", completed).apply()
     }
 
+    /**
+     * Retrieves the browser engine.
+     */
     fun getBrowserEngine(): String {
         return prefs.getString("browser_engine", "gecko") ?: "gecko"
     }
 
+    /**
+     * Updates the browser engine.
+     */
     fun setBrowserEngine(engine: String) {
         prefs.edit().putString("browser_engine", engine.lowercase()).apply()
     }
 
+    /**
+     * Retrieves the doh provider.
+     */
     fun getDohProvider(): String {
         return prefs.getString("doh_provider", "cloudflare") ?: "cloudflare"
     }
 
+    /**
+     * Updates the doh provider.
+     */
     fun setDohProvider(providerId: String) {
         val cleanId = providerId.lowercase()
         prefs.edit().putString("doh_provider", cleanId).apply()
@@ -220,10 +293,16 @@ class PreferencesManager(private val context: Context) {
         }
     }
 
+    /**
+     * Retrieves the search engine.
+     */
     fun getSearchEngine(): String {
         return prefs.getString("search_engine", "azokle") ?: "azokle"
     }
 
+    /**
+     * Updates the search engine.
+     */
     fun setSearchEngine(engineId: String) {
         prefs.edit().putString("search_engine", engineId.lowercase()).apply()
         try {
@@ -235,30 +314,51 @@ class PreferencesManager(private val context: Context) {
         }
     }
 
+    /**
+     * Retrieves the app language.
+     */
     fun getAppLanguage(): String {
         return prefs.getString("app_language", "system") ?: "system"
     }
 
+    /**
+     * Updates the app language.
+     */
     fun setAppLanguage(languageCode: String) {
         prefs.edit().putString("app_language", languageCode.lowercase()).apply()
     }
 
+    /**
+     * Checks whether background audio enabled.
+     */
     fun isBackgroundAudioEnabled(): Boolean {
         return prefs.getBoolean("pref_background_audio", true)
     }
 
+    /**
+     * Updates the background audio enabled.
+     */
     fun setBackgroundAudioEnabled(enabled: Boolean) {
         prefs.edit().putBoolean("pref_background_audio", enabled).apply()
     }
 
+    /**
+     * Checks if completed tour exists.
+     */
     fun hasCompletedTour(): Boolean {
         return hasCompletedHomeTour()
     }
 
+    /**
+     * Updates the tour completed.
+     */
     fun setTourCompleted(completed: Boolean) {
         setHomeTourCompleted(completed)
     }
 
+    /**
+     * Checks if completed home tour exists.
+     */
     fun hasCompletedHomeTour(): Boolean {
         homeTourCompletedCache?.let { return it }
         val value = prefs.getBoolean("has_completed_home_tour", false)
@@ -266,11 +366,17 @@ class PreferencesManager(private val context: Context) {
         return value
     }
 
+    /**
+     * Updates the home tour completed.
+     */
     fun setHomeTourCompleted(completed: Boolean) {
         homeTourCompletedCache = completed
         prefs.edit().putBoolean("has_completed_home_tour", completed).apply()
     }
 
+    /**
+     * Checks if completed tabs tour exists.
+     */
     fun hasCompletedTabsTour(): Boolean {
         tabsTourCompletedCache?.let { return it }
         val value = prefs.getBoolean("has_completed_tabs_tour", false)
@@ -278,11 +384,17 @@ class PreferencesManager(private val context: Context) {
         return value
     }
 
+    /**
+     * Updates the tabs tour completed.
+     */
     fun setTabsTourCompleted(completed: Boolean) {
         tabsTourCompletedCache = completed
         prefs.edit().putBoolean("has_completed_tabs_tour", completed).apply()
     }
 
+    /**
+     * Resets tours to default state.
+     */
     fun resetTours() {
         homeTourCompletedCache = false
         tabsTourCompletedCache = false

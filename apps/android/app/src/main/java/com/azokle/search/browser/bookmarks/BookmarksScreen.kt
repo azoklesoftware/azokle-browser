@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.browser.bookmarks
 
 import android.content.ClipboardManager
@@ -86,6 +102,9 @@ import com.azokle.search.vault.BookmarkItem
 import com.azokle.search.vault.EncryptedVaultManager
 import com.azokle.search.vault.QuickLinkItem
 
+/**
+ * Composable that renders the bookmarks screen UI component.
+ */
 @Composable
 fun BookmarksScreen(
     onDismiss: () -> Unit,
@@ -474,6 +493,9 @@ fun BookmarksScreen(
     }
 }
 
+/**
+ * Composable that renders the quick link tile UI component.
+ */
 @Composable
 private fun QuickLinkTile(
     item: QuickLinkItem,
@@ -540,6 +562,9 @@ private fun QuickLinkTile(
     }
 }
 
+/**
+ * Composable that renders the bookmark item row UI component.
+ */
 @Composable
 private fun BookmarkItemRow(
     bookmark: BookmarkItem,
@@ -717,6 +742,9 @@ private fun BookmarkItemRow(
     }
 }
 
+/**
+ * Composable that renders the empty bookmarks view UI component.
+ */
 @Composable
 private fun EmptyBookmarksView(
     searchQuery: String,
@@ -765,6 +793,9 @@ private fun EmptyBookmarksView(
     }
 }
 
+/**
+ * Composable that renders the add bookmark dialog UI component.
+ */
 @Composable
 private fun AddBookmarkDialog(
     onConfirm: (String, String) -> Unit,
@@ -835,6 +866,9 @@ private fun AddBookmarkDialog(
     )
 }
 
+/**
+ * Composable that renders the add quick link dialog UI component.
+ */
 @Composable
 private fun AddQuickLinkDialog(
     onConfirm: (String, String) -> Unit,
@@ -905,6 +939,9 @@ private fun AddQuickLinkDialog(
     )
 }
 
+/**
+ * Composable that renders the edit bookmark dialog UI component.
+ */
 @Composable
 private fun EditBookmarkDialog(
     item: BookmarkItem,

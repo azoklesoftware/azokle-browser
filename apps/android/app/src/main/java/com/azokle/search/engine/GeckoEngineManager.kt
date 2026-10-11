@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.engine
 
 import android.content.Context
@@ -28,6 +44,9 @@ object GeckoEngineManager {
     var currentThemeMode: String = "system"
         private set
 
+    /**
+     * Updates theme mode.
+     */
     fun updateThemeMode(mode: String) {
         currentThemeMode = mode.lowercase()
         val scheme = when (currentThemeMode) {
@@ -43,6 +62,9 @@ object GeckoEngineManager {
         notifyThemeChanged(currentThemeMode)
     }
 
+    /**
+     * Retrieves the runtime.
+     */
     @Synchronized
     fun getRuntime(context: Context): GeckoRuntime {
         if (runtime == null) {
@@ -123,10 +145,19 @@ object GeckoEngineManager {
                 // GeckoView routes it here. Return type MUST be GeckoResult<JSONObject>.
                 // Returning GeckoResult<Any> with a JSONObject inside causes "Invalid event data for callback"
                 extension.setMessageDelegate(object : WebExtension.MessageDelegate {
+                    /**
+                     * Handles on connect events.
+                     */
                     override fun onConnect(port: WebExtension.Port) {
                         extensionPort = port
                         port.setDelegate(object : WebExtension.PortDelegate {
+                            /**
+                             * Handles on port message events.
+                             */
                             override fun onPortMessage(message: Any, port: WebExtension.Port) {}
+                            /**
+                             * Handles on disconnect events.
+                             */
                             override fun onDisconnect(port: WebExtension.Port) {
                                 if (extensionPort == port) {
                                     extensionPort = null
@@ -136,6 +167,9 @@ object GeckoEngineManager {
                         pushFullStatus(port)
                     }
 
+                    /**
+                     * Handles on message events.
+                     */
                     override fun onMessage(
                         nativeApp: String,
                         message: Any,
@@ -340,6 +374,9 @@ object GeckoEngineManager {
     const val MODERN_DESKTOP_UA =
         "Mozilla/5.0 (X11; Linux x86_64; rv:154.0) Gecko/20100101 Firefox/154.0"
 
+    /**
+     * Executes the apply desktop mode operation.
+     */
     fun applyDesktopMode(session: GeckoSession, enabled: Boolean) {
         try {
             val targetUaMode = if (enabled) {
@@ -368,6 +405,9 @@ object GeckoEngineManager {
         }
     }
 
+    /**
+     * Executes the create session operation.
+     */
     fun createSession(
         context: Context? = null,
         isPrivate: Boolean = false,
@@ -392,6 +432,9 @@ object GeckoEngineManager {
         return GeckoSession(builder.build())
     }
 
+    /**
+     * Clears all all data.
+     */
     fun clearAllData(context: Context) {
         try {
             getRuntime(context).storageController.clearData(StorageController.ClearFlags.ALL)
@@ -400,6 +443,9 @@ object GeckoEngineManager {
         }
     }
 
+    /**
+     * Clears all host data.
+     */
     fun clearHostData(context: Context, host: String) {
         try {
             getRuntime(context).storageController.clearDataFromHost(
@@ -416,6 +462,9 @@ object GeckoEngineManager {
     @Volatile
     private var extensionPort: WebExtension.Port? = null
 
+    /**
+     * Executes the push full status operation.
+     */
     fun pushFullStatus(port: WebExtension.Port? = extensionPort) {
         val targetPort = port ?: extensionPort ?: return
         try {
@@ -443,6 +492,9 @@ object GeckoEngineManager {
         }
     }
 
+    /**
+     * Executes the notify ad click exemptions changed operation.
+     */
     fun notifyAdClickExemptionsChanged(exemptions: List<com.azokle.search.adblock.AdClickExemption>) {
         try {
             val payload = JSONObject().apply {
@@ -463,6 +515,9 @@ object GeckoEngineManager {
         }
     }
 
+    /**
+     * Executes the notify theme changed operation.
+     */
     fun notifyThemeChanged(theme: String) {
         try {
             val payload = JSONObject().apply {
@@ -475,6 +530,9 @@ object GeckoEngineManager {
         }
     }
 
+    /**
+     * Executes the notify disabled hosts changed operation.
+     */
     fun notifyDisabledHostsChanged(hosts: List<String>) {
         try {
             val payload = JSONObject().apply {
@@ -489,6 +547,9 @@ object GeckoEngineManager {
         }
     }
 
+    /**
+     * Executes the notify tor state changed operation.
+     */
     fun notifyTorStateChanged(enabled: Boolean, socksPort: Int) {
         try {
             val payload = JSONObject().apply {
@@ -502,6 +563,9 @@ object GeckoEngineManager {
         }
     }
 
+    /**
+     * Executes the notify engine ready operation.
+     */
     fun notifyEngineReady() {
         try {
             val payload = JSONObject().apply {
@@ -513,6 +577,9 @@ object GeckoEngineManager {
         }
     }
 
+    /**
+     * Executes the print page to pdf operation.
+     */
     fun printPageToPdf(
         context: Context,
         session: GeckoSession,
@@ -526,6 +593,9 @@ object GeckoEngineManager {
         val targetFile = java.io.File(downloadDir, fileName)
 
         session.setPrintDelegate(object : GeckoSession.PrintDelegate {
+            /**
+             * Handles on print events.
+             */
             override fun onPrint(input: java.io.InputStream) {
                 kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                     try {
@@ -553,6 +623,9 @@ object GeckoEngineManager {
         session.printPageContent()
     }
 
+    /**
+     * Handles on trim memory events.
+     */
     @Suppress("DEPRECATION")
     fun onTrimMemory(level: Int) {
         try {
@@ -625,6 +698,9 @@ object GeckoEngineManager {
         }
     }
 
+    /**
+     * Executes the shutdown operation.
+     */
     fun shutdown() {
         runtime?.shutdown()
         runtime = null

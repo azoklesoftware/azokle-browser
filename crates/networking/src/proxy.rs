@@ -1,3 +1,17 @@
+// Copyright (c) 2026 The Azokle Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::types::NetworkRoute;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -11,6 +25,7 @@ pub struct ProxyConfig {
 }
 
 impl Default for ProxyConfig {
+    /// Returns the default instance.
     fn default() -> Self {
         Self {
             default_route: NetworkRoute::Direct,
@@ -26,24 +41,28 @@ pub struct ProxyRouter {
 }
 
 impl Default for ProxyRouter {
+    /// Returns the default instance.
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl ProxyRouter {
+    /// Creates a new instance with default configuration.
     pub fn new() -> Self {
         Self {
             config: Arc::new(RwLock::new(ProxyConfig::default())),
         }
     }
 
+    /// Updates the tor mode.
     pub fn set_tor_mode(&self, enabled: bool, socks_port: u16) {
         let mut guard = self.config.write();
         guard.is_tor_enabled = enabled;
         guard.tor_socks_port = socks_port;
     }
 
+    /// Returns the route for request.
     pub fn get_route_for_request(&self, url: &str, is_private_tab: bool) -> NetworkRoute {
         let clean = url.trim().to_lowercase();
         let guard = self.config.read();

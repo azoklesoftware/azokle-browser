@@ -1,3 +1,17 @@
+// Copyright (c) 2026 The Azokle Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 pub mod debounce;
 pub mod query_stripper;
 pub mod tracker_db;
@@ -17,12 +31,14 @@ pub struct TrackerEngine {
 }
 
 impl Default for TrackerEngine {
+    /// Returns the default instance.
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl TrackerEngine {
+    /// Creates a new instance with default configuration.
     pub fn new() -> Self {
         Self {
             db: Arc::new(RwLock::new(TrackerDb::new())),
@@ -31,32 +47,39 @@ impl TrackerEngine {
         }
     }
 
+    /// Performs load tracker list operation.
     pub fn load_tracker_list(&self, content: &str) -> usize {
         self.db.write().load_from_text(content)
     }
 
+    /// Performs load debounce rules operation.
     pub fn load_debounce_rules(&self, json_str: &str) -> Result<usize, String> {
         self.debounce.write().load_from_json(json_str)
     }
 
+    /// Checks whether tracker is satisfied.
     pub fn is_tracker(&self, host: &str) -> bool {
         self.db.read().is_tracker_domain(host)
     }
 
+    /// Performs uncloak host operation.
     pub fn uncloak_host(&self, host: &str) -> String {
         self.db.read().uncloak_host(host).to_string()
     }
 
+    /// Inserts a new cname mapping.
     pub fn add_cname_mapping(&self, cloaked_host: &str, uncloaked_host: &str) {
         self.db
             .write()
             .add_cname_mapping(cloaked_host, uncloaked_host);
     }
 
+    /// Performs strip tracking params operation.
     pub fn strip_tracking_params(&self, url: &str) -> String {
         self.stripper.strip_tracking_params(url)
     }
 
+    /// Performs unwrap bounce url operation.
     pub fn unwrap_bounce_url(&self, url: &str) -> Option<String> {
         self.debounce.read().unwrap_bounce_url(url)
     }

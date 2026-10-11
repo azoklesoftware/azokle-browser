@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.engine.ui
 
 import android.Manifest
@@ -95,6 +111,9 @@ import org.mozilla.geckoview.GeckoView
 import java.io.File
 import java.net.URI
 
+/**
+ * Composable that renders the browser screen UI component.
+ */
 @Composable
 fun BrowserScreen(
     initialUrl: String,
@@ -156,6 +175,9 @@ fun BrowserScreen(
     var findCurrentMatch by remember { mutableIntStateOf(0) }
     var findTotalMatches by remember { mutableIntStateOf(0) }
 
+    /**
+     * Executes the execute find operation.
+     */
     fun executeFind(query: String, backwards: Boolean = false) {
         val session = geckoSession ?: return
         if (query.isBlank()) {
@@ -242,6 +264,9 @@ fun BrowserScreen(
         pendingActionAfterOsPerms = null
     }
 
+    /**
+     * Handles allow permission.
+     */
     fun handleAllowPermission(request: SitePermissionRequest, rememberChoice: Boolean) {
         val hasLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
                           ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -277,6 +302,9 @@ fun BrowserScreen(
         }
     }
 
+    /**
+     * Handles deny permission.
+     */
     fun handleDenyPermission(request: SitePermissionRequest, rememberChoice: Boolean) {
         if (rememberChoice) {
             request.requestedTypes.forEach { type ->
@@ -287,6 +315,9 @@ fun BrowserScreen(
         activePermissionRequest = null
     }
 
+    /**
+     * Executes the navigate to url operation.
+     */
     fun navigateToUrl(targetUrl: String, title: String = "") {
         val upgradedUrl = HttpsUpgrader.upgrade(targetUrl)
         val cleanTargetUrl = AdClickManager.cleanTrackingParameters(upgradedUrl)

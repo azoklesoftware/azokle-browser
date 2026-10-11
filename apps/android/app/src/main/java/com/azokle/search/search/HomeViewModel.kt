@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.search
 
 import android.app.Application
@@ -68,14 +84,23 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    /**
+     * Updates the pip mode.
+     */
     fun setPipMode(inPip: Boolean) {
         _uiState.update { it.copy(isInPipMode = inPip) }
     }
 
+    /**
+     * Updates the voice modal open.
+     */
     fun setVoiceModalOpen(open: Boolean) {
         _uiState.update { it.copy(isVoiceModalOpen = open) }
     }
 
+    /**
+     * Updates the qr scanner open.
+     */
     fun setQrScannerOpen(open: Boolean) {
         _uiState.update { it.copy(isQrScannerOpen = open) }
     }
@@ -118,6 +143,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Handles on query change events.
+     */
     fun onQueryChange(newQuery: String) {
         _uiState.update { it.copy(searchQuery = newQuery) }
 
@@ -154,6 +182,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Executes the select category operation.
+     */
     fun selectCategory(category: SearchCategory) {
         _uiState.update { it.copy(activeCategory = category) }
         val currentQuery = _uiState.value.searchQuery
@@ -162,6 +193,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Executes the execute search operation.
+     */
     fun executeSearch(query: String, category: SearchCategory = _uiState.value.activeCategory) {
         val cleanQuery = query.trim()
         if (cleanQuery.isEmpty()) return
@@ -213,6 +247,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Executes the open in app browser operation.
+     */
     fun openInAppBrowser(url: String, isTor: Boolean = false) {
         if (url.isNotBlank() && TabManager.tabs.value.none { it.id == TabManager.activeTabId.value && it.url == url }) {
             TabManager.openTab(url, if (isTor) "Tor Browsing" else "Webpage", isTor = isTor)
@@ -227,6 +264,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Executes the close in app browser operation.
+     */
     fun closeInAppBrowser() {
         _uiState.update {
             it.copy(
@@ -239,6 +279,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Executes the close results screen operation.
+     */
     fun closeResultsScreen() {
         _uiState.update {
             it.copy(
@@ -250,6 +293,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Updates the search expanded.
+     */
     fun setSearchExpanded(expanded: Boolean) {
         _uiState.update {
             it.copy(
@@ -261,27 +307,45 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Updates the settings open.
+     */
     fun setSettingsOpen(open: Boolean) {
         _uiState.update { it.copy(isSettingsOpen = open) }
     }
 
+    /**
+     * Updates the privacy modal open.
+     */
     fun setPrivacyModalOpen(open: Boolean) {
         _uiState.update { it.copy(isPrivacyModalOpen = open) }
     }
 
+    /**
+     * Updates the terms modal open.
+     */
     fun setTermsModalOpen(open: Boolean) {
         _uiState.update { it.copy(isTermsModalOpen = open) }
     }
 
+    /**
+     * Updates the about modal open.
+     */
     fun setAboutModalOpen(open: Boolean) {
         _uiState.update { it.copy(isAboutModalOpen = open) }
     }
 
+    /**
+     * Updates the safe search.
+     */
     fun setSafeSearch(mode: String) {
         preferences.setSafeSearch(mode)
         _uiState.update { it.copy(selectedSafeSearch = mode) }
     }
 
+    /**
+     * Updates the theme mode.
+     */
     fun setThemeMode(mode: String) {
         val cleanMode = mode.lowercase()
         preferences.setThemeMode(cleanMode)
@@ -290,50 +354,80 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(selectedThemeMode = cleanMode) }
     }
 
+    /**
+     * Updates the location.
+     */
     fun setLocation(location: SearchLocation) {
         preferences.setLocation(location.name)
         _uiState.update { it.copy(selectedLocation = location) }
     }
 
+    /**
+     * Clears all recent searches.
+     */
     fun clearRecentSearches() {
         preferences.clearRecentSearches()
         _uiState.update { it.copy(recentSearches = emptyList()) }
     }
 
+    /**
+     * Executes the complete onboarding operation.
+     */
     fun completeOnboarding() {
         preferences.setOnboardingCompleted(true)
         _uiState.update { it.copy(isOnboardingVisible = false) }
     }
 
+    /**
+     * Updates the browser engine.
+     */
     fun setBrowserEngine(engine: String) {
         preferences.setBrowserEngine(engine)
         _uiState.update { it.copy(selectedBrowserEngine = engine.lowercase()) }
     }
 
+    /**
+     * Updates the doh provider.
+     */
     fun setDohProvider(providerId: String) {
         preferences.setDohProvider(providerId)
         _uiState.update { it.copy(selectedDohProvider = providerId.lowercase()) }
     }
 
+    /**
+     * Updates the search engine.
+     */
     fun setSearchEngine(engineId: String) {
         preferences.setSearchEngine(engineId)
         _uiState.update { it.copy(selectedSearchEngine = engineId.lowercase()) }
     }
 
+    /**
+     * Updates the search engine sheet open.
+     */
     fun setSearchEngineSheetOpen(open: Boolean) {
         _uiState.update { it.copy(isSearchEngineSheetOpen = open) }
     }
 
+    /**
+     * Updates the app language.
+     */
     fun setAppLanguage(languageCode: String) {
         preferences.setAppLanguage(languageCode)
         com.azokle.search.common.util.LocaleHelper.setAppLocale(languageCode)
         _uiState.update { it.copy(selectedLanguage = languageCode.lowercase()) }
     }
 
+    /**
+     * Updates the language sheet open.
+     */
     fun setLanguageSheetOpen(open: Boolean) {
         _uiState.update { it.copy(isLanguageSheetOpen = open) }
     }
 
+    /**
+     * Executes the show onboarding operation.
+     */
     fun showOnboarding() {
         _uiState.update { it.copy(isOnboardingVisible = true) }
     }

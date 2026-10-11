@@ -1,3 +1,17 @@
+// Copyright (c) 2026 The Azokle Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 pub mod client;
 pub mod dns;
 pub mod error;
@@ -32,6 +46,7 @@ pub struct ParsedWebPage {
 pub struct HttpClient;
 
 impl HttpClient {
+    /// Performs fetch url operation.
     pub fn fetch_url(url: &str, is_tor: bool) -> Result<ParsedWebPage, String> {
         let client = SovereignHttpClient::default();
         let mut req = HttpRequest::get(url);
@@ -47,6 +62,7 @@ impl HttpClient {
 pub struct HtmlExtractor;
 
 impl HtmlExtractor {
+    /// Parses html from the given input.
     pub fn parse_html(url: &str, html: &str) -> ParsedWebPage {
         let mut title = "Web Document".to_string();
         if let Some(start) = html.find("<title>") {
@@ -147,6 +163,7 @@ impl HtmlExtractor {
         }
     }
 
+    /// Performs clean text operation.
     fn clean_text(text: &str) -> String {
         let no_tags = text
             .replace("&nbsp;", " ")
@@ -166,12 +183,14 @@ pub struct SovereignNetworkingEngine {
 }
 
 impl Default for SovereignNetworkingEngine {
+    /// Returns the default instance.
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl SovereignNetworkingEngine {
+    /// Creates a new instance with default configuration.
     pub fn new() -> Self {
         let dns = Arc::new(SovereignDnsResolver::new());
         let proxy = Arc::new(ProxyRouter::new());

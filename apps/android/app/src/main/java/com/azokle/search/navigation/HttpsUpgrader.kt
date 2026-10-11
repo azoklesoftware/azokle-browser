@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.navigation
 
 import java.net.URI
@@ -7,11 +23,29 @@ import java.util.concurrent.ConcurrentHashMap
  * Interface contract for HTTPS Upgrade Engine.
  */
 interface IHttpsUpgrader {
+    /**
+     * Executes the should upgrade operation.
+     */
     fun shouldUpgrade(rawUrl: String): Boolean
+    /**
+     * Executes the upgrade operation.
+     */
     fun upgrade(rawUrl: String): String
+    /**
+     * Executes the record upgrade failure operation.
+     */
     fun recordUpgradeFailure(host: String)
+    /**
+     * Executes the add exception operation.
+     */
     fun addException(host: String)
+    /**
+     * Removes the specified exception.
+     */
     fun removeException(host: String)
+    /**
+     * Checks whether exception.
+     */
     fun isException(host: String): Boolean
 }
 
@@ -69,6 +103,9 @@ object HttpsUpgrader : IHttpsUpgrader {
         return "https://" + trimmed.substring(7)
     }
 
+    /**
+     * Executes the record upgrade failure operation.
+     */
     override fun recordUpgradeFailure(host: String) {
         val cleanHost = host.lowercase().trim()
         if (cleanHost.isNotBlank()) {
@@ -76,6 +113,9 @@ object HttpsUpgrader : IHttpsUpgrader {
         }
     }
 
+    /**
+     * Executes the add exception operation.
+     */
     override fun addException(host: String) {
         val cleanHost = host.lowercase().trim()
         if (cleanHost.isNotBlank()) {
@@ -83,20 +123,32 @@ object HttpsUpgrader : IHttpsUpgrader {
         }
     }
 
+    /**
+     * Removes the specified exception.
+     */
     override fun removeException(host: String) {
         userExceptions.remove(host.lowercase().trim())
     }
 
+    /**
+     * Checks whether exception.
+     */
     override fun isException(host: String): Boolean {
         val cleanHost = host.lowercase().trim()
         return userExceptions.contains(cleanHost) ||
                 userExceptions.any { cleanHost.endsWith(".$it") }
     }
 
+    /**
+     * Clears all session failures.
+     */
     fun clearSessionFailures() {
         failedUpgradeHosts.clear()
     }
 
+    /**
+     * Checks whether local or onion host.
+     */
     private fun isLocalOrOnionHost(host: String): Boolean {
         val lower = host.lowercase()
         return lower == "localhost" ||
@@ -108,6 +160,9 @@ object HttpsUpgrader : IHttpsUpgrader {
                 (lower.startsWith("172.") && isPrivateSubnet172(lower))
     }
 
+    /**
+     * Checks whether private subnet172.
+     */
     private fun isPrivateSubnet172(host: String): Boolean {
         val parts = host.split('.')
         if (parts.size >= 2) {
@@ -117,6 +172,9 @@ object HttpsUpgrader : IHttpsUpgrader {
         return false
     }
 
+    /**
+     * Executes the extract host operation.
+     */
     private fun extractHost(rawUrl: String): String? {
         return try {
             val uri = URI(rawUrl)

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.engine.ui
 
 import android.content.ClipboardManager
@@ -158,6 +174,9 @@ fun BrowserUrlEditSheet(
     val locationCode = remember(preferences) { preferences.getLocation() }
     val safeSearch = remember(preferences) { preferences.getSafeSearch() }
 
+    /**
+     * Executes the resolve target operation.
+     */
     fun resolveTarget(query: String): String {
         return UrlHelper.resolveSearchOrUrl(
             input = query,
@@ -802,6 +821,9 @@ private data class SuggestionRowData(
     val badge: String?
 )
 
+/**
+ * Composable that renders the top site tile UI component.
+ */
 @Composable
 private fun TopSiteTile(
     site: HistoryItem,
@@ -852,6 +874,9 @@ private fun TopSiteTile(
     }
 }
 
+/**
+ * Composable that renders the domain autocomplete card UI component.
+ */
 @Composable
 private fun DomainAutocompleteCard(
     match: DomainMatch,
@@ -949,6 +974,9 @@ private fun DomainAutocompleteCard(
     }
 }
 
+/**
+ * Composable that renders the primary direct action card UI component.
+ */
 @Composable
 private fun PrimaryDirectActionCard(
     isUrl: Boolean,
@@ -1019,6 +1047,9 @@ private fun PrimaryDirectActionCard(
     }
 }
 
+/**
+ * Composable that renders the suggestion item row UI component.
+ */
 @Composable
 private fun SuggestionItemRow(
     item: SuggestionRowData,
@@ -1122,6 +1153,9 @@ private fun SuggestionItemRow(
     }
 }
 
+/**
+ * Composable that renders the recent search item row UI component.
+ */
 @Composable
 private fun RecentSearchItemRow(
     text: String,
@@ -1195,6 +1229,9 @@ private fun RecentSearchItemRow(
     }
 }
 
+/**
+ * Composable that renders the bookmark item row UI component.
+ */
 @Composable
 private fun BookmarkItemRow(
     title: String,

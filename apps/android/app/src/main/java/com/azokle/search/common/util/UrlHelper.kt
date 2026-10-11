@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.common.util
 
 import android.content.Context
@@ -48,11 +64,17 @@ object UrlHelper {
         return null
     }
 
+    /**
+     * Checks whether allowed scheme.
+     */
     fun isAllowedScheme(url: String): Boolean {
         val scheme = extractScheme(url)
         return scheme == null || scheme in ALLOWED_SCHEMES
     }
 
+    /**
+     * Executes the strip tracking parameters operation.
+     */
     fun stripTrackingParameters(rawUrl: String): String {
         val trimmed = rawUrl.trim()
         if (trimmed.isBlank() || trimmed.startsWith("about:", ignoreCase = true)) return trimmed
@@ -94,6 +116,9 @@ object UrlHelper {
         }
     }
 
+    /**
+     * Checks whether direct url.
+     */
     fun isDirectUrl(input: String): Boolean {
         val trimmed = input.trim()
         if (trimmed.contains(" ") || trimmed.isEmpty()) return false
@@ -119,6 +144,9 @@ object UrlHelper {
         return TLD_REGEX.matches(trimmed) || IP_REGEX.matches(trimmed) || IPV6_REGEX.matches(trimmed)
     }
 
+    /**
+     * Retrieves the search engine query url.
+     */
     fun getSearchEngineQueryUrl(context: Context?): String {
         if (context != null) {
             try {
@@ -132,6 +160,9 @@ object UrlHelper {
         return com.azokle.search.common.util.SEARCH_ENGINE_PROVIDERS[0].queryUrl
     }
 
+    /**
+     * Executes the resolve search or url operation.
+     */
     fun resolveSearchOrUrl(
         context: Context?,
         input: String,
@@ -153,6 +184,9 @@ object UrlHelper {
         )
     }
 
+    /**
+     * Executes the resolve search or url operation.
+     */
     fun resolveSearchOrUrl(
         input: String,
         searchEngineQueryUrl: String = "https://search.azokle.com/search?q=",
@@ -188,6 +222,9 @@ object UrlHelper {
         return buildSearchUrl(trimmed, searchEngineQueryUrl, locationCode, safeSearch, basePath)
     }
 
+    /**
+     * Executes the build search url operation.
+     */
     private fun buildSearchUrl(
         query: String,
         searchEngineQueryUrl: String,
@@ -250,6 +287,9 @@ object UrlHelper {
         }
     }
 
+    /**
+     * Executes the extract query param operation.
+     */
     private fun extractQueryParam(queryString: String, paramName: String): String? {
         val hashIdx = queryString.indexOf('#')
         val cleanQuery = if (hashIdx != -1) queryString.substring(0, hashIdx) else queryString

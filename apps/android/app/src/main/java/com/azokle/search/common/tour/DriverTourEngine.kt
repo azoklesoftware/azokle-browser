@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.common.tour
 
 import androidx.compose.animation.AnimatedContent
@@ -127,6 +143,9 @@ class TourState(
     val isLastStep: Boolean
         get() = currentStepIndex == steps.lastIndex
 
+    /**
+     * Executes the start operation.
+     */
     fun start(fromIndex: Int = 0) {
         if (steps.isNotEmpty()) {
             currentStepIndex = fromIndex.coerceIn(0, steps.lastIndex)
@@ -134,6 +153,9 @@ class TourState(
         }
     }
 
+    /**
+     * Executes the next operation.
+     */
     fun next() {
         if (currentStepIndex < steps.lastIndex) {
             currentStepIndex++
@@ -142,21 +164,33 @@ class TourState(
         }
     }
 
+    /**
+     * Executes the previous operation.
+     */
     fun previous() {
         if (currentStepIndex > 0) {
             currentStepIndex--
         }
     }
 
+    /**
+     * Executes the skip operation.
+     */
     fun skip() {
         finish()
     }
 
+    /**
+     * Executes the finish operation.
+     */
     fun finish() {
         isVisible = false
         onTourFinished()
     }
 
+    /**
+     * Executes the register target operation.
+     */
     fun registerTarget(stepId: String, coordinates: LayoutCoordinates) {
         if (coordinates.isAttached) {
             val pos = coordinates.positionInRoot()
@@ -171,6 +205,9 @@ class TourState(
     }
 }
 
+/**
+ * Composable that renders the remember tour state UI component.
+ */
 @Composable
 fun rememberTourState(
     steps: List<TourStep>,
@@ -181,6 +218,9 @@ fun rememberTourState(
     }
 }
 
+/**
+ * Executes the tour target operation.
+ */
 fun Modifier.tourTarget(
     step: TourStep,
     tourState: TourState

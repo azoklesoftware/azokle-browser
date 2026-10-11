@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.adblock
 
 import android.content.Context
@@ -26,10 +42,16 @@ class AdBlockEngine private constructor() {
         val instance: AdBlockEngine by lazy { AdBlockEngine() }
     }
 
+    /**
+     * Initializes ialize.
+     */
     fun initialize(context: Context) {
         AzokleCore.initialize(context)
     }
 
+    /**
+     * Retrieves the shield state.
+     */
     fun getShieldState(host: String): ShieldHostState {
         val cleanHost = host.lowercase().trim()
         return when {
@@ -40,6 +62,9 @@ class AdBlockEngine private constructor() {
         }
     }
 
+    /**
+     * Checks whether shield enabled.
+     */
     fun isShieldEnabled(host: String): Boolean {
         val cleanHost = host.lowercase().trim()
         if (sessionDisabledHosts.contains(cleanHost) || permanentDisabledHosts.contains(cleanHost)) {
@@ -48,10 +73,16 @@ class AdBlockEngine private constructor() {
         return AzokleCore.isShieldActiveForHost(cleanHost)
     }
 
+    /**
+     * Checks whether shield paused until relaunch.
+     */
     fun isShieldPausedUntilRelaunch(host: String): Boolean {
         return sessionDisabledHosts.contains(host.lowercase().trim())
     }
 
+    /**
+     * Retrieves the disabled hosts list.
+     */
     fun getDisabledHostsList(): List<String> {
         val all = HashSet<String>()
         all.addAll(permanentDisabledHosts)
@@ -59,6 +90,9 @@ class AdBlockEngine private constructor() {
         return all.toList()
     }
 
+    /**
+     * Executes the enable shield operation.
+     */
     fun enableShield(host: String) {
         val cleanHost = host.lowercase().trim()
         sessionDisabledHosts.remove(cleanHost)
@@ -67,6 +101,9 @@ class AdBlockEngine private constructor() {
         com.azokle.search.engine.GeckoEngineManager.notifyDisabledHostsChanged(getDisabledHostsList())
     }
 
+    /**
+     * Executes the pause shield until relaunch operation.
+     */
     fun pauseShieldUntilRelaunch(host: String) {
         val cleanHost = host.lowercase().trim()
         permanentDisabledHosts.remove(cleanHost)
@@ -74,6 +111,9 @@ class AdBlockEngine private constructor() {
         com.azokle.search.engine.GeckoEngineManager.notifyDisabledHostsChanged(getDisabledHostsList())
     }
 
+    /**
+     * Executes the disable shield permanently operation.
+     */
     fun disableShieldPermanently(host: String) {
         val cleanHost = host.lowercase().trim()
         sessionDisabledHosts.remove(cleanHost)
@@ -82,6 +122,9 @@ class AdBlockEngine private constructor() {
         com.azokle.search.engine.GeckoEngineManager.notifyDisabledHostsChanged(getDisabledHostsList())
     }
 
+    /**
+     * Toggles the state of shield.
+     */
     fun toggleShield(host: String): Boolean {
         val cleanHost = host.lowercase().trim()
         val currentlyActive = isShieldEnabled(cleanHost)
@@ -94,18 +137,30 @@ class AdBlockEngine private constructor() {
         }
     }
 
+    /**
+     * Validates check url according to security policies.
+     */
     fun checkUrl(url: String, sourceOrigin: String? = null, requestType: String? = null, isThirdParty: Boolean = true): FilterDecision {
         return AzokleCore.shouldBlock(url, sourceOrigin, requestType, isThirdParty)
     }
 
+    /**
+     * Executes the clean url operation.
+     */
     fun cleanUrl(url: String): String {
         return AzokleCore.cleanTrackingParameters(url)
     }
 
+    /**
+     * Retrieves the cosmetic css.
+     */
     fun getCosmeticCss(domain: String): String {
         return AzokleCore.getCosmeticStyles(domain)
     }
 
+    /**
+     * Retrieves the scriptlets.
+     */
     fun getScriptlets(domain: String): String {
         return AzokleCore.getDefuserScriptlet(domain)
     }

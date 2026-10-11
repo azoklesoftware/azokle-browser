@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.permissions
 
 import android.content.Context
@@ -28,6 +44,9 @@ class SitePermissionsManager private constructor(context: Context) {
         loadFromDisk()
     }
 
+    /**
+     * Loads from disk.
+     */
     private fun loadFromDisk() {
         try {
             val jsonStr = prefs.getString(KEY_SITE_PERMISSIONS, null) ?: return
@@ -37,6 +56,9 @@ class SitePermissionsManager private constructor(context: Context) {
         }
     }
 
+    /**
+     * Persists to disk to storage.
+     */
     private fun saveToDisk() {
         try {
             val jsonStr = AzokleCore.exportPermissionsJson()
@@ -98,6 +120,9 @@ class SitePermissionsManager private constructor(context: Context) {
         }
     }
 
+    /**
+     * Retrieves the permission.
+     */
     fun getPermission(
         originOrUri: String,
         type: SitePermissionType,
@@ -114,6 +139,9 @@ class SitePermissionsManager private constructor(context: Context) {
         }
     }
 
+    /**
+     * Updates the permission.
+     */
     fun setPermission(
         originOrUri: String,
         type: SitePermissionType,
@@ -131,26 +159,41 @@ class SitePermissionsManager private constructor(context: Context) {
         }
     }
 
+    /**
+     * Removes the specified permission.
+     */
     fun removePermission(originOrUri: String, type: SitePermissionType, isPrivate: Boolean = false) {
         setPermission(originOrUri, type, SitePermissionState.ASK, isPrivate)
     }
 
+    /**
+     * Clears all host permissions.
+     */
     fun clearHostPermissions(originOrUri: String) {
         val origin = canonicalizeOrigin(originOrUri)
         AzokleCore.clearPermissionsForOrigin(origin)
         saveToDisk()
     }
 
+    /**
+     * Clears all private permissions.
+     */
     fun clearPrivatePermissions() {
         AzokleCore.clearEphemeralPermissions()
         _updatesFlow.value = System.currentTimeMillis()
     }
 
+    /**
+     * Clears all all permissions.
+     */
     fun clearAllPermissions() {
         AzokleCore.clearAllPermissions()
         saveToDisk()
     }
 
+    /**
+     * Retrieves the host permissions.
+     */
     fun getHostPermissions(originOrUri: String, isPrivate: Boolean = false): Map<SitePermissionType, SitePermissionState> {
         val origin = canonicalizeOrigin(originOrUri)
         val json = AzokleCore.getSitePermissionsJson(origin, isPrivate)
@@ -169,6 +212,9 @@ class SitePermissionsManager private constructor(context: Context) {
         return result
     }
 
+    /**
+     * Retrieves the all customized sites.
+     */
     fun getAllCustomizedSites(): Map<String, Map<SitePermissionType, SitePermissionState>> {
         val origins = AzokleCore.getAllCustomizedPermissionOrigins()
         val result = mutableMapOf<String, Map<SitePermissionType, SitePermissionState>>()
@@ -181,6 +227,9 @@ class SitePermissionsManager private constructor(context: Context) {
         return result
     }
 
+    /**
+     * Retrieves the global default.
+     */
     fun getGlobalDefault(type: SitePermissionType): SitePermissionState {
         val key = KEY_DEFAULT_PREFIX + type.name
         val defaultFallback = if (type == SitePermissionType.AUTOPLAY) {
@@ -196,24 +245,39 @@ class SitePermissionsManager private constructor(context: Context) {
         }
     }
 
+    /**
+     * Updates the global default.
+     */
     fun setGlobalDefault(type: SitePermissionType, state: SitePermissionState) {
         val key = KEY_DEFAULT_PREFIX + type.name
         prefs.edit().putString(key, state.name).apply()
         _updatesFlow.value = System.currentTimeMillis()
     }
 
+    /**
+     * Retrieves the autoplay policy.
+     */
     fun getAutoplayPolicy(originOrUri: String, isPrivate: Boolean = false): SitePermissionState {
         return getPermission(originOrUri, SitePermissionType.AUTOPLAY, isPrivate = isPrivate)
     }
 
+    /**
+     * Updates the autoplay policy.
+     */
     fun setAutoplayPolicy(originOrUri: String, state: SitePermissionState, isPrivate: Boolean = false) {
         setPermission(originOrUri, SitePermissionType.AUTOPLAY, state, isPrivate = isPrivate)
     }
 
+    /**
+     * Retrieves the global autoplay policy.
+     */
     fun getGlobalAutoplayPolicy(): SitePermissionState {
         return getGlobalDefault(SitePermissionType.AUTOPLAY)
     }
 
+    /**
+     * Updates the global autoplay policy.
+     */
     fun setGlobalAutoplayPolicy(state: SitePermissionState) {
         setGlobalDefault(SitePermissionType.AUTOPLAY, state)
     }
@@ -226,6 +290,9 @@ class SitePermissionsManager private constructor(context: Context) {
         @Volatile
         private var INSTANCE: SitePermissionsManager? = null
 
+        /**
+         * Retrieves the instance.
+         */
         fun getInstance(context: Context): SitePermissionsManager {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: SitePermissionsManager(context.applicationContext).also { INSTANCE = it }

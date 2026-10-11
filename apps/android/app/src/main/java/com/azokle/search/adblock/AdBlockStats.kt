@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.adblock
 
 import android.content.Context
@@ -41,6 +57,9 @@ object AdBlockStats {
     private val _lifetimeStats = MutableStateFlow(LifetimeShieldStats())
     val lifetimeStats: StateFlow<LifetimeShieldStats> = _lifetimeStats.asStateFlow()
 
+    /**
+     * Initializes .
+     */
     fun init(context: Context) {
         if (isInitialized.compareAndSet(false, true)) {
             val appContext = context.applicationContext ?: context
@@ -61,6 +80,9 @@ object AdBlockStats {
         }
     }
 
+    /**
+     * Resets for page to default state.
+     */
     fun resetForPage(url: String, host: String, isEnabled: Boolean) {
         _currentStats.value = PageShieldStats(
             url = url,
@@ -73,6 +95,9 @@ object AdBlockStats {
         )
     }
 
+    /**
+     * Executes the record block operation.
+     */
     fun recordBlock(blockedHost: String, categoryId: Int? = null) {
         val cleanHost = blockedHost.lowercase().trim()
         if (cleanHost.isBlank() ||
@@ -148,12 +173,18 @@ object AdBlockStats {
         }
     }
 
+    /**
+     * Toggles the state of shield.
+     */
     fun toggleShield(forcedState: Boolean? = null) {
         _currentStats.update { current ->
             current.copy(isShieldEnabled = forcedState ?: !current.isShieldEnabled)
         }
     }
 
+    /**
+     * Retrieves the total lifetime blocked.
+     */
     fun getTotalLifetimeBlocked(): Long {
         val rustTotal = AzokleCore.shieldStats.value.totalLifetimeBlocked.toLong()
         val flowTotal = _lifetimeStats.value.totalLifetimeBlocked

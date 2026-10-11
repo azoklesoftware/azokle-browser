@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.pwa
 
 import org.json.JSONArray
@@ -11,6 +27,9 @@ enum class DisplayMode {
     BROWSER;
 
     companion object {
+        /**
+         * Executes the from string operation.
+         */
         fun fromString(value: String?): DisplayMode {
             return when (value?.lowercase()?.trim()) {
                 "standalone" -> STANDALONE
@@ -28,6 +47,9 @@ data class ManifestIcon(
     val type: String = "",
     val purpose: String = "any" // "any", "maskable", "monochrome"
 ) {
+    /**
+     * Retrieves the dimensions.
+     */
     fun getDimensions(): Pair<Int, Int> {
         val match = Regex("(\\d+)x(\\d+)").find(sizes)
         return if (match != null) {
@@ -39,6 +61,9 @@ data class ManifestIcon(
         }
     }
 
+    /**
+     * Checks whether maskable.
+     */
     fun isMaskable(): Boolean = purpose.contains("maskable", ignoreCase = true)
 }
 
@@ -64,6 +89,9 @@ data class WebAppManifest(
     val shortcuts: List<ManifestShortcut> = emptyList(),
     val id: String = ""
 ) {
+    /**
+     * Retrieves the best icon url.
+     */
     fun getBestIconUrl(preferMaskable: Boolean = false): String? {
         if (icons.isEmpty()) return null
 
@@ -83,6 +111,9 @@ data class WebAppManifest(
     }
 
     companion object {
+        /**
+         * Parses  from the input data.
+         */
         fun parse(
             jsonString: String,
             manifestUrl: String,
@@ -181,6 +212,9 @@ data class WebAppManifest(
             }
         }
 
+        /**
+         * Executes the resolve url operation.
+         */
         fun resolveUrl(baseUrl: String, relativeOrAbsolute: String): String {
             val trimmed = relativeOrAbsolute.trim()
             if (trimmed.startsWith("http://", ignoreCase = true) ||
@@ -196,6 +230,9 @@ data class WebAppManifest(
             }
         }
 
+        /**
+         * Parses color from the input data.
+         */
         fun parseColor(colorStr: String?): Int? {
             if (colorStr.isNullOrBlank()) return null
             val trimmed = colorStr.trim()

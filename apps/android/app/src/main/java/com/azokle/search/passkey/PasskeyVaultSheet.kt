@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.passkey
 
 import androidx.compose.foundation.background
@@ -27,6 +43,9 @@ import com.azokle.search.common.theme.AzokleRadius
 import com.azokle.search.common.theme.AzokleTheme
 import com.azokle.search.common.theme.adaptiveContentWidth
 
+/**
+ * Composable that renders the passkey vault sheet UI component.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PasskeyVaultSheet(
@@ -210,6 +229,9 @@ fun PasskeyVaultSheet(
     }
 }
 
+/**
+ * Composable that renders the passkey row item UI component.
+ */
 @Composable
 fun PasskeyRowItem(
     passkey: PasskeyItem,

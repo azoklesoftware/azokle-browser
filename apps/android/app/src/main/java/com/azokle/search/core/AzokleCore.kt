@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.core
 
 import android.content.Context
@@ -232,6 +248,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Loads surrogates and dynamic rules.
+     */
     private fun loadSurrogatesAndDynamicRules(context: Context) {
         val assetManager = context.assets
         val adblockFolder = "adblock"
@@ -267,6 +286,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Loads assets rules.
+     */
     private fun loadAssetsRules(context: Context) {
         val assetManager = context.assets
         val adblockFolder = "adblock"
@@ -318,6 +340,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Parses category from the input data.
+     */
     private fun parseCategory(json: JSONObject): Int {
         val opt = json.opt("category") ?: return 0
         return when (opt) {
@@ -335,6 +360,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Loads asset file.
+     */
     private fun loadAssetFile(assetManager: android.content.res.AssetManager, path: String): String? {
         val candidatePaths = if (path.startsWith("adblock/")) {
             listOf("data/filters/" + path.removePrefix("adblock/"), path)
@@ -480,6 +508,9 @@ object AzokleCore {
         "tr.", "tag.", "tags.", "beacon.", "pixel.", "trk.", "smetrics."
     )
 
+    /**
+     * Checks whether suspected cloaked tracker.
+     */
     private fun isSuspectedCloakedTracker(host: String): Boolean {
         if (host.isBlank()) return false
         return CLOAKED_PREFIXES.any { host.startsWith(it) }
@@ -535,6 +566,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Checks whether tracker host.
+     */
     fun isTrackerHost(host: String): Boolean {
         if (!isNativeLoaded || host.isBlank()) return false
         return try {
@@ -544,6 +578,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Toggles the state of shield for host.
+     */
     fun toggleShieldForHost(host: String, enabled: Boolean): Boolean {
         if (!isNativeLoaded || host.isBlank()) return enabled
         return try {
@@ -553,6 +590,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Checks whether shield active for host.
+     */
     fun isShieldActiveForHost(host: String): Boolean {
         if (!isNativeLoaded || host.isBlank()) return true
         return try {
@@ -562,6 +602,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Executes the record blocked host operation.
+     */
     fun recordBlockedHost(host: String, categoryId: Int = 1) {
         if (!isNativeLoaded || host.isBlank()) return
         try {
@@ -593,6 +636,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Executes the refresh shield stats operation.
+     */
     fun refreshShieldStats() {
         if (!isNativeLoaded) return
         try {
@@ -627,6 +673,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Executes the rotate tor circuit operation.
+     */
     fun rotateTorCircuit(controlPort: Int = 9051, auth: String = ""): Pair<Boolean, String> {
         if (!isNativeLoaded) return Pair(false, "Native core not loaded")
         return try {
@@ -641,6 +690,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Executes the verify tor exit operation.
+     */
     fun verifyTorExit(socksPort: Int = 9050): JSONObject? {
         if (!isNativeLoaded) return null
         return try {
@@ -652,6 +704,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Executes the resolve tor url operation.
+     */
     fun resolveTorUrl(rawInput: String, searchEngineQueryUrl: String = "https://duckduckgo.com/?q="): String {
         if (!isNativeLoaded || rawInput.isBlank()) return rawInput
         return try {
@@ -661,6 +716,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Checks whether onion url.
+     */
     fun isOnionUrl(url: String): Boolean {
         if (!isNativeLoaded || url.isBlank()) return url.contains(".onion", ignoreCase = true)
         return try {
@@ -670,6 +728,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Retrieves the do h endpoint.
+     */
     fun getDoHEndpoint(providerName: String): String {
         if (!isNativeLoaded) return "https://cloudflare-dns.com/dns-query"
         return try {
@@ -690,6 +751,9 @@ object AzokleCore {
         } catch (e: Exception) {}
     }
 
+    /**
+     * Retrieves the site permission.
+     */
     fun getSitePermission(origin: String, permType: String, isPrivate: Boolean = false): String {
         if (!isNativeLoaded || origin.isBlank()) return "PROMPT"
         return try {
@@ -699,6 +763,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Clears all permissions for origin.
+     */
     fun clearPermissionsForOrigin(origin: String) {
         if (!isNativeLoaded || origin.isBlank()) return
         try {
@@ -706,6 +773,9 @@ object AzokleCore {
         } catch (e: Throwable) {}
     }
 
+    /**
+     * Clears all all permissions.
+     */
     fun clearAllPermissions() {
         if (!isNativeLoaded) return
         try {
@@ -713,6 +783,9 @@ object AzokleCore {
         } catch (e: Throwable) {}
     }
 
+    /**
+     * Clears all ephemeral permissions.
+     */
     fun clearEphemeralPermissions() {
         if (!isNativeLoaded) return
         try {
@@ -720,6 +793,9 @@ object AzokleCore {
         } catch (e: Throwable) {}
     }
 
+    /**
+     * Retrieves the site permissions json.
+     */
     fun getSitePermissionsJson(origin: String, isPrivate: Boolean = false): JSONObject {
         if (!isNativeLoaded || origin.isBlank()) return JSONObject()
         return try {
@@ -729,6 +805,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Retrieves the all customized permission origins.
+     */
     fun getAllCustomizedPermissionOrigins(): List<String> {
         if (!isNativeLoaded) return emptyList()
         return try {
@@ -739,6 +818,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Executes the export permissions json operation.
+     */
     fun exportPermissionsJson(): String {
         if (!isNativeLoaded) return "{}"
         return try {
@@ -748,6 +830,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Executes the import permissions json operation.
+     */
     fun importPermissionsJson(jsonData: String): Int {
         if (!isNativeLoaded || jsonData.isBlank()) return 0
         return try {
@@ -757,6 +842,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Executes the record permission audit operation.
+     */
     fun recordPermissionAudit(origin: String, permType: String, state: String, isPrivate: Boolean = false): JSONObject? {
         if (!isNativeLoaded || origin.isBlank()) return null
         return try {
@@ -767,6 +855,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Retrieves the permission audit history.
+     */
     fun getPermissionAuditHistory(limit: Int = 50, offset: Int = 0): org.json.JSONArray {
         if (!isNativeLoaded) return org.json.JSONArray()
         return try {
@@ -776,6 +867,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Retrieves the permission audit history for origin.
+     */
     fun getPermissionAuditHistoryForOrigin(origin: String): org.json.JSONArray {
         if (!isNativeLoaded || origin.isBlank()) return org.json.JSONArray()
         return try {
@@ -785,6 +879,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Clears all permission audit history.
+     */
     fun clearPermissionAuditHistory() {
         if (!isNativeLoaded) return
         try {
@@ -806,6 +903,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Executes the record history typed visit operation.
+     */
     fun recordHistoryTypedVisit(title: String, url: String, isPrivate: Boolean = false): JSONObject? {
         if (!isNativeLoaded || url.isBlank() || isPrivate) return null
         return try {
@@ -816,6 +916,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Searches for history.
+     */
     fun searchHistory(query: String, limit: Int = 20): org.json.JSONArray {
         if (!isNativeLoaded) return org.json.JSONArray()
         return try {
@@ -825,6 +928,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Searches for history frecency.
+     */
     fun searchHistoryFrecency(query: String, limit: Int = 20): org.json.JSONArray {
         if (!isNativeLoaded) return org.json.JSONArray()
         return try {
@@ -834,6 +940,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Retrieves the top frecency history.
+     */
     fun getTopFrecencyHistory(limit: Int = 20): org.json.JSONArray {
         if (!isNativeLoaded) return org.json.JSONArray()
         return try {
@@ -843,6 +952,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Retrieves the top history domains.
+     */
     fun getTopHistoryDomains(limit: Int = 10): org.json.JSONArray {
         if (!isNativeLoaded) return org.json.JSONArray()
         return try {
@@ -852,6 +964,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Retrieves the grouped history timeline.
+     */
     fun getGroupedHistoryTimeline(): JSONObject {
         if (!isNativeLoaded) return JSONObject()
         return try {
@@ -861,6 +976,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Retrieves the recent history.
+     */
     fun getRecentHistory(limit: Int = 50, offset: Int = 0): org.json.JSONArray {
         if (!isNativeLoaded) return org.json.JSONArray()
         return try {
@@ -870,6 +988,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Removes the specified history entry.
+     */
     fun deleteHistoryEntry(id: String): Boolean {
         if (!isNativeLoaded || id.isBlank()) return false
         return try {
@@ -879,6 +1000,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Removes the specified history url.
+     */
     fun deleteHistoryUrl(url: String): Boolean {
         if (!isNativeLoaded || url.isBlank()) return false
         return try {
@@ -888,6 +1012,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Clears all history range.
+     */
     fun clearHistoryRange(fromMs: Long, toMs: Long): Int {
         if (!isNativeLoaded) return 0
         return try {
@@ -897,6 +1024,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Clears all all history.
+     */
     fun clearAllHistory() {
         if (!isNativeLoaded) return
         try {
@@ -904,6 +1034,9 @@ object AzokleCore {
         } catch (e: Exception) {}
     }
 
+    /**
+     * Executes the export history json operation.
+     */
     fun exportHistoryJson(): String {
         if (!isNativeLoaded) return "[]"
         return try {
@@ -913,6 +1046,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Executes the import history json operation.
+     */
     fun importHistoryJson(jsonData: String): Int {
         if (!isNativeLoaded || jsonData.isBlank()) return 0
         return try {
@@ -936,6 +1072,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Checks whether url bookmarked.
+     */
     fun isUrlBookmarked(url: String): Boolean {
         if (!isNativeLoaded || url.isBlank()) return false
         return try {
@@ -945,6 +1084,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Retrieves the all bookmarks.
+     */
     fun getAllBookmarks(): org.json.JSONArray {
         if (!isNativeLoaded) return org.json.JSONArray()
         return try {
@@ -954,6 +1096,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Searches for bookmarks.
+     */
     fun searchBookmarks(query: String): org.json.JSONArray {
         if (!isNativeLoaded) return org.json.JSONArray()
         return try {
@@ -963,6 +1108,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Removes the specified bookmark.
+     */
     fun removeBookmark(id: String): Boolean {
         if (!isNativeLoaded || id.isBlank()) return false
         return try {
@@ -992,6 +1140,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Updates download progress.
+     */
     fun updateDownloadProgress(
         id: String,
         downloadedBytes: Long,
@@ -1006,6 +1157,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Retrieves the all downloads.
+     */
     fun getAllDownloads(): org.json.JSONArray {
         if (!isNativeLoaded) return org.json.JSONArray()
         return try {
@@ -1015,6 +1169,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Removes the specified download.
+     */
     fun deleteDownload(id: String): Boolean {
         if (!isNativeLoaded || id.isBlank()) return false
         return try {
@@ -1024,6 +1181,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Executes the extract download filename operation.
+     */
     fun extractDownloadFilename(url: String, contentDisposition: String = "", mimeType: String = ""): String {
         if (!isNativeLoaded) return "download_${System.currentTimeMillis()}.bin"
         return try {
@@ -1046,6 +1206,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Updates the search engine.
+     */
     fun setSearchEngine(engine: String) {
         if (!isNativeLoaded || engine.isBlank()) return
         try {
@@ -1053,6 +1216,9 @@ object AzokleCore {
         } catch (e: Exception) {}
     }
 
+    /**
+     * Retrieves the recent search queries.
+     */
     fun getRecentSearchQueries(): List<String> {
         if (!isNativeLoaded) return emptyList()
         return try {
@@ -1063,6 +1229,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Executes the add recent search query operation.
+     */
     fun addRecentSearchQuery(query: String) {
         if (!isNativeLoaded || query.isBlank()) return
         try {
@@ -1070,6 +1239,9 @@ object AzokleCore {
         } catch (e: Exception) {}
     }
 
+    /**
+     * Clears all recent search queries.
+     */
     fun clearRecentSearchQueries() {
         if (!isNativeLoaded) return
         try {
@@ -1098,6 +1270,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Executes the tab close session operation.
+     */
     fun tabCloseSession(id: String): JSONObject? {
         if (!isNativeLoaded || id.isBlank()) return null
         return try {
@@ -1108,6 +1283,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Executes the tab restore closed operation.
+     */
     fun tabRestoreClosed(): JSONObject? {
         if (!isNativeLoaded) return null
         return try {
@@ -1118,6 +1296,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Executes the tab get active session operation.
+     */
     fun tabGetActiveSession(): JSONObject? {
         if (!isNativeLoaded) return null
         return try {
@@ -1128,6 +1309,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Executes the tab set active session operation.
+     */
     fun tabSetActiveSession(id: String): Boolean {
         if (!isNativeLoaded || id.isBlank()) return false
         return try {
@@ -1137,6 +1321,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Executes the tab update session operation.
+     */
     fun tabUpdateSession(id: String, url: String, title: String): Boolean {
         if (!isNativeLoaded || id.isBlank()) return false
         return try {
@@ -1146,6 +1333,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Executes the tab get all sessions operation.
+     */
     fun tabGetAllSessions(): org.json.JSONArray {
         if (!isNativeLoaded) return org.json.JSONArray()
         return try {
@@ -1155,6 +1345,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Executes the tab close all sessions operation.
+     */
     fun tabCloseAllSessions(includePrivate: Boolean = false) {
         if (!isNativeLoaded) return
         try {
@@ -1162,6 +1355,9 @@ object AzokleCore {
         } catch (e: Exception) {}
     }
 
+    /**
+     * Executes the tab close private sessions operation.
+     */
     fun tabClosePrivateSessions() {
         if (!isNativeLoaded) return
         try {
@@ -1169,6 +1365,9 @@ object AzokleCore {
         } catch (e: Exception) {}
     }
 
+    /**
+     * Executes the tab auto group domains operation.
+     */
     fun tabAutoGroupDomains() {
         if (!isNativeLoaded) return
         try {
@@ -1176,6 +1375,9 @@ object AzokleCore {
         } catch (e: Exception) {}
     }
 
+    /**
+     * Executes the tab export persistent json operation.
+     */
     fun tabExportPersistentJson(): String {
         if (!isNativeLoaded) return "[]"
         return try {
@@ -1185,6 +1387,9 @@ object AzokleCore {
         }
     }
 
+    /**
+     * Executes the tab import persistent json operation.
+     */
     fun tabImportPersistentJson(jsonData: String): Int {
         if (!isNativeLoaded || jsonData.isBlank()) return 0
         return try {

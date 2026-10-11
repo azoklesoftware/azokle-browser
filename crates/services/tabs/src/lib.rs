@@ -1,3 +1,17 @@
+// Copyright (c) 2026 The Azokle Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -107,6 +121,7 @@ pub struct TabManager {
 }
 
 impl Default for TabManager {
+    /// Returns the default instance.
     fn default() -> Self {
         Self::new()
     }
@@ -202,11 +217,13 @@ impl TabManager {
         Some(restored)
     }
 
+    /// Returns the active tab.
     pub fn get_active_tab(&self) -> Option<TabSession> {
         let active_id = self.active_tab_id.read().clone()?;
         self.tabs.read().iter().find(|t| t.id == active_id).cloned()
     }
 
+    /// Updates the active tab.
     pub fn set_active_tab(&self, id: &str) -> bool {
         let exists = self.tabs.read().iter().any(|t| t.id == id);
         if exists {
@@ -225,6 +242,7 @@ impl TabManager {
         }
     }
 
+    /// Updates the tab url and title.
     pub fn update_tab_url_and_title(&self, id: &str, url: &str, title: &str) -> bool {
         let mut tabs = self.tabs.write();
         if let Some(tab) = tabs.iter_mut().find(|t| t.id == id) {
@@ -240,10 +258,12 @@ impl TabManager {
         }
     }
 
+    /// Returns the all tabs.
     pub fn get_all_tabs(&self) -> Vec<TabSession> {
         self.tabs.read().clone()
     }
 
+    /// Performs close all tabs operation.
     pub fn close_all_tabs(&self, include_private: bool) {
         let mut tabs = self.tabs.write();
         if include_private {

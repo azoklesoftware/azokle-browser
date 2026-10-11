@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.pwa
 
 import android.app.ActivityManager
@@ -136,6 +152,9 @@ class PwaActivity : FragmentActivity(), FilePromptHost {
         }
     }
 
+    /**
+     * Executes the launch file picker operation.
+     */
     override fun launchFilePicker(
         prompt: GeckoSession.PromptDelegate.FilePrompt,
         result: GeckoResult<GeckoSession.PromptDelegate.PromptResponse>
@@ -180,6 +199,9 @@ class PwaActivity : FragmentActivity(), FilePromptHost {
     private var activeBgColor: Int? = null
     private var cachedIconBitmap: Bitmap? = null
 
+    /**
+     * Initializes dependencies and components when created.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -265,6 +287,9 @@ class PwaActivity : FragmentActivity(), FilePromptHost {
         }
     }
 
+    /**
+     * Executes the sanitize start url operation.
+     */
     private fun sanitizeStartUrl(rawUrl: String?): String {
         if (rawUrl.isNullOrBlank()) return "https://azokle.com"
         val trimmed = rawUrl.trim()
@@ -291,6 +316,9 @@ class PwaActivity : FragmentActivity(), FilePromptHost {
         return "https://azokle.com"
     }
 
+    /**
+     * Handles on new intent events.
+     */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -328,12 +356,18 @@ class PwaActivity : FragmentActivity(), FilePromptHost {
         }
     }
 
+    /**
+     * Handles on configuration changed events.
+     */
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         val isDark = isDarkThemeActive()
         updateSystemBars(activeThemeColor, activeBgColor, isDark)
     }
 
+    /**
+     * Checks whether dark theme active.
+     */
     private fun isDarkThemeActive(themeMode: String? = null): Boolean {
         val mode = themeMode ?: PreferencesManager(this).getThemeMode()
         return when (mode.lowercase()) {
@@ -343,6 +377,9 @@ class PwaActivity : FragmentActivity(), FilePromptHost {
         }
     }
 
+    /**
+     * Updates task description.
+     */
     private fun updateTaskDescription() {
         try {
             val primaryColor = activeThemeColor ?: AndroidColor.parseColor("#18181B")
@@ -361,6 +398,9 @@ class PwaActivity : FragmentActivity(), FilePromptHost {
         }
     }
 
+    /**
+     * Updates system bars.
+     */
     fun updateSystemBars(theme: Int?, bg: Int?, isDark: Boolean = isDarkThemeActive()) {
         val effectiveColor = theme
             ?: bg
@@ -400,6 +440,9 @@ class PwaActivity : FragmentActivity(), FilePromptHost {
         }
     }
 
+    /**
+     * Updates the full screen.
+     */
     private fun setFullScreen(fullScreen: Boolean) {
         val controller = WindowCompat.getInsetsController(window, window.decorView)
         if (fullScreen) {
@@ -417,6 +460,9 @@ class PwaActivity : FragmentActivity(), FilePromptHost {
 
 
 
+    /**
+     * Cleans up resources and listeners when destroyed.
+     */
     override fun onDestroy() {
         super.onDestroy()
         try {
@@ -428,6 +474,9 @@ class PwaActivity : FragmentActivity(), FilePromptHost {
     }
 }
 
+/**
+ * Composable that renders the pwa container screen UI component.
+ */
 @Composable
 fun PwaContainerScreen(
     pwaId: String = "",
@@ -491,6 +540,9 @@ fun PwaContainerScreen(
     var activePermissionRequest by remember(pwaId) { mutableStateOf<SitePermissionRequest?>(null) }
     val permissionsManager = remember { SitePermissionsManager.getInstance(context) }
 
+    /**
+     * Handles allow permission.
+     */
     fun handleAllowPermission(req: SitePermissionRequest, rememberChoice: Boolean) {
         if (rememberChoice) {
             req.requestedTypes.forEach { type ->
@@ -504,6 +556,9 @@ fun PwaContainerScreen(
         activePermissionRequest = null
     }
 
+    /**
+     * Handles deny permission.
+     */
     fun handleDenyPermission(req: SitePermissionRequest, rememberChoice: Boolean) {
         if (rememberChoice) {
             req.requestedTypes.forEach { type ->
@@ -651,6 +706,9 @@ fun PwaContainerScreen(
                         )
 
                         session.navigationDelegate = object : GeckoSession.NavigationDelegate {
+                            /**
+                             * Handles on location change events.
+                             */
                             override fun onLocationChange(
                                 session: GeckoSession,
                                 url: String?,
@@ -665,10 +723,16 @@ fun PwaContainerScreen(
                                 }
                             }
 
+                            /**
+                             * Handles on can go back events.
+                             */
                             override fun onCanGoBack(session: GeckoSession, canGoBackVal: Boolean) {
                                 canGoBack = canGoBackVal
                             }
 
+                            /**
+                             * Handles on new session events.
+                             */
                             override fun onNewSession(session: GeckoSession, uri: String): GeckoResult<GeckoSession>? {
                                 val scheme = try { Uri.parse(uri).scheme?.lowercase() ?: "" } catch (e: Exception) { "" }
                                 if (com.azokle.search.navigation.NavigationSecurity.isForbiddenWebScheme(scheme)) {
@@ -682,6 +746,9 @@ fun PwaContainerScreen(
                                 return GeckoResult.fromValue(null)
                             }
 
+                            /**
+                             * Handles on load request events.
+                             */
                             override fun onLoadRequest(
                                 session: GeckoSession,
                                 request: GeckoSession.NavigationDelegate.LoadRequest
@@ -709,17 +776,26 @@ fun PwaContainerScreen(
                         }
 
                         session.progressDelegate = object : GeckoSession.ProgressDelegate {
+                            /**
+                             * Handles on page start events.
+                             */
                             override fun onPageStart(session: GeckoSession, url: String) {
                                 isLoading = true
                                 progress = 0.1f
                             }
 
+                            /**
+                             * Handles on page stop events.
+                             */
                             override fun onPageStop(session: GeckoSession, success: Boolean) {
                                 isLoading = false
                                 progress = 1.0f
                                 isSplashVisible = false
                             }
 
+                            /**
+                             * Handles on progress change events.
+                             */
                             override fun onProgressChange(session: GeckoSession, progressInt: Int) {
                                 progress = progressInt / 100f
                                 if (progressInt > 65) {
@@ -729,17 +805,26 @@ fun PwaContainerScreen(
                         }
 
                         session.contentDelegate = object : GeckoSession.ContentDelegate {
+                            /**
+                             * Handles on title change events.
+                             */
                             override fun onTitleChange(session: GeckoSession, title: String?) {
                                 if (!title.isNullOrBlank()) {
                                     currentTitle = title
                                 }
                             }
 
+                            /**
+                             * Handles on full screen events.
+                             */
                             override fun onFullScreen(session: GeckoSession, fullScreen: Boolean) {
                                 isFullScreen = fullScreen
                                 onFullScreenChange(fullScreen)
                             }
 
+                            /**
+                             * Handles on web app manifest events.
+                             */
                             override fun onWebAppManifest(session: GeckoSession, manifest: JSONObject) {
                                 try {
                                     val manifestThemeColorStr = manifest.optString("theme_color", "").takeIf { it.isNotBlank() }
@@ -758,6 +843,9 @@ fun PwaContainerScreen(
                                 } catch (e: Exception) {}
                             }
 
+                            /**
+                             * Handles on external response events.
+                             */
                             override fun onExternalResponse(session: GeckoSession, response: org.mozilla.geckoview.WebResponse) {
                                 try {
                                     val downloadUrl = response.uri

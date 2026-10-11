@@ -1,3 +1,17 @@
+// Copyright (c) 2026 The Azokle Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -72,6 +86,7 @@ pub struct DownloadManager {
 }
 
 impl Default for DownloadManager {
+    /// Returns the default instance.
     fn default() -> Self {
         Self::new()
     }
@@ -166,6 +181,7 @@ impl DownloadManager {
         format!("download_{}.{}", now_sec, ext)
     }
 
+    /// Performs create download operation.
     pub fn create_download(
         &self,
         url_str: &str,
@@ -202,6 +218,7 @@ impl DownloadManager {
         item
     }
 
+    /// Updates the progress.
     pub fn update_progress(
         &self,
         id: &str,
@@ -230,14 +247,17 @@ impl DownloadManager {
         }
     }
 
+    /// Returns the item.
     pub fn get_item(&self, id: &str) -> Option<DownloadItem> {
         self.items.read().iter().find(|d| d.id == id).cloned()
     }
 
+    /// Returns the all.
     pub fn get_all(&self) -> Vec<DownloadItem> {
         self.items.read().clone()
     }
 
+    /// Removes the specified item.
     pub fn delete_item(&self, id: &str) -> bool {
         let mut list = self.items.write();
         if let Some(pos) = list.iter().position(|d| d.id == id) {
@@ -248,14 +268,17 @@ impl DownloadManager {
         }
     }
 
+    /// Performs clear all operation.
     pub fn clear_all(&self) {
         self.items.write().clear();
     }
 
+    /// Performs export json operation.
     pub fn export_json(&self) -> String {
         serde_json::to_string(&*self.items.read()).unwrap_or_else(|_| "[]".to_string())
     }
 
+    /// Performs import json operation.
     pub fn import_json(&self, json_str: &str) -> usize {
         if json_str.trim().is_empty() {
             return 0;

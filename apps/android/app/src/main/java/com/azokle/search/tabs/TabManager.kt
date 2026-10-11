@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.tabs
 
 import android.content.Context
@@ -49,17 +65,29 @@ object TabManager {
     private val loadedUrls = ConcurrentHashMap<String, String>()
     private val scope = CoroutineScope(Dispatchers.IO)
 
+    /**
+     * Retrieves the tab.
+     */
     fun getTab(id: String): TabSession? = _tabs.value.find { it.id == id }
 
+    /**
+     * Checks whether tab loaded.
+     */
     fun isTabLoaded(tabId: String, url: String): Boolean {
         val loaded = loadedUrls[tabId]
         return loaded != null && loaded.equals(url, ignoreCase = true)
     }
 
+    /**
+     * Executes the mark tab loaded operation.
+     */
     fun markTabLoaded(tabId: String, url: String) {
         loadedUrls[tabId] = url
     }
 
+    /**
+     * Clears all tab loaded.
+     */
     fun clearTabLoaded(tabId: String) {
         loadedUrls.remove(tabId)
     }
@@ -74,6 +102,9 @@ object TabManager {
     val activeTab: TabSession?
         get() = _tabs.value.find { it.id == _activeTabId.value } ?: _tabs.value.firstOrNull()
 
+    /**
+     * Initializes .
+     */
     fun init(context: Context) {
         if (isInitialized) return
         isInitialized = true
@@ -83,10 +114,16 @@ object TabManager {
 
     private val sessionStateMap = ConcurrentHashMap<String, GeckoSession.SessionState>()
 
+    /**
+     * Updates tab session state.
+     */
     fun updateTabSessionState(id: String, state: GeckoSession.SessionState) {
         sessionStateMap[id] = state
     }
 
+    /**
+     * Persists tab session state to storage.
+     */
     fun saveTabSessionState(id: String) {
         val session = sessionMap[id] ?: return
         try {
@@ -96,6 +133,9 @@ object TabManager {
         }
     }
 
+    /**
+     * Executes the restore tab session state operation.
+     */
     fun restoreTabSessionState(id: String, session: GeckoSession): Boolean {
         val state = sessionStateMap[id] ?: return false
         return try {
@@ -106,6 +146,9 @@ object TabManager {
         }
     }
 
+    /**
+     * Executes the register session operation.
+     */
     fun registerSession(id: String, session: GeckoSession) {
         sessionMap[id] = session
         val isActive = id == _activeTabId.value
@@ -119,13 +162,22 @@ object TabManager {
         }
     }
 
+    /**
+     * Retrieves the session.
+     */
     fun getSession(id: String): GeckoSession? = sessionMap[id]
 
+    /**
+     * Retrieves the active session.
+     */
     fun getActiveSession(): GeckoSession? {
         val currentId = _activeTabId.value ?: return null
         return sessionMap[currentId]
     }
 
+    /**
+     * Retrieves the or create session.
+     */
     fun getOrCreateSession(
         id: String,
         context: Context,
@@ -158,6 +210,9 @@ object TabManager {
         }
     }
 
+    /**
+     * Executes the open tab operation.
+     */
     fun openTab(
         url: String,
         title: String = "New Tab",
@@ -204,6 +259,9 @@ object TabManager {
         return newTab.id
     }
 
+    /**
+     * Updates tab wallpaper.
+     */
     fun updateTabWallpaper(tabId: String, wallpaperResId: Int) {
         _tabs.update { list ->
             list.map { tab ->
@@ -215,10 +273,16 @@ object TabManager {
         persistTabs()
     }
 
+    /**
+     * Executes the open private tab operation.
+     */
     fun openPrivateTab(url: String = "", title: String = "Private Tab"): String {
         return openTab(url = url, title = title, isPrivate = true, isTor = false)
     }
 
+    /**
+     * Executes the open tor tab operation.
+     */
     fun openTorTab(context: Context? = null, url: String = "", title: String = "Tor Window"): String {
         if (context != null) {
             com.azokle.search.tor.TorCircuitManager.startTorService(context)
@@ -300,6 +364,9 @@ object TabManager {
         )
     }
 
+    /**
+     * Executes the select tab operation.
+     */
     fun selectTab(id: String) {
         if (_tabs.value.any { it.id == id }) {
             val oldId = _activeTabId.value
@@ -359,6 +426,9 @@ object TabManager {
         }
     }
 
+    /**
+     * Executes the reclaim inactive tab memory operation.
+     */
     fun reclaimInactiveTabMemory(maxActiveSessions: Int = MAX_WARM_SESSIONS) {
         val currentId = _activeTabId.value ?: return
         if (sessionMap.size <= maxActiveSessions) return
@@ -387,6 +457,9 @@ object TabManager {
         }
     }
 
+    /**
+     * Executes the wake tab operation.
+     */
     fun wakeTab(id: String) {
         val now = System.currentTimeMillis()
         _tabs.update { list ->
@@ -400,6 +473,9 @@ object TabManager {
         }
     }
 
+    /**
+     * Executes the sleep inactive tabs operation.
+     */
     fun sleepInactiveTabs(thresholdMs: Long = 5 * 60 * 1000L) {
         val now = System.currentTimeMillis()
         val currentId = _activeTabId.value
@@ -414,6 +490,9 @@ object TabManager {
         }
     }
 
+    /**
+     * Updates active tab.
+     */
     fun updateActiveTab(url: String, title: String) {
         val currentId = _activeTabId.value ?: return
         var hasChanged = false
@@ -438,6 +517,9 @@ object TabManager {
         }
     }
 
+    /**
+     * Toggles the state of desktop mode.
+     */
     fun toggleDesktopMode(tabId: String? = null): Boolean {
         val targetId = tabId ?: _activeTabId.value ?: return false
         var newMode = false
@@ -459,6 +541,9 @@ object TabManager {
         return newMode
     }
 
+    /**
+     * Updates active tab favicon.
+     */
     fun updateActiveTabFavicon(faviconUrl: String) {
         val currentId = _activeTabId.value ?: return
         _tabs.update { list ->
@@ -472,15 +557,24 @@ object TabManager {
         }
     }
 
+    /**
+     * Updates active tab thumbnail.
+     */
     fun updateActiveTabThumbnail(thumbnail: Bitmap) {
         val currentId = _activeTabId.value ?: return
         updateTabThumbnail(currentId, thumbnail)
     }
 
+    /**
+     * Updates tab thumbnail.
+     */
     fun updateTabThumbnail(tabId: String, thumbnail: Bitmap) {
         TabThumbnailCache.put(tabId, thumbnail)
     }
 
+    /**
+     * Executes the close tab operation.
+     */
     fun closeTab(id: String): TabSession? = synchronized(this) {
         val tabToClose = _tabs.value.find { it.id == id } ?: return null
 
@@ -556,6 +650,9 @@ object TabManager {
         return tabToClose
     }
 
+    /**
+     * Executes the undo close tab operation.
+     */
     fun undoCloseTab(): TabSession? {
         val restored = _recentlyClosed.pollFirst() ?: return null
         val gid = restored.groupId
@@ -585,6 +682,9 @@ object TabManager {
         return restored
     }
 
+    /**
+     * Executes the close category tabs operation.
+     */
     fun closeCategoryTabs(isPrivateOnly: Boolean = false, isTorOnly: Boolean = false) {
         val tabsToClose = _tabs.value.filter {
             when {
@@ -652,10 +752,16 @@ object TabManager {
         persistTabs()
     }
 
+    /**
+     * Executes the close all tabs operation.
+     */
     fun closeAllTabs() {
         closeAllTabsHard()
     }
 
+    /**
+     * Executes the close all tabs hard operation.
+     */
     fun closeAllTabsHard() {
         persistJob?.cancel()
         com.azokle.search.media.MediaPlaybackManager.stop()
@@ -740,6 +846,9 @@ object TabManager {
         return groupId
     }
 
+    /**
+     * Executes the add tab to group operation.
+     */
     fun addTabToGroup(tabId: String, groupId: String): Boolean {
         val group = _groups.value.find { it.id == groupId } ?: return false
         val tab = _tabs.value.find { it.id == tabId } ?: return false
@@ -765,6 +874,9 @@ object TabManager {
         return true
     }
 
+    /**
+     * Removes the specified tab from group.
+     */
     fun removeTabFromGroup(tabId: String) {
         val tab = _tabs.value.find { it.id == tabId } ?: return
         val gid = tab.groupId ?: return
@@ -785,6 +897,9 @@ object TabManager {
         persistTabs()
     }
 
+    /**
+     * Executes the close group operation.
+     */
     fun closeGroup(groupId: String) {
         val tabsToClose = _tabs.value.filter { it.groupId == groupId }
         for (t in tabsToClose) {
@@ -807,6 +922,9 @@ object TabManager {
         persistTabs()
     }
 
+    /**
+     * Executes the ungroup all operation.
+     */
     fun ungroupAll(groupId: String) {
         _groups.update { it.filter { g -> g.id != groupId } }
         _tabs.update { list ->
@@ -815,6 +933,9 @@ object TabManager {
         persistTabs()
     }
 
+    /**
+     * Executes the rename group operation.
+     */
     fun renameGroup(groupId: String, newTitle: String, newColor: Long? = null) {
         _groups.update { list ->
             list.map { g ->
@@ -830,22 +951,34 @@ object TabManager {
         persistTabs()
     }
 
+    /**
+     * Retrieves the active group.
+     */
     fun getActiveGroup(): TabGroup? {
         val currentTab = activeTab ?: return null
         val gid = currentTab.groupId ?: return null
         return _groups.value.find { it.id == gid }
     }
 
+    /**
+     * Retrieves the active group tabs.
+     */
     fun getActiveGroupTabs(): List<TabSession> {
         val currentTab = activeTab ?: return emptyList()
         val gid = currentTab.groupId ?: return emptyList()
         return _tabs.value.filter { it.groupId == gid }
     }
 
+    /**
+     * Retrieves the tabs in group.
+     */
     fun getTabsInGroup(groupId: String): List<TabSession> {
         return _tabs.value.filter { it.groupId == groupId }
     }
 
+    /**
+     * Executes the open tab in group operation.
+     */
     fun openTabInGroup(url: String, title: String = "New Tab", groupId: String): String {
         val group = _groups.value.find { it.id == groupId }
         return openTab(
@@ -861,6 +994,9 @@ object TabManager {
 
     private var persistJob: kotlinx.coroutines.Job? = null
 
+    /**
+     * Executes the persist tabs operation.
+     */
     private fun persistTabs() {
         val context = appContext ?: return
         persistJob?.cancel()
@@ -914,6 +1050,9 @@ object TabManager {
         }
     }
 
+    /**
+     * Executes the close ephemeral and tor tabs operation.
+     */
     fun closeEphemeralAndTorTabs() {
         com.azokle.search.core.AzokleCore.tabClosePrivateSessions()
         appContext?.let {
@@ -941,6 +1080,9 @@ object TabManager {
         persistTabs()
     }
 
+    /**
+     * Loads persisted tabs.
+     */
     private fun loadPersistedTabs(context: Context) {
         scope.launch(Dispatchers.IO) {
             try {

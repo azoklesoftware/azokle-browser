@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.navigation
 
 import android.content.Intent
@@ -38,6 +54,9 @@ object IntentParser {
         }
     }
 
+    /**
+     * Parses intent uri from the input data.
+     */
     private fun parseIntentUri(uriStr: String): ParsedIntent? {
         val pkg = extractPackageFromFragment(uriStr)
         val rawFallback = extractFallbackFromFragment(uriStr)
@@ -81,6 +100,9 @@ object IntentParser {
         )
     }
 
+    /**
+     * Parses standard uri from the input data.
+     */
     private fun parseStandardUri(uriStr: String): ParsedIntent? {
         val scheme = UriClassifier.extractScheme(uriStr)?.takeIf { isValidScheme(it) } ?: return null
 
@@ -118,18 +140,27 @@ object IntentParser {
         )
     }
 
+    /**
+     * Checks whether valid package name.
+     */
     fun isValidPackageName(pkg: String?): Boolean {
         if (pkg.isNullOrBlank()) return false
         if (pkg.length > 256) return false
         return PACKAGE_NAME_REGEX.matches(pkg)
     }
 
+    /**
+     * Checks whether valid scheme.
+     */
     fun isValidScheme(scheme: String?): Boolean {
         if (scheme.isNullOrBlank()) return false
         if (scheme.length > 64) return false
         return SCHEME_REGEX.matches(scheme)
     }
 
+    /**
+     * Executes the sanitize fallback url operation.
+     */
     fun sanitizeFallbackUrl(url: String?): String? {
         if (url.isNullOrBlank()) return null
         val trimmed = url.trim()
@@ -143,6 +174,9 @@ object IntentParser {
         return trimmed
     }
 
+    /**
+     * Executes the extract fallback from fragment operation.
+     */
     fun extractFallbackFromFragment(uriStr: String): String? {
         val marker = "S.browser_fallback_url="
         val idx = uriStr.indexOf(marker)
@@ -164,6 +198,9 @@ object IntentParser {
         return decodeUriComponent(raw)
     }
 
+    /**
+     * Executes the extract package from fragment operation.
+     */
     fun extractPackageFromFragment(uriStr: String): String? {
         val marker = "package="
         val idx = uriStr.indexOf(marker)
@@ -175,6 +212,9 @@ object IntentParser {
         return raw.takeIf { isValidPackageName(it) }
     }
 
+    /**
+     * Executes the extract scheme from fragment operation.
+     */
     fun extractSchemeFromFragment(uriStr: String): String? {
         val marker = "scheme="
         val idx = uriStr.indexOf(marker)
@@ -186,6 +226,9 @@ object IntentParser {
         return raw.takeIf { isValidScheme(it) && UriClassifier.isCustomAppScheme(it) }
     }
 
+    /**
+     * Executes the decode uri component operation.
+     */
     private fun decodeUriComponent(raw: String): String {
         if (raw.isBlank()) return raw
         return try {

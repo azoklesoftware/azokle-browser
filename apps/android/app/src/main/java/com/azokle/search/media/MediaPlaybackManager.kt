@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 @file:Suppress("DEPRECATION")
 
 package com.azokle.search.media
@@ -62,6 +78,9 @@ object MediaPlaybackManager {
     // Noisy Audio Broadcast Receiver (Headphone disconnect auto-pause)
     private var isNoisyReceiverRegistered = false
     private val noisyAudioReceiver = object : BroadcastReceiver() {
+        /**
+         * Handles on receive events.
+         */
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
                 pause()
@@ -72,6 +91,9 @@ object MediaPlaybackManager {
     // PiP Action Broadcast Receiver (Interactive controls in Picture-in-Picture window)
     private var isPipReceiverRegistered = false
     private val pipActionReceiver = object : BroadcastReceiver() {
+        /**
+         * Handles on receive events.
+         */
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
                 PictureInPictureHelper.ACTION_PIP_PLAY -> play()
@@ -114,6 +136,9 @@ object MediaPlaybackManager {
         }
     }
 
+    /**
+     * Initializes ialize.
+     */
     fun initialize(context: Context) {
         if (appContext != null) return
         val app = context.applicationContext
@@ -122,38 +147,65 @@ object MediaPlaybackManager {
 
         val session = MediaSessionCompat(app, "AzokleMediaSession").apply {
             setCallback(object : MediaSessionCompat.Callback() {
+                /**
+                 * Handles on play events.
+                 */
                 override fun onPlay() {
                     play()
                 }
 
+                /**
+                 * Handles on pause events.
+                 */
                 override fun onPause() {
                     pause()
                 }
 
+                /**
+                 * Handles on skip to next events.
+                 */
                 override fun onSkipToNext() {
                     currentBridge?.nextTrack()
                 }
 
+                /**
+                 * Handles on skip to previous events.
+                 */
                 override fun onSkipToPrevious() {
                     currentBridge?.previousTrack()
                 }
 
+                /**
+                 * Handles on fast forward events.
+                 */
                 override fun onFastForward() {
                     fastForward()
                 }
 
+                /**
+                 * Handles on rewind events.
+                 */
                 override fun onRewind() {
                     rewind()
                 }
 
+                /**
+                 * Handles on seek to events.
+                 */
                 override fun onSeekTo(pos: Long) {
                     seekTo(pos)
                 }
 
+                /**
+                 * Handles on stop events.
+                 */
                 override fun onStop() {
                     stop()
                 }
 
+                /**
+                 * Handles on custom action events.
+                 */
                 override fun onCustomAction(action: String?, extras: Bundle?) {
                     when (action) {
                         PictureInPictureHelper.ACTION_PIP_PLAY -> play()
@@ -187,6 +239,9 @@ object MediaPlaybackManager {
         }
     }
 
+    /**
+     * Handles on session activated events.
+     */
     fun onSessionActivated(
         tabId: String,
         isPrivate: Boolean,
@@ -213,6 +268,9 @@ object MediaPlaybackManager {
         }
     }
 
+    /**
+     * Handles on session deactivated events.
+     */
     fun onSessionDeactivated(tabId: String) {
         if (activeTabId == tabId) {
             isUserExplicitlyPaused = false
@@ -231,11 +289,17 @@ object MediaPlaybackManager {
         }
     }
 
+    /**
+     * Handles on session paused events.
+     */
     fun onSessionPaused(tabId: String, isBackgroundPlaybackHost: Boolean = false, activeSession: org.mozilla.geckoview.MediaSession? = null) {
         if (activeTabId != tabId) return
         updatePlaybackStatus(tabId, PlaybackStatus.PAUSED)
     }
 
+    /**
+     * Updates playback status.
+     */
     fun updatePlaybackStatus(tabId: String, status: PlaybackStatus) {
         if (activeTabId != tabId) return
 
@@ -262,6 +326,9 @@ object MediaPlaybackManager {
         }
     }
 
+    /**
+     * Updates metadata.
+     */
     fun updateMetadata(
         tabId: String,
         title: String,
@@ -309,6 +376,9 @@ object MediaPlaybackManager {
         }
     }
 
+    /**
+     * Updates metadata with bitmap.
+     */
     fun updateMetadataWithBitmap(
         tabId: String,
         title: String,
@@ -336,6 +406,9 @@ object MediaPlaybackManager {
         }
     }
 
+    /**
+     * Updates position state.
+     */
     fun updatePositionState(
         tabId: String,
         durationMs: Long,
@@ -366,6 +439,9 @@ object MediaPlaybackManager {
         updatePlaybackStateCompat(_mediaState.value.status, positionMs, playbackRate)
     }
 
+    /**
+     * Updates fullscreen state.
+     */
     fun updateFullscreenState(
         tabId: String,
         isFullscreen: Boolean,
@@ -384,6 +460,9 @@ object MediaPlaybackManager {
         }
     }
 
+    /**
+     * Executes the play operation.
+     */
     fun play() {
         isUserExplicitlyPaused = false
         wasPlayingBeforeFocusLoss = false
@@ -391,12 +470,18 @@ object MediaPlaybackManager {
         currentBridge?.play()
     }
 
+    /**
+     * Executes the pause operation.
+     */
     fun pause() {
         isUserExplicitlyPaused = true
         wasPlayingBeforeFocusLoss = false
         currentBridge?.pause()
     }
 
+    /**
+     * Executes the stop operation.
+     */
     fun stop() {
         isUserExplicitlyPaused = false
         wasPlayingBeforeFocusLoss = false
@@ -406,18 +491,30 @@ object MediaPlaybackManager {
         appContext?.let { MediaPlaybackService.stop(it) }
     }
 
+    /**
+     * Executes the seek to operation.
+     */
     fun seekTo(positionMs: Long) {
         currentBridge?.seekTo(positionMs)
     }
 
+    /**
+     * Executes the fast forward operation.
+     */
     fun fastForward(offsetMs: Long = 10000L) {
         currentBridge?.fastForward(offsetMs)
     }
 
+    /**
+     * Executes the rewind operation.
+     */
     fun rewind(offsetMs: Long = 10000L) {
         currentBridge?.rewind(offsetMs)
     }
 
+    /**
+     * Executes the request audio focus operation.
+     */
     private fun requestAudioFocus() {
         if (isAudioFocusGranted) return
         val am = audioManager ?: return
@@ -446,6 +543,9 @@ object MediaPlaybackManager {
         }
     }
 
+    /**
+     * Executes the abandon audio focus operation.
+     */
     private fun abandonAudioFocus() {
         if (!isAudioFocusGranted) return
         val am = audioManager ?: return
@@ -459,6 +559,9 @@ object MediaPlaybackManager {
         isAudioFocusGranted = false
     }
 
+    /**
+     * Executes the register noisy receiver operation.
+     */
     private fun registerNoisyReceiver() {
         val ctx = appContext ?: return
         if (!isNoisyReceiverRegistered) {
@@ -474,6 +577,9 @@ object MediaPlaybackManager {
         }
     }
 
+    /**
+     * Executes the unregister noisy receiver operation.
+     */
     private fun unregisterNoisyReceiver() {
         val ctx = appContext ?: return
         if (isNoisyReceiverRegistered) {
@@ -486,6 +592,9 @@ object MediaPlaybackManager {
         }
     }
 
+    /**
+     * Updates playback state compat.
+     */
     @Suppress("DEPRECATION")
     private fun updatePlaybackStateCompat(status: PlaybackStatus, positionMs: Long, rate: Double) {
         val session = mediaSessionCompat ?: return
@@ -515,6 +624,9 @@ object MediaPlaybackManager {
         session.setPlaybackState(stateBuilder.build())
     }
 
+    /**
+     * Updates media metadata compat.
+     */
     @Suppress("DEPRECATION")
     private fun updateMediaMetadataCompat(
         title: String,
@@ -543,6 +655,9 @@ object MediaPlaybackManager {
         }
     }
 
+    /**
+     * Executes the fetch artwork bitmap operation.
+     */
     private suspend fun fetchArtworkBitmap(url: String): Bitmap? {
         val ctx = appContext ?: return null
         return try {
@@ -560,6 +675,9 @@ object MediaPlaybackManager {
         }
     }
 
+    /**
+     * Executes the release operation.
+     */
     fun release(context: Context) {
         stop()
         if (isPipReceiverRegistered) {

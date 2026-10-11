@@ -1,3 +1,17 @@
+// Copyright (c) 2026 The Azokle Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
@@ -105,6 +119,7 @@ pub struct PermissionsManager {
 }
 
 impl Default for PermissionsManager {
+    /// Returns the default instance.
     fn default() -> Self {
         Self::new()
     }
@@ -158,6 +173,7 @@ impl PermissionsManager {
         }
     }
 
+    /// Updates the permission.
     pub fn set_permission(
         &self,
         origin: &str,
@@ -181,6 +197,7 @@ impl PermissionsManager {
         self.record_audit(&canon, perm, state, is_private);
     }
 
+    /// Returns the permission.
     pub fn get_permission(
         &self,
         origin: &str,
@@ -211,6 +228,7 @@ impl PermissionsManager {
         PermissionState::Prompt
     }
 
+    /// Performs clear for origin operation.
     pub fn clear_for_origin(&self, origin: &str) {
         let canon = Self::canonicalize_origin(origin);
         if canon.is_empty() {
@@ -220,12 +238,14 @@ impl PermissionsManager {
         self.ephemeral_rules.write().remove(&canon);
     }
 
+    /// Performs clear all operation.
     pub fn clear_all(&self) {
         self.persistent_rules.write().clear();
         self.ephemeral_rules.write().clear();
         self.audit_history.write().clear();
     }
 
+    /// Performs clear ephemeral operation.
     pub fn clear_ephemeral(&self) {
         self.ephemeral_rules.write().clear();
     }
@@ -264,6 +284,7 @@ impl PermissionsManager {
         record
     }
 
+    /// Returns the audit history.
     pub fn get_audit_history(&self, limit: usize, offset: usize) -> Vec<PermissionAuditRecord> {
         self.audit_history
             .read()
@@ -274,6 +295,7 @@ impl PermissionsManager {
             .collect()
     }
 
+    /// Returns the audit history for origin.
     pub fn get_audit_history_for_origin(&self, origin: &str) -> Vec<PermissionAuditRecord> {
         let canon = Self::canonicalize_origin(origin);
         self.audit_history
@@ -284,10 +306,12 @@ impl PermissionsManager {
             .collect()
     }
 
+    /// Performs clear audit history operation.
     pub fn clear_audit_history(&self) {
         self.audit_history.write().clear();
     }
 
+    /// Performs clear audit history range operation.
     pub fn clear_audit_history_range(&self, from_ms: u64, to_ms: u64) -> usize {
         let mut list = self.audit_history.write();
         let initial_len = list.len();
@@ -295,6 +319,7 @@ impl PermissionsManager {
         initial_len - list.len()
     }
 
+    /// Returns the site permissions json.
     pub fn get_site_permissions_json(&self, origin: &str, is_private: bool) -> String {
         let canon = Self::canonicalize_origin(origin);
         let mut map = HashMap::new();
@@ -319,16 +344,19 @@ impl PermissionsManager {
         serde_json::to_string(&map).unwrap_or_else(|_| "{}".to_string())
     }
 
+    /// Returns the all customized origins.
     pub fn get_all_customized_origins(&self) -> Vec<String> {
         let mut origins: Vec<String> = self.persistent_rules.read().keys().cloned().collect();
         origins.sort();
         origins
     }
 
+    /// Performs export persistent json operation.
     pub fn export_persistent_json(&self) -> String {
         serde_json::to_string(&*self.persistent_rules.read()).unwrap_or_else(|_| "{}".to_string())
     }
 
+    /// Performs import persistent json operation.
     pub fn import_persistent_json(&self, json_str: &str) -> usize {
         if json_str.trim().is_empty() {
             return 0;

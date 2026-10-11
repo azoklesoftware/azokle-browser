@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.search
 
 import android.Manifest
@@ -101,6 +117,9 @@ private fun sanitizeSpeechQuery(raw: String): String {
         .take(500)
 }
 
+/**
+ * Composable that renders the voice search modal UI component.
+ */
 @Composable
 fun VoiceSearchModal(
     onResult: (String) -> Unit,
@@ -133,6 +152,9 @@ fun VoiceSearchModal(
 
     var speechRecognizer: SpeechRecognizer? by remember { mutableStateOf(null) }
 
+    /**
+     * Executes the destroy recognizer operation.
+     */
     fun destroyRecognizer() {
         try {
             speechRecognizer?.setRecognitionListener(null)
@@ -145,6 +167,9 @@ fun VoiceSearchModal(
         }
     }
 
+    /**
+     * Executes the stop listening operation.
+     */
     fun stopListening() {
         try {
             isListening = false
@@ -152,6 +177,9 @@ fun VoiceSearchModal(
         } catch (_: Throwable) {}
     }
 
+    /**
+     * Handles dismiss.
+     */
     fun handleDismiss() {
         if (isDismissed) return
         isDismissed = true
@@ -170,6 +198,9 @@ fun VoiceSearchModal(
         }
     }
 
+    /**
+     * Executes the start listening operation.
+     */
     fun startListening() {
         if (isDismissed || isInitializing) return
 
@@ -189,6 +220,9 @@ fun VoiceSearchModal(
             speechRecognizer = recognizer
 
             recognizer.setRecognitionListener(object : RecognitionListener {
+                /**
+                 * Handles on ready for speech events.
+                 */
                 override fun onReadyForSpeech(params: Bundle?) {
                     if (isDismissed) return
                     isListening = true
@@ -196,11 +230,17 @@ fun VoiceSearchModal(
                     statusText = "Listening..."
                 }
 
+                /**
+                 * Handles on beginning of speech events.
+                 */
                 override fun onBeginningOfSpeech() {
                     if (isDismissed) return
                     statusText = "Hearing you..."
                 }
 
+                /**
+                 * Handles on rms changed events.
+                 */
                 override fun onRmsChanged(rmsdB: Float) {
                     if (isDismissed) return
                     // Safeguard against NaN / -Infinity from HAL audio streams to prevent Compose animation crashes
@@ -211,14 +251,23 @@ fun VoiceSearchModal(
                     }
                 }
 
+                /**
+                 * Handles on buffer received events.
+                 */
                 override fun onBufferReceived(buffer: ByteArray?) {}
 
+                /**
+                 * Handles on end of speech events.
+                 */
                 override fun onEndOfSpeech() {
                     if (isDismissed) return
                     statusText = "Processing..."
                     isListening = false
                 }
 
+                /**
+                 * Handles on error events.
+                 */
                 override fun onError(error: Int) {
                     if (isDismissed) return
                     isListening = false
@@ -243,6 +292,9 @@ fun VoiceSearchModal(
                     statusText = errorMsg
                 }
 
+                /**
+                 * Handles on results events.
+                 */
                 override fun onResults(results: Bundle?) {
                     if (isDismissed || isDispatched) return
                     val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
@@ -270,6 +322,9 @@ fun VoiceSearchModal(
                     }
                 }
 
+                /**
+                 * Handles on partial results events.
+                 */
                 override fun onPartialResults(partialResults: Bundle?) {
                     if (isDismissed || isDispatched) return
                     val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
@@ -280,6 +335,9 @@ fun VoiceSearchModal(
                     }
                 }
 
+                /**
+                 * Handles on event events.
+                 */
                 override fun onEvent(eventType: Int, params: Bundle?) {}
             })
 

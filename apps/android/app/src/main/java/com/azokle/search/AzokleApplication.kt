@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search
 
 import android.app.Activity
@@ -19,6 +35,9 @@ import coil.memory.MemoryCache
 import com.azokle.search.common.util.PreferencesManager
 
 class AzokleApplication : Application(), ImageLoaderFactory {
+    /**
+     * Executes the new image loader operation.
+     */
     override fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)
             .memoryCache {
@@ -44,6 +63,9 @@ class AzokleApplication : Application(), ImageLoaderFactory {
             .build()
     }
 
+    /**
+     * Initializes dependencies and components when created.
+     */
     override fun onCreate() {
         super.onCreate()
 
@@ -71,24 +93,45 @@ class AzokleApplication : Application(), ImageLoaderFactory {
 
         // Automatically track active FragmentActivity for BiometricPrompt window binding
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
+            /**
+             * Handles on activity created events.
+             */
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
                 if (activity is FragmentActivity) {
                     com.azokle.search.core.BiometricAuthManager.setCurrentActivity(activity)
                 }
             }
+            /**
+             * Handles on activity started events.
+             */
             override fun onActivityStarted(activity: Activity) {
                 if (activity is FragmentActivity) {
                     com.azokle.search.core.BiometricAuthManager.setCurrentActivity(activity)
                 }
             }
+            /**
+             * Handles on activity resumed events.
+             */
             override fun onActivityResumed(activity: Activity) {
                 if (activity is FragmentActivity) {
                     com.azokle.search.core.BiometricAuthManager.setCurrentActivity(activity)
                 }
             }
+            /**
+             * Handles on activity paused events.
+             */
             override fun onActivityPaused(activity: Activity) {}
+            /**
+             * Handles on activity stopped events.
+             */
             override fun onActivityStopped(activity: Activity) {}
+            /**
+             * Handles on activity save instance state events.
+             */
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+            /**
+             * Handles on activity destroyed events.
+             */
             override fun onActivityDestroyed(activity: Activity) {
                 if (activity is FragmentActivity) {
                     com.azokle.search.core.BiometricAuthManager.onActivityDestroyed(activity)
@@ -97,6 +140,9 @@ class AzokleApplication : Application(), ImageLoaderFactory {
         })
     }
 
+    /**
+     * Handles on configuration changed events.
+     */
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
         if (isMainProcess()) {
@@ -110,6 +156,9 @@ class AzokleApplication : Application(), ImageLoaderFactory {
         }
     }
 
+    /**
+     * Handles on trim memory events.
+     */
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (isMainProcess()) {
@@ -117,6 +166,9 @@ class AzokleApplication : Application(), ImageLoaderFactory {
         }
     }
 
+    /**
+     * Checks whether main process.
+     */
     private fun isMainProcess(): Boolean {
         return try {
             val currentProcess = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -133,6 +185,9 @@ class AzokleApplication : Application(), ImageLoaderFactory {
     }
 
     companion object {
+        /**
+         * Executes the apply theme mode operation.
+         */
         fun applyThemeMode(themeMode: String) {
             when (themeMode.lowercase()) {
                 "light" -> AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)

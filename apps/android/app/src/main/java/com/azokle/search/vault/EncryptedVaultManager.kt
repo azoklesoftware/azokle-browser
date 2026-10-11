@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 @file:Suppress("DEPRECATION")
 
 package com.azokle.search.vault
@@ -44,12 +60,18 @@ class EncryptedVaultManager(context: Context) {
         @Volatile
         private var instance: EncryptedVaultManager? = null
 
+        /**
+         * Retrieves the instance.
+         */
         fun getInstance(context: Context): EncryptedVaultManager {
             return instance ?: synchronized(this) {
                 instance ?: EncryptedVaultManager(context.applicationContext).also { instance = it }
             }
         }
 
+        /**
+         * Retrieves the or create encrypted prefs.
+         */
         private fun getOrCreateEncryptedPrefs(context: Context): SharedPreferences {
             cachedPrefs?.let { return it }
             return synchronized(this) {
@@ -59,6 +81,9 @@ class EncryptedVaultManager(context: Context) {
             }
         }
 
+        /**
+         * Executes the create encrypted prefs operation.
+         */
         private fun createEncryptedPrefs(context: Context): SharedPreferences {
             return try {
                 val masterKey = MasterKey.Builder(context)
@@ -123,6 +148,9 @@ class EncryptedVaultManager(context: Context) {
         }
     }
 
+    /**
+     * Persists bookmarks to prefs to storage.
+     */
     private fun saveBookmarksToPrefs(bookmarks: List<BookmarkItem>) {
         try {
             val arr = JSONArray()
@@ -141,10 +169,16 @@ class EncryptedVaultManager(context: Context) {
         }
     }
 
+    /**
+     * Checks whether bookmarked.
+     */
     fun isBookmarked(url: String): Boolean {
         return _bookmarksFlow.value.any { it.url.equals(url, ignoreCase = true) }
     }
 
+    /**
+     * Executes the add bookmark operation.
+     */
     fun addBookmark(title: String, url: String): BookmarkItem {
         val current = _bookmarksFlow.value.toMutableList()
         val existingIndex = current.indexOfFirst { it.url.equals(url, ignoreCase = true) }
@@ -165,6 +199,9 @@ class EncryptedVaultManager(context: Context) {
         return item
     }
 
+    /**
+     * Toggles the state of bookmark.
+     */
     fun toggleBookmark(title: String, url: String): Boolean {
         val current = _bookmarksFlow.value.toMutableList()
         val existingIndex = current.indexOfFirst { it.url.equals(url, ignoreCase = true) }
@@ -190,6 +227,9 @@ class EncryptedVaultManager(context: Context) {
         return added
     }
 
+    /**
+     * Updates bookmark.
+     */
     fun updateBookmark(id: String, newTitle: String, newUrl: String) {
         val current = _bookmarksFlow.value.toMutableList()
         val index = current.indexOfFirst { it.id == id }
@@ -201,12 +241,18 @@ class EncryptedVaultManager(context: Context) {
         }
     }
 
+    /**
+     * Removes the specified bookmark.
+     */
     fun removeBookmark(id: String) {
         val updated = _bookmarksFlow.value.filter { it.id != id }
         _bookmarksFlow.value = updated
         saveBookmarksToPrefs(updated)
     }
 
+    /**
+     * Removes the specified bookmark.
+     */
     fun deleteBookmark(id: String) = removeBookmark(id)
 
     // --- Quick Links Management ---
@@ -234,6 +280,9 @@ class EncryptedVaultManager(context: Context) {
         }
     }
 
+    /**
+     * Persists quick links to prefs to storage.
+     */
     private fun saveQuickLinksToPrefs(links: List<QuickLinkItem>) {
         try {
             val arr = JSONArray()
@@ -253,6 +302,9 @@ class EncryptedVaultManager(context: Context) {
         }
     }
 
+    /**
+     * Executes the add quick link operation.
+     */
     fun addQuickLink(title: String, url: String, icon: String? = null) {
         val current = _quickLinksFlow.value.toMutableList()
         if (current.none { it.url.equals(url, ignoreCase = true) }) {
@@ -262,16 +314,25 @@ class EncryptedVaultManager(context: Context) {
         }
     }
 
+    /**
+     * Removes the specified quick link.
+     */
     fun removeQuickLink(id: String) {
         val updated = _quickLinksFlow.value.filter { it.id != id }
         _quickLinksFlow.value = updated
         saveQuickLinksToPrefs(updated)
     }
 
+    /**
+     * Checks whether quick link pinned.
+     */
     fun isQuickLinkPinned(url: String): Boolean {
         return _quickLinksFlow.value.any { it.url.equals(url, ignoreCase = true) }
     }
 
+    /**
+     * Executes the export bookmarks json operation.
+     */
     fun exportBookmarksJson(): String {
         val arr = JSONArray()
         for (b in _bookmarksFlow.value) {
@@ -284,6 +345,9 @@ class EncryptedVaultManager(context: Context) {
         return arr.toString(2)
     }
 
+    /**
+     * Executes the export full backup json operation.
+     */
     fun exportFullBackupJson(): String {
         val root = JSONObject()
         root.put("version", 1)
@@ -312,6 +376,9 @@ class EncryptedVaultManager(context: Context) {
         return root.toString(2)
     }
 
+    /**
+     * Executes the import backup json operation.
+     */
     fun importBackupJson(jsonString: String): Result<Int> {
         return try {
             val root = JSONObject(jsonString)
@@ -351,11 +418,17 @@ class EncryptedVaultManager(context: Context) {
         }
     }
 
+    /**
+     * Clears all vault.
+     */
     fun clearVault() {
         prefs.edit().clear().apply()
         _bookmarksFlow.value = emptyList()
         _quickLinksFlow.value = emptyList()
     }
 
+    /**
+     * Executes the purge vault operation.
+     */
     fun purgeVault() = clearVault()
 }

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.adblock
 
 import android.content.Context
@@ -49,11 +65,17 @@ object FilterUpdateManager {
             .build()
     }
 
+    /**
+     * Initializes .
+     */
     fun init(context: Context) {
         val sp = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         _lastUpdateTimestamp.value = sp.getLong(KEY_LAST_UPDATE_MS, 0L)
     }
 
+    /**
+     * Retrieves the filters dir.
+     */
     fun getFiltersDir(context: Context): File {
         val dir = File(context.filesDir, "filters")
         if (!dir.exists()) {
@@ -117,6 +139,9 @@ object FilterUpdateManager {
         }
     }
 
+    /**
+     * Executes the perform filter sync operation.
+     */
     private suspend fun performFilterSync(context: Context): Boolean = withContext(Dispatchers.IO) {
         try {
             // Hot-swap in-memory Rust engine and clear extension cache

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.media
 
 import android.app.Activity
@@ -23,6 +39,9 @@ object PictureInPictureHelper {
     private const val MIN_ASPECT_RATIO = 1f / 2.39f // ~0.4184
     private const val MAX_ASPECT_RATIO = 2.39f
 
+    /**
+     * Calculates clamped dimensions.
+     */
     fun calculateClampedDimensions(width: Int, height: Int): Pair<Int, Int> {
         if (width <= 0 || height <= 0) {
             return Pair(16, 9)
@@ -35,16 +54,25 @@ object PictureInPictureHelper {
         }
     }
 
+    /**
+     * Executes the clamp aspect ratio operation.
+     */
     fun clampAspectRatio(ratio: Rational?): Rational {
         val (w, h) = if (ratio != null) calculateClampedDimensions(ratio.numerator, ratio.denominator) else Pair(16, 9)
         return Rational(w, h)
     }
 
+    /**
+     * Executes the supports picture in picture operation.
+     */
     fun supportsPictureInPicture(context: Context): Boolean {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
                 context.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
     }
 
+    /**
+     * Executes the build pip params operation.
+     */
     @RequiresApi(Build.VERSION_CODES.O)
     fun buildPipParams(
         activity: Activity,

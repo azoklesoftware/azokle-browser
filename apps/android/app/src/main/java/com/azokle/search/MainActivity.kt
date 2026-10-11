@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search
 
 import android.app.Activity
@@ -41,6 +57,9 @@ import com.azokle.search.engine.FilePromptHost
 class MainActivity : FragmentActivity(), FilePromptHost {
     private val viewModel: HomeViewModel by viewModels()
 
+    /**
+     * Executes the attach base context operation.
+     */
     override fun attachBaseContext(newBase: Context) {
         val prefs = PreferencesManager.getInstance(newBase)
         val lang = prefs.getAppLanguage()
@@ -96,6 +115,9 @@ class MainActivity : FragmentActivity(), FilePromptHost {
         }
     }
 
+    /**
+     * Executes the launch file picker operation.
+     */
     override fun launchFilePicker(
         prompt: org.mozilla.geckoview.GeckoSession.PromptDelegate.FilePrompt,
         result: org.mozilla.geckoview.GeckoResult<org.mozilla.geckoview.GeckoSession.PromptDelegate.PromptResponse>
@@ -165,6 +187,9 @@ class MainActivity : FragmentActivity(), FilePromptHost {
         processNextAndroidPermissionRequest()
     }
 
+    /**
+     * Executes the request android permissions operation.
+     */
     fun requestAndroidPermissions(
         permissions: Array<String>,
         callback: org.mozilla.geckoview.GeckoSession.PermissionDelegate.Callback
@@ -194,6 +219,9 @@ class MainActivity : FragmentActivity(), FilePromptHost {
         }
     }
 
+    /**
+     * Executes the process next android permission request operation.
+     */
     private fun processNextAndroidPermissionRequest() {
         val next = pendingAndroidPermissions.peek() ?: return
         isRequestingAndroidPermission = true
@@ -224,6 +252,9 @@ class MainActivity : FragmentActivity(), FilePromptHost {
 
     private var currentConfig by androidx.compose.runtime.mutableStateOf(android.content.res.Configuration())
 
+    /**
+     * Handles on configuration changed events.
+     */
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         currentConfig = Configuration(newConfig)
@@ -244,6 +275,9 @@ class MainActivity : FragmentActivity(), FilePromptHost {
         }
     }
 
+    /**
+     * Updates system bars.
+     */
     fun updateSystemBars(isDark: Boolean) {
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(
@@ -287,6 +321,9 @@ class MainActivity : FragmentActivity(), FilePromptHost {
         }
     }
 
+    /**
+     * Initializes dependencies and components when created.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         currentConfig = Configuration(resources.configuration)
@@ -410,6 +447,9 @@ class MainActivity : FragmentActivity(), FilePromptHost {
         }
     }
 
+    /**
+     * Handles on resume events.
+     */
     override fun onResume() {
         super.onResume()
         val prefs = PreferencesManager.getInstance(this)
@@ -429,11 +469,17 @@ class MainActivity : FragmentActivity(), FilePromptHost {
         com.azokle.search.widget.AzokleShieldsWidgetProvider.updateAllWidgets(this)
     }
 
+    /**
+     * Handles on user leave hint events.
+     */
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
         enterPipIfEligible()
     }
 
+    /**
+     * Executes the enter pip if eligible operation.
+     */
     private fun enterPipIfEligible() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val state = com.azokle.search.media.MediaPlaybackManager.mediaState.value
@@ -455,6 +501,9 @@ class MainActivity : FragmentActivity(), FilePromptHost {
         }
     }
 
+    /**
+     * Handles on picture in picture mode changed events.
+     */
     override fun onPictureInPictureModeChanged(
         isInPictureInPictureMode: Boolean,
         newConfig: Configuration
@@ -463,6 +512,9 @@ class MainActivity : FragmentActivity(), FilePromptHost {
         viewModel.setPipMode(isInPictureInPictureMode)
     }
 
+    /**
+     * Handles on stop events.
+     */
     override fun onStop() {
         super.onStop()
         if (isFinishing) {
@@ -470,6 +522,9 @@ class MainActivity : FragmentActivity(), FilePromptHost {
         }
     }
 
+    /**
+     * Cleans up resources and listeners when destroyed.
+     */
     override fun onDestroy() {
         super.onDestroy()
         com.azokle.search.core.BiometricAuthManager.onActivityDestroyed(this)
@@ -480,12 +535,18 @@ class MainActivity : FragmentActivity(), FilePromptHost {
         }
     }
 
+    /**
+     * Handles on new intent events.
+     */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         handleIncomingIntent(intent)
     }
 
+    /**
+     * Handles incoming intent.
+     */
     private fun handleIncomingIntent(intent: Intent?) {
         if (intent == null) return
 
@@ -555,6 +616,9 @@ class MainActivity : FragmentActivity(), FilePromptHost {
         }
     }
 
+    /**
+     * Executes the start voice recognition operation.
+     */
     private fun startVoiceRecognition() {
         if (!com.azokle.search.common.util.VoiceSearchHelper.isVoiceSearchAvailable(this)) {
             Toast.makeText(this, "Voice search is not supported on this device", Toast.LENGTH_SHORT).show()

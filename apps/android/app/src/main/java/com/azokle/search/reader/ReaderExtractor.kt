@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.reader
 
 import android.net.Uri
@@ -49,6 +65,9 @@ object ReaderExtractor {
         .followRedirects(true)
         .build()
 
+    /**
+     * Executes the cache article operation.
+     */
     fun cacheArticle(url: String, article: ArticleContent) {
         val key = normalizeUrl(url)
         if (key.isNotBlank()) {
@@ -56,16 +75,25 @@ object ReaderExtractor {
         }
     }
 
+    /**
+     * Retrieves the cached article.
+     */
     fun getCachedArticle(url: String): ArticleContent? {
         val key = normalizeUrl(url)
         if (key.isBlank()) return null
         return articleCache[key]
     }
 
+    /**
+     * Clears all cache.
+     */
     fun clearCache() {
         articleCache.clear()
     }
 
+    /**
+     * Executes the normalize url operation.
+     */
     private fun normalizeUrl(url: String): String {
         val trimmed = url.trim().lowercase()
         return try {
@@ -77,6 +105,9 @@ object ReaderExtractor {
         }
     }
 
+    /**
+     * Checks whether safe public url.
+     */
     private fun isSafePublicUrl(url: String, isTor: Boolean): Boolean {
         val trimmed = url.trim().lowercase()
         if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) return false
@@ -107,6 +138,9 @@ object ReaderExtractor {
         return true
     }
 
+    /**
+     * Retrieves the client.
+     */
     private fun getClient(isTor: Boolean, socksPort: Int): OkHttpClient {
         return if (isTor) {
             OkHttpClient.Builder()
@@ -121,6 +155,9 @@ object ReaderExtractor {
         }
     }
 
+    /**
+     * Executes the extract article from url operation.
+     */
     suspend fun extractArticleFromUrl(
         url: String,
         fallbackTitle: String,

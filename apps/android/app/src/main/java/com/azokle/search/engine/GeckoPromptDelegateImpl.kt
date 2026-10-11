@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 @file:Suppress("USELESS_ELVIS", "UNNECESSARY_SAFE_CALL")
 
 package com.azokle.search.engine
@@ -78,6 +94,9 @@ class GeckoPromptDelegateImpl(
         }
     }
 
+    /**
+     * Executes the track dialog operation.
+     */
     private fun trackDialog(dialog: Dialog) {
         activeDialogs.add(dialog)
         dialog.setOnDismissListener {
@@ -85,6 +104,9 @@ class GeckoPromptDelegateImpl(
         }
     }
 
+    /**
+     * Executes the unwrap activity operation.
+     */
     private fun unwrapActivity(ctx: Context?): Activity? {
         var current = ctx
         while (current is android.content.ContextWrapper) {
@@ -94,12 +116,24 @@ class GeckoPromptDelegateImpl(
         return current as? Activity
     }
 
+    /**
+     * Checks whether credential storage permitted.
+     */
     fun isCredentialStoragePermitted(): Boolean = !isTor && !isPrivate
 
+    /**
+     * Checks whether fed cm permitted.
+     */
     fun isFedCmPermitted(): Boolean = !isTor && !isPrivate
 
+    /**
+     * Checks whether web authn related origin permitted.
+     */
     fun isWebAuthnRelatedOriginPermitted(): Boolean = !isTor && !isPrivate
 
+    /**
+     * Executes the should allow popup operation.
+     */
     fun shouldAllowPopup(targetUri: String): Boolean {
         val isUserInitiated = hasRecentUserInteraction?.invoke() ?: true
         if (!isUserInitiated) return false
@@ -113,6 +147,9 @@ class GeckoPromptDelegateImpl(
         return true
     }
 
+    /**
+     * Executes the should allow redirect operation.
+     */
     fun shouldAllowRedirect(targetUri: String): Boolean {
         if (targetUri.isNotBlank()) {
             val scheme = UrlHelper.extractScheme(targetUri)?.lowercase()
@@ -124,6 +161,9 @@ class GeckoPromptDelegateImpl(
         return true
     }
 
+    /**
+     * Checks whether activity usable.
+     */
     private fun isActivityUsable(activity: Activity?): Boolean {
         return activity != null && !activity.isFinishing && !activity.isDestroyed
     }
@@ -164,6 +204,9 @@ class GeckoPromptDelegateImpl(
         return result
     }
 
+    /**
+     * Handles on button prompt events.
+     */
     override fun onButtonPrompt(
         session: GeckoSession,
         prompt: ButtonPrompt
@@ -194,6 +237,9 @@ class GeckoPromptDelegateImpl(
         return result
     }
 
+    /**
+     * Handles on text prompt events.
+     */
     override fun onTextPrompt(
         session: GeckoSession,
         prompt: TextPrompt
@@ -236,6 +282,9 @@ class GeckoPromptDelegateImpl(
         return result
     }
 
+    /**
+     * Handles on before unload prompt events.
+     */
     override fun onBeforeUnloadPrompt(
         session: GeckoSession,
         prompt: BeforeUnloadPrompt
@@ -266,6 +315,9 @@ class GeckoPromptDelegateImpl(
         return result
     }
 
+    /**
+     * Handles on repost confirm prompt events.
+     */
     override fun onRepostConfirmPrompt(
         session: GeckoSession,
         prompt: RepostConfirmPrompt
@@ -351,6 +403,9 @@ class GeckoPromptDelegateImpl(
         return result
     }
 
+    /**
+     * Handles on request certificate events.
+     */
     override fun onRequestCertificate(
         session: GeckoSession,
         prompt: CertificateRequest
@@ -386,6 +441,9 @@ class GeckoPromptDelegateImpl(
         return result
     }
 
+    /**
+     * Handles on web authn related origin prompt events.
+     */
     override fun onWebAuthnRelatedOriginPrompt(
         session: GeckoSession,
         prompt: WebAuthnRelatedOriginPrompt
@@ -481,6 +539,9 @@ class GeckoPromptDelegateImpl(
         return result
     }
 
+    /**
+     * Handles on color prompt events.
+     */
     override fun onColorPrompt(
         session: GeckoSession,
         prompt: ColorPrompt
@@ -514,6 +575,9 @@ class GeckoPromptDelegateImpl(
         return result
     }
 
+    /**
+     * Handles on date time prompt events.
+     */
     override fun onDateTimePrompt(
         session: GeckoSession,
         prompt: DateTimePrompt
@@ -587,6 +651,9 @@ class GeckoPromptDelegateImpl(
         return result
     }
 
+    /**
+     * Handles on file prompt events.
+     */
     override fun onFilePrompt(
         session: GeckoSession,
         prompt: FilePrompt
@@ -603,6 +670,9 @@ class GeckoPromptDelegateImpl(
         return result
     }
 
+    /**
+     * Handles on folder upload prompt events.
+     */
     override fun onFolderUploadPrompt(
         session: GeckoSession,
         prompt: FolderUploadPrompt
@@ -667,6 +737,9 @@ class GeckoPromptDelegateImpl(
         return GeckoResult.fromValue(prompt.confirm(AllowOrDeny.ALLOW))
     }
 
+    /**
+     * Handles on redirect prompt events.
+     */
     override fun onRedirectPrompt(
         session: GeckoSession,
         prompt: RedirectPrompt
@@ -681,6 +754,9 @@ class GeckoPromptDelegateImpl(
         return GeckoResult.fromValue(prompt.confirm(AllowOrDeny.ALLOW))
     }
 
+    /**
+     * Handles on share prompt events.
+     */
     override fun onSharePrompt(
         session: GeckoSession,
         prompt: SharePrompt
@@ -768,6 +844,9 @@ class GeckoPromptDelegateImpl(
         return result
     }
 
+    /**
+     * Handles on login select events.
+     */
     override fun onLoginSelect(
         session: GeckoSession,
         request: AutocompleteRequest<Autocomplete.LoginSelectOption>
@@ -809,6 +888,9 @@ class GeckoPromptDelegateImpl(
         return result
     }
 
+    /**
+     * Handles on credit card save events.
+     */
     override fun onCreditCardSave(
         session: GeckoSession,
         request: AutocompleteRequest<Autocomplete.CreditCardSaveOption>
@@ -842,6 +924,9 @@ class GeckoPromptDelegateImpl(
         return result
     }
 
+    /**
+     * Handles on credit card select events.
+     */
     override fun onCreditCardSelect(
         session: GeckoSession,
         request: AutocompleteRequest<Autocomplete.CreditCardSelectOption>
@@ -879,6 +964,9 @@ class GeckoPromptDelegateImpl(
         return result
     }
 
+    /**
+     * Handles on address save events.
+     */
     override fun onAddressSave(
         session: GeckoSession,
         request: AutocompleteRequest<Autocomplete.AddressSaveOption>
@@ -912,6 +1000,9 @@ class GeckoPromptDelegateImpl(
         return result
     }
 
+    /**
+     * Handles on address select events.
+     */
     override fun onAddressSelect(
         session: GeckoSession,
         request: AutocompleteRequest<Autocomplete.AddressSelectOption>
@@ -991,6 +1082,9 @@ class GeckoPromptDelegateImpl(
         return result
     }
 
+    /**
+     * Handles on select identity credential account events.
+     */
     override fun onSelectIdentityCredentialAccount(
         session: GeckoSession,
         prompt: IdentityCredential.AccountSelectorPrompt
@@ -1029,6 +1123,9 @@ class GeckoPromptDelegateImpl(
         return result
     }
 
+    /**
+     * Handles on show privacy policy identity credential events.
+     */
     override fun onShowPrivacyPolicyIdentityCredential(
         session: GeckoSession,
         prompt: IdentityCredential.PrivacyPolicyPrompt

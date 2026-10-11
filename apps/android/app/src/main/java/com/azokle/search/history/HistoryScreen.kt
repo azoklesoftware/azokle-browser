@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.history
 
 import android.widget.Toast
@@ -93,6 +109,9 @@ enum class HistoryFilter {
     SEARCHES
 }
 
+/**
+ * Composable that renders the history screen UI component.
+ */
 @Composable
 fun HistoryScreen(
     viewModel: HomeViewModel,
@@ -653,6 +672,9 @@ fun HistoryScreen(
     }
 }
 
+/**
+ * Composable that renders the history item row UI component.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun HistoryItemRow(
@@ -801,6 +823,9 @@ private fun HistoryItemRow(
     }
 }
 
+/**
+ * Executes the history card item operation.
+ */
 private fun Modifier.historyCardItem(
     isFirst: Boolean,
     isLast: Boolean,

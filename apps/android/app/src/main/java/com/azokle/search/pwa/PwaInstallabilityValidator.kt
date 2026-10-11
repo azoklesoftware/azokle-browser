@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.pwa
 
 import java.net.URI
@@ -19,6 +35,9 @@ data class PwaInstallEligibility(
 
 object PwaInstallabilityValidator {
 
+    /**
+     * Checks whether secure origin.
+     */
     fun isSecureOrigin(url: String): Boolean {
         if (url.isBlank()) return false
         val uri = try { URI(url) } catch (e: Exception) { return false }
@@ -30,6 +49,9 @@ object PwaInstallabilityValidator {
         return false
     }
 
+    /**
+     * Checks whether same origin.
+     */
     fun isSameOrigin(url1: String, url2: String): Boolean {
         if (url1.isBlank() || url2.isBlank()) return false
         val uri1 = try { URI(url1) } catch (e: Exception) { return false }
@@ -48,6 +70,9 @@ object PwaInstallabilityValidator {
         return port1 == port2
     }
 
+    /**
+     * Checks whether url in scope.
+     */
     fun isUrlInScope(url: String, scope: String): Boolean {
         if (url.isBlank() || scope.isBlank()) return false
         if (!isSameOrigin(url, scope)) return false
@@ -64,6 +89,9 @@ object PwaInstallabilityValidator {
         return normalizedTarget.startsWith(normalizedScope) || targetPath == scopePath
     }
 
+    /**
+     * Executes the evaluate operation.
+     */
     fun evaluate(
         currentUrl: String,
         pageTitle: String,

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.pwa
 
 import android.app.ActivityManager
@@ -32,10 +48,16 @@ object PwaShortcutManager {
     const val EXTRA_PWA_THEME_COLOR = "com.azokle.search.extra.PWA_THEME_COLOR"
     const val EXTRA_PWA_BG_COLOR = "com.azokle.search.extra.PWA_BG_COLOR"
 
+    /**
+     * Checks whether pin shortcut supported.
+     */
     fun isPinShortcutSupported(context: Context): Boolean {
         return ShortcutManagerCompat.isRequestPinShortcutSupported(context)
     }
 
+    /**
+     * Executes the pin pwa shortcut operation.
+     */
     suspend fun pinPwaShortcut(
         context: Context,
         eligibility: PwaInstallEligibility,
@@ -96,6 +118,9 @@ object PwaShortcutManager {
         }
     }
 
+    /**
+     * Loads icon bitmap.
+     */
     private suspend fun loadIconBitmap(
         context: Context,
         iconUrl: String?,
@@ -161,6 +186,9 @@ object PwaShortcutManager {
         generateFallbackIcon(title, targetSize, themeColor)
     }
 
+    /**
+     * Executes the drawable to bitmap operation.
+     */
     private fun drawableToBitmap(drawable: Drawable, targetSize: Int): Bitmap? {
         return try {
             if (drawable is BitmapDrawable && drawable.bitmap != null) {
@@ -180,6 +208,9 @@ object PwaShortcutManager {
         }
     }
 
+    /**
+     * Executes the scale and pad bitmap operation.
+     */
     private fun scaleAndPadBitmap(source: Bitmap, targetSize: Int): Bitmap {
         val output = Bitmap.createBitmap(targetSize, targetSize, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(output)
@@ -197,6 +228,9 @@ object PwaShortcutManager {
         return output
     }
 
+    /**
+     * Executes the create pwa launch intent operation.
+     */
     fun createPwaLaunchIntent(
         context: Context,
         pwaId: String,
@@ -242,6 +276,9 @@ object PwaShortcutManager {
         }
     }
 
+    /**
+     * Executes the launch pwa operation.
+     */
     fun launchPwa(context: Context, installedPwa: InstalledPwa) {
         val intent = createPwaLaunchIntent(
             context = context,
@@ -256,6 +293,9 @@ object PwaShortcutManager {
         context.startActivity(intent)
     }
 
+    /**
+     * Executes the generate fallback icon operation.
+     */
     private fun generateFallbackIcon(title: String, targetSize: Int, themeColor: Int?): Bitmap {
         val bitmap = Bitmap.createBitmap(targetSize, targetSize, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)

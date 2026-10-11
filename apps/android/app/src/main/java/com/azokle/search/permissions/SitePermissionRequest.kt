@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2026 The Azokle Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.azokle.search.permissions
 
 import android.Manifest
@@ -86,6 +102,9 @@ enum class SitePermissionType(
             else -> emptyList()
         }
 
+    /**
+     * Checks if android permissions exists.
+     */
     fun hasAndroidPermissions(context: android.content.Context): Boolean {
         return when (this) {
             GEOLOCATION -> {
@@ -120,6 +139,9 @@ data class SitePermissionRequest(
 ) {
     private val isResolved = AtomicBoolean(false)
 
+    /**
+     * Executes the grant media operation.
+     */
     fun grantMedia(
         video: GeckoSession.PermissionDelegate.MediaSource?,
         audio: GeckoSession.PermissionDelegate.MediaSource?
@@ -133,6 +155,9 @@ data class SitePermissionRequest(
         }
     }
 
+    /**
+     * Executes the grant content operation.
+     */
     fun grantContent(grantValue: Int = GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW) {
         if (contentCallback != null && isResolved.compareAndSet(false, true)) {
             try {
@@ -143,6 +168,9 @@ data class SitePermissionRequest(
         }
     }
 
+    /**
+     * Executes the grant clipboard operation.
+     */
     fun grantClipboard(allowOrDeny: org.mozilla.geckoview.AllowOrDeny = org.mozilla.geckoview.AllowOrDeny.ALLOW) {
         if (clipboardCallback != null && isResolved.compareAndSet(false, true)) {
             try {
@@ -153,6 +181,9 @@ data class SitePermissionRequest(
         }
     }
 
+    /**
+     * Executes the reject operation.
+     */
     fun reject(denyValue: Int = GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY) {
         if (isResolved.compareAndSet(false, true)) {
             try {

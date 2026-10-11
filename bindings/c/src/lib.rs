@@ -1,3 +1,17 @@
+// Copyright (c) 2026 The Azokle Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 use azokle_core::{AzokleCoreEngine, BlockCategory, SovereignPasskey};
@@ -9,6 +23,7 @@ use std::sync::{Arc, OnceLock};
 
 static GLOBAL_CORE: OnceLock<Arc<AzokleCoreEngine>> = OnceLock::new();
 
+/// Returns the core.
 fn get_core() -> Arc<AzokleCoreEngine> {
     GLOBAL_CORE
         .get_or_init(|| Arc::new(AzokleCoreEngine::new()))
@@ -23,6 +38,7 @@ pub struct AzokleFilterDecision {
     pub is_exception: bool,
 }
 
+/// Performs azokle core init operation.
 #[no_mangle]
 pub extern "C" fn azokle_core_init() -> *mut std::ffi::c_void {
     let result = catch_unwind(AssertUnwindSafe(|| {
@@ -32,6 +48,7 @@ pub extern "C" fn azokle_core_init() -> *mut std::ffi::c_void {
     result.unwrap_or(std::ptr::null_mut())
 }
 
+/// Performs azokle core check url operation.
 #[no_mangle]
 pub extern "C" fn azokle_core_check_url(
     url: *const c_char,
@@ -122,6 +139,7 @@ pub extern "C" fn azokle_core_check_url(
     result.unwrap_or(fallback)
 }
 
+/// Performs azokle core clean url operation.
 #[no_mangle]
 pub extern "C" fn azokle_core_clean_url(url: *const c_char) -> *mut c_char {
     if url.is_null() {
@@ -137,6 +155,7 @@ pub extern "C" fn azokle_core_clean_url(url: *const c_char) -> *mut c_char {
     result.unwrap_or(std::ptr::null_mut())
 }
 
+/// Performs azokle core get cosmetic css operation.
 #[no_mangle]
 pub extern "C" fn azokle_core_get_cosmetic_css(domain: *const c_char) -> *mut c_char {
     if domain.is_null() {
@@ -152,6 +171,7 @@ pub extern "C" fn azokle_core_get_cosmetic_css(domain: *const c_char) -> *mut c_
     result.unwrap_or(std::ptr::null_mut())
 }
 
+/// Performs azokle core get scriptlets operation.
 #[no_mangle]
 pub extern "C" fn azokle_core_get_scriptlets(domain: *const c_char) -> *mut c_char {
     if domain.is_null() {
@@ -170,6 +190,7 @@ pub extern "C" fn azokle_core_get_scriptlets(domain: *const c_char) -> *mut c_ch
     result.unwrap_or(std::ptr::null_mut())
 }
 
+/// Performs azokle core is tracker operation.
 #[no_mangle]
 pub extern "C" fn azokle_core_is_tracker(host: *const c_char) -> bool {
     if host.is_null() {
@@ -182,6 +203,7 @@ pub extern "C" fn azokle_core_is_tracker(host: *const c_char) -> bool {
     result.unwrap_or(false)
 }
 
+/// Performs azokle core toggle host shield operation.
 #[no_mangle]
 pub extern "C" fn azokle_core_toggle_host_shield(host: *const c_char, enabled: bool) -> bool {
     if host.is_null() {
@@ -202,6 +224,7 @@ pub extern "C" fn azokle_core_toggle_host_shield(host: *const c_char, enabled: b
     result.unwrap_or(false)
 }
 
+/// Performs azokle core is host shield enabled operation.
 #[no_mangle]
 pub extern "C" fn azokle_core_is_host_shield_enabled(host: *const c_char) -> bool {
     if host.is_null() {
@@ -214,6 +237,7 @@ pub extern "C" fn azokle_core_is_host_shield_enabled(host: *const c_char) -> boo
     result.unwrap_or(true)
 }
 
+/// Performs azokle core get stats json operation.
 #[no_mangle]
 pub extern "C" fn azokle_core_get_stats_json() -> *mut c_char {
     let result = catch_unwind(AssertUnwindSafe(|| {
@@ -226,6 +250,7 @@ pub extern "C" fn azokle_core_get_stats_json() -> *mut c_char {
     result.unwrap_or(std::ptr::null_mut())
 }
 
+/// Performs azokle core record block operation.
 #[no_mangle]
 pub extern "C" fn azokle_core_record_block(_host: *const c_char, category_id: u8) {
     let _ = catch_unwind(AssertUnwindSafe(|| {
@@ -255,6 +280,7 @@ pub extern "C" fn azokle_core_record_block(_host: *const c_char, category_id: u8
     }));
 }
 
+/// Performs azokle passkey create operation.
 #[no_mangle]
 pub extern "C" fn azokle_passkey_create(
     rp_id: *const c_char,
@@ -283,6 +309,7 @@ pub extern "C" fn azokle_passkey_create(
     result.unwrap_or(std::ptr::null_mut())
 }
 
+/// Performs azokle protocol dispatch operation.
 #[no_mangle]
 pub extern "C" fn azokle_protocol_dispatch(envelope_json: *const c_char) -> *mut c_char {
     if envelope_json.is_null() {
@@ -314,6 +341,7 @@ pub extern "C" fn azokle_protocol_dispatch(envelope_json: *const c_char) -> *mut
     result.unwrap_or(std::ptr::null_mut())
 }
 
+/// Performs azokle core load filter rules operation.
 #[no_mangle]
 pub extern "C" fn azokle_core_load_filter_rules(rules: *const c_char) -> i32 {
     if rules.is_null() {
@@ -328,6 +356,7 @@ pub extern "C" fn azokle_core_load_filter_rules(rules: *const c_char) -> i32 {
     result.unwrap_or(0)
 }
 
+/// Performs azokle core load resources operation.
 #[no_mangle]
 pub extern "C" fn azokle_core_load_resources(resources_json: *const c_char) -> i32 {
     if resources_json.is_null() {
@@ -340,6 +369,7 @@ pub extern "C" fn azokle_core_load_resources(resources_json: *const c_char) -> i
     result.unwrap_or(0)
 }
 
+/// Performs azokle core load serialized engine operation.
 #[no_mangle]
 pub extern "C" fn azokle_core_load_serialized_engine(data: *const u8, len: usize) -> bool {
     if data.is_null() || len == 0 {
@@ -352,6 +382,7 @@ pub extern "C" fn azokle_core_load_serialized_engine(data: *const u8, len: usize
     result.unwrap_or(false)
 }
 
+/// Performs azokle core serialize engine operation.
 #[no_mangle]
 pub extern "C" fn azokle_core_serialize_engine(out_len: *mut usize) -> *mut u8 {
     if out_len.is_null() {
@@ -370,6 +401,7 @@ pub extern "C" fn azokle_core_serialize_engine(out_len: *mut usize) -> *mut u8 {
     result.unwrap_or(std::ptr::null_mut())
 }
 
+/// Performs azokle byte buffer free operation.
 #[no_mangle]
 pub extern "C" fn azokle_byte_buffer_free(ptr: *mut u8, len: usize) {
     if !ptr.is_null() && len > 0 {
@@ -379,6 +411,7 @@ pub extern "C" fn azokle_byte_buffer_free(ptr: *mut u8, len: usize) {
     }
 }
 
+/// Performs azokle string free operation.
 #[no_mangle]
 pub extern "C" fn azokle_string_free(s: *mut c_char) {
     if !s.is_null() {
@@ -388,6 +421,7 @@ pub extern "C" fn azokle_string_free(s: *mut c_char) {
     }
 }
 
+/// Performs azokle decision free operation.
 #[no_mangle]
 pub extern "C" fn azokle_decision_free(decision: *mut AzokleFilterDecision) {
     if !decision.is_null() {
@@ -400,6 +434,7 @@ pub extern "C" fn azokle_decision_free(decision: *mut AzokleFilterDecision) {
     }
 }
 
+/// Performs azokle core fetch page json operation.
 #[no_mangle]
 pub extern "C" fn azokle_core_fetch_page_json(url: *const c_char, is_tor: bool) -> *mut c_char {
     if url.is_null() {
