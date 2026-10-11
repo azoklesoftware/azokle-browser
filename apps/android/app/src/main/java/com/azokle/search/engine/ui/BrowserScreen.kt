@@ -1799,7 +1799,11 @@ fun BrowserScreen(
             },
             onCloseTabInGroup = { tabIdToClose ->
                 val wasActive = (tabIdToClose == activeTabId)
+                val remainingInGroup = activeGroupTabs.filter { it.id != tabIdToClose }
                 TabManager.closeTab(tabIdToClose)
+                if (remainingInGroup.isEmpty()) {
+                    showGroupDetailSheet = false
+                }
                 if (wasActive) {
                     val next = TabManager.activeTab
                     if (next != null) {

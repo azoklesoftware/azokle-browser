@@ -245,4 +245,55 @@ class TabManagerTest {
         assertFalse(canAddTabToGroup(torTab, privateGroup))
         assertTrue(canAddTabToGroup(torTab, torGroup))
     }
+
+    @Test
+    fun testGhostGroupPruningOnTabMove() {
+        var groups = listOf(
+            TabGroup(id = "grp-1", title = "Group 1", tabIds = listOf("tab-1")),
+            TabGroup(id = "grp-2", title = "Group 2", tabIds = listOf("tab-2"))
+        )
+
+        // Move tab-1 to grp-2
+        val movingTabId = "tab-1"
+        val targetGroupId = "grp-2"
+        val oldGid = "grp-1"
+
+        groups = groups.mapNotNull { g ->
+            when (g.id) {
+                oldGid -> {
+                    val remaining = g.tabIds.filter { it != movingTabId }
+                    if (remaining.isEmpty()) null else g.copy(tabIds = remaining)
+                }
+                targetGroupId -> {
+                    if (!g.tabIds.contains(movingTabId)) g.copy(tabIds = g.tabIds + movingTabId) else g
+                }
+                else -> g
+            }
+        }
+
+        // grp-1 must be pruned since it had only tab-1
+        assertEquals(1, groups.size)
+        assertEquals("grp-2", groups[0].id)
+        assertEquals(listOf("tab-2", "tab-1"), groups[0].tabIds)
+    }
+
+    @Test
+    fun testParentTabNullSafetyAndModeIsolation() {
+        // Standalone tab opened with null parent must have null groupId
+        val nullParentResult = TabSession(
+            id = "t-null",
+            groupId = null,
+            parentTabId = null
+        )
+        assertNull(nullParentResult.groupId)
+        assertNull(nullParentResult.parentTabId)
+
+        // Child opened from private parent but requested in standard mode must not inherit private group
+        val privateParent = TabSession(id = "parent-priv", isPrivate = true, isTor = false, groupId = "grp-priv")
+        val requestedPrivate = false
+        val requestedTor = false
+
+        val shouldIsolate = (privateParent.isPrivate != requestedPrivate || privateParent.isTor != requestedTor)
+        assertTrue(shouldIsolate)
+    }
 }

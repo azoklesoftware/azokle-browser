@@ -282,14 +282,22 @@ impl TabManager {
         *self.active_tab_id.write() = tabs.first().map(|t| t.id.clone());
     }
 
-    /// Automatically organizes all open tabs into clusters based on their target registrable domain.
+    /// Automatically organizes all open tabs into clusters based on their target registrable domain,
+    /// enforcing strict isolation across Standard, Private, and Tor browsing modes.
     pub fn auto_group_by_domain(&self) {
         let mut tabs = self.tabs.write();
         for tab in tabs.iter_mut() {
             if let Ok(parsed) = Url::parse(&tab.url) {
                 if let Some(host) = parsed.host_str() {
                     let domain = host.trim_start_matches("www.").to_string();
-                    tab.group_id = Some(format!("group_{}", domain));
+                    let prefix = if tab.is_tor {
+                        "group_tor"
+                    } else if tab.is_private {
+                        "group_priv"
+                    } else {
+                        "group_std"
+                    };
+                    tab.group_id = Some(format!("{}_{}", prefix, domain));
                     tab.group_title = Some(domain);
                 }
             }
@@ -380,10 +388,32 @@ mod tests {
             None,
             None,
         );
+        manager.open_tab(
+            "https://www.youtube.com/watch?v=456",
+            "Private Video",
+            true,
+            false,
+            None,
+            None,
+        );
+        manager.open_tab(
+            "https://www.youtube.com/watch?v=789",
+            "Tor Video",
+            true,
+            true,
+            None,
+            None,
+        );
         manager.auto_group_by_domain();
 
         let tabs = manager.get_all_tabs();
-        let yt_tab = tabs.iter().find(|t| t.url.contains("youtube")).unwrap();
-        assert_eq!(yt_tab.group_title.as_deref(), Some("youtube.com"));
+        let yt_std = tabs.iter().find(|t| !t.is_private && !t.is_tor && t.url.contains("123")).unwrap();
+        let yt_priv = tabs.iter().find(|t| t.is_private && !t.is_tor && t.url.contains("456")).unwrap();
+        let yt_tor = tabs.iter().find(|t| t.is_tor && t.url.contains("789")).unwrap();
+
+        assert_eq!(yt_std.group_id.as_deref(), Some("group_std_youtube.com"));
+        assert_eq!(yt_priv.group_id.as_deref(), Some("group_priv_youtube.com"));
+        assert_eq!(yt_tor.group_id.as_deref(), Some("group_tor_youtube.com"));
+        assert_eq!(yt_std.group_title.as_deref(), Some("youtube.com"));
     }
 }

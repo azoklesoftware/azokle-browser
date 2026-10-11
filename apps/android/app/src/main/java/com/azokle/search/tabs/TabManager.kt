@@ -304,19 +304,48 @@ object TabManager {
         selectAfterOpen: Boolean = true
     ): String {
         val parent = _tabs.value.find { it.id == parentTabId }
+        if (parent == null) {
+            // Parent not found: open as standalone tab without assigning phantom group IDs
+            return openTab(
+                url = url,
+                title = title,
+                isPrivate = isPrivate,
+                isTor = isTor,
+                groupId = null,
+                groupTitle = null,
+                groupColor = null,
+                parentTabId = null,
+                selectAfterOpen = selectAfterOpen
+            )
+        }
+
+        // Privacy & Tor Isolation: do not inherit or merge groups across different browsing modes
+        if (parent.isPrivate != isPrivate || parent.isTor != isTor) {
+            return openTab(
+                url = url,
+                title = title,
+                isPrivate = isPrivate,
+                isTor = isTor,
+                groupId = null,
+                groupTitle = null,
+                groupColor = null,
+                parentTabId = parentTabId,
+                selectAfterOpen = selectAfterOpen
+            )
+        }
+
+        val effectivePrivate = parent.isPrivate
+        val effectiveTor = parent.isTor
         val targetGroupId: String
         val targetGroupTitle: String
         val targetGroupColor: Long
 
-        val effectivePrivate = parent?.isPrivate ?: isPrivate
-        val effectiveTor = parent?.isTor ?: isTor
-
-        if (parent != null && parent.groupId != null) {
+        if (parent.groupId != null) {
             targetGroupId = parent.groupId
             val group = _groups.value.find { it.id == targetGroupId }
             targetGroupTitle = group?.title ?: parent.groupTitle ?: "Group"
             targetGroupColor = group?.color ?: parent.groupColor ?: 0xFF38BDF8
-        } else if (parent != null) {
+        } else {
             // Create a brand new group linking Parent + Child with enforced isolation
             val cleanTitle = parent.title.ifBlank {
                 try { Uri.parse(parent.url).host?.removePrefix("www.") ?: "Group" } catch (e: Exception) { "Group" }
@@ -345,10 +374,6 @@ object TabManager {
                     } else it
                 }
             }
-        } else {
-            targetGroupId = UUID.randomUUID().toString()
-            targetGroupTitle = "Group"
-            targetGroupColor = 0xFF38BDF8
         }
 
         return openTab(
@@ -832,7 +857,14 @@ object TabManager {
             isPrivate = isPrivate,
             isTor = isTor
         )
-        _groups.update { it + newGroup }
+        // Atomically strip moved tabs from any previous groups and prune ghost groups that become empty
+        _groups.update { list ->
+            val updatedExisting = list.mapNotNull { g ->
+                val remainingTabIds = g.tabIds.filter { it !in validTabIds }
+                if (remainingTabIds.isEmpty()) null else g.copy(tabIds = remainingTabIds)
+            }
+            updatedExisting + newGroup
+        }
 
         // Update target tabs
         _tabs.update { list ->
@@ -862,9 +894,22 @@ object TabManager {
             return false
         }
 
-        if (!group.tabIds.contains(tabId)) {
-            _groups.update { list ->
-                list.map { if (it.id == groupId) it.copy(tabIds = it.tabIds + tabId) else it }
+        val oldGid = tab.groupId
+        _groups.update { list ->
+            list.mapNotNull { g ->
+                when (g.id) {
+                    oldGid -> {
+                        // Atomically remove from previous group and prune if now empty
+                        val remaining = g.tabIds.filter { it != tabId }
+                        if (remaining.isEmpty()) null else g.copy(tabIds = remaining)
+                    }
+                    groupId -> {
+                        if (!g.tabIds.contains(tabId)) {
+                            g.copy(tabIds = g.tabIds + tabId)
+                        } else g
+                    }
+                    else -> g
+                }
             }
         }
         _tabs.update { list ->
@@ -885,13 +930,13 @@ object TabManager {
             list.map { if (it.id == tabId) it.copy(groupId = null, groupTitle = null, groupColor = null) else it }
         }
 
-        val remainingInGroup = _tabs.value.filter { it.groupId == gid && it.id != tabId }
-        if (remainingInGroup.isEmpty()) {
-            // Disband group only if 0 tabs remain
-            _groups.update { it.filter { g -> g.id != gid } }
-        } else {
-            _groups.update { list ->
-                list.map { if (it.id == gid) it.copy(tabIds = it.tabIds.filter { id -> id != tabId }) else it }
+        val remainingTabsInGroup = _tabs.value.filter { it.groupId == gid && it.id != tabId }
+        _groups.update { list ->
+            list.mapNotNull { g ->
+                if (g.id == gid) {
+                    val remainingIds = g.tabIds.filter { it != tabId && remainingTabsInGroup.any { tab -> tab.id == it } }
+                    if (remainingIds.isEmpty()) null else g.copy(tabIds = remainingIds)
+                } else g
             }
         }
         persistTabs()
@@ -902,7 +947,20 @@ object TabManager {
      */
     fun closeGroup(groupId: String) {
         val tabsToClose = _tabs.value.filter { it.groupId == groupId }
+        if (tabsToClose.isEmpty()) {
+            _groups.update { it.filter { g -> g.id != groupId } }
+            persistTabs()
+            return
+        }
+
+        // Push closed tabs to recently closed for 1-tap instant undo (non-private only)
         for (t in tabsToClose) {
+            if (!t.isPrivate && !t.isTor) {
+                _recentlyClosed.addFirst(t)
+                while (_recentlyClosed.size > 15) {
+                    _recentlyClosed.pollLast()
+                }
+            }
             TabThumbnailCache.remove(t.id)
             clearTabLoaded(t.id)
             sessionStateMap.remove(t.id)
@@ -1123,6 +1181,10 @@ object TabManager {
 
                 val standardPersisted = restoredTabs.filter { !it.isPrivate && !it.isTor }
                 val standardGroups = restoredGroups.filter { !it.isPrivate && !it.isTor }
+                    .mapNotNull { g ->
+                        val matchingIds = g.tabIds.filter { tabId -> standardPersisted.any { it.id == tabId } }
+                        if (matchingIds.isEmpty()) null else g.copy(tabIds = matchingIds)
+                    }
                 if (standardPersisted.isNotEmpty()) {
                     _tabs.value = standardPersisted
                     _groups.value = standardGroups

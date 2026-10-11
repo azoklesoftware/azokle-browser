@@ -62,6 +62,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -123,6 +124,12 @@ fun TabGroupDetailSheet(
     var showEditGroupDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var showUngroupConfirmDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(tabs.isEmpty()) {
+        if (tabs.isEmpty()) {
+            onDismiss()
+        }
+    }
 
     // Dynamic grid height calculation for floating popup dialog matching ActiveTabsCard proportion
     val configuration = LocalConfiguration.current

@@ -870,18 +870,20 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
             while (cursor.moveToNext()) {
                 val gid = cursor.getString(0) ?: continue
                 val groupTabs = restoredTabs.filter { it.groupId == gid }.map { it.id }
-                val group = TabGroup(
-                    id = gid,
-                    title = cursor.getString(1) ?: "Group",
-                    color = cursor.getLong(2),
-                    tabIds = groupTabs,
-                    parentTabId = cursor.getString(3),
-                    isPrivate = false,
-                    isTor = false,
-                    isCollapsed = cursor.getInt(4) == 1,
-                    createdAt = cursor.getLong(5)
-                )
-                restoredGroups.add(group)
+                if (groupTabs.isNotEmpty()) {
+                    val group = TabGroup(
+                        id = gid,
+                        title = cursor.getString(1) ?: "Group",
+                        color = cursor.getLong(2),
+                        tabIds = groupTabs,
+                        parentTabId = cursor.getString(3),
+                        isPrivate = false,
+                        isTor = false,
+                        isCollapsed = cursor.getInt(4) == 1,
+                        createdAt = cursor.getLong(5)
+                    )
+                    restoredGroups.add(group)
+                }
             }
             cursor.close()
 
