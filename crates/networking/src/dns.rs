@@ -51,11 +51,14 @@ impl DnsProvider {
     }
 }
 
+type DnsCacheEntry = (Vec<IpAddr>, Instant);
+type DnsCache = Arc<RwLock<HashMap<String, DnsCacheEntry>>>;
+
 /// Thread-safe DNS resolver supporting TTL caching and Tor `.onion` leak prevention.
 #[derive(Clone)]
 pub struct SovereignDnsResolver {
     active_provider: Arc<RwLock<DnsProvider>>,
-    cache: Arc<RwLock<HashMap<String, (Vec<IpAddr>, Instant)>>>,
+    cache: DnsCache,
     ttl_secs: u64,
 }
 

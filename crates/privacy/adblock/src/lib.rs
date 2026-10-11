@@ -345,7 +345,7 @@ impl AdBlockEngine {
             if res.injected_script.is_empty() {
                 res.injected_script = custom_res.injected_script;
             } else {
-                res.injected_script.push_str("\n");
+                res.injected_script.push('\n');
                 res.injected_script.push_str(&custom_res.injected_script);
             }
         }

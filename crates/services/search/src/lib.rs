@@ -55,13 +55,13 @@ impl SearchEngine {
                 "https://en.wikipedia.org/wiki/Special:Search?search={}",
                 urlencoding_simple(rest)
             ))
-        } else if let Some(rest) = trimmed.strip_prefix("!yt ") {
-            Some(format!(
-                "https://www.youtube.com/results?search_query={}",
-                urlencoding_simple(rest)
-            ))
         } else {
-            None
+            trimmed.strip_prefix("!yt ").map(|rest| {
+                format!(
+                    "https://www.youtube.com/results?search_query={}",
+                    urlencoding_simple(rest)
+                )
+            })
         }
     }
 }

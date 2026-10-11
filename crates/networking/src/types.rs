@@ -28,17 +28,17 @@ impl HttpMethod {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum NetworkRoute {
+    #[default]
     Direct,
-    ProxySocks5 { host: String, port: u16 },
-    TorIsolated { socks_port: u16 },
-}
-
-impl Default for NetworkRoute {
-    fn default() -> Self {
-        Self::Direct
-    }
+    ProxySocks5 {
+        host: String,
+        port: u16,
+    },
+    TorIsolated {
+        socks_port: u16,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,3 +1,5 @@
+#![allow(clippy::not_unsafe_ptr_arg_deref)]
+
 use azokle_core::{AzokleCoreEngine, BlockCategory, SovereignPasskey};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -372,7 +374,7 @@ pub extern "C" fn azokle_core_serialize_engine(out_len: *mut usize) -> *mut u8 {
 pub extern "C" fn azokle_byte_buffer_free(ptr: *mut u8, len: usize) {
     if !ptr.is_null() && len > 0 {
         let _ = catch_unwind(AssertUnwindSafe(|| unsafe {
-            let _ = Box::from_raw(std::slice::from_raw_parts_mut(ptr, len));
+            let _ = Box::from_raw(std::ptr::slice_from_raw_parts_mut(ptr, len));
         }));
     }
 }

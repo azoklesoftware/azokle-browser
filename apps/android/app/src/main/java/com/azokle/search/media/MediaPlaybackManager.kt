@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.azokle.search.media
 
 import android.app.Activity
@@ -484,6 +486,7 @@ object MediaPlaybackManager {
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun updatePlaybackStateCompat(status: PlaybackStatus, positionMs: Long, rate: Double) {
         val session = mediaSessionCompat ?: return
 
@@ -512,6 +515,7 @@ object MediaPlaybackManager {
         session.setPlaybackState(stateBuilder.build())
     }
 
+    @Suppress("DEPRECATION")
     private fun updateMediaMetadataCompat(
         title: String,
         artist: String,

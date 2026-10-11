@@ -103,7 +103,7 @@ impl ProtocolEnvelope {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domains::{CommandPayload, RequestPayload, ResponsePayload};
+    use crate::domains::{CommandPayload, RequestPayload};
 
     #[test]
     fn test_json_roundtrip() {

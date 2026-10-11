@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.azokle.search.media
 
 import android.app.Notification
@@ -178,6 +180,7 @@ class MediaPlaybackService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    @Suppress("DEPRECATION")
     private fun buildNotification(): Notification {
         val state = MediaPlaybackManager.mediaState.value
         val isPlaying = state.status == PlaybackStatus.PLAYING

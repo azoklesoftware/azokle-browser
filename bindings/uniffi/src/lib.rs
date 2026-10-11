@@ -36,6 +36,12 @@ pub struct UniversalBrowserEngine {
     core: Arc<AzokleCoreEngine>,
 }
 
+impl Default for UniversalBrowserEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[uniffi::export]
 impl UniversalBrowserEngine {
     #[uniffi::constructor]

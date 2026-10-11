@@ -245,14 +245,14 @@ impl HistoryManager {
                 .collect()
         };
 
-        matches.sort_by(|a, b| b.frecency.cmp(&a.frecency));
+        matches.sort_by_key(|b| std::cmp::Reverse(b.frecency));
         matches.into_iter().take(limit.max(1)).collect()
     }
 
     /// Returns top destinations sorted by Frecency score for the New Tab Page and Omnibox top sites.
     pub fn get_top_frecency(&self, limit: usize) -> Vec<HistoryEntry> {
         let mut list: Vec<HistoryEntry> = self.entries.read().iter().cloned().collect();
-        list.sort_by(|a, b| b.frecency.cmp(&a.frecency));
+        list.sort_by_key(|b| std::cmp::Reverse(b.frecency));
         list.into_iter().take(limit.max(1)).collect()
     }
 
@@ -269,7 +269,7 @@ impl HistoryManager {
             .into_iter()
             .map(|(domain, count)| DomainStat { domain, count })
             .collect();
-        stats.sort_by(|a, b| b.count.cmp(&a.count));
+        stats.sort_by_key(|b| std::cmp::Reverse(b.count));
         stats.into_iter().take(limit.max(1)).collect()
     }
 
