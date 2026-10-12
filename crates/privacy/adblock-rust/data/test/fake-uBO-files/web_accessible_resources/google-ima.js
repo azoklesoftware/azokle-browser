@@ -631,7 +631,7 @@ if (!window.google || !window.google.ima || !window.google.ima.VERSION) {
         if (!player) { continue;}
         const div = player.div;
         if (!div) { continue; }
-        if (div.innerHTML.includes("www.engadget.com")) {
+        if (/(?:^|\/\/|\.)www\.engadget\.com(?::|\/|[^\w.-]|$)/.test(div.innerHTML)) {
           return true;
         }
       }

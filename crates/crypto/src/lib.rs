@@ -25,12 +25,12 @@ mod tests {
     #[test]
     fn test_vault_encryption_decryption() {
         // Short salt (<16 bytes) must fail
-        let short_salt = b"short_salt";
-        assert!(VaultCrypto::derive_key("password123", short_salt).is_err());
+        let short_salt = rand::random::<[u8; 8]>();
+        assert!(VaultCrypto::derive_key("password123", &short_salt).is_err());
 
         // Valid salt (>=16 bytes) succeeds
-        let salt = b"azokle_test_salt_123";
-        let key = VaultCrypto::derive_key("SuperSecretMasterPassword123!", salt).unwrap();
+        let salt = rand::random::<[u8; 24]>();
+        let key = VaultCrypto::derive_key("SuperSecretMasterPassword123!", &salt).unwrap();
         let message = b"Azokle Sovereign Vault Sensitive Data 2026";
 
         let encrypted = VaultCrypto::encrypt(&key, message).unwrap();

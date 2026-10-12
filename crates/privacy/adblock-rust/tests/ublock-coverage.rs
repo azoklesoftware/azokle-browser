@@ -161,7 +161,7 @@ fn check_specifics_default() {
         "@@||www.googleadservices.*/aclk?$first-party",
     ]);
     {
-        let request = Request::new("https://www.youtube.com/youtubei/v1/log_event?alt=json&key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8", "", "", "").unwrap();
+        let request = Request::new("https://www.youtube.com/youtubei/v1/log_event?alt=json&key=REDACTED_TEST_KEY_DUMMY_YOUTUBEI_00001", "", "", "").unwrap();
         let checked = engine.check_network_request(&request);
         assert!(checked.should_block());
     }
@@ -214,7 +214,7 @@ fn check_basic_works_after_deserialization() {
     deserialized_engine.deserialize(&serialized).unwrap();
 
     {
-        let request = Request::new("https://www.youtube.com/youtubei/v1/log_event?alt=json&key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8", "", "", "").unwrap();
+        let request = Request::new("https://www.youtube.com/youtubei/v1/log_event?alt=json&key=REDACTED_TEST_KEY_DUMMY_YOUTUBEI_00001", "", "", "").unwrap();
         let checked = engine.check_network_request(&request);
         assert!(checked.should_block());
     }

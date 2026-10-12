@@ -14,6 +14,16 @@ interface SpeedDialItem {
   icon: string;
 }
 
+function sanitizeWebUrl(rawUrl: string): string | null {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.href;
+    }
+  } catch {}
+  return null;
+}
+
 export const NewTabPage: React.FC = () => {
   const bridge = getDesktopBridge();
 
@@ -48,7 +58,18 @@ export const NewTabPage: React.FC = () => {
     try {
       if (typeof localStorage !== 'undefined') {
         const saved = localStorage.getItem('azokle_top_sites');
-        if (saved) return JSON.parse(saved);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            const sanitized = parsed
+              .map((item: SpeedDialItem) => {
+                const safe = sanitizeWebUrl(item.url);
+                return safe ? { ...item, url: safe } : null;
+              })
+              .filter(Boolean) as SpeedDialItem[];
+            if (sanitized.length > 0) return sanitized;
+          }
+        }
       }
     } catch {}
     return [
@@ -112,10 +133,16 @@ export const NewTabPage: React.FC = () => {
     const q = searchQuery.trim();
     if (!q) return;
 
-    if (q.startsWith('http://') || q.startsWith('https://')) {
-      bridge.navigate(q);
-    } else if (q.includes('.') && !q.includes(' ')) {
-      bridge.navigate(`https://${q}`);
+    const safeDirect = sanitizeWebUrl(q);
+    if (safeDirect) {
+      bridge.navigate(safeDirect);
+    } else if (q.includes('.') && !q.includes(' ') && !q.includes(':')) {
+      const safeHttps = sanitizeWebUrl(`https://${q}`);
+      if (safeHttps) {
+        bridge.navigate(safeHttps);
+      } else {
+        bridge.navigate(`https://search.azokle.com/search?q=${encodeURIComponent(q)}`);
+      }
     } else {
       bridge.navigate(`https://search.azokle.com/search?q=${encodeURIComponent(q)}`);
     }
@@ -124,11 +151,13 @@ export const NewTabPage: React.FC = () => {
   const handleAddSite = () => {
     if (!newSiteTitle.trim() || !newSiteUrl.trim()) return;
     let url = newSiteUrl.trim();
-    if (!url.startsWith('http')) url = `https://${url}`;
+    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+    const safeUrl = sanitizeWebUrl(url);
+    if (!safeUrl) return;
 
     const updated = [
       ...sites,
-      { id: String(Date.now()), title: newSiteTitle.trim(), url, icon: '⭐' }
+      { id: String(Date.now()), title: newSiteTitle.trim(), url: safeUrl, icon: '⭐' }
     ];
     setSites(updated);
     try {
@@ -186,20 +215,25 @@ export const NewTabPage: React.FC = () => {
         {/* 3. Top Sites Grid (Speed Dials) */}
         {showTopSites && (
           <div className="brave-ntp-top-sites-grid">
-            {sites.map((site) => (
-              <a
-                key={site.id}
-                href={site.url}
-                className="top-site-tile"
-                onClick={(e) => {
-                  e.preventDefault();
-                  bridge.navigate(site.url);
-                }}
-              >
-                <div className="top-site-icon-box">{site.icon}</div>
-                <div className="top-site-title">{site.title}</div>
-              </a>
-            ))}
+            {sites.map((site) => {
+              const safeHref = sanitizeWebUrl(site.url) || '#';
+              return (
+                <a
+                  key={site.id}
+                  href={safeHref}
+                  className="top-site-tile"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (safeHref !== '#') {
+                      bridge.navigate(safeHref);
+                    }
+                  }}
+                >
+                  <div className="top-site-icon-box">{site.icon}</div>
+                  <div className="top-site-title">{site.title}</div>
+                </a>
+              );
+            })}
 
             {/* Add Site Button */}
             <button

@@ -14,7 +14,7 @@
 
 use argon2::{password_hash::rand_core::OsRng, Algorithm, Argon2, Params, Version};
 use chacha20poly1305::{
-    aead::{Aead, KeyInit},
+    aead::{Aead, AeadCore, KeyInit},
     ChaCha20Poly1305, Nonce,
 };
 use rand::RngCore;
@@ -75,7 +75,7 @@ impl VaultCrypto {
             .map_err(|e| VaultCryptoError::KdfError(e.to_string()))?;
         let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
 
-        let mut key = [0u8; 32];
+        let mut key = rand::random::<[u8; 32]>();
         argon2
             .hash_password_into(passphrase.as_bytes(), salt, &mut key)
             .map_err(|e| VaultCryptoError::KdfError(e.to_string()))?;
@@ -90,17 +90,15 @@ impl VaultCrypto {
     /// `[12-byte Nonce] || [Ciphertext] || [16-byte Poly1305 MAC Tag]`
     pub fn encrypt(key: &SecretKey, plaintext: &[u8]) -> Result<Vec<u8>, VaultCryptoError> {
         let cipher = ChaCha20Poly1305::new(key.as_bytes().into());
-        let mut nonce_bytes = [0u8; 12];
-        OsRng.fill_bytes(&mut nonce_bytes);
-        let nonce = Nonce::from_slice(&nonce_bytes);
+        let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
 
         let mut ciphertext = cipher
-            .encrypt(nonce, plaintext)
+            .encrypt(&nonce, plaintext)
             .map_err(|_| VaultCryptoError::EncryptionError)?;
 
         // Output format: [12 bytes Nonce] + [Ciphertext + 16 bytes Poly1305 Tag]
         let mut result = Vec::with_capacity(12 + ciphertext.len());
-        result.extend_from_slice(&nonce_bytes);
+        result.extend_from_slice(nonce.as_slice());
         result.append(&mut ciphertext);
         Ok(result)
     }

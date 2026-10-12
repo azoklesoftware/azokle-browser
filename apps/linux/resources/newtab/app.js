@@ -18,6 +18,16 @@ function animateStats() {
   }, 4000);
 }
 
+function getSafeHttpUrl(rawUrl) {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.href;
+    }
+  } catch {}
+  return null;
+}
+
 function setupSearch() {
   const form = document.getElementById('search-form');
   const input = document.getElementById('search-input');
@@ -27,20 +37,26 @@ function setupSearch() {
     const query = input.value.trim();
     if (!query) return;
 
-    if (query.startsWith('http://') || query.startsWith('https://')) {
-      window.location.href = query;
-    } else if (query.includes('.') && !query.includes(' ')) {
-      window.location.href = 'https://' + query;
+    const safeUrl = getSafeHttpUrl(query);
+    if (safeUrl) {
+      window.location.assign(safeUrl);
+    } else if (query.includes('.') && !query.includes(' ') && !query.includes(':')) {
+      const safeHttpsUrl = getSafeHttpUrl('https://' + query);
+      if (safeHttpsUrl) {
+        window.location.assign(safeHttpsUrl);
+      } else {
+        window.location.assign('https://search.azokle.com/search?q=' + encodeURIComponent(query));
+      }
     } else if (query.startsWith('!g ')) {
-      window.location.href = 'https://www.google.com/search?q=' + encodeURIComponent(query.substring(3));
+      window.location.assign('https://www.google.com/search?q=' + encodeURIComponent(query.substring(3)));
     } else if (query.startsWith('!gh ')) {
-      window.location.href = 'https://github.com/search?q=' + encodeURIComponent(query.substring(4));
+      window.location.assign('https://github.com/search?q=' + encodeURIComponent(query.substring(4)));
     } else if (query.startsWith('!yt ')) {
-      window.location.href = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(query.substring(4));
+      window.location.assign('https://www.youtube.com/results?search_query=' + encodeURIComponent(query.substring(4)));
     } else if (query.startsWith('!w ')) {
-      window.location.href = 'https://en.wikipedia.org/wiki/Special:Search?search=' + encodeURIComponent(query.substring(3));
+      window.location.assign('https://en.wikipedia.org/wiki/Special:Search?search=' + encodeURIComponent(query.substring(3)));
     } else {
-      window.location.href = 'https://search.azokle.com/search?q=' + encodeURIComponent(query);
+      window.location.assign('https://search.azokle.com/search?q=' + encodeURIComponent(query));
     }
   });
 }

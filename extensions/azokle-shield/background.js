@@ -144,17 +144,25 @@
         return false;
     }
 
+    function hostMatches(h, domain) {
+        if (!h || !domain) return false;
+        var cleanH = h.toLowerCase().trim();
+        var cleanD = domain.toLowerCase().trim();
+        return cleanH === cleanD || cleanH.endsWith('.' + cleanD);
+    }
+
     function isSovereignInfrastructure(url, host) {
         if (!host) return false;
         var h = host.toLowerCase().trim();
         if (sovereignHosts.has(h)) return true;
         if (h.endsWith('.azokle.com') || h.endsWith('.cloudflare.com') ||
             h.endsWith('.cloudflareinsights.com') || h.endsWith('.hcaptcha.com') ||
-            h.endsWith('.recaptcha.net') || h.includes('turnstile')) {
+            h.endsWith('.recaptcha.net') || h.includes('turnstile') ||
+            hostMatches(h, 'challenges.cloudflare.com')) {
             return true;
         }
         var u = (url || '').toLowerCase();
-        if (u.includes('/cdn-cgi/') || u.includes('challenges.cloudflare.com') || u.includes('/challenge-platform/')) {
+        if (u.includes('/cdn-cgi/') || u.includes('/challenge-platform/')) {
             return true;
         }
         return false;
@@ -164,7 +172,7 @@
     var surrogateRules = [
         {
             matcher: function(u, h) {
-                return (h.includes('google-analytics.com') && (u.includes('/analytics.js') || u.includes('/ga.js')));
+                return (hostMatches(h, 'google-analytics.com') && (u.includes('/analytics.js') || u.includes('/ga.js')));
             },
             file: 'surrogates/analytics.js'
         },
@@ -176,27 +184,27 @@
         },
         {
             matcher: function(u, h) {
-                return h.includes('googletagmanager.com') && u.includes('/gtm.js');
+                return hostMatches(h, 'googletagmanager.com') && u.includes('/gtm.js');
             },
             file: 'surrogates/gtm.js'
         },
         {
             matcher: function(u, h) {
-                return (h.includes('connect.facebook.net') && (u.includes('/fbevents.js') || u.includes('/sdk.js'))) ||
-                       (h.includes('facebook.com') && u.includes('/fbevents.js'));
+                return (hostMatches(h, 'connect.facebook.net') && (u.includes('/fbevents.js') || u.includes('/sdk.js'))) ||
+                       (hostMatches(h, 'facebook.com') && u.includes('/fbevents.js'));
             },
             file: 'surrogates/fbevents.js'
         },
         {
             matcher: function(u, h) {
-                return (h.includes('matomo') || h.includes('piwik')) && (u.includes('matomo.js') || u.includes('piwik.js'));
+                return (hostMatches(h, 'matomo.org') || h.includes('matomo') || h.includes('piwik')) && (u.includes('matomo.js') || u.includes('piwik.js'));
             },
             file: 'surrogates/matomo.js'
         },
         {
             matcher: function(u, h) {
-                return (h.includes('googletagservices.com') && u.includes('/gpt.js')) ||
-                       (h.includes('securepubads.g.doubleclick.net') && u.includes('/gpt.js'));
+                return (hostMatches(h, 'googletagservices.com') && u.includes('/gpt.js')) ||
+                       (hostMatches(h, 'securepubads.g.doubleclick.net') && u.includes('/gpt.js'));
             },
             file: 'surrogates/gpt.js'
         },
@@ -208,19 +216,19 @@
         },
         {
             matcher: function(u, h) {
-                return h.includes('imasdk.googleapis.com') && u.includes('/ima3.js');
+                return hostMatches(h, 'imasdk.googleapis.com') && u.includes('/ima3.js');
             },
             file: 'surrogates/imasdk.js'
         },
         {
             matcher: function(u, h) {
-                return h.includes('chartbeat.com') && u.includes('chartbeat.js');
+                return hostMatches(h, 'chartbeat.com') && u.includes('chartbeat.js');
             },
             file: 'surrogates/chartbeat.js'
         },
         {
             matcher: function(u, h) {
-                return h.includes('hotjar.com') && (u.includes('/hotjar-') || u.includes('/hotjar.js'));
+                return hostMatches(h, 'hotjar.com') && (u.includes('/hotjar-') || u.includes('/hotjar.js'));
             },
             file: 'surrogates/hotjar.js'
         }
@@ -279,14 +287,15 @@
         var h = (host || '').toLowerCase();
 
         // High-priority exemption: YouTube media chunks must NEVER be blocked or delayed by tracker heuristics
-        if (h.includes('googlevideo.com') && urlLower.includes('/videoplayback')) {
+        if (hostMatches(h, 'googlevideo.com') && urlLower.includes('/videoplayback')) {
             return false;
         }
 
         if (h.includes('doubleclick') || h.includes('googleads') || h.includes('adservice') ||
             h.includes('adsystem') || h.includes('adnxs') || h.includes('advertising') ||
             h.includes('criteo') || h.includes('taboola') || h.includes('outbrain') ||
-            h.includes('adroll') || h.includes('rubiconproject') || h.includes('pubmatic')) {
+            h.includes('adroll') || h.includes('rubiconproject') || h.includes('pubmatic') ||
+            hostMatches(h, 'imasdk.googleapis.com')) {
             return true;
         }
         if (urlLower.includes('/api/stats/ads') ||
@@ -309,8 +318,7 @@
             urlLower.includes('/beacon') ||
             urlLower.includes('/tr?') ||
             urlLower.includes('fbevents.js') ||
-            urlLower.includes('/pixel') ||
-            urlLower.includes('imasdk.googleapis.com')) {
+            urlLower.includes('/pixel')) {
             return true;
         }
         return false;
@@ -419,13 +427,13 @@
                 return { cancel: false };
             }
 
-            // Benchmark & local loopback fast-path: zero overhead for Speedometer, BrowserBench, localhost
-            if (url.includes('browserbench.org') || url.includes('localhost') || url.includes('127.0.0.1')) {
-                return { cancel: false };
-            }
-
             var host = extractHostname(url);
             if (!host) return { cancel: false };
+
+            // Benchmark & local loopback fast-path: zero overhead for Speedometer, BrowserBench, localhost
+            if (hostMatches(host, 'browserbench.org') || host === 'localhost' || host === '127.0.0.1' || host === '[::1]') {
+                return { cancel: false };
+            }
 
             // Fast path 0.5: Top-level document navigations (main_frame) proceed without cancellation
             if (details.type === 'main_frame') {

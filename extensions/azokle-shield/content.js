@@ -29,8 +29,8 @@
     if (!hostName ||
         hostName === 'azokle.com' || hostName.endsWith('.azokle.com') ||
         hostName === 'cloudflare.com' || hostName.endsWith('.cloudflare.com') ||
-        hostName.includes('challenges.cloudflare.com') ||
-        hostName.includes('browserbench.org') ||
+        hostName === 'challenges.cloudflare.com' || hostName.endsWith('.challenges.cloudflare.com') ||
+        hostName === 'browserbench.org' || hostName.endsWith('.browserbench.org') ||
         hostName === 'localhost' || hostName === '127.0.0.1') {
         return;
     }
