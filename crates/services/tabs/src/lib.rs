@@ -407,9 +407,18 @@ mod tests {
         manager.auto_group_by_domain();
 
         let tabs = manager.get_all_tabs();
-        let yt_std = tabs.iter().find(|t| !t.is_private && !t.is_tor && t.url.contains("123")).unwrap();
-        let yt_priv = tabs.iter().find(|t| t.is_private && !t.is_tor && t.url.contains("456")).unwrap();
-        let yt_tor = tabs.iter().find(|t| t.is_tor && t.url.contains("789")).unwrap();
+        let yt_std = tabs
+            .iter()
+            .find(|t| !t.is_private && !t.is_tor && t.url.contains("123"))
+            .unwrap();
+        let yt_priv = tabs
+            .iter()
+            .find(|t| t.is_private && !t.is_tor && t.url.contains("456"))
+            .unwrap();
+        let yt_tor = tabs
+            .iter()
+            .find(|t| t.is_tor && t.url.contains("789"))
+            .unwrap();
 
         assert_eq!(yt_std.group_id.as_deref(), Some("group_std_youtube.com"));
         assert_eq!(yt_priv.group_id.as_deref(), Some("group_priv_youtube.com"));
