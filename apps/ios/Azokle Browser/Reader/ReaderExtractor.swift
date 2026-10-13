@@ -77,12 +77,12 @@ public final class ReaderExtractor {
     private func parseHtml(_ rawHtml: String, fallbackTitle: String, domain: String) -> ArticleContent {
         // Strip scripts, styles, headers, footers, navs
         var clean = rawHtml
-            .replacingOccurrences(of: "(?is)<script\\b[^>]*>.*?</script\\s*>", with: "", options: .regularExpression)
-            .replacingOccurrences(of: "(?is)<style\\b[^>]*>.*?</style\\s*>", with: "", options: .regularExpression)
-            .replacingOccurrences(of: "(?is)<header\\b[^>]*>.*?</header\\s*>", with: "", options: .regularExpression)
-            .replacingOccurrences(of: "(?is)<footer\\b[^>]*>.*?</footer\\s*>", with: "", options: .regularExpression)
-            .replacingOccurrences(of: "(?is)<nav\\b[^>]*>.*?</nav\\s*>", with: "", options: .regularExpression)
-            .replacingOccurrences(of: "(?is)<aside\\b[^>]*>.*?</aside\\s*>", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "(?is)<script\\b[^>]*>.*?</script[^>]*>", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "(?is)<style\\b[^>]*>.*?</style[^>]*>", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "(?is)<header\\b[^>]*>.*?</header[^>]*>", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "(?is)<footer\\b[^>]*>.*?</footer[^>]*>", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "(?is)<nav\\b[^>]*>.*?</nav[^>]*>", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "(?is)<aside\\b[^>]*>.*?</aside[^>]*>", with: "", options: .regularExpression)
 
         // Extract title
         var title = fallbackTitle

@@ -213,9 +213,9 @@ object ReaderExtractor {
 
             // Safe Non-ReDoS tag cleaner
             var cleanedHtml = boundedHtml
-                .replace(Regex("(?is)<script\\b[^>]*>.*?</script>"), "")
-                .replace(Regex("(?is)<style\\b[^>]*>.*?</style>"), "")
-                .replace(Regex("(?is)<noscript\\b[^>]*>.*?</noscript>"), "")
+                .replace(Regex("(?is)<script\\b[^>]*>.*?</script[^>]*>"), "")
+                .replace(Regex("(?is)<style\\b[^>]*>.*?</style[^>]*>"), "")
+                .replace(Regex("(?is)<noscript\\b[^>]*>.*?</noscript[^>]*>"), "")
                 .replace(Regex("(?is)<!--.*?-->"), "")
 
             // Extract Title

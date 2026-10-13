@@ -8,6 +8,9 @@ on:
   schedule:
     - cron: '0 4 * * 1' # Weekly security audit on Mondays
 
+permissions:
+  contents: read
+
 jobs:
   dependency-scan:
     name: Dependency Vulnerability & SBOM Audit
