@@ -119,4 +119,10 @@ class GeckoPromptDelegateTest {
         val delegate = GeckoPromptDelegateImpl(context = MockContext())
         delegate.dismissAllPendingDialogs()
     }
+
+    @Test
+    fun testIsUpdateLoginPromptDetectsExistingCredentials() {
+        val delegate = GeckoPromptDelegateImpl(context = MockContext())
+        assertFalse(delegate.isUpdateLoginPrompt("https://nonexistent-site.com", "user1"))
+    }
 }

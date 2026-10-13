@@ -325,6 +325,20 @@ fun GeckoBrowserView(
                     onPermissionPromptRequested = onPermissionPromptRequested
                 )
 
+                // 10. Android Autofill Framework Integration (Bitwarden, 1Password, Google Autofill)
+                // Enabled in standard browsing mode; strictly disabled in Private & Tor browsing to protect anonymity.
+                val allowAutofill = !isPrivate && !isTor
+                try {
+                    setAutofillEnabled(allowAutofill)
+                    importantForAutofill = if (allowAutofill) {
+                        android.view.View.IMPORTANT_FOR_AUTOFILL_YES
+                    } else {
+                        android.view.View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("GeckoBrowserView", "Failed to configure autofill on GeckoView: ${e.message}")
+                }
+
                 // Attach session to GeckoView & open runtime
                 setSession(session)
                 if (!session.isOpen) {
@@ -364,6 +378,18 @@ fun GeckoBrowserView(
             swipeRefresh.currentUrl = url
             swipeRefresh.isFullScreen = isFullScreenMode
             (session.selectionActionDelegate as? AzokleSelectionDelegate)?.onSelectionAction = onTextSelectionChanged
+
+            val allowAutofill = !isPrivate && !isTor
+            swipeRefresh.targetNestedGeckoView?.let { gv ->
+                try {
+                    gv.setAutofillEnabled(allowAutofill)
+                    gv.importantForAutofill = if (allowAutofill) {
+                        android.view.View.IMPORTANT_FOR_AUTOFILL_YES
+                    } else {
+                        android.view.View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
+                    }
+                } catch (_: Exception) {}
+            }
         },
         onRelease = { swipeRefresh ->
             try {

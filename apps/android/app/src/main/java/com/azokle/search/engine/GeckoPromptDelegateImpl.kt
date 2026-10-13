@@ -132,6 +132,15 @@ class GeckoPromptDelegateImpl(
     fun isWebAuthnRelatedOriginPermitted(): Boolean = !isTor && !isPrivate
 
     /**
+     * Determines whether saving credentials for the given origin and username represents an update to an existing login.
+     */
+    fun isUpdateLoginPrompt(origin: String, username: String): Boolean {
+        val cleanOrigin = com.azokle.search.vault.OriginMatcher.extractHost(origin).ifEmpty { origin }
+        val existingLogins = com.azokle.search.vault.PasswordVaultManager.getLoginsForOrigin(cleanOrigin)
+        return existingLogins.any { it.username.equals(username, ignoreCase = true) }
+    }
+
+    /**
      * Executes the should allow popup operation.
      */
     fun shouldAllowPopup(targetUri: String): Boolean {
@@ -811,24 +820,36 @@ class GeckoPromptDelegateImpl(
         val username = entry.username ?: ""
         val rawOrigin = entry.origin ?: ""
         val cleanOrigin = com.azokle.search.vault.OriginMatcher.extractHost(rawOrigin).ifEmpty { rawOrigin }
+        val isUpdate = isUpdateLoginPrompt(cleanOrigin, username)
 
         val result = GeckoResult<PromptResponse>()
         mainHandler.post {
             val activity = unwrapActivity(context)
             if (isActivityUsable(activity)) {
-                val message = if (username.isNotBlank()) {
-                    "Save password for $username on $cleanOrigin?"
+                val title = if (isUpdate) "Update Password" else "Save Password"
+                val positiveLabel = if (isUpdate) "Update" else "Save"
+                val negativeLabel = if (isUpdate) "Cancel" else "Never"
+                val message = if (isUpdate) {
+                    if (username.isNotBlank()) {
+                        "Update saved password for $username on $cleanOrigin?"
+                    } else {
+                        "Update saved password for $cleanOrigin?"
+                    }
                 } else {
-                    "Save password for $cleanOrigin?"
+                    if (username.isNotBlank()) {
+                        "Save password for $username on $cleanOrigin?"
+                    } else {
+                        "Save password for $cleanOrigin?"
+                    }
                 }
                 val dialog = MaterialAlertDialogBuilder(activity!!)
-                    .setTitle("Save Password")
+                    .setTitle(title)
                     .setMessage(message)
-                    .setPositiveButton("Save") { _, _ ->
+                    .setPositiveButton(positiveLabel) { _, _ ->
                         com.azokle.search.vault.PasswordVaultManager.saveLogin(cleanOrigin, username, entry.password ?: "")
                         result.complete(request.confirm(option))
                     }
-                    .setNegativeButton("Never") { _, _ ->
+                    .setNegativeButton(negativeLabel) { _, _ ->
                         result.complete(request.dismiss())
                     }
                     .setOnCancelListener {

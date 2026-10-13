@@ -97,6 +97,7 @@ object GeckoEngineManager {
                 // and MediaManager service for HTML5 video (MP4/H.264/AAC/HLS) hardware decoding
                 .isolatedProcessEnabled(false)
                 .appZygoteProcessEnabled(false)
+                .loginAutofillEnabled(true)
                 .contentBlocking(
                     ContentBlocking.Settings.Builder()
                         .antiTracking(ContentBlocking.AntiTracking.DEFAULT)
@@ -108,6 +109,11 @@ object GeckoEngineManager {
                 .build()
 
             val r = GeckoRuntime.create(context.applicationContext, settings)
+            try {
+                r.setAutocompleteStorageDelegate(com.azokle.search.vault.AzokleAutocompleteStorageDelegate)
+            } catch (e: Throwable) {
+                android.util.Log.w("GeckoEngineManager", "Failed to register AutocompleteStorageDelegate: ${e.message}")
+            }
             try {
                 r.settings.preferredColorScheme = initialScheme
             } catch (e: Throwable) {

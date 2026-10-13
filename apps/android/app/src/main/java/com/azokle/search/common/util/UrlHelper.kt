@@ -304,4 +304,19 @@ object UrlHelper {
         }
         return null
     }
+
+    /**
+     * Extracts the first valid web URL from arbitrary text (such as shared text or snippets from external apps).
+     * If the text itself is already a direct URL or domain, returns it directly.
+     */
+    fun extractUrl(text: String): String? {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return null
+        if (isDirectUrl(trimmed)) {
+            return trimmed
+        }
+        val urlRegex = Regex("""https?://[^\s<>"]+""", RegexOption.IGNORE_CASE)
+        val match = urlRegex.find(trimmed) ?: return null
+        return match.value.trimEnd('.', ',', ';', '!', '?', ')')
+    }
 }

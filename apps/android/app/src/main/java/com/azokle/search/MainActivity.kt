@@ -613,6 +613,32 @@ class MainActivity : FragmentActivity(), FilePromptHost {
                 viewModel.onQueryChange(query)
                 viewModel.executeSearch(query)
             }
+        } else if (action == Intent.ACTION_SEND) {
+            val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+                ?: intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
+            if (!sharedText.isNullOrBlank()) {
+                val candidateUrl = com.azokle.search.common.util.UrlHelper.extractUrl(sharedText)
+                val target = candidateUrl ?: sharedText.trim()
+                val unwrapped = com.azokle.search.common.util.UrlHelper.unwrapLinkShim(target)
+                val sanitized = com.azokle.search.common.util.UrlHelper.stripTrackingParameters(unwrapped)
+
+                if (com.azokle.search.navigation.ExternalNavigationHandler.isExternalNavigation(sanitized)) {
+                    val handled = com.azokle.search.navigation.ExternalNavigationHandler.handleNavigation(
+                        context = this,
+                        uriStr = sanitized,
+                        session = null,
+                        hasUserGesture = true,
+                        isPrivate = false,
+                        isTor = false
+                    )
+                    if (handled) {
+                        return
+                    }
+                }
+
+                val resolved = com.azokle.search.common.util.UrlHelper.resolveSearchOrUrl(this, sanitized)
+                viewModel.openInAppBrowser(resolved)
+            }
         }
     }
 

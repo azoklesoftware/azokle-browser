@@ -136,5 +136,17 @@ class UrlHelperTest {
         val normalUrl = "https://play.google.com/store/apps/details?id=com.whatsapp"
         assertEquals(normalUrl, UrlHelper.unwrapLinkShim(normalUrl))
     }
+
+    @Test
+    fun testExtractUrlFromSharedText() {
+        assertEquals("https://example.com/page", UrlHelper.extractUrl("https://example.com/page"))
+        assertEquals("github.com/azokle", UrlHelper.extractUrl("github.com/azokle"))
+
+        val sharedMessage = "Check out this awesome website: https://azokle.com/docs! You will love it."
+        assertEquals("https://azokle.com/docs", UrlHelper.extractUrl(sharedMessage))
+
+        assertEquals(null, UrlHelper.extractUrl(""))
+        assertEquals(null, UrlHelper.extractUrl("just some random text with no links"))
+    }
 }
 
