@@ -46,12 +46,12 @@
       } catch (e) {
         console.error('Error fetching stats:', e);
       }
-    } else if (window.postMessage) {
-      // Fallback mock/simulated metrics for testing and standalone preview
+    } else {
+      // Default initial metrics until native telemetry connects
       updateMetrics({
-        ads: 42,
-        trackers: 87,
-        fingerprinting: 14
+        ads: 0,
+        trackers: 0,
+        fingerprinting: 0
       });
     }
   }

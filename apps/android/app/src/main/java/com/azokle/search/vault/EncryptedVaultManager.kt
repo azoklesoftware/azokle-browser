@@ -100,6 +100,11 @@ class EncryptedVaultManager(context: Context) {
             } catch (e: Exception) {
                 android.util.Log.e("EncryptedVaultManager", "Hardware Keystore init error: ${e.message}, attempting secure reset")
                 try {
+                    val keyStore = java.security.KeyStore.getInstance("AndroidKeyStore")
+                    keyStore.load(null)
+                    keyStore.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+                } catch (_: Exception) {}
+                try {
                     context.deleteSharedPreferences(PREFS_FILE)
                     val masterKey = MasterKey.Builder(context)
                         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)

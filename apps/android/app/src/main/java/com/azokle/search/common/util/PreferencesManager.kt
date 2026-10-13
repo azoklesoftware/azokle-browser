@@ -58,6 +58,11 @@ class PreferencesManager(private val context: Context) {
         /**
          * Retrieves the instance.
          */
+        operator fun invoke(context: Context): PreferencesManager = getInstance(context)
+
+        /**
+         * Retrieves the instance.
+         */
         fun getInstance(context: Context): PreferencesManager {
             return instance ?: synchronized(this) {
                 instance ?: PreferencesManager(context.applicationContext).also { instance = it }
@@ -93,6 +98,11 @@ class PreferencesManager(private val context: Context) {
                     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
                 )
             } catch (e: Exception) {
+                try {
+                    val keyStore = java.security.KeyStore.getInstance("AndroidKeyStore")
+                    keyStore.load(null)
+                    keyStore.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+                } catch (_: Exception) {}
                 try {
                     context.deleteSharedPreferences(PREFS_FILE)
                     val masterKey = MasterKey.Builder(context)

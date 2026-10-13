@@ -131,7 +131,7 @@ object PasswordVaultManager {
     val loginsFlow: StateFlow<List<SavedLogin>> = _loginsFlow.asStateFlow()
 
     private var isInitialized = false
-    private lateinit var encryptedPrefs: android.content.SharedPreferences
+    private var encryptedPrefs: android.content.SharedPreferences? = null
 
     /**
      * Initializes .
@@ -155,6 +155,11 @@ object PasswordVaultManager {
             isInitialized = true
         } catch (e: Exception) {
             android.util.Log.e("PasswordVaultManager", "Hardware Keystore init error: ${e.message}, attempting secure reset")
+            try {
+                val keyStore = java.security.KeyStore.getInstance("AndroidKeyStore")
+                keyStore.load(null)
+                keyStore.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+            } catch (_: Exception) {}
             try {
                 context.applicationContext.deleteSharedPreferences(PREFS_FILE)
                 val masterKey = MasterKey.Builder(context.applicationContext)
@@ -182,7 +187,8 @@ object PasswordVaultManager {
      * Loads logins.
      */
     private fun loadLogins() {
-        val rawJson = encryptedPrefs.getString(KEY_LOGINS, null) ?: return
+        val prefs = encryptedPrefs ?: return
+        val rawJson = prefs.getString(KEY_LOGINS, null) ?: return
         try {
             val arr = JSONArray(rawJson)
             val list = mutableListOf<SavedLogin>()
@@ -207,6 +213,7 @@ object PasswordVaultManager {
      */
     private fun persistLogins(list: List<SavedLogin>) {
         _loginsFlow.value = list
+        val prefs = encryptedPrefs ?: return
         try {
             val arr = JSONArray()
             for (l in list) {
@@ -218,7 +225,7 @@ object PasswordVaultManager {
                     put("dateModified", l.dateModified)
                 })
             }
-            encryptedPrefs.edit().putString(KEY_LOGINS, arr.toString()).apply()
+            prefs.edit().putString(KEY_LOGINS, arr.toString()).apply()
         } catch (_: Exception) {}
     }
 

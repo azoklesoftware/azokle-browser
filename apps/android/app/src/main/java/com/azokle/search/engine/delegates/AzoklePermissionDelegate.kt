@@ -119,7 +119,11 @@ class AzoklePermissionDelegate(
         }
 
         if (mappedType == SitePermissionType.MEDIA_KEY_SYSTEM) {
-            return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
+            return if (isTor) {
+                GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
+            } else {
+                GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
+            }
         }
 
         // Hard-deny persistent storage in Private / Tor mode

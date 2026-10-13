@@ -198,7 +198,7 @@ class SitePermissionsManager private constructor(context: Context) {
         val origin = canonicalizeOrigin(originOrUri)
         val json = AzokleCore.getSitePermissionsJson(origin, isPrivate)
         val result = mutableMapOf<SitePermissionType, SitePermissionState>()
-        for (type in SitePermissionType.values()) {
+        for (type in SitePermissionType.entries) {
             if (json.has(type.name)) {
                 val stateStr = json.optString(type.name, "ASK")
                 val state = when (stateStr.uppercase()) {
