@@ -165,6 +165,11 @@ object GeckoConfigManager {
             appendLine("  dom.maxHardwareConcurrency: 4")
             appendLine("  privacy.reduceTimerPrecision: true")
             appendLine("  privacy.reduceTimerPrecision.microseconds: 2000")
+            appendLine("  privacy.partition.serviceWorkers: true")
+            appendLine("  privacy.partition.blobURL: true")
+            appendLine("  privacy.query_stripping.enabled: true")
+            appendLine("  privacy.query_stripping.strip_list: \"__hsfp __hssc __hstc __s _hsenc _openstat dclid fbclid gbraid gclid igshid mc_cid mc_eid ml_subscriber ml_subscriber_hash msclkid oly_anon_id oly_enc_id rb_clickid s_cid twclid utm_campaign utm_content utm_medium utm_name utm_reader utm_source utm_term utm_viz_id vgo_ee wbraid yclid\"")
+            appendLine("  dom.security.https_only_mode_pbm: true")
 
             // 9. Post-Quantum Cryptography & Encrypted Client Hello (ECH)
             appendLine("  security.tls.enable_kyber: true")
@@ -172,6 +177,9 @@ object GeckoConfigManager {
             appendLine("  network.dns.echconfig.fallback_to_origin_when_ech_fails: false")
             appendLine("  network.http.referer.trimmingPolicy: 2")
             appendLine("  network.http.referer.XOriginPolicy: 1")
+
+            // 10. Native PDF.js In-Tab Document Rendering
+            appendLine("  pdfjs.disabled: false")
         }
     }
 }

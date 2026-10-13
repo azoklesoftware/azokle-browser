@@ -81,6 +81,13 @@ class GeckoConfigManagerTest {
         assertTrue(yaml.contains("security.tls.enable_kyber: true"))
         assertTrue(yaml.contains("network.dns.echconfig.enabled: true"))
         assertTrue(yaml.contains("network.http.referer.trimmingPolicy: 2"))
+
+        // Total Cookie Protection Storage Partitioning, Query Stripping & PDF.js
+        assertTrue(yaml.contains("privacy.partition.serviceWorkers: true"))
+        assertTrue(yaml.contains("privacy.partition.blobURL: true"))
+        assertTrue(yaml.contains("privacy.query_stripping.enabled: true"))
+        assertTrue(yaml.contains("dom.security.https_only_mode_pbm: true"))
+        assertTrue(yaml.contains("pdfjs.disabled: false"))
     }
 
     @Test
