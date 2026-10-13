@@ -17,7 +17,6 @@ use chacha20poly1305::{
     aead::{Aead, AeadCore, KeyInit},
     ChaCha20Poly1305, Nonce,
 };
-use rand::RngCore;
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
