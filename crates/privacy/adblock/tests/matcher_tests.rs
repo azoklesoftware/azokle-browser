@@ -249,4 +249,40 @@ fn test_multilevel_etld_isolation_and_request_type_preservation() {
         true,
     );
     assert!(d2_script.should_block);
+    assert_eq!(d1.category, BlockCategory::Tracker);
+    assert_eq!(d2_script.category, BlockCategory::Tracker);
 }
+
+#[test]
+fn test_inferred_categories() {
+    let engine = AdBlockEngine::new();
+    let rules = r#"
+        ||doubleclick.net^
+        ||google-analytics.com^
+        ||coinhive.com^
+        ||fingerprintjs.com^
+        ||telemetry.mozilla.org^
+    "#;
+    engine.load_rules_from_text(rules, BlockCategory::Ad);
+
+    let d_ad = engine.check_url("https://doubleclick.net/ads.js", None, true);
+    assert!(d_ad.should_block);
+    assert_eq!(d_ad.category, BlockCategory::Ad);
+
+    let d_tr = engine.check_url("https://google-analytics.com/analytics.js", None, true);
+    assert!(d_tr.should_block);
+    assert_eq!(d_tr.category, BlockCategory::Tracker);
+
+    let d_mine = engine.check_url("https://coinhive.com/miner.js", None, true);
+    assert!(d_mine.should_block);
+    assert_eq!(d_mine.category, BlockCategory::Cryptomining);
+
+    let d_fp = engine.check_url("https://fingerprintjs.com/v3.js", None, true);
+    assert!(d_fp.should_block);
+    assert_eq!(d_fp.category, BlockCategory::Fingerprinting);
+
+    let d_telem = engine.check_url("https://telemetry.mozilla.org/submit", None, true);
+    assert!(d_telem.should_block);
+    assert_eq!(d_telem.category, BlockCategory::Telemetry);
+}
+

@@ -51,6 +51,7 @@ object GeckoConfigManager {
             val uaEnabled = prefs.isUserAgentFingerprintProtectionEnabled()
             val cookieCtrl = prefs.getCookieControl()
             val blockingMode = prefs.getShieldBlockingMode()
+            val cookieBannerEnabled = prefs.isCookieBannerHandlingEnabled()
 
             FileWriter(configFile, false).use { writer ->
                 writer.write(
@@ -61,7 +62,8 @@ object GeckoConfigManager {
                         screenProtection = screenEnabled,
                         userAgentProtection = uaEnabled,
                         cookieControl = cookieCtrl,
-                        blockingMode = blockingMode
+                        blockingMode = blockingMode,
+                        cookieBannerHandling = cookieBannerEnabled
                     )
                 )
             }
@@ -82,7 +84,8 @@ object GeckoConfigManager {
         screenProtection: Boolean = true,
         userAgentProtection: Boolean = true,
         cookieControl: String = com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_BLOCK_THIRD_PARTY,
-        blockingMode: String = com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_STANDARD
+        blockingMode: String = com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_STANDARD,
+        cookieBannerHandling: Boolean = true
     ): String {
         val provider = com.azokle.search.core.DnsOverHttpsManager.getProvider(dohProviderId)
         val isDohEnabled = !dohProviderId.equals("system", ignoreCase = true) && provider.url.isNotBlank()
@@ -264,6 +267,19 @@ object GeckoConfigManager {
             appendLine("  network.cookie.sameSite.schemeful: true")
             appendLine("  privacy.partition.always_partition_third_party_non_cookie_storage: true")
             appendLine("  privacy.partition.always_partition_third_party_non_cookie_storage.exempt_sessionstorage: false")
+
+            // Engine-Level Cookie Banner Reducer & Auto-Reject
+            if (cookieBannerHandling) {
+                appendLine("  cookiebanners.service.mode: 2")
+                appendLine("  cookiebanners.service.mode.privateBrowsing: 2")
+                appendLine("  cookiebanners.bannerClicking.enabled: true")
+                appendLine("  cookiebanners.cookieInjection.enabled: true")
+            } else {
+                appendLine("  cookiebanners.service.mode: 0")
+                appendLine("  cookiebanners.service.mode.privateBrowsing: 2")
+                appendLine("  cookiebanners.bannerClicking.enabled: false")
+                appendLine("  cookiebanners.cookieInjection.enabled: false")
+            }
 
             // 9. Post-Quantum Cryptography & Encrypted Client Hello (ECH)
             appendLine("  security.tls.enable_kyber: true")

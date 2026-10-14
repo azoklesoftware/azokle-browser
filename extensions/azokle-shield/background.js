@@ -350,7 +350,7 @@
         'bat.bing.com', 'adservice.google.com', 'googleadservices.com'
     ]);
 
-    function isAdClickExempt(docHost, host) {
+    function isAdClickExempt(docHost, host, tabId) {
         if (!docHost || !host || activeAdClickExemptions.size === 0) return false;
         var now = Date.now();
         var cleanDoc = docHost.toLowerCase();
@@ -359,6 +359,9 @@
         for (var [key, ex] of activeAdClickExemptions) {
             if (ex.expiresAtMs < now) {
                 activeAdClickExemptions.delete(key);
+                continue;
+            }
+            if (tabId !== undefined && tabId !== null && String(ex.tabId) !== String(tabId)) {
                 continue;
             }
             if (cleanDoc === ex.advertiserHost || cleanDoc.endsWith('.' + ex.advertiserHost)) {
@@ -447,6 +450,11 @@
             var isThirdParty = !isSameParty;
             var urlLower = url.toLowerCase();
 
+            // 0. Check if shield is disabled globally via off blocking mode
+            if (activeBlockingMode === 'off') {
+                return { cancel: false };
+            }
+
             // 0. Check if user disabled shield for document origin or target host
             if ((docHost && disabledShieldHosts.has(docHost)) || disabledShieldHosts.has(host)) {
                 return { cancel: false };
@@ -465,8 +473,25 @@
             }
 
             // 3. Tab-Scoped Ad Click Exemption (DuckDuckGo ethical ad attribution)
-            if (isAdClickExempt(docHost, host)) {
+            if (isAdClickExempt(docHost, host, details.tabId)) {
                 return { cancel: false };
+            }
+
+            // 3.5 Aggressive Mode Pre-emptive heuristics (block CNAME tracker subdomains and social/beacon trackers)
+            if (activeBlockingMode === 'aggressive' && isThirdParty) {
+                if (isLikelyCnameTracker(host, docHost)) {
+                    reportBlockToApp(host, 2);
+                    return { cancel: true };
+                }
+                if (isLikelyAdOrTrackerUrl(urlLower, host)) {
+                    var aggSurrogate = getSurrogateRedirect(urlLower, host);
+                    if (aggSurrogate) {
+                        reportBlockToApp(host, 2);
+                        return aggSurrogate;
+                    }
+                    reportBlockToApp(host, 2);
+                    return { cancel: true };
+                }
             }
 
             // 4. Fast-path Host Cache lookup (Partitioned by 1st/3rd party and request type to prevent cross-context bleeding)
@@ -644,6 +669,7 @@
     // =========================================================================
     var isTorRoutingActive = false;
     var activeSocksPort = 9050;
+    var activeBlockingMode = 'standard';
 
     function applyAppStatus(res) {
         if (!res) return;
@@ -653,6 +679,9 @@
             } catch(e) {
                 return;
             }
+        }
+        if (typeof res.blockingMode === 'string') {
+            activeBlockingMode = res.blockingMode;
         }
         if (typeof res.isTorEnabled === 'boolean') {
             isTorRoutingActive = res.isTorEnabled;
@@ -707,6 +736,11 @@
                         clearAllCaches();
                     } else if (msg.type === 'CLEAR_CACHE') {
                         clearAllCaches();
+                    } else if (msg.type === 'PUSH_BLOCKING_MODE') {
+                        if (typeof msg.blockingMode === 'string') {
+                            activeBlockingMode = msg.blockingMode;
+                            clearAllCaches();
+                        }
                     } else if (msg.type === 'PUSH_TOR_STATUS') {
                         if (typeof msg.isTorEnabled === 'boolean') {
                             isTorRoutingActive = msg.isTorEnabled;

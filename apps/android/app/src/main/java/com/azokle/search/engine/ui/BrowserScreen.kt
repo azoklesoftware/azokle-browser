@@ -320,6 +320,10 @@ fun BrowserScreen(
      */
     fun navigateToUrl(targetUrl: String, title: String = "") {
         val upgradedUrl = HttpsUpgrader.upgrade(targetUrl)
+        val activeTabId = TabManager.activeTabId.value ?: "active"
+        if (AdClickManager.hasAdClickParameter(upgradedUrl)) {
+            AdClickManager.registerAdClick(activeTabId, upgradedUrl)
+        }
         val cleanTargetUrl = AdClickManager.cleanTrackingParameters(upgradedUrl)
 
         val threatAssessment = SafeBrowsingGuard.assessUrl(cleanTargetUrl)

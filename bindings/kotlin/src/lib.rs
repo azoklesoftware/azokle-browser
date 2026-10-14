@@ -303,32 +303,23 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_checkUrl(
             }
         }
 
-        let decision =
+        let mut decision =
             core.adblock
                 .check_url(&url_str, source_str.as_deref(), is_third_party == JNI_TRUE);
 
-        if decision.should_block {
-            core.stats_total.fetch_add(1, Ordering::Relaxed);
-            match decision.category {
-                BlockCategory::Ad => {
-                    core.stats_ads.fetch_add(1, Ordering::Relaxed);
+        let target_host = url::Url::parse(&url_str)
+            .ok()
+            .and_then(|u| u.host_str().map(|h| h.to_lowercase()));
+
+        if let Some(ref th) = target_host {
+            if core.trackers.is_tracker(th) {
+                if !decision.should_block && is_third_party == JNI_TRUE {
+                    decision.should_block = true;
+                    decision.category = BlockCategory::Tracker;
+                    decision.matched_rule = Some(format!("||{}^", th));
+                } else if decision.should_block && decision.category == BlockCategory::Ad {
+                    decision.category = BlockCategory::Tracker;
                 }
-                BlockCategory::Tracker => {
-                    core.stats_trackers.fetch_add(1, Ordering::Relaxed);
-                }
-                BlockCategory::Telemetry => {
-                    core.stats_telemetry.fetch_add(1, Ordering::Relaxed);
-                }
-                BlockCategory::Fingerprinting => {
-                    core.stats_fingerprinting.fetch_add(1, Ordering::Relaxed);
-                }
-                BlockCategory::Annoyance => {
-                    core.stats_annoyances.fetch_add(1, Ordering::Relaxed);
-                }
-                BlockCategory::Cryptomining => {
-                    core.stats_cryptominers.fetch_add(1, Ordering::Relaxed);
-                }
-                _ => {}
             }
         }
 
@@ -393,35 +384,26 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_checkNetworkReques
             }
         }
 
-        let decision = core.adblock.check_network_request(
+        let mut decision = core.adblock.check_network_request(
             &url_str,
             source_str.as_deref(),
             req_type_str.as_deref(),
             is_third_party == JNI_TRUE,
         );
 
-        if decision.should_block {
-            core.stats_total.fetch_add(1, Ordering::Relaxed);
-            match decision.category {
-                BlockCategory::Ad => {
-                    core.stats_ads.fetch_add(1, Ordering::Relaxed);
+        let target_host = url::Url::parse(&url_str)
+            .ok()
+            .and_then(|u| u.host_str().map(|h| h.to_lowercase()));
+
+        if let Some(ref th) = target_host {
+            if core.trackers.is_tracker(th) {
+                if !decision.should_block && is_third_party == JNI_TRUE {
+                    decision.should_block = true;
+                    decision.category = BlockCategory::Tracker;
+                    decision.matched_rule = Some(format!("||{}^", th));
+                } else if decision.should_block && decision.category == BlockCategory::Ad {
+                    decision.category = BlockCategory::Tracker;
                 }
-                BlockCategory::Tracker => {
-                    core.stats_trackers.fetch_add(1, Ordering::Relaxed);
-                }
-                BlockCategory::Telemetry => {
-                    core.stats_telemetry.fetch_add(1, Ordering::Relaxed);
-                }
-                BlockCategory::Fingerprinting => {
-                    core.stats_fingerprinting.fetch_add(1, Ordering::Relaxed);
-                }
-                BlockCategory::Annoyance => {
-                    core.stats_annoyances.fetch_add(1, Ordering::Relaxed);
-                }
-                BlockCategory::Cryptomining => {
-                    core.stats_cryptominers.fetch_add(1, Ordering::Relaxed);
-                }
-                _ => {}
             }
         }
 
@@ -477,32 +459,23 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_checkUrlFast(
             }
         }
 
-        let decision =
+        let mut decision =
             core.adblock
                 .check_url(&url_str, source_str.as_deref(), is_third_party == JNI_TRUE);
 
-        if decision.should_block {
-            core.stats_total.fetch_add(1, Ordering::Relaxed);
-            match decision.category {
-                BlockCategory::Ad => {
-                    core.stats_ads.fetch_add(1, Ordering::Relaxed);
+        let target_host = url::Url::parse(&url_str)
+            .ok()
+            .and_then(|u| u.host_str().map(|h| h.to_lowercase()));
+
+        if let Some(ref th) = target_host {
+            if core.trackers.is_tracker(th) {
+                if !decision.should_block && is_third_party == JNI_TRUE {
+                    decision.should_block = true;
+                    decision.category = BlockCategory::Tracker;
+                    decision.matched_rule = Some(format!("||{}^", th));
+                } else if decision.should_block && decision.category == BlockCategory::Ad {
+                    decision.category = BlockCategory::Tracker;
                 }
-                BlockCategory::Tracker => {
-                    core.stats_trackers.fetch_add(1, Ordering::Relaxed);
-                }
-                BlockCategory::Telemetry => {
-                    core.stats_telemetry.fetch_add(1, Ordering::Relaxed);
-                }
-                BlockCategory::Fingerprinting => {
-                    core.stats_fingerprinting.fetch_add(1, Ordering::Relaxed);
-                }
-                BlockCategory::Annoyance => {
-                    core.stats_annoyances.fetch_add(1, Ordering::Relaxed);
-                }
-                BlockCategory::Cryptomining => {
-                    core.stats_cryptominers.fetch_add(1, Ordering::Relaxed);
-                }
-                _ => {}
             }
         }
 

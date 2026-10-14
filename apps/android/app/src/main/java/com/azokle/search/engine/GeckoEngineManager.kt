@@ -41,8 +41,18 @@ import org.mozilla.geckoview.WebExtension
  */
 object GeckoEngineManager {
     private var runtime: GeckoRuntime? = null
+    private var applicationContext: Context? = null
     var currentThemeMode: String = "system"
         private set
+
+    /**
+     * Retrieves the active shield blocking mode string.
+     */
+    fun getActiveBlockingMode(): String {
+        return applicationContext?.let {
+            com.azokle.search.common.util.PreferencesManager.getInstance(it).getShieldBlockingMode()
+        } ?: com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_STANDARD
+    }
 
     /**
      * Updates theme mode.
@@ -67,6 +77,7 @@ object GeckoEngineManager {
      */
     @Synchronized
     fun getRuntime(context: Context): GeckoRuntime {
+        applicationContext = context.applicationContext
         if (runtime == null) {
             val prefs = com.azokle.search.common.util.PreferencesManager.getInstance(context)
             val savedTheme = prefs.getThemeMode().lowercase()
@@ -230,6 +241,7 @@ object GeckoEngineManager {
                                     put("isTorEnabled", com.azokle.search.tor.TorCircuitManager.isTorActive)
                                     put("socksPort", com.azokle.search.tor.TorCircuitManager.socksPort)
                                     put("theme", currentThemeMode)
+                                    put("blockingMode", getActiveBlockingMode())
                                     val arr = org.json.JSONArray()
                                     com.azokle.search.adblock.AdBlockEngine.instance.getDisabledHostsList().forEach { arr.put(it) }
                                     put("disabledHosts", arr)
@@ -450,10 +462,14 @@ object GeckoEngineManager {
         val allowBackgroundAudio = context?.let {
             com.azokle.search.common.util.PreferencesManager(it).isBackgroundAudioEnabled()
         } ?: true
+        val currentBlockingMode = context?.let {
+            com.azokle.search.common.util.PreferencesManager.getInstance(it).getShieldBlockingMode()
+        } ?: getActiveBlockingMode()
+        val useTp = currentBlockingMode != com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_OFF
 
         val builder = GeckoSessionSettings.Builder()
             .usePrivateMode(isPrivate || isTor)
-            .useTrackingProtection(true)
+            .useTrackingProtection(useTp)
             .userAgentMode(if (isDesktopMode) GeckoSessionSettings.USER_AGENT_MODE_DESKTOP else GeckoSessionSettings.USER_AGENT_MODE_MOBILE)
             .viewportMode(if (isDesktopMode) GeckoSessionSettings.VIEWPORT_MODE_DESKTOP else GeckoSessionSettings.VIEWPORT_MODE_MOBILE)
             .suspendMediaWhenInactive(!allowBackgroundAudio)
@@ -509,6 +525,7 @@ object GeckoEngineManager {
                 put("isTorEnabled", com.azokle.search.tor.TorCircuitManager.isTorActive)
                 put("socksPort", com.azokle.search.tor.TorCircuitManager.socksPort)
                 put("theme", currentThemeMode)
+                put("blockingMode", getActiveBlockingMode())
                 val arr = org.json.JSONArray()
                 com.azokle.search.adblock.AdBlockEngine.instance.getDisabledHostsList().forEach { arr.put(it) }
                 put("disabledHosts", arr)
@@ -817,6 +834,10 @@ object GeckoEngineManager {
 
             // Regenerate config yaml with updated fingerprinting / cookie / tracker prefs
             GeckoConfigManager.getOrCreateConfigFile(context.applicationContext)
+
+            // Dynamically update warm tab sessions tracking protection
+            val useTp = blockingMode != com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_OFF
+            com.azokle.search.tabs.TabManager.updateTrackingProtectionOnActiveSessions(useTp)
 
             // Notify extension port so background ad blocker syncs state
             pushFullStatus()

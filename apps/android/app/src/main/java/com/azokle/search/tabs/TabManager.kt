@@ -176,6 +176,20 @@ object TabManager {
     }
 
     /**
+     * Dynamically updates tracking protection setting across all active warm GeckoSessions.
+     */
+    fun updateTrackingProtectionOnActiveSessions(enabled: Boolean) {
+        for (session in sessionMap.values) {
+            try {
+                session.settings.useTrackingProtection = enabled
+            } catch (e: Exception) {
+                // Ignore if session is already closed or released
+            }
+        }
+    }
+
+
+    /**
      * Retrieves the or create session.
      */
     fun getOrCreateSession(

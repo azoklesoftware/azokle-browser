@@ -71,6 +71,66 @@ fn infer_request_type(url: &str) -> &'static str {
     }
 }
 
+/// Infers block category based on URL keywords and filter rule patterns.
+pub fn infer_category(url: &str, matched_rule: Option<&str>) -> BlockCategory {
+    let lower_url = url.to_ascii_lowercase();
+    let lower_rule = matched_rule.unwrap_or("").to_ascii_lowercase();
+
+    if lower_url.contains("coinhive")
+        || lower_url.contains("coin-hive")
+        || lower_url.contains("cryptonight")
+        || lower_url.contains("cryptoloot")
+        || lower_rule.contains("miner")
+        || lower_rule.contains("cryptomin")
+    {
+        return BlockCategory::Cryptomining;
+    }
+
+    if lower_url.contains("fingerprint")
+        || lower_url.contains("client-hints")
+        || lower_url.contains("fpjs")
+        || lower_rule.contains("fingerprint")
+    {
+        return BlockCategory::Fingerprinting;
+    }
+
+    if lower_url.contains("telemetry")
+        || lower_url.contains("crashlytics")
+        || lower_url.contains("app-measurement")
+        || lower_url.contains("sentry.io")
+        || lower_url.contains("bugsnag")
+        || lower_url.contains("datadoghq")
+        || lower_rule.contains("telemetry")
+    {
+        return BlockCategory::Telemetry;
+    }
+
+    if lower_url.contains("analytics")
+        || lower_url.contains("tracker")
+        || lower_url.contains("tracking")
+        || lower_url.contains("pixel")
+        || lower_url.contains("beacon")
+        || lower_url.contains("/tr?")
+        || lower_url.contains("stats.")
+        || lower_url.contains("metric")
+        || lower_rule.contains("tracker")
+        || lower_rule.contains("analytic")
+    {
+        return BlockCategory::Tracker;
+    }
+
+    if lower_url.contains("cookie-banner")
+        || lower_url.contains("annoyance")
+        || lower_url.contains("overlay")
+        || lower_rule.contains("annoyance")
+        || lower_rule.contains("popup")
+    {
+        return BlockCategory::Annoyance;
+    }
+
+    BlockCategory::Ad
+}
+
 /// Enterprise-grade, FlatBuffers-backed AdBlock & Privacy Engine.
 /// Mirrors Brave's mature AdBlockEngineWrapper architecture:
 /// - `primary_engine`: Default core rules (EasyList, EasyPrivacy, uBlock, unbreak).
@@ -261,10 +321,12 @@ impl AdBlockEngine {
                 .check_network_request_subset(&req, false, true);
 
             if res.should_block() {
+                let rule_str = res.filter.as_ref().and_then(|f| f.raw_line.clone());
+                let category = infer_category(&clean_url, rule_str.as_deref());
                 return FilterDecision {
                     should_block: true,
-                    category: BlockCategory::Ad,
-                    matched_rule: res.filter.as_ref().and_then(|f| f.raw_line.clone()),
+                    category,
+                    matched_rule: rule_str,
                     is_exception: false,
                     redirect_url: res.redirect,
                     rewritten_url: res.rewritten_url,
@@ -279,10 +341,12 @@ impl AdBlockEngine {
                     rewritten_url: res.rewritten_url,
                 };
             } else if res.redirect.is_some() || res.rewritten_url.is_some() {
+                let rule_str = res.filter.as_ref().and_then(|f| f.raw_line.clone());
+                let category = infer_category(&clean_url, rule_str.as_deref());
                 return FilterDecision {
                     should_block: true,
-                    category: BlockCategory::Ad,
-                    matched_rule: res.filter.as_ref().and_then(|f| f.raw_line.clone()),
+                    category,
+                    matched_rule: rule_str,
                     is_exception: false,
                     redirect_url: res.redirect,
                     rewritten_url: res.rewritten_url,
@@ -295,10 +359,12 @@ impl AdBlockEngine {
                 .read()
                 .check_network_request_subset(&req, false, true);
             if custom_res.should_block() {
+                let rule_str = custom_res.filter.as_ref().and_then(|f| f.raw_line.clone());
+                let category = infer_category(&clean_url, rule_str.as_deref());
                 return FilterDecision {
                     should_block: true,
-                    category: BlockCategory::Ad,
-                    matched_rule: custom_res.filter.as_ref().and_then(|f| f.raw_line.clone()),
+                    category,
+                    matched_rule: rule_str,
                     is_exception: false,
                     redirect_url: custom_res.redirect,
                     rewritten_url: custom_res.rewritten_url,
@@ -316,10 +382,12 @@ impl AdBlockEngine {
                     rewritten_url: custom_res.rewritten_url,
                 };
             } else if custom_res.redirect.is_some() || custom_res.rewritten_url.is_some() {
+                let rule_str = custom_res.filter.as_ref().and_then(|f| f.raw_line.clone());
+                let category = infer_category(&clean_url, rule_str.as_deref());
                 return FilterDecision {
                     should_block: true,
-                    category: BlockCategory::Ad,
-                    matched_rule: custom_res.filter.as_ref().and_then(|f| f.raw_line.clone()),
+                    category,
+                    matched_rule: rule_str,
                     is_exception: false,
                     redirect_url: custom_res.redirect,
                     rewritten_url: custom_res.rewritten_url,

@@ -77,6 +77,9 @@ class AzokleNavigationDelegate(
             if (it.isNotBlank() && !it.equals("about:blank", ignoreCase = true)) {
                 lastLoadedUrl = it
                 if (tabId != null) {
+                    if (com.azokle.search.adblock.AdClickManager.hasAdClickParameter(it)) {
+                        com.azokle.search.adblock.AdClickManager.registerAdClick(tabId, it)
+                    }
                     TabManager.markTabLoaded(tabId, it)
                 }
                 onUrlChanged(it)

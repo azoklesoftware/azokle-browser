@@ -197,4 +197,22 @@ class GeckoConfigManagerTest {
         assertTrue(offYaml.contains("privacy.trackingprotection.enabled: false"))
         assertTrue(offYaml.contains("privacy.trackingprotection.socialtracking.enabled: false"))
     }
+
+    @Test
+    fun testGeneratePerformanceConfigCookieBannerHandling() {
+        // Enabled (Default: mode 2, bannerClicking true)
+        val enabledYaml = GeckoConfigManager.generatePerformanceConfigYaml(cookieBannerHandling = true)
+        assertTrue(enabledYaml.contains("cookiebanners.service.mode: 2"))
+        assertTrue(enabledYaml.contains("cookiebanners.service.mode.privateBrowsing: 2"))
+        assertTrue(enabledYaml.contains("cookiebanners.bannerClicking.enabled: true"))
+        assertTrue(enabledYaml.contains("cookiebanners.cookieInjection.enabled: true"))
+
+        // Disabled (mode 0, bannerClicking false)
+        val disabledYaml = GeckoConfigManager.generatePerformanceConfigYaml(cookieBannerHandling = false)
+        assertTrue(disabledYaml.contains("cookiebanners.service.mode: 0"))
+        assertTrue(disabledYaml.contains("cookiebanners.service.mode.privateBrowsing: 2"))
+        assertTrue(disabledYaml.contains("cookiebanners.bannerClicking.enabled: false"))
+        assertTrue(disabledYaml.contains("cookiebanners.cookieInjection.enabled: false"))
+    }
 }
+

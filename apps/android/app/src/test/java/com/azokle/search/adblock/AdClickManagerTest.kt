@@ -118,4 +118,20 @@ class AdClickManagerTest {
         assertFalse(AdClickManager.isExempt(tabId, "https://merchant.com/deal", "https://facebook.com/tr?id=123"))
         assertFalse(AdClickManager.isExempt(tabId, "https://merchant.com/deal", "https://analytics.tiktok.com/pixel"))
     }
+
+    @Test
+    fun testAdClickAttribution_strictTabIsolation() {
+        val tab1 = "tab_user_1"
+        val tab2 = "tab_user_2"
+        AdClickManager.registerAdClick(tab1, "https://brand.com/promo?gclid=click123")
+
+        // Tab 1 is exempt for advertiser first-party
+        assertTrue(AdClickManager.isExempt(tab1, "https://brand.com/promo", "https://brand.com/item"))
+        assertTrue(AdClickManager.isExempt(tab1, "https://brand.com/promo", "https://googleadservices.com/pagead/conversion/123"))
+
+        // Tab 2 has NO exemption for the same advertiser or conversion endpoint
+        assertFalse(AdClickManager.isExempt(tab2, "https://brand.com/promo", "https://brand.com/item"))
+        assertFalse(AdClickManager.isExempt(tab2, "https://brand.com/promo", "https://googleadservices.com/pagead/conversion/123"))
+    }
 }
+
