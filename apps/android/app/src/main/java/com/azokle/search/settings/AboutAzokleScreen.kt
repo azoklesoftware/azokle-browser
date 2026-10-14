@@ -111,9 +111,9 @@ fun AboutAzokleScreen(
                 @Suppress("DEPRECATION")
                 context.packageManager.getPackageInfo(context.packageName, 0)
             }
-            pInfo.versionName ?: "2.0.5"
+            pInfo.versionName ?: com.azokle.search.BuildConfig.VERSION_NAME
         } catch (_: Exception) {
-            "2.0.5"
+            com.azokle.search.BuildConfig.VERSION_NAME
         }
         "Azokle Browser $version, Mozilla Gecko 154.0"
     }

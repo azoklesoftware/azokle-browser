@@ -188,6 +188,7 @@ fun SettingsScreen(
     var showCookiePolicyDialog by remember { mutableStateOf(false) }
     var showPasswordManagerScreen by remember { mutableStateOf(false) }
     var isCheckingUpdates by remember { mutableStateOf(false) }
+    var pendingUpdateInfo by remember { mutableStateOf<com.azokle.search.common.util.UpdateInfo?>(null) }
 
     // Dynamic preferences states
     var currentSafeSearch by remember { mutableStateOf(prefsManager.getSafeSearch()) }
@@ -200,7 +201,9 @@ fun SettingsScreen(
 
     // Hardware & system back button handler
     BackHandler(enabled = true) {
-        if (showPasswordManagerScreen) {
+        if (pendingUpdateInfo != null) {
+            pendingUpdateInfo = null
+        } else if (showPasswordManagerScreen) {
             showPasswordManagerScreen = false
         } else if (showSiteSettingsSheet) {
             showSiteSettingsSheet = false
@@ -752,13 +755,14 @@ fun SettingsScreen(
                                         isCheckingUpdates = false
                                         res.onSuccess { info ->
                                             if (info.hasUpdate) {
-                                                ToastManager.showSuccess("Update available: v${info.latestVersion}")
-                                                onOpenUrl(info.downloadUrl)
+                                                pendingUpdateInfo = info
                                             } else {
-                                                ToastManager.showSuccess("Azokle Browser is up to date")
+                                                ToastManager.showSuccess("Azokle Browser is up to date (v${BuildConfig.VERSION_NAME})")
                                             }
-                                        }.onFailure {
-                                            ToastManager.showSuccess("Azokle Browser is up to date (v${BuildConfig.VERSION_NAME})")
+                                        }.onFailure { error ->
+                                            val msg = error.localizedMessage?.takeIf { it.isNotBlank() }
+                                                ?: "Unable to check for updates. Please check your connection."
+                                            ToastManager.showError(msg)
                                         }
                                     }
                                 }
@@ -773,6 +777,55 @@ fun SettingsScreen(
     }
 
     // Overlays & Dialogs
+    pendingUpdateInfo?.let { update ->
+        AlertDialog(
+            onDismissRequest = { pendingUpdateInfo = null },
+            title = {
+                Text(
+                    text = "Update Available",
+                    fontSize = 16.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "A new version of Azokle Browser is available: v${update.latestVersion} (installed: v${BuildConfig.VERSION_NAME}).",
+                        fontSize = 13.5.sp,
+                        color = colors.textSecondary
+                    )
+                    if (update.releaseNotes.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = update.releaseNotes.take(300),
+                            fontSize = 12.sp,
+                            color = colors.textSecondary.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val targetUrl = update.apkDownloadUrl ?: update.downloadUrl
+                        pendingUpdateInfo = null
+                        onOpenUrl(targetUrl)
+                    }
+                ) {
+                    Text("Download", color = colors.statusAccent, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingUpdateInfo = null }) {
+                    Text("Later", color = colors.textSecondary)
+                }
+            },
+            containerColor = colors.surface,
+            shape = AzokleRadius.xl
+        )
+    }
+
     if (showPasswordManagerScreen) {
         PasswordManagerScreen(onDismiss = { showPasswordManagerScreen = false })
     }

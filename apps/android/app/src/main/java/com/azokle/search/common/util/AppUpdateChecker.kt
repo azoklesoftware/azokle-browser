@@ -21,6 +21,7 @@ import com.azokle.search.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -28,7 +29,8 @@ data class UpdateInfo(
     val hasUpdate: Boolean,
     val latestVersion: String,
     val releaseNotes: String = "",
-    val downloadUrl: String = ""
+    val downloadUrl: String = "",
+    val apkDownloadUrl: String? = null
 )
 
 /**
@@ -40,58 +42,32 @@ object AppUpdateChecker {
     private const val RELEASES_API = "https://api.github.com/repos/azoklesoftware/azokle-browser/releases/latest"
 
     /**
-     * Validates check for updates according to security policies.
+     * Cleans a version string by stripping non-numeric prefix characters (e.g. 'v-', 'v.', 'v', 'release-').
      */
-    suspend fun checkForUpdates(context: Context): Result<UpdateInfo> = withContext(Dispatchers.IO) {
-        try {
-            val url = URL(RELEASES_API)
-            val connection = (url.openConnection() as HttpURLConnection).apply {
-                connectTimeout = 6000
-                readTimeout = 6000
-                requestMethod = "GET"
-                setRequestProperty("Accept", "application/vnd.github.v3+json")
-                setRequestProperty("User-Agent", "AzokleBrowser/${BuildConfig.VERSION_NAME}")
-            }
-
-            if (connection.responseCode == 200) {
-                val response = connection.inputStream.bufferedReader().use { it.readText() }
-                val json = JSONObject(response)
-                val tagName = json.optString("tag_name", "").removePrefix("v").trim()
-                val notes = json.optString("body", "")
-                val htmlUrl = json.optString("html_url", "https://github.com/azoklesoftware/azokle-browser/releases")
-
-                val currentVersion = BuildConfig.VERSION_NAME.removePrefix("v").trim()
-                val isNewer = isVersionGreater(tagName, currentVersion)
-
-                Result.success(
-                    UpdateInfo(
-                        hasUpdate = isNewer,
-                        latestVersion = tagName.ifBlank { currentVersion },
-                        releaseNotes = notes,
-                        downloadUrl = htmlUrl
-                    )
-                )
-            } else {
-                // Offline fallback or rate-limited
-                Result.success(
-                    UpdateInfo(
-                        hasUpdate = false,
-                        latestVersion = BuildConfig.VERSION_NAME
-                    )
-                )
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+    fun cleanVersionString(v: String): String {
+        if (v.isBlank()) return ""
+        val firstDigit = v.indexOfFirst { it.isDigit() }
+        if (firstDigit == -1) return v.trim()
+        return v.substring(firstDigit).trim()
     }
 
     /**
-     * Checks whether version greater.
+     * Checks whether remote semantic version is strictly greater than current version.
      */
-    private fun isVersionGreater(remote: String, current: String): Boolean {
-        if (remote.isBlank() || current.isBlank()) return false
-        val rParts = remote.split(".").mapNotNull { it.toIntOrNull() }
-        val cParts = current.split(".").mapNotNull { it.toIntOrNull() }
+    fun isVersionGreater(remote: String, current: String): Boolean {
+        val cleanRemote = cleanVersionString(remote)
+        val cleanCurrent = cleanVersionString(current)
+        if (cleanRemote.isBlank() || cleanCurrent.isBlank()) return false
+
+        val rParts = cleanRemote.split(".").mapNotNull { part ->
+            part.takeWhile { it.isDigit() }.toIntOrNull()
+        }
+        val cParts = cleanCurrent.split(".").mapNotNull { part ->
+            part.takeWhile { it.isDigit() }.toIntOrNull()
+        }
+
+        if (rParts.isEmpty() || cParts.isEmpty()) return false
+
         for (i in 0 until maxOf(rParts.size, cParts.size)) {
             val r = rParts.getOrElse(i) { 0 }
             val c = cParts.getOrElse(i) { 0 }
@@ -100,4 +76,84 @@ object AppUpdateChecker {
         }
         return false
     }
+
+    /**
+     * Validates check for updates according to security policies.
+     */
+    suspend fun checkForUpdates(context: Context): Result<UpdateInfo> = withContext(Dispatchers.IO) {
+        var connection: HttpURLConnection? = null
+        try {
+            val url = URL(RELEASES_API)
+            connection = (url.openConnection() as HttpURLConnection).apply {
+                connectTimeout = 8000
+                readTimeout = 8000
+                requestMethod = "GET"
+                setRequestProperty("Accept", "application/vnd.github.v3+json")
+                setRequestProperty("User-Agent", "AzokleBrowser/${BuildConfig.VERSION_NAME}")
+            }
+
+            val responseCode = connection.responseCode
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                val response = connection.inputStream.bufferedReader().use { it.readText() }
+                val json = JSONObject(response)
+                val tagName = json.optString("tag_name", "").trim()
+                val cleanRemote = cleanVersionString(tagName)
+                val notes = json.optString("body", "")
+                val htmlUrl = json.optString("html_url", "https://github.com/azoklesoftware/azokle-browser/releases")
+
+                // Extract direct APK asset if present (prefer arm64-v8a or universal)
+                var apkUrl: String? = null
+                val assets = json.optJSONArray("assets")
+                if (assets != null) {
+                    var universalUrl: String? = null
+                    var arm64Url: String? = null
+                    for (i in 0 until assets.length()) {
+                        val asset = assets.optJSONObject(i) ?: continue
+                        val name = asset.optString("name", "").lowercase()
+                        val download = asset.optString("browser_download_url", "")
+                        if (name.endsWith(".apk")) {
+                            if (name.contains("arm64-v8a")) {
+                                arm64Url = download
+                            } else if (name.contains("universal")) {
+                                universalUrl = download
+                            } else if (apkUrl == null) {
+                                apkUrl = download
+                            }
+                        }
+                    }
+                    apkUrl = arm64Url ?: universalUrl ?: apkUrl
+                }
+
+                val currentVersion = cleanVersionString(BuildConfig.VERSION_NAME)
+                val isNewer = isVersionGreater(cleanRemote, currentVersion)
+
+                Result.success(
+                    UpdateInfo(
+                        hasUpdate = isNewer,
+                        latestVersion = cleanRemote.ifBlank { BuildConfig.VERSION_NAME },
+                        releaseNotes = notes,
+                        downloadUrl = htmlUrl,
+                        apkDownloadUrl = apkUrl
+                    )
+                )
+            } else if (responseCode == HttpURLConnection.HTTP_NOT_FOUND) {
+                // No releases found
+                Result.success(
+                    UpdateInfo(
+                        hasUpdate = false,
+                        latestVersion = BuildConfig.VERSION_NAME
+                    )
+                )
+            } else if (responseCode == 403) {
+                Result.failure(IOException("GitHub update rate limit reached. Please try again later."))
+            } else {
+                Result.failure(IOException("Server returned status HTTP $responseCode"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        } finally {
+            connection?.disconnect()
+        }
+    }
 }
+
