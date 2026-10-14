@@ -638,7 +638,6 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
     fun clearAllHistory() {
         try {
             val db = writableDatabase
-            db.execSQL("PRAGMA secure_delete = ON;")
             db.beginTransactionNonExclusive()
             try {
                 db.delete(TABLE_VISITS, null, null)
@@ -647,21 +646,17 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
             } finally {
                 db.endTransaction()
             }
-            try {
-                db.execSQL("PRAGMA wal_checkpoint(TRUNCATE);")
-            } catch (_: Exception) {}
         } catch (e: Exception) {
             Log.e(TAG, "Failed to clear SQLite history: ${e.message}")
         }
     }
 
     /**
-     * Anti-forensic complete database purge with SQLite secure delete and vacuuming.
+     * Anti-forensic complete database purge with secure table wiping.
      */
     fun clearAllSecurely() {
         try {
             val db = writableDatabase
-            db.execSQL("PRAGMA secure_delete = ON;")
             db.beginTransactionNonExclusive()
             try {
                 db.delete(TABLE_VISITS, null, null)
@@ -675,12 +670,6 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
             } finally {
                 db.endTransaction()
             }
-            try {
-                db.execSQL("PRAGMA wal_checkpoint(TRUNCATE);")
-            } catch (_: Exception) {}
-            try {
-                db.execSQL("VACUUM;")
-            } catch (_: Exception) {}
         } catch (e: Exception) {
             Log.e(TAG, "Failed to securely wipe SQLite history: ${e.message}")
         }
