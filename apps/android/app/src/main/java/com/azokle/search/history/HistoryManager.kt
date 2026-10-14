@@ -131,6 +131,9 @@ object HistoryManager {
     /**
      * Updates page title after GeckoView completes parsing document title.
      */
+    /**
+     * Updates page title after GeckoView completes parsing document title without incrementing visit counts.
+     */
     fun updateTitle(url: String, title: String, isPrivate: Boolean = false) {
         if (isIncinerating.get() || isPrivate || url.isBlank() || title.isBlank() || isIgnoredScheme(url)) return
         val active = com.azokle.search.tabs.TabManager.activeTab
@@ -139,9 +142,13 @@ object HistoryManager {
 
         scope.launch {
             if (isIncinerating.get()) return@launch
-            AzokleCore.recordHistoryVisit(title, url, false)
-            refreshFromRust(context)
+            try {
+                AzokleCore.updateHistoryTitle(url, title)
+            } catch (t: Throwable) {
+                Log.w(TAG, "Native update title failed: ${t.message}")
+            }
             database?.updatePlaceTitle(url, title)
+            refreshFromRust(context)
         }
     }
 
@@ -216,33 +223,70 @@ object HistoryManager {
     }
 
     /**
-     * Removes the specified entry.
+     * Removes the specified history item by id and url from both memory and persistent storage.
      */
-    fun deleteEntry(id: String) {
+    /**
+     * Removes the specified history item by id and url from both memory and persistent storage.
+     */
+    fun deleteEntry(id: String, url: String? = null) {
         val context = appContext ?: return
+        saveJob?.cancel()
         scope.launch {
-            AzokleCore.deleteHistoryEntry(id)
-            database?.deletePlace(id)
-            refreshFromRust(context)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                AzokleCore.deleteHistoryEntry(id)
+                if (!url.isNullOrBlank()) {
+                    AzokleCore.deleteHistoryUrl(url)
+                    database?.deletePlaceByUrl(url)
+                }
+                database?.deletePlace(id)
+                refreshFromRust(context)
+            }
         }
     }
 
     /**
-     * Removes the specified entries.
+     * Removes the specified history item.
+     */
+    fun deleteItem(item: HistoryItem) {
+        deleteEntry(item.id, item.url)
+    }
+
+    /**
+     * Removes the specified entries by their IDs and URLs from both memory and SQLite.
      */
     fun deleteEntries(ids: List<String>) {
         val context = appContext ?: return
+        val currentItems = _history.value
+        val itemsToDelete = currentItems.filter { it.id in ids }
+        deleteItems(itemsToDelete.ifEmpty { ids.map { HistoryItem(id = it, url = "", title = "") } })
+    }
+
+    /**
+     * Atomically removes multiple history items from both memory and persistent storage.
+     */
+    fun deleteItems(items: List<HistoryItem>) {
+        val context = appContext ?: return
+        saveJob?.cancel()
         scope.launch {
-            for (id in ids) {
-                AzokleCore.deleteHistoryEntry(id)
-                database?.deletePlace(id)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                val urls = items.map { it.url }.filter { it.isNotBlank() }
+                for (item in items) {
+                    AzokleCore.deleteHistoryEntry(item.id)
+                    if (item.url.isNotBlank()) {
+                        AzokleCore.deleteHistoryUrl(item.url)
+                    }
+                    database?.deletePlace(item.id)
+                }
+                if (urls.isNotEmpty()) {
+                    database?.deletePlacesByUrls(urls)
+                }
+                refreshFromRust(context)
             }
-            refreshFromRust(context)
         }
     }
 
     /**
-     * Clears all today.
+     * Clears all today's browsing history from memory and persistent SQLite storage.
      */
     fun clearToday() {
         val context = appContext ?: return
@@ -254,10 +298,13 @@ object HistoryManager {
         }
         val startOfToday = calendar.timeInMillis
         val now = System.currentTimeMillis()
+        saveJob?.cancel()
         scope.launch {
-            AzokleCore.clearHistoryRange(startOfToday, now)
-            database?.clearTimeRange(startOfToday, now)
-            refreshFromRust(context)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                AzokleCore.clearHistoryRange(startOfToday, now)
+                database?.clearTimeRange(startOfToday, now)
+                refreshFromRust(context)
+            }
         }
     }
 
@@ -269,18 +316,16 @@ object HistoryManager {
     }
 
     /**
-     * Clears all all sync.
+     * Clears all history synchronously across memory, SQLite database, and on-disk JSON cache.
      */
     fun clearAllSync(context: Context) {
         isIncinerating.set(true)
-        try {
-            supervisorJob.cancelChildren()
-        } catch (_: Exception) {}
+        saveJob?.cancel()
 
         _history.value = emptyList()
         AzokleCore.clearAllHistory()
-        database?.clearAllSecurely()
-        
+        database?.clearAllHistory()
+
         try {
             val file = File(context.filesDir, HISTORY_FILE)
             if (file.exists()) {
@@ -294,14 +339,17 @@ object HistoryManager {
     }
 
     /**
-     * Clears all all.
+     * Clears all history asynchronously across all storage tiers.
      */
     fun clearAll() {
         val context = appContext ?: return
         clearInMemoryHistory()
+        saveJob?.cancel()
         scope.launch {
-            clearAllSync(context)
-            isIncinerating.set(false)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                clearAllSync(context)
+                isIncinerating.set(false)
+            }
         }
     }
 
@@ -341,7 +389,7 @@ object HistoryManager {
     }
 
     /**
-     * Executes the refresh from rust operation.
+     * Refreshes in-memory history StateFlow directly from the native Rust history engine.
      */
     private fun refreshFromRust(context: Context) {
         if (isIncinerating.get()) return
@@ -352,25 +400,19 @@ object HistoryManager {
                 val obj = array.getJSONObject(i)
                 list.add(parseHistoryItem(obj))
             }
-            if (list.isNotEmpty()) {
-                _history.value = list
-            } else {
-                // Fallback to SQLite
-                val sqlList = database?.getAllPlaces(MAX_HISTORY_ITEMS) ?: emptyList()
-                _history.value = sqlList
-            }
+            _history.value = list
             if (!isIncinerating.get()) {
                 scheduleSaveToDisk(context)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to refresh history: ${e.message}")
+        } catch (t: Throwable) {
+            Log.e(TAG, "Failed to refresh history: ${t.message}")
         }
     }
 
     private var saveJob: kotlinx.coroutines.Job? = null
 
     /**
-     * Executes the schedule save to disk operation.
+     * Schedules writing history to disk with debouncing.
      */
     private fun scheduleSaveToDisk(context: Context) {
         if (isIncinerating.get()) return
@@ -382,13 +424,27 @@ object HistoryManager {
     }
 
     /**
-     * Persists to disk to storage.
+     * Persists history to JSON disk storage or purges file if history is empty.
      */
     private fun saveToDisk(context: Context) {
         if (isIncinerating.get()) return
         try {
+            val current = _history.value
+            val historyFile = File(context.filesDir, HISTORY_FILE)
+            if (current.isEmpty()) {
+                if (historyFile.exists()) {
+                    historyFile.delete()
+                }
+                return
+            }
             val jsonStr = AzokleCore.exportHistoryJson()
-            val atomicFile = androidx.core.util.AtomicFile(File(context.filesDir, HISTORY_FILE))
+            if (jsonStr == "[]" || jsonStr.isBlank()) {
+                if (historyFile.exists()) {
+                    historyFile.delete()
+                }
+                return
+            }
+            val atomicFile = androidx.core.util.AtomicFile(historyFile)
             val stream = atomicFile.startWrite()
             try {
                 stream.write(jsonStr.toByteArray(Charsets.UTF_8))
@@ -402,14 +458,14 @@ object HistoryManager {
     }
 
     /**
-     * Loads history.
+     * Loads history on application initialization.
      */
     private fun loadHistory(context: Context) {
         if (isIncinerating.get()) return
         scope.launch(Dispatchers.IO) {
             try {
                 if (isIncinerating.get()) return@launch
-                // 1. Check SQLite first
+                // 1. Check SQLite first (the primary durable store)
                 val sqliteRecords = database?.getAllPlaces(MAX_HISTORY_ITEMS) ?: emptyList()
                 if (sqliteRecords.isNotEmpty()) {
                     // Populate Rust in-memory engine from SQLite
@@ -417,25 +473,28 @@ object HistoryManager {
                         AzokleCore.recordHistoryVisit(item.title, item.url, false)
                     }
                 } else {
-                    // Migrate from JSON backup if present
-                    val atomicFile = androidx.core.util.AtomicFile(File(context.filesDir, HISTORY_FILE))
-                    if (atomicFile.baseFile.exists()) {
+                    // Check if there is an un-migrated JSON backup (e.g. from upgrade)
+                    val historyFile = File(context.filesDir, HISTORY_FILE)
+                    if (historyFile.exists()) {
+                        val atomicFile = androidx.core.util.AtomicFile(historyFile)
                         val bytes = atomicFile.readFully()
                         if (bytes.isNotEmpty()) {
                             val jsonStr = String(bytes, Charsets.UTF_8)
-                            AzokleCore.importHistoryJson(jsonStr)
-                            val array = JSONArray(jsonStr)
-                            for (i in 0 until array.length()) {
-                                val obj = array.getJSONObject(i)
-                                val item = parseHistoryItem(obj)
-                                database?.recordPlaceVisit(
-                                    url = item.url,
-                                    title = item.title,
-                                    isTyped = item.typedCount > 0,
-                                    isSearch = item.isSearch,
-                                    searchQuery = item.searchQuery,
-                                    timestamp = item.timestamp
-                                )
+                            if (jsonStr != "[]" && jsonStr.isNotBlank()) {
+                                AzokleCore.importHistoryJson(jsonStr)
+                                val array = JSONArray(jsonStr)
+                                for (i in 0 until array.length()) {
+                                    val obj = array.getJSONObject(i)
+                                    val item = parseHistoryItem(obj)
+                                    database?.recordPlaceVisit(
+                                        url = item.url,
+                                        title = item.title,
+                                        isTyped = item.typedCount > 0,
+                                        isSearch = item.isSearch,
+                                        searchQuery = item.searchQuery,
+                                        timestamp = item.timestamp
+                                    )
+                                }
                             }
                         }
                     }
@@ -443,8 +502,8 @@ object HistoryManager {
                 if (!isIncinerating.get()) {
                     refreshFromRust(context)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to load history: ${e.message}")
+            } catch (t: Throwable) {
+                Log.e(TAG, "Failed to load history: ${t.message}")
             }
         }
     }

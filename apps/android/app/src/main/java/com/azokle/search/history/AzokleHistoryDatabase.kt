@@ -417,6 +417,7 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
     ): Long {
         if (url.isBlank()) return -1L
         val db = writableDatabase
+        db.beginTransaction()
 
         return try {
             val cleanHost = try {
@@ -491,10 +492,13 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
                 db.insert(TABLE_VISITS, null, visitValues)
             }
 
+            db.setTransactionSuccessful()
             placeId
         } catch (e: Exception) {
             Log.e(TAG, "Failed to record place visit in SQLite: ${e.message}")
             -1L
+        } finally {
+            db.endTransaction()
         }
     }
 
@@ -544,6 +548,9 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
     /**
      * Sub-millisecond Full-Text Search (FTS) query across historical titles, URLs, and domains.
      */
+    /**
+     * Sub-millisecond Full-Text Search (FTS) query across historical titles, URLs, and domains.
+     */
     fun searchFts(query: String, limit: Int = 20): List<HistoryItem> {
         val clean = query.trim()
         if (clean.isEmpty()) return getAllPlaces(limit)
@@ -551,25 +558,50 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         val list = mutableListOf<HistoryItem>()
         val db = readableDatabase
         var cursor: Cursor? = null
+
+        // 1. First attempt fast indexed FTS MATCH
         try {
-            // Try FTS query with fallback to LIKE
-            cursor = db.rawQuery(
-                """
+            val sanitized = clean.replace("\"", "\"\"").replace("'", "''")
+            val ftsQuery = """
                 SELECT p.$COL_ID, p.$COL_URL, p.$COL_TITLE, p.$COL_LAST_VISIT_TIME, p.$COL_VISIT_COUNT, p.$COL_TYPED_COUNT, p.$COL_FRECENCY, p.$COL_IS_SEARCH, p.$COL_SEARCH_QUERY
                 FROM $TABLE_PLACES p
-                WHERE p.$COL_TITLE LIKE ? OR p.$COL_URL LIKE ? OR p.$COL_CLEAN_HOST LIKE ?
+                JOIN $TABLE_PLACES_FTS f ON p.$COL_ID = f.docid
+                WHERE $TABLE_PLACES_FTS MATCH ?
                 ORDER BY p.$COL_FRECENCY DESC, p.$COL_LAST_VISIT_TIME DESC
                 LIMIT ?
-                """.trimIndent(),
-                arrayOf("%$clean%", "%$clean%", "%$clean%", limit.toString())
-            )
+            """.trimIndent()
+            cursor = db.rawQuery(ftsQuery, arrayOf("$sanitized*", limit.toString()))
             while (cursor.moveToNext()) {
                 list.add(cursorToHistoryItem(cursor))
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to execute search query in SQLite: ${e.message}")
+        } catch (_: Exception) {
+            // Virtual table query syntax exception or missing index fallback
         } finally {
             cursor?.close()
+            cursor = null
+        }
+
+        // 2. Graceful fallback to wildcard LIKE search if FTS returned empty or errored
+        if (list.isEmpty()) {
+            try {
+                cursor = db.rawQuery(
+                    """
+                    SELECT p.$COL_ID, p.$COL_URL, p.$COL_TITLE, p.$COL_LAST_VISIT_TIME, p.$COL_VISIT_COUNT, p.$COL_TYPED_COUNT, p.$COL_FRECENCY, p.$COL_IS_SEARCH, p.$COL_SEARCH_QUERY
+                    FROM $TABLE_PLACES p
+                    WHERE p.$COL_TITLE LIKE ? OR p.$COL_URL LIKE ? OR p.$COL_CLEAN_HOST LIKE ?
+                    ORDER BY p.$COL_FRECENCY DESC, p.$COL_LAST_VISIT_TIME DESC
+                    LIMIT ?
+                    """.trimIndent(),
+                    arrayOf("%$clean%", "%$clean%", "%$clean%", limit.toString())
+                )
+                while (cursor.moveToNext()) {
+                    list.add(cursorToHistoryItem(cursor))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to execute search query in SQLite: ${e.message}")
+            } finally {
+                cursor?.close()
+            }
         }
         return list
     }
@@ -597,6 +629,27 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
     }
 
     /**
+     * Atomically removes multiple places by their URLs in a single SQLite transaction.
+     */
+    fun deletePlacesByUrls(urls: List<String>): Int {
+        if (urls.isEmpty()) return 0
+        val db = writableDatabase
+        db.beginTransaction()
+        var deletedCount = 0
+        try {
+            for (url in urls) {
+                deletedCount += db.delete(TABLE_PLACES, "$COL_URL = ?", arrayOf(url))
+            }
+            db.setTransactionSuccessful()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to batch delete places in SQLite: ${e.message}")
+        } finally {
+            db.endTransaction()
+        }
+        return deletedCount
+    }
+
+    /**
      * Removes the specified places by domain.
      */
     fun deletePlacesByDomain(domain: String): Int {
@@ -609,13 +662,44 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
     }
 
     /**
-     * Clears all time range.
+     * Clears all places and visits within the specified time range.
      */
     fun clearTimeRange(fromMs: Long, toMs: Long): Int {
-        return try {
-            writableDatabase.delete(TABLE_PLACES, "$COL_LAST_VISIT_TIME BETWEEN ? AND ?", arrayOf(fromMs.toString(), toMs.toString()))
+        val db = writableDatabase
+        db.beginTransaction()
+        var count = 0
+        try {
+            db.delete(TABLE_VISITS, "$COL_VISIT_TIME BETWEEN ? AND ?", arrayOf(fromMs.toString(), toMs.toString()))
+            count = db.delete(TABLE_PLACES, "$COL_LAST_VISIT_TIME BETWEEN ? AND ? OR $COL_ID NOT IN (SELECT DISTINCT $COL_PLACE_ID FROM $TABLE_VISITS)", arrayOf(fromMs.toString(), toMs.toString()))
+            db.setTransactionSuccessful()
         } catch (e: Exception) {
-            0
+            Log.e(TAG, "Failed to clear time range in SQLite: ${e.message}")
+        } finally {
+            db.endTransaction()
+        }
+        return count
+    }
+
+    /**
+     * Atomically clears all browsing history places and visits without affecting tabs, downloads or permissions.
+     */
+    fun clearAllHistory() {
+        try {
+            val db = writableDatabase
+            db.execSQL("PRAGMA secure_delete = ON;")
+            db.beginTransactionNonExclusive()
+            try {
+                db.delete(TABLE_VISITS, null, null)
+                db.delete(TABLE_PLACES, null, null)
+                db.setTransactionSuccessful()
+            } finally {
+                db.endTransaction()
+            }
+            try {
+                db.execSQL("PRAGMA wal_checkpoint(TRUNCATE);")
+            } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to clear SQLite history: ${e.message}")
         }
     }
 

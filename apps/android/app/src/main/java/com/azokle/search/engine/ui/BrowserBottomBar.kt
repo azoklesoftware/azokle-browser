@@ -39,13 +39,13 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -66,17 +66,17 @@ import com.azokle.search.common.theme.AzokleTheme
 import com.azokle.search.common.theme.adaptiveContentWidth
 
 /**
- * Shared Sovereign Bottom Navigation Bar for all screens (Home, Discover, Tabs, and In-App Browser):
- * [1. Home, 2. Discover, 3. Active Tabs Badge, 4. Fire Burn, 5. 3-Dots Menu]
+ * Shared Sovereign Bottom Navigation Bar for all screens (Home, Bookmarks, Tabs, and In-App Browser):
+ * [1. Home, 2. Bookmarks, 3. Active Tabs Badge, 4. Fire Burn, 5. 3-Dots Menu]
  */
 @Composable
 fun BrowserBottomBar(
     openTabsCount: Int,
     isHomeSelected: Boolean = false,
-    isDiscoverSelected: Boolean = false,
+    isBookmarksSelected: Boolean = false,
     isTabsSelected: Boolean = false,
     onHomeClick: () -> Unit,
-    onDiscoverClick: () -> Unit,
+    onBookmarksClick: () -> Unit = {},
     onTabsClick: () -> Unit,
     onBurnDataClick: () -> Unit,
     onMenuClick: () -> Unit,
@@ -143,7 +143,7 @@ fun BrowserBottomBar(
                     .clip(CircleShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(bounded = false, radius = 22.dp, color = colors.actionPrimaryBg),
+                        indication = null,
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onHomeClick()
@@ -164,30 +164,30 @@ fun BrowserBottomBar(
                 )
             }
 
-            // 2. Sovereign Discover Button (RSS/News Feed)
+            // 2. Bookmarks Button
             Box(
                 modifier = Modifier
                     .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                     .clip(CircleShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(bounded = false, radius = 22.dp, color = colors.actionPrimaryBg),
+                        indication = null,
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onDiscoverClick()
+                            onBookmarksClick()
                         }
                     )
                     .semantics {
                         role = Role.Tab
-                        selected = isDiscoverSelected
-                        contentDescription = "Discover news"
+                        selected = isBookmarksSelected
+                        contentDescription = "Bookmarks"
                     },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Explore,
+                    imageVector = if (isBookmarksSelected) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                     contentDescription = null,
-                    tint = if (isDiscoverSelected) colors.textPrimary else colors.textMuted,
+                    tint = if (isBookmarksSelected) colors.textPrimary else colors.textMuted,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -200,7 +200,7 @@ fun BrowserBottomBar(
                     .clip(CircleShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(bounded = false, radius = 22.dp, color = colors.actionPrimaryBg),
+                        indication = null,
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onTabsClick()
@@ -253,7 +253,7 @@ fun BrowserBottomBar(
                     .clip(CircleShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(bounded = false, radius = 22.dp, color = colors.statusDestructive),
+                        indication = null,
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             onBurnDataClick()
@@ -286,7 +286,7 @@ fun BrowserBottomBar(
                         .clip(CircleShape)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(bounded = false, radius = 22.dp, color = colors.textPrimary),
+                            indication = null,
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 onMenuClick()

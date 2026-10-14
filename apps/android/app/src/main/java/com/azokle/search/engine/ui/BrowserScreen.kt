@@ -162,7 +162,6 @@ fun BrowserScreen(
     var showBookmarksScreen by remember { mutableStateOf(false) }
     var showHistoryScreen by remember { mutableStateOf(false) }
     var showPwaInstallSheet by remember { mutableStateOf(false) }
-    var showDiscoverScreen by remember { mutableStateOf(false) }
     var showShareSheet by remember { mutableStateOf(false) }
     var activeSharePayload by remember { mutableStateOf<SharePayload?>(null) }
     val pwaState by PwaManager.activeTabPwaState.collectAsState()
@@ -480,7 +479,6 @@ fun BrowserScreen(
         showTabGridSheet = false
         showMenuSheet = false
         showSettingsSheet = false
-        showDiscoverScreen = false
         showGroupDetailSheet = false
         barVisibilityStateMachine.forceShow()
         val tab = TabManager.activeTab
@@ -570,8 +568,6 @@ fun BrowserScreen(
             executeFind("")
         } else if (activeArticleReader != null) {
             activeArticleReader = null
-        } else if (showDiscoverScreen) {
-            showDiscoverScreen = false
         } else if (currentError != null) {
             currentError = null
             activeLinkContextTarget = null
@@ -728,7 +724,7 @@ fun BrowserScreen(
             }
 
             // 1. Header Omnibar or Find In Page Toolbar
-            if (!isFullScreenMode && !isInPipMode && !showDiscoverScreen && !showTabGridSheet && activeArticleReader == null) {
+            if (!isFullScreenMode && !isInPipMode && !showTabGridSheet && activeArticleReader == null) {
                 AnimatedVisibility(
                     visible = shouldShowOmnibar,
                     enter = slideInVertically(
@@ -822,7 +818,6 @@ fun BrowserScreen(
                                 openTabsCount = openTabs.size,
                                 onHomeClick = {
                                     barVisibilityStateMachine.forceShow()
-                                    showDiscoverScreen = false
                                     showTabGridSheet = false
                                     isPageTransitioning = false
                                     targetLoadingUrl = ""
@@ -845,10 +840,6 @@ fun BrowserScreen(
                                         val next = WallpaperManager.rotateWallpaper()
                                         activeTabId?.let { id -> TabManager.updateTabWallpaper(id, next) }
                                     }
-                                },
-                                onDiscoverClick = {
-                                    barVisibilityStateMachine.forceShow()
-                                    showDiscoverScreen = true
                                 },
                                 onTabsClick = {
                                     barVisibilityStateMachine.forceShow()
@@ -912,7 +903,6 @@ fun BrowserScreen(
                                     }
                                 },
                                 onOpenNewTab = {
-                                    showDiscoverScreen = false
                                     val newId = TabManager.openTab("", "New Tab")
                                     TabManager.selectTab(newId)
                                     currentUrl = ""
@@ -920,7 +910,6 @@ fun BrowserScreen(
                                     WallpaperManager.rotateWallpaper()
                                 },
                                 onOpenNewPrivateTab = {
-                                    showDiscoverScreen = false
                                     val newId = TabManager.openPrivateTab("", "Private Tab")
                                     TabManager.selectTab(newId)
                                     currentUrl = ""
@@ -928,7 +917,6 @@ fun BrowserScreen(
                                     WallpaperManager.rotateWallpaper()
                                 },
                                 onOpenTorWindow = {
-                                    showDiscoverScreen = false
                                     currentError = null
                                     val newTorTabId = TabManager.openTorTab(context, "", "Tor Window")
                                     val torTab = TabManager.tabs.value.find { it.id == newTorTabId }
@@ -963,7 +951,7 @@ fun BrowserScreen(
                         }
 
                         // 🧅 Tor Circuit Status Stripe (below Omnibar when in a Tor tab/window)
-                        if (isCurrentTabTor && !showDiscoverScreen) {
+                        if (isCurrentTabTor) {
                             TorCircuitStatusStripe(
                                 onNewCircuit = {
                                     TorCircuitManager.requestNewCircuit()
@@ -980,7 +968,6 @@ fun BrowserScreen(
 
             // 2. Main Viewport Engine Surface
             BrowserEngineSurface(
-                showDiscoverScreen = showDiscoverScreen,
                 currentUrl = currentUrl,
                 currentTitle = currentTitle,
                 activeTabId = activeTabId,
@@ -1000,7 +987,6 @@ fun BrowserScreen(
                 onOpenSearchSheet = { showUrlEditSheet = true },
                 onVoiceClick = { showVoiceModal = true },
                 onSelectSearchEngine = { engineId -> viewModel?.setSearchEngine(engineId) },
-                onCloseDiscoverScreen = { showDiscoverScreen = false },
                 onUrlChanged = { newUrl ->
                     if (!isBurningData && !com.azokle.search.incineration.DataBurnEngine.isBurning()) {
                         currentUrl = newUrl
@@ -1128,7 +1114,7 @@ fun BrowserScreen(
 
             // 3. Tab Group Bottom Strip + Docked Bottom Action Toolbar
             if (!isFullScreenMode && !isInPipMode) {
-                val shouldShowBottomControls = !windowSize.shouldHideBottomBar && (isBottomBarVisible || showDiscoverScreen || (currentUrl.isBlank() || currentUrl == "about:home")) && (activeArticleReader == null)
+                val shouldShowBottomControls = !windowSize.shouldHideBottomBar && (isBottomBarVisible || (currentUrl.isBlank() || currentUrl == "about:home")) && (activeArticleReader == null)
 
                 AnimatedVisibility(
                     visible = shouldShowBottomControls,
@@ -1151,54 +1137,52 @@ fun BrowserScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        if (!showDiscoverScreen) {
-                            TabGroupBottomStrip(
-                                group = activeGroup,
-                                groupTabs = activeGroupTabs,
-                                activeTabId = activeTabId,
-                                onTabSelected = { selectedTab ->
-                                    focusManager.clearFocus(force = true)
-                                    barVisibilityStateMachine.forceShow()
-                                    TabManager.selectTab(selectedTab.id)
-                                    currentUrl = selectedTab.url
-                                    currentTitle = selectedTab.title
-                                },
-                                onAddTabInGroup = {
-                                    barVisibilityStateMachine.forceShow()
-                                    activeGroup?.let { g ->
-                                        val newId = TabManager.openTabInGroup("", "New Tab", g.id)
-                                        TabManager.selectTab(newId)
-                                        currentUrl = ""
-                                        currentTitle = "New Tab"
-                                    }
-                                },
-                                onCloseTab = { tabIdToClose ->
-                                    val wasActive = (tabIdToClose == activeTabId)
-                                    TabManager.closeTab(tabIdToClose)
-                                    if (wasActive) {
-                                        val next = TabManager.activeTab
-                                        if (next != null) {
-                                            barVisibilityStateMachine.forceShow()
-                                            currentUrl = next.url
-                                            currentTitle = next.title
-                                        }
-                                    }
-                                },
-                                onOpenGroupOverview = {
-                                    barVisibilityStateMachine.forceShow()
-                                    showGroupDetailSheet = true
+                        TabGroupBottomStrip(
+                            group = activeGroup,
+                            groupTabs = activeGroupTabs,
+                            activeTabId = activeTabId,
+                            onTabSelected = { selectedTab ->
+                                focusManager.clearFocus(force = true)
+                                barVisibilityStateMachine.forceShow()
+                                TabManager.selectTab(selectedTab.id)
+                                currentUrl = selectedTab.url
+                                currentTitle = selectedTab.title
+                            },
+                            onAddTabInGroup = {
+                                barVisibilityStateMachine.forceShow()
+                                activeGroup?.let { g ->
+                                    val newId = TabManager.openTabInGroup("", "New Tab", g.id)
+                                    TabManager.selectTab(newId)
+                                    currentUrl = ""
+                                    currentTitle = "New Tab"
                                 }
-                            )
-                        }
+                            },
+                            onCloseTab = { tabIdToClose ->
+                                val wasActive = (tabIdToClose == activeTabId)
+                                TabManager.closeTab(tabIdToClose)
+                                if (wasActive) {
+                                    val next = TabManager.activeTab
+                                    if (next != null) {
+                                        barVisibilityStateMachine.forceShow()
+                                        currentUrl = next.url
+                                        currentTitle = next.title
+                                    }
+                                }
+                            },
+                            onOpenGroupOverview = {
+                                barVisibilityStateMachine.forceShow()
+                                showGroupDetailSheet = true
+                            }
+                        )
 
                         BrowserBottomBar(
                             openTabsCount = openTabs.size,
-                            isHomeSelected = !showDiscoverScreen && !showTabGridSheet && (currentUrl.isBlank() || currentUrl == "about:home"),
-                            isDiscoverSelected = showDiscoverScreen,
+                            isHomeSelected = !showTabGridSheet && !showBookmarksScreen && (currentUrl.isBlank() || currentUrl == "about:home"),
+                            isBookmarksSelected = showBookmarksScreen,
                             isTabsSelected = showTabGridSheet,
                             onHomeClick = {
                                 barVisibilityStateMachine.forceShow()
-                                showDiscoverScreen = false
+                                showBookmarksScreen = false
                                 showTabGridSheet = false
                                 isPageTransitioning = false
                                 targetLoadingUrl = ""
@@ -1222,12 +1206,13 @@ fun BrowserScreen(
                                     activeTabId?.let { id -> TabManager.updateTabWallpaper(id, next) }
                                 }
                             },
-                            onDiscoverClick = {
+                            onBookmarksClick = {
                                 barVisibilityStateMachine.forceShow()
-                                showDiscoverScreen = true
+                                showBookmarksScreen = !showBookmarksScreen
                             },
                             onTabsClick = {
                                 barVisibilityStateMachine.forceShow()
+                                showBookmarksScreen = false
                                 showTabGridSheet = true
                             },
                             onBurnDataClick = {
@@ -1328,7 +1313,6 @@ fun BrowserScreen(
                             },
                             onOpenNewTab = {
                                 showMenuSheet = false
-                                showDiscoverScreen = false
                                 val newId = TabManager.openTab("", "New Tab")
                                 TabManager.selectTab(newId)
                                 currentUrl = ""
@@ -1337,7 +1321,6 @@ fun BrowserScreen(
                             },
                             onOpenNewPrivateTab = {
                                 showMenuSheet = false
-                                showDiscoverScreen = false
                                 val newId = TabManager.openPrivateTab("", "Private Tab")
                                 TabManager.selectTab(newId)
                                 currentUrl = ""
@@ -1346,7 +1329,6 @@ fun BrowserScreen(
                             },
                             onOpenTorWindow = {
                                 showMenuSheet = false
-                                showDiscoverScreen = false
                                 currentError = null
                                 val newTorTabId = TabManager.openTorTab(context, "", "Tor Window")
                                 val torTab = TabManager.tabs.value.find { it.id == newTorTabId }
@@ -1547,7 +1529,6 @@ fun BrowserScreen(
             },
             onOpenNewTabMenu = {
                 showMenuSheet = false
-                showDiscoverScreen = false
                 val newId = TabManager.openTab("", "New Tab")
                 TabManager.selectTab(newId)
                 currentUrl = ""
@@ -1556,7 +1537,6 @@ fun BrowserScreen(
             },
             onOpenNewPrivateTabMenu = {
                 showMenuSheet = false
-                showDiscoverScreen = false
                 val newId = TabManager.openPrivateTab("", "Private Tab")
                 TabManager.selectTab(newId)
                 currentUrl = ""
@@ -1565,7 +1545,6 @@ fun BrowserScreen(
             },
             onOpenTorWindowMenu = {
                 showMenuSheet = false
-                showDiscoverScreen = false
                 currentError = null
                 val newTorTabId = TabManager.openTorTab(context, "", "Tor Window")
                 val torTab = TabManager.tabs.value.find { it.id == newTorTabId }
@@ -1596,12 +1575,10 @@ fun BrowserScreen(
             onDismissBookmarksScreen = { showBookmarksScreen = false },
             onNavigateFromBookmarks = { targetUrl ->
                 showBookmarksScreen = false
-                showDiscoverScreen = false
                 navigateToUrl(targetUrl)
             },
             onOpenTorFromBookmarks = { targetUrl ->
                 showBookmarksScreen = false
-                showDiscoverScreen = false
                 val newTorTabId = TabManager.openTorTab(context, targetUrl, "Tor")
                 val torTab = TabManager.tabs.value.find { it.id == newTorTabId }
                 if (torTab != null) {
@@ -1615,7 +1592,6 @@ fun BrowserScreen(
             onDismissHistoryScreen = { showHistoryScreen = false },
             onHistoryQueryClick = { query ->
                 showHistoryScreen = false
-                showDiscoverScreen = false
                 val searchEngineConfig = SEARCH_ENGINE_PROVIDERS.find { it.id == viewModel?.uiState?.value?.selectedSearchEngine }
                     ?: SEARCH_ENGINE_PROVIDERS[0]
                 val targetUrl = UrlHelper.resolveSearchOrUrl(
@@ -1626,7 +1602,6 @@ fun BrowserScreen(
             },
             onHistoryUrlClick = { url ->
                 showHistoryScreen = false
-                showDiscoverScreen = false
                 navigateToUrl(url)
             },
             viewModel = viewModel,
@@ -1634,7 +1609,6 @@ fun BrowserScreen(
             forceStartTabsTour = forceStartTabsTour,
             onTabSelected = { selectedTab ->
                 showTabGridSheet = false
-                showDiscoverScreen = false
                 currentError = null
                 TabManager.selectTab(selectedTab.id)
                 currentUrl = selectedTab.url
@@ -1642,7 +1616,6 @@ fun BrowserScreen(
             },
             onNewTabFromSwitcher = {
                 showTabGridSheet = false
-                showDiscoverScreen = false
                 currentError = null
                 val newTabId = TabManager.openTab("", "New Tab")
                 TabManager.selectTab(newTabId)
@@ -1835,7 +1808,6 @@ fun BrowserScreen(
                 showBookmarksScreen = false
                 showHistoryScreen = false
                 showDownloadsScreen = false
-                showDiscoverScreen = false
                 showUrlEditSheet = false
                 showVoiceModal = false
                 showQrScanner = false
@@ -1863,7 +1835,6 @@ fun BrowserScreen(
                 isPageTransitioning = false
                 isLoading = false
                 progress = 0f
-                showDiscoverScreen = false
                 showTabGridSheet = false
                 showGroupDetailSheet = false
                 showMenuSheet = false
@@ -1941,7 +1912,6 @@ fun BrowserScreen(
                 }
             },
             onDismissQrScanner = { showQrScanner = false },
-            showDiscoverScreen = showDiscoverScreen,
             homeTourState = homeTourState,
             geckoView = geckoView
         )

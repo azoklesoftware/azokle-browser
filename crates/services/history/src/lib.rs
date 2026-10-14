@@ -222,6 +222,23 @@ impl HistoryManager {
         }
     }
 
+    /// Updates the page title for an existing history entry without incrementing visit counts or altering timestamps.
+    pub fn update_title(&self, url_str: &str, title: &str) -> bool {
+        let clean_url = url_str.trim();
+        let clean_title = title.trim();
+        if clean_url.is_empty() || clean_title.is_empty() {
+            return false;
+        }
+
+        let mut list = self.entries.write();
+        if let Some(pos) = list.iter().position(|e| e.url == clean_url) {
+            list[pos].title = clean_title.to_string();
+            true
+        } else {
+            false
+        }
+    }
+
     /// Searches history entries matching the query in title, URL, or domain.
     pub fn search(&self, query: &str, limit: usize) -> Vec<HistoryEntry> {
         let q = query.trim().to_lowercase();
@@ -490,5 +507,23 @@ mod tests {
         let cleared = history.clear_time_range(0, u64::MAX);
         assert_eq!(cleared, 2);
         assert_eq!(history.total_count(), 0);
+    }
+
+    #[test]
+    fn test_update_title_without_incrementing_visits() {
+        let history = HistoryManager::new();
+        history.record_visit("Initial Title", "https://azokle.com/docs", false);
+        let recent = history.get_recent(5, 0);
+        assert_eq!(recent[0].visit_count, 1);
+        assert_eq!(recent[0].title, "Initial Title");
+
+        // Updating title should keep visit_count at 1
+        let updated =
+            history.update_title("https://azokle.com/docs", "Updated Official Documentation");
+        assert!(updated);
+
+        let after = history.get_recent(5, 0);
+        assert_eq!(after[0].visit_count, 1);
+        assert_eq!(after[0].title, "Updated Official Documentation");
     }
 }

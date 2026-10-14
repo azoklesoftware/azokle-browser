@@ -655,7 +655,7 @@ fun SettingsScreen(
 
                         SettingsRow(
                             icon = Icons.Default.DeleteSweep,
-                            title = "Clear Search History",
+                            title = "Clear Browsing & Search History",
                             onClick = { showClearHistoryDialog = true }
                         )
 
@@ -1145,13 +1145,13 @@ fun SettingsScreen(
         )
     }
 
-    // Clear Search History Confirmation Dialog
+    // Clear Browsing & Search History Confirmation Dialog
     if (showClearHistoryDialog) {
         AlertDialog(
             onDismissRequest = { showClearHistoryDialog = false },
             title = {
                 Text(
-                    text = "Clear Search History?",
+                    text = "Clear Browsing & Search History?",
                     fontSize = 16.5.sp,
                     fontWeight = FontWeight.Bold,
                     color = colors.textPrimary
@@ -1159,7 +1159,7 @@ fun SettingsScreen(
             },
             text = {
                 Text(
-                    text = "Remove recent search queries and suggestions stored on this device.",
+                    text = "Remove recent search queries, visited web pages, and browsing history stored on this device.",
                     color = colors.textSecondary,
                     fontSize = 13.sp,
                     lineHeight = 18.sp
@@ -1169,8 +1169,9 @@ fun SettingsScreen(
                 TextButton(
                     onClick = {
                         prefsManager.clearRecentSearches()
+                        com.azokle.search.history.HistoryManager.clearAll()
                         showClearHistoryDialog = false
-                        ToastManager.showSuccess("Search history cleared")
+                        ToastManager.showSuccess("Browsing & search history cleared")
                     }
                 ) {
                     Text("Clear", color = colors.statusDestructive, fontWeight = FontWeight.Bold)

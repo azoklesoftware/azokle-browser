@@ -225,7 +225,6 @@ fun BrowserModalOverlaysHost(
     showQrScanner: Boolean,
     onQrScanResult: (String) -> Unit,
     onDismissQrScanner: () -> Unit,
-    showDiscoverScreen: Boolean,
     homeTourState: TourState,
     geckoView: GeckoView?
 ) {
@@ -689,7 +688,7 @@ fun BrowserModalOverlaysHost(
     }
 
     // 🌟 Clean & Premium Floating Toast HUD (Positioned safely below the Omnibar)
-    val extraToastOffset = if (isCurrentTabTor && !showDiscoverScreen) 34.dp else 0.dp
+    val extraToastOffset = if (isCurrentTabTor) 34.dp else 0.dp
     AzokleToastHost(extraTopOffset = extraToastOffset)
 
     // 🚀 Driver.js-Grade Interactive Spotlight Tour Guide (Home Screen)

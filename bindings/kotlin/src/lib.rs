@@ -1074,6 +1074,30 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyRecordTyped
     safe_jstring(&mut env, &json)
 }
 
+/// Updates document title for a previously visited URL without altering visits count.
+#[no_mangle]
+pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historyUpdateTitle(
+    mut env: JNIEnv,
+    _class: JClass,
+    url: JString,
+    title: JString,
+) -> jboolean {
+    let u = match env.get_string(&url) {
+        Ok(s) => String::from(s.to_str().unwrap_or("")),
+        Err(_) => String::new(),
+    };
+    let t = match env.get_string(&title) {
+        Ok(s) => String::from(s.to_str().unwrap_or("")),
+        Err(_) => String::new(),
+    };
+
+    if get_core().history.update_title(&u, &t) {
+        JNI_TRUE
+    } else {
+        JNI_FALSE
+    }
+}
+
 /// Performs Java com azokle search core AzokleCore historySearch operation.
 #[no_mangle]
 pub extern "system" fn Java_com_azokle_search_core_AzokleCore_historySearch(

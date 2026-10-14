@@ -118,7 +118,6 @@ fun BrowserOmnibar(
     showOverflowMenu: Boolean = false,
     openTabsCount: Int = 1,
     onHomeClick: () -> Unit = {},
-    onDiscoverClick: () -> Unit = {},
     onTabsClick: () -> Unit = {},
     onBurnDataClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
@@ -509,7 +508,7 @@ fun BrowserOmnibar(
 
                 Spacer(modifier = Modifier.width(4.dp))
 
-                // 3. Responsive 3-Dot Overflow Menu (Home, Discover, Menu)
+                // 3. Responsive 3-Dot Overflow Menu (Home, Bookmarks, Menu)
                 var overflowMenuExpanded by remember { mutableStateOf(false) }
 
                 Box {
@@ -551,14 +550,10 @@ fun BrowserOmnibar(
                         isBookmarked = isBookmarked,
                         blockedTrackersCount = blockedCount,
                         isBrowserContext = !isInternal,
-                        showHomeAndDiscover = true,
+                        showHomeAndBookmarks = true,
                         onHomeClick = {
                             overflowMenuExpanded = false
                             onHomeClick()
-                        },
-                        onDiscoverClick = {
-                            overflowMenuExpanded = false
-                            onDiscoverClick()
                         },
                         onReload = {
                             overflowMenuExpanded = false

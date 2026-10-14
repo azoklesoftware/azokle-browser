@@ -129,6 +129,7 @@ object AzokleCore {
     // Browsing History JNI Declarations
     private external fun historyRecordVisit(title: String, url: String, isPrivate: Boolean): String
     private external fun historyRecordTypedVisit(title: String, url: String, isPrivate: Boolean): String
+    private external fun historyUpdateTitle(url: String, title: String): Boolean
     private external fun historySearch(query: String, limit: Int): String
     private external fun historySearchFrecency(query: String, limit: Int): String
     private external fun historyGetTopFrecency(limit: Int): String
@@ -898,7 +899,7 @@ object AzokleCore {
         return try {
             val res = historyRecordVisit(title, url, isPrivate)
             if (res != "null") JSONObject(res) else null
-        } catch (e: Exception) {
+        } catch (t: Throwable) {
             null
         }
     }
@@ -911,8 +912,20 @@ object AzokleCore {
         return try {
             val res = historyRecordTypedVisit(title, url, isPrivate)
             if (res != "null") JSONObject(res) else null
-        } catch (e: Exception) {
+        } catch (t: Throwable) {
             null
+        }
+    }
+
+    /**
+     * Updates document title for a previously visited URL in native history memory without incrementing visit count.
+     */
+    fun updateHistoryTitle(url: String, title: String): Boolean {
+        if (!isNativeLoaded || url.isBlank() || title.isBlank()) return false
+        return try {
+            historyUpdateTitle(url, title)
+        } catch (t: Throwable) {
+            false
         }
     }
 

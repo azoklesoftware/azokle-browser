@@ -49,7 +49,6 @@ import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.FindInPage
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
@@ -114,9 +113,8 @@ fun BrowserMenuDropup(
     isBookmarked: Boolean = false,
     blockedTrackersCount: Int = 0,
     isBrowserContext: Boolean = true,
-    showHomeAndDiscover: Boolean = false,
+    showHomeAndBookmarks: Boolean = false,
     onHomeClick: () -> Unit = {},
-    onDiscoverClick: () -> Unit = {},
     onReload: () -> Unit = {},
     onToggleBookmark: () -> Unit = {},
     onShare: () -> Unit = {},
@@ -169,8 +167,8 @@ fun BrowserMenuDropup(
                 .padding(horizontal = 10.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // 0. Optional Home & Discover Shortcuts (Tablet / Omnibar mode)
-            if (showHomeAndDiscover) {
+            // 0. Optional Home & Bookmarks Shortcuts (Tablet / Omnibar mode)
+            if (showHomeAndBookmarks) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -192,13 +190,13 @@ fun BrowserMenuDropup(
                         }
                     )
                     DropupQuickActionPill(
-                        icon = Icons.Default.Explore,
-                        label = "Discover",
+                        icon = Icons.Default.BookmarkBorder,
+                        label = "Bookmarks",
                         tint = colors.textPrimary,
                         modifier = Modifier.weight(1f),
                         onClick = {
                             onDismissRequest()
-                            onDiscoverClick()
+                            onOpenBookmarks()
                         }
                     )
                 }

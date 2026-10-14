@@ -35,8 +35,6 @@ import com.azokle.search.common.tour.TourState
 import com.azokle.search.common.tour.TourStep
 import com.azokle.search.common.tour.tourTarget
 import com.azokle.search.common.util.findActivity
-import com.azokle.search.discover.DiscoverScreen
-import com.azokle.search.discover.DiscoverViewModel
 import com.azokle.search.engine.DownloadConfirmationPayload
 import com.azokle.search.engine.GeckoBrowserView
 import com.azokle.search.engine.TextSelectionPayload
@@ -52,7 +50,6 @@ import org.mozilla.geckoview.GeckoView
  */
 @Composable
 fun BrowserEngineSurface(
-    showDiscoverScreen: Boolean,
     currentUrl: String,
     currentTitle: String,
     activeTabId: String?,
@@ -72,7 +69,6 @@ fun BrowserEngineSurface(
     onOpenSearchSheet: () -> Unit,
     onVoiceClick: () -> Unit,
     onSelectSearchEngine: (String) -> Unit,
-    onCloseDiscoverScreen: () -> Unit,
     onUrlChanged: (String) -> Unit,
     onTitleChanged: (String) -> Unit,
     onProgressChanged: (Int) -> Unit,
@@ -127,21 +123,11 @@ fun BrowserEngineSurface(
     } else {
         currentTab?.url ?: ""
     }
-    val isHomePage = !showDiscoverScreen &&
-            (effectiveUrl.isBlank() || effectiveUrl == "about:home" || effectiveUrl == "about:tor") &&
+    val isHomePage = (effectiveUrl.isBlank() || effectiveUrl == "about:home" || effectiveUrl == "about:tor") &&
             currentTab?.parentTabId == null
 
     Box(modifier = modifier.fillMaxWidth()) {
-        if (showDiscoverScreen) {
-            val discoverViewModel: DiscoverViewModel = viewModel()
-            DiscoverScreen(
-                viewModel = discoverViewModel,
-                onOpenUrl = { url, title ->
-                    onCloseDiscoverScreen()
-                    onNavigateToUrl(url, title)
-                }
-            )
-        } else if (isHomePage) {
+        if (isHomePage) {
             // Render Photographic Wallpaper Browser Home Page (Unified for Normal, Private, and Tor tabs)
             BrowserHomeScreenContent(
                 activeTab = currentTab,

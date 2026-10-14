@@ -28,15 +28,16 @@ data class HistoryItem(
     val searchQuery: String? = null
 ) {
     val cleanHost: String by lazy(LazyThreadSafetyMode.NONE) {
-        val withoutScheme = if (url.startsWith("https://", ignoreCase = true)) {
-            url.substring(8)
-        } else if (url.startsWith("http://", ignoreCase = true)) {
-            url.substring(7)
-        } else {
-            url.substringAfter("://", url)
+        try {
+            val parsedHost = android.net.Uri.parse(url).host?.removePrefix("www.")?.trim()
+            if (!parsedHost.isNullOrBlank()) {
+                parsedHost
+            } else {
+                fallbackHostExtract(url)
+            }
+        } catch (_: Exception) {
+            fallbackHostExtract(url)
         }
-        val hostPart = withoutScheme.substringBefore('/').substringBefore('?').substringBefore(':')
-        hostPart.removePrefix("www.").ifBlank { url }
     }
 
     val displayTitle: String by lazy(LazyThreadSafetyMode.NONE) {
@@ -50,7 +51,11 @@ data class HistoryItem(
     }
 
     val faviconUrl: String by lazy(LazyThreadSafetyMode.NONE) {
-        "https://www.google.com/s2/favicons?domain=$cleanHost&sz=128"
+        if (cleanHost.contains(".")) {
+            "https://www.google.com/s2/favicons?domain=$cleanHost&sz=128"
+        } else {
+            ""
+        }
     }
 
     val formattedTime: String by lazy(LazyThreadSafetyMode.NONE) {
@@ -59,6 +64,20 @@ data class HistoryItem(
             sdf.format(java.util.Date(timestamp))
         } catch (_: Exception) {
             ""
+        }
+    }
+
+    companion object {
+        private fun fallbackHostExtract(url: String): String {
+            val withoutScheme = if (url.startsWith("https://", ignoreCase = true)) {
+                url.substring(8)
+            } else if (url.startsWith("http://", ignoreCase = true)) {
+                url.substring(7)
+            } else {
+                url.substringAfter("://", url)
+            }
+            val hostPart = withoutScheme.substringBefore('/').substringBefore('?').substringBefore(':')
+            return hostPart.removePrefix("www.").ifBlank { url }
         }
     }
 }
