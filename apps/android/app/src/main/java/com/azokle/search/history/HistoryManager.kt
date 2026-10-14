@@ -42,6 +42,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 object HistoryManager {
     private const val TAG = "AzokleHistoryManager"
+    private const val PREFS_NAME = "azokle_history_prefs"
+    private const val KEY_HISTORY_MIGRATED_TO_SQLITE = "history_migrated_to_sqlite"
     private const val HISTORY_FILE = "azokle_browser_history.json"
     private const val LEGACY_HISTORY_FILE = "history.json"
     private const val MAX_HISTORY_ITEMS = 1000
@@ -323,8 +325,20 @@ object HistoryManager {
         saveJob?.cancel()
 
         _history.value = emptyList()
-        AzokleCore.clearAllHistory()
-        database?.clearAllHistory()
+        try {
+            AzokleCore.clearAllHistory()
+        } catch (t: Throwable) {
+            Log.w(TAG, "Native clearAllHistory: ${t.message}")
+        }
+
+        val db = database ?: AzokleHistoryDatabase.getInstance(context)
+        db.clearAllHistory()
+
+        // Set persistent migration flag so loadHistory NEVER resurrects purged history from JSON
+        try {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit().putBoolean(KEY_HISTORY_MIGRATED_TO_SQLITE, true).apply()
+        } catch (_: Exception) {}
 
         try {
             val file = File(context.filesDir, HISTORY_FILE)
@@ -401,61 +415,12 @@ object HistoryManager {
                 list.add(parseHistoryItem(obj))
             }
             _history.value = list
-            if (!isIncinerating.get()) {
-                scheduleSaveToDisk(context)
-            }
         } catch (t: Throwable) {
             Log.e(TAG, "Failed to refresh history: ${t.message}")
         }
     }
 
     private var saveJob: kotlinx.coroutines.Job? = null
-
-    /**
-     * Schedules writing history to disk with debouncing.
-     */
-    private fun scheduleSaveToDisk(context: Context) {
-        if (isIncinerating.get()) return
-        saveJob?.cancel()
-        saveJob = scope.launch {
-            kotlinx.coroutines.delay(2000)
-            saveToDisk(context)
-        }
-    }
-
-    /**
-     * Persists history to JSON disk storage or purges file if history is empty.
-     */
-    private fun saveToDisk(context: Context) {
-        if (isIncinerating.get()) return
-        try {
-            val current = _history.value
-            val historyFile = File(context.filesDir, HISTORY_FILE)
-            if (current.isEmpty()) {
-                if (historyFile.exists()) {
-                    historyFile.delete()
-                }
-                return
-            }
-            val jsonStr = AzokleCore.exportHistoryJson()
-            if (jsonStr == "[]" || jsonStr.isBlank()) {
-                if (historyFile.exists()) {
-                    historyFile.delete()
-                }
-                return
-            }
-            val atomicFile = androidx.core.util.AtomicFile(historyFile)
-            val stream = atomicFile.startWrite()
-            try {
-                stream.write(jsonStr.toByteArray(Charsets.UTF_8))
-                atomicFile.finishWrite(stream)
-            } catch (e: Exception) {
-                atomicFile.failWrite(stream)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to save history: ${e.message}")
-        }
-    }
 
     /**
      * Loads history on application initialization.
@@ -465,15 +430,28 @@ object HistoryManager {
         scope.launch(Dispatchers.IO) {
             try {
                 if (isIncinerating.get()) return@launch
+                val db = database ?: AzokleHistoryDatabase.getInstance(context)
                 // 1. Check SQLite first (the primary durable store)
-                val sqliteRecords = database?.getAllPlaces(MAX_HISTORY_ITEMS) ?: emptyList()
+                val sqliteRecords = db.getAllPlaces(MAX_HISTORY_ITEMS)
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val isMigrated = prefs.getBoolean(KEY_HISTORY_MIGRATED_TO_SQLITE, false)
+
                 if (sqliteRecords.isNotEmpty()) {
                     // Populate Rust in-memory engine from SQLite
                     for (item in sqliteRecords.reversed()) {
                         AzokleCore.recordHistoryVisit(item.title, item.url, false)
                     }
-                } else {
-                    // Check if there is an un-migrated JSON backup (e.g. from upgrade)
+                    if (!isMigrated) {
+                        prefs.edit().putBoolean(KEY_HISTORY_MIGRATED_TO_SQLITE, true).apply()
+                        try {
+                            val f1 = File(context.filesDir, HISTORY_FILE)
+                            if (f1.exists()) f1.delete()
+                            val f2 = File(context.filesDir, LEGACY_HISTORY_FILE)
+                            if (f2.exists()) f2.delete()
+                        } catch (_: Exception) {}
+                    }
+                } else if (!isMigrated) {
+                    // One-time legacy migration only when SQLite has never been initialized and not yet marked migrated
                     val historyFile = File(context.filesDir, HISTORY_FILE)
                     if (historyFile.exists()) {
                         val atomicFile = androidx.core.util.AtomicFile(historyFile)
@@ -486,7 +464,7 @@ object HistoryManager {
                                 for (i in 0 until array.length()) {
                                     val obj = array.getJSONObject(i)
                                     val item = parseHistoryItem(obj)
-                                    database?.recordPlaceVisit(
+                                    db.recordPlaceVisit(
                                         url = item.url,
                                         title = item.title,
                                         isTyped = item.typedCount > 0,
@@ -498,7 +476,15 @@ object HistoryManager {
                             }
                         }
                     }
+                    prefs.edit().putBoolean(KEY_HISTORY_MIGRATED_TO_SQLITE, true).apply()
+                    try {
+                        val f1 = File(context.filesDir, HISTORY_FILE)
+                        if (f1.exists()) f1.delete()
+                        val f2 = File(context.filesDir, LEGACY_HISTORY_FILE)
+                        if (f2.exists()) f2.delete()
+                    } catch (_: Exception) {}
                 }
+
                 if (!isIncinerating.get()) {
                     refreshFromRust(context)
                 }

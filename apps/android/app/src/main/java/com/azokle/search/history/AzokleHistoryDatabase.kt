@@ -44,7 +44,7 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
     companion object {
         private const val TAG = "AzokleHistoryDb"
         private const val DATABASE_NAME = "azokle_history.db"
-        private const val DATABASE_VERSION = 2
+        private const val DATABASE_VERSION = 3
 
         // Table: Places
         const val TABLE_PLACES = "azokle_places"
@@ -152,6 +152,19 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         db.setForeignKeyConstraintsEnabled(true)
     }
 
+    override fun onOpen(db: SQLiteDatabase) {
+        super.onOpen(db)
+        // Defensively drop legacy/broken FTS virtual table & triggers that cause UPDATE/DELETE aborts
+        try {
+            db.execSQL("DROP TRIGGER IF EXISTS trg_places_insert;")
+            db.execSQL("DROP TRIGGER IF EXISTS trg_places_update;")
+            db.execSQL("DROP TRIGGER IF EXISTS trg_places_delete;")
+            db.execSQL("DROP TABLE IF EXISTS $TABLE_PLACES_FTS;")
+        } catch (e: Exception) {
+            Log.w(TAG, "Notice removing legacy FTS triggers: ${e.message}")
+        }
+    }
+
     /**
      * Initializes dependencies and components when created.
      */
@@ -195,48 +208,7 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_visits_place_id ON $TABLE_VISITS($COL_PLACE_ID);")
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_visits_time ON $TABLE_VISITS($COL_VISIT_TIME DESC);")
 
-        // 3. Create Full-Text Search (FTS) Virtual Table & Triggers
-        try {
-            db.execSQL(
-                """
-                CREATE VIRTUAL TABLE IF NOT EXISTS $TABLE_PLACES_FTS USING fts4(
-                    title,
-                    url,
-                    clean_host,
-                    content='$TABLE_PLACES'
-                );
-                """.trimIndent()
-            )
-
-            db.execSQL(
-                """
-                CREATE TRIGGER IF NOT EXISTS trg_places_insert AFTER INSERT ON $TABLE_PLACES BEGIN
-                    INSERT INTO $TABLE_PLACES_FTS(docid, title, url, clean_host) VALUES (new.$COL_ID, new.$COL_TITLE, new.$COL_URL, new.$COL_CLEAN_HOST);
-                END;
-                """.trimIndent()
-            )
-
-            db.execSQL(
-                """
-                CREATE TRIGGER IF NOT EXISTS trg_places_update AFTER UPDATE ON $TABLE_PLACES BEGIN
-                    INSERT INTO $TABLE_PLACES_FTS($TABLE_PLACES_FTS, docid, title, url, clean_host) VALUES ('delete', old.$COL_ID, old.$COL_TITLE, old.$COL_URL, old.$COL_CLEAN_HOST);
-                    INSERT INTO $TABLE_PLACES_FTS(docid, title, url, clean_host) VALUES (new.$COL_ID, new.$COL_TITLE, new.$COL_URL, new.$COL_CLEAN_HOST);
-                END;
-                """.trimIndent()
-            )
-
-            db.execSQL(
-                """
-                CREATE TRIGGER IF NOT EXISTS trg_places_delete AFTER DELETE ON $TABLE_PLACES BEGIN
-                    INSERT INTO $TABLE_PLACES_FTS($TABLE_PLACES_FTS, docid, title, url, clean_host) VALUES ('delete', old.$COL_ID, old.$COL_TITLE, old.$COL_URL, old.$COL_CLEAN_HOST);
-                END;
-                """.trimIndent()
-            )
-        } catch (e: Exception) {
-            Log.w(TAG, "FTS virtual table creation notice: ${e.message}")
-        }
-
-        // 4. Create Site Permissions Rules Table
+        // 3. Create Site Permissions Rules Table
         db.execSQL(
             """
             CREATE TABLE IF NOT EXISTS $TABLE_PERMISSIONS (
@@ -401,6 +373,14 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
                 """.trimIndent()
             )
             db.execSQL("CREATE INDEX IF NOT EXISTS idx_downloads_time ON $TABLE_DOWNLOADS($COL_DL_TIMESTAMP DESC);")
+            try {
+                db.execSQL("DROP TRIGGER IF EXISTS trg_places_insert;")
+                db.execSQL("DROP TRIGGER IF EXISTS trg_places_update;")
+                db.execSQL("DROP TRIGGER IF EXISTS trg_places_delete;")
+                db.execSQL("DROP TABLE IF EXISTS $TABLE_PLACES_FTS;")
+            } catch (e: Exception) {
+                Log.w(TAG, "Upgrade v3 drop FTS: ${e.message}")
+            }
         }
     }
 
@@ -546,10 +526,7 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
     }
 
     /**
-     * Sub-millisecond Full-Text Search (FTS) query across historical titles, URLs, and domains.
-     */
-    /**
-     * Sub-millisecond Full-Text Search (FTS) query across historical titles, URLs, and domains.
+     * Sub-millisecond indexed search query across historical titles, URLs, and domains.
      */
     fun searchFts(query: String, limit: Int = 20): List<HistoryItem> {
         val clean = query.trim()
@@ -559,49 +536,24 @@ class AzokleHistoryDatabase(context: Context) : SQLiteOpenHelper(
         val db = readableDatabase
         var cursor: Cursor? = null
 
-        // 1. First attempt fast indexed FTS MATCH
         try {
-            val sanitized = clean.replace("\"", "\"\"").replace("'", "''")
-            val ftsQuery = """
+            cursor = db.rawQuery(
+                """
                 SELECT p.$COL_ID, p.$COL_URL, p.$COL_TITLE, p.$COL_LAST_VISIT_TIME, p.$COL_VISIT_COUNT, p.$COL_TYPED_COUNT, p.$COL_FRECENCY, p.$COL_IS_SEARCH, p.$COL_SEARCH_QUERY
                 FROM $TABLE_PLACES p
-                JOIN $TABLE_PLACES_FTS f ON p.$COL_ID = f.docid
-                WHERE $TABLE_PLACES_FTS MATCH ?
+                WHERE p.$COL_TITLE LIKE ? OR p.$COL_URL LIKE ? OR p.$COL_CLEAN_HOST LIKE ?
                 ORDER BY p.$COL_FRECENCY DESC, p.$COL_LAST_VISIT_TIME DESC
                 LIMIT ?
-            """.trimIndent()
-            cursor = db.rawQuery(ftsQuery, arrayOf("$sanitized*", limit.toString()))
+                """.trimIndent(),
+                arrayOf("%$clean%", "%$clean%", "%$clean%", limit.toString())
+            )
             while (cursor.moveToNext()) {
                 list.add(cursorToHistoryItem(cursor))
             }
-        } catch (_: Exception) {
-            // Virtual table query syntax exception or missing index fallback
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to execute search query in SQLite: ${e.message}")
         } finally {
             cursor?.close()
-            cursor = null
-        }
-
-        // 2. Graceful fallback to wildcard LIKE search if FTS returned empty or errored
-        if (list.isEmpty()) {
-            try {
-                cursor = db.rawQuery(
-                    """
-                    SELECT p.$COL_ID, p.$COL_URL, p.$COL_TITLE, p.$COL_LAST_VISIT_TIME, p.$COL_VISIT_COUNT, p.$COL_TYPED_COUNT, p.$COL_FRECENCY, p.$COL_IS_SEARCH, p.$COL_SEARCH_QUERY
-                    FROM $TABLE_PLACES p
-                    WHERE p.$COL_TITLE LIKE ? OR p.$COL_URL LIKE ? OR p.$COL_CLEAN_HOST LIKE ?
-                    ORDER BY p.$COL_FRECENCY DESC, p.$COL_LAST_VISIT_TIME DESC
-                    LIMIT ?
-                    """.trimIndent(),
-                    arrayOf("%$clean%", "%$clean%", "%$clean%", limit.toString())
-                )
-                while (cursor.moveToNext()) {
-                    list.add(cursorToHistoryItem(cursor))
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to execute search query in SQLite: ${e.message}")
-            } finally {
-                cursor?.close()
-            }
         }
         return list
     }
