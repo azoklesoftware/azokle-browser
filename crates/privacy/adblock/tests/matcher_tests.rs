@@ -285,4 +285,3 @@ fn test_inferred_categories() {
     assert!(d_telem.should_block);
     assert_eq!(d_telem.category, BlockCategory::Telemetry);
 }
-
