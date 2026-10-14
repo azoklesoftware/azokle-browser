@@ -80,4 +80,25 @@ class CookieManagementTest {
         assertEquals(1, ContentBlocking.CookieBannerMode.COOKIE_BANNER_MODE_REJECT)
         assertEquals(2, ContentBlocking.CookieBannerMode.COOKIE_BANNER_MODE_REJECT_OR_ACCEPT)
     }
+
+    @Test
+    fun testCookieControlThreeOptions() {
+        // Option 1: Block Third-Party Cookies (Default) -> ACCEPT_FIRST_PARTY_AND_ISOLATE_OTHERS (5)
+        assertEquals(
+            "block_third_party",
+            com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_BLOCK_THIRD_PARTY
+        )
+
+        // Option 2: Block All Cookies -> ACCEPT_NONE (2)
+        assertEquals(
+            "block_all",
+            com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_BLOCK_ALL
+        )
+
+        // Option 3: Allow Cookies -> ACCEPT_ALL (0)
+        assertEquals(
+            "allow_all",
+            com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_ALLOW_ALL
+        )
+    }
 }

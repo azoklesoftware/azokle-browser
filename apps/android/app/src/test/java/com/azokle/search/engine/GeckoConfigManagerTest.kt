@@ -120,4 +120,81 @@ class GeckoConfigManagerTest {
         assertTrue(yaml.contains("network.trr.uri: \"\""))
         assertTrue(yaml.contains("network.trr.bootstrapAddress: \"\""))
     }
+
+    @Test
+    fun testGeneratePerformanceConfigCookieOptions() {
+        // 1. Block Third-Party Cookies (Default: 5 - Total Cookie Protection)
+        val defaultYaml = GeckoConfigManager.generatePerformanceConfigYaml(
+            cookieControl = com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_BLOCK_THIRD_PARTY
+        )
+        assertTrue(defaultYaml.contains("network.cookie.cookieBehavior: 5"))
+
+        // 2. Block All Cookies (2 - ACCEPT_NONE)
+        val blockAllYaml = GeckoConfigManager.generatePerformanceConfigYaml(
+            cookieControl = com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_BLOCK_ALL
+        )
+        assertTrue(blockAllYaml.contains("network.cookie.cookieBehavior: 2"))
+
+        // 3. Allow Cookies (0 - ACCEPT_ALL)
+        val allowAllYaml = GeckoConfigManager.generatePerformanceConfigYaml(
+            cookieControl = com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_ALLOW_ALL
+        )
+        assertTrue(allowAllYaml.contains("network.cookie.cookieBehavior: 0"))
+    }
+
+    @Test
+    fun testGeneratePerformanceConfigFingerprintingProtections() {
+        // Default: Master enabled with all sub-flags active
+        val defaultYaml = GeckoConfigManager.generatePerformanceConfigYaml()
+        assertTrue(defaultYaml.contains("privacy.fingerprintingProtection: true"))
+        assertTrue(defaultYaml.contains("layout.css.font-visibility.level: 1"))
+        assertTrue(defaultYaml.contains("privacy.resistFingerprinting.letterboxing: true"))
+        assertTrue(defaultYaml.contains("privacy.spoof_english: 1"))
+        assertTrue(defaultYaml.contains("dom.maxHardwareConcurrency: 4"))
+
+        // Configurable font protection disabled
+        val fontDisabledYaml = GeckoConfigManager.generatePerformanceConfigYaml(fontProtection = false)
+        assertTrue(fontDisabledYaml.contains("layout.css.font-visibility.level: 3"))
+        assertTrue(fontDisabledYaml.contains("privacy.resistFingerprinting.letterboxing: true"))
+
+        // Configurable screen resolution protection disabled
+        val screenDisabledYaml = GeckoConfigManager.generatePerformanceConfigYaml(screenProtection = false)
+        assertTrue(screenDisabledYaml.contains("privacy.resistFingerprinting.letterboxing: false"))
+
+        // Configurable user agent protection disabled
+        val uaDisabledYaml = GeckoConfigManager.generatePerformanceConfigYaml(userAgentProtection = false)
+        assertTrue(uaDisabledYaml.contains("privacy.spoof_english: 0"))
+
+        // Master fingerprinting disabled
+        val masterDisabledYaml = GeckoConfigManager.generatePerformanceConfigYaml(fingerprintProtection = false)
+        assertTrue(masterDisabledYaml.contains("privacy.fingerprintingProtection: false"))
+        assertTrue(masterDisabledYaml.contains("layout.css.font-visibility.level: 3"))
+        assertTrue(masterDisabledYaml.contains("privacy.resistFingerprinting.letterboxing: false"))
+        assertTrue(masterDisabledYaml.contains("privacy.spoof_english: 0"))
+    }
+
+    @Test
+    fun testGeneratePerformanceConfigBlockingModes() {
+        // Standard Mode (Default)
+        val standardYaml = GeckoConfigManager.generatePerformanceConfigYaml(
+            blockingMode = com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_STANDARD
+        )
+        assertTrue(standardYaml.contains("privacy.trackingprotection.enabled: true"))
+        assertTrue(standardYaml.contains("privacy.trackingprotection.socialtracking.enabled: true"))
+
+        // Aggressive Mode
+        val aggressiveYaml = GeckoConfigManager.generatePerformanceConfigYaml(
+            blockingMode = com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_AGGRESSIVE
+        )
+        assertTrue(aggressiveYaml.contains("privacy.trackingprotection.enabled: true"))
+        assertTrue(aggressiveYaml.contains("privacy.trackingprotection.emailtracking.enabled: true"))
+        assertTrue(aggressiveYaml.contains("urlclassifier.trackingAnnotationTable"))
+
+        // Off Mode
+        val offYaml = GeckoConfigManager.generatePerformanceConfigYaml(
+            blockingMode = com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_OFF
+        )
+        assertTrue(offYaml.contains("privacy.trackingprotection.enabled: false"))
+        assertTrue(offYaml.contains("privacy.trackingprotection.socialtracking.enabled: false"))
+    }
 }

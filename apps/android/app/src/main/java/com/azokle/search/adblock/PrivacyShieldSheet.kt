@@ -153,6 +153,23 @@ fun PrivacyShieldSheet(
         stats.host.removePrefix("www.").ifBlank { "Active Site" }
     }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val prefs = remember { com.azokle.search.common.util.PreferencesManager.getInstance(context) }
+    var blockingMode by remember { mutableStateOf(prefs.getShieldBlockingMode()) }
+    var cookieControl by remember { mutableStateOf(prefs.getCookieControl()) }
+    var isFpEnabled by remember { mutableStateOf(prefs.isFingerprintProtectionEnabled()) }
+    var isFontFpEnabled by remember { mutableStateOf(prefs.isFontFingerprintProtectionEnabled()) }
+    var isScreenFpEnabled by remember { mutableStateOf(prefs.isScreenFingerprintProtectionEnabled()) }
+    var isUaFpEnabled by remember { mutableStateOf(prefs.isUserAgentFingerprintProtectionEnabled()) }
+
+    val switchColors = SwitchDefaults.colors(
+        checkedThumbColor = Color.White,
+        checkedTrackColor = colors.statusSuccess,
+        uncheckedThumbColor = colors.textMuted,
+        uncheckedTrackColor = colors.surfaceElevated,
+        uncheckedBorderColor = colors.borderSubtle
+    )
+
     val scrollState = rememberScrollState()
 
     ModalBottomSheet(
@@ -415,7 +432,302 @@ fun PrivacyShieldSheet(
                     )
                 }
 
-                // 5. Blocked Requests (Collapsible if any)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 5. Ad & Tracker Protection Mode (Standard vs Aggressive)
+                val sectionShape = AzokleRadius.lg
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(sectionShape)
+                        .background(colors.cardBg)
+                        .border(1.dp, colors.borderSubtle, sectionShape)
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = "Protection Mode",
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textPrimary
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = "Choose blocking intensity for ads and online trackers",
+                        fontSize = 11.sp,
+                        color = colors.textSecondary
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(colors.surfaceElevated)
+                            .padding(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val isStandard = blockingMode != com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_AGGRESSIVE
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isStandard) colors.cardBg else Color.Transparent)
+                                .border(
+                                    width = if (isStandard) 1.dp else 0.dp,
+                                    color = if (isStandard) colors.borderSubtle else Color.Transparent,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .clickable {
+                                    prefs.setShieldBlockingMode(com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_STANDARD)
+                                    blockingMode = com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_STANDARD
+                                    com.azokle.search.engine.GeckoEngineManager.updateShieldSettings(context)
+                                    onShieldToggled()
+                                }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "Standard",
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isStandard) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isStandard) colors.textPrimary else colors.textMuted
+                                )
+                                Text(
+                                    text = "Blocks Trackers & Ads",
+                                    fontSize = 10.5.sp,
+                                    color = if (isStandard) colors.textSecondary else colors.textMuted
+                                )
+                            }
+                        }
+
+                        val isAggressive = blockingMode == com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_AGGRESSIVE
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isAggressive) colors.cardBg else Color.Transparent)
+                                .border(
+                                    width = if (isAggressive) 1.dp else 0.dp,
+                                    color = if (isAggressive) colors.borderSubtle else Color.Transparent,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .clickable {
+                                    prefs.setShieldBlockingMode(com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_AGGRESSIVE)
+                                    blockingMode = com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_AGGRESSIVE
+                                    com.azokle.search.engine.GeckoEngineManager.updateShieldSettings(context)
+                                    onShieldToggled()
+                                }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "Aggressive",
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isAggressive) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isAggressive) colors.textPrimary else colors.textMuted
+                                )
+                                Text(
+                                    text = "Strict Blocking & Isolation",
+                                    fontSize = 10.5.sp,
+                                    color = if (isAggressive) colors.textSecondary else colors.textMuted
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 6. Cookie Controls Card (Block 3rd-Party, Block All, Allow)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(sectionShape)
+                        .background(colors.cardBg)
+                        .border(1.dp, colors.borderSubtle, sectionShape)
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = "Cookie Controls",
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textPrimary
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = "Control cookie storage across web origins and third parties",
+                        fontSize = 11.sp,
+                        color = colors.textSecondary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    CookieControlOptionRow(
+                        title = "Block Third-Party Cookies",
+                        subtitle = "Isolates storage and blocks cross-site trackers",
+                        isSelected = cookieControl == com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_BLOCK_THIRD_PARTY,
+                        isDefault = true,
+                        onClick = {
+                            prefs.setCookieControl(com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_BLOCK_THIRD_PARTY)
+                            cookieControl = com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_BLOCK_THIRD_PARTY
+                            com.azokle.search.engine.GeckoEngineManager.updateShieldSettings(context)
+                            onShieldToggled()
+                        },
+                        colors = colors
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    CookieControlOptionRow(
+                        title = "Block All Cookies",
+                        subtitle = "Maximum privacy, may affect site logins",
+                        isSelected = cookieControl == com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_BLOCK_ALL,
+                        isDefault = false,
+                        onClick = {
+                            prefs.setCookieControl(com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_BLOCK_ALL)
+                            cookieControl = com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_BLOCK_ALL
+                            com.azokle.search.engine.GeckoEngineManager.updateShieldSettings(context)
+                            onShieldToggled()
+                        },
+                        colors = colors
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    CookieControlOptionRow(
+                        title = "Allow Cookies",
+                        subtitle = "Allows first and third-party cookies (Max compatibility)",
+                        isSelected = cookieControl == com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_ALLOW_ALL,
+                        isDefault = false,
+                        onClick = {
+                            prefs.setCookieControl(com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_ALLOW_ALL)
+                            cookieControl = com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_ALLOW_ALL
+                            com.azokle.search.engine.GeckoEngineManager.updateShieldSettings(context)
+                            onShieldToggled()
+                        },
+                        colors = colors
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 7. Fingerprinting Protection Card (Master + Fine-Grained Controls)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(sectionShape)
+                        .background(colors.cardBg)
+                        .border(1.dp, colors.borderSubtle, sectionShape)
+                        .padding(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f).padding(end = 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Fingerprint,
+                                contentDescription = null,
+                                tint = if (isFpEnabled) colors.statusSuccess else colors.textMuted,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Fingerprinting Protection",
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = colors.textPrimary
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Resists device, canvas & browser profiling (Enabled)",
+                                    fontSize = 11.sp,
+                                    color = colors.textSecondary
+                                )
+                            }
+                        }
+
+                        Switch(
+                            checked = isFpEnabled,
+                            onCheckedChange = { checked ->
+                                prefs.setFingerprintProtectionEnabled(checked)
+                                isFpEnabled = checked
+                                com.azokle.search.engine.GeckoEngineManager.updateShieldSettings(context)
+                                onShieldToggled()
+                            },
+                            colors = switchColors
+                        )
+                    }
+
+                    AnimatedVisibility(
+                        visible = isFpEnabled,
+                        enter = expandVertically(animationSpec = spring()) + fadeIn(),
+                        exit = shrinkVertically(animationSpec = spring()) + fadeOut()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
+                        ) {
+                            HorizontalDivider(color = colors.borderSubtle, thickness = 0.5.dp)
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            ProtectionSubToggleRow(
+                                title = "Font Fingerprinting",
+                                subtitle = "Restricts system font enumeration",
+                                checked = isFontFpEnabled,
+                                onCheckedChange = { checked ->
+                                    prefs.setFontFingerprintProtectionEnabled(checked)
+                                    isFontFpEnabled = checked
+                                    com.azokle.search.engine.GeckoEngineManager.updateShieldSettings(context)
+                                    onShieldToggled()
+                                },
+                                switchColors = switchColors,
+                                colors = colors
+                            )
+
+                            HorizontalDivider(color = colors.borderSubtle, thickness = 0.5.dp)
+
+                            ProtectionSubToggleRow(
+                                title = "Screen Resolution",
+                                subtitle = "Letterboxes dimensions to mask display size",
+                                checked = isScreenFpEnabled,
+                                onCheckedChange = { checked ->
+                                    prefs.setScreenFingerprintProtectionEnabled(checked)
+                                    isScreenFpEnabled = checked
+                                    com.azokle.search.engine.GeckoEngineManager.updateShieldSettings(context)
+                                    onShieldToggled()
+                                },
+                                switchColors = switchColors,
+                                colors = colors
+                            )
+
+                            HorizontalDivider(color = colors.borderSubtle, thickness = 0.5.dp)
+
+                            ProtectionSubToggleRow(
+                                title = "User-Agent & Hardware",
+                                subtitle = "Spoofs English headers and limits concurrency",
+                                checked = isUaFpEnabled,
+                                onCheckedChange = { checked ->
+                                    prefs.setUserAgentFingerprintProtectionEnabled(checked)
+                                    isUaFpEnabled = checked
+                                    com.azokle.search.engine.GeckoEngineManager.updateShieldSettings(context)
+                                    onShieldToggled()
+                                },
+                                switchColors = switchColors,
+                                colors = colors
+                            )
+                        }
+                    }
+                }
+
+                // 8. Blocked Requests (Collapsible if any)
                 val blockedList = stats.blockedDomainsList
                 if (blockedList.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(12.dp))
@@ -673,4 +985,118 @@ private fun formatCompactNumber(count: Long): String {
     }
     val value = count / 1_000_000.0
     return String.format(Locale.US, "%.1fM", value)
+}
+
+@Composable
+private fun CookieControlOptionRow(
+    title: String,
+    subtitle: String,
+    isSelected: Boolean,
+    isDefault: Boolean = false,
+    onClick: () -> Unit,
+    colors: AzokleThemeColors
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (isSelected) colors.surfaceElevated else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = title,
+                    fontSize = 12.5.sp,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                    color = colors.textPrimary
+                )
+                if (isDefault) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(colors.statusSuccess.copy(alpha = 0.15f))
+                            .padding(horizontal = 4.dp, vertical = 1.5.dp)
+                    ) {
+                        Text(
+                            text = "Default",
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.statusSuccess
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(1.5.dp))
+            Text(
+                text = subtitle,
+                fontSize = 10.5.sp,
+                color = colors.textSecondary
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .size(18.dp)
+                .clip(CircleShape)
+                .border(
+                    width = if (isSelected) 2.dp else 1.2.dp,
+                    color = if (isSelected) colors.statusSuccess else colors.borderSubtle,
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(colors.statusSuccess)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProtectionSubToggleRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    switchColors: androidx.compose.material3.SwitchColors,
+    colors: AzokleThemeColors
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+            Text(
+                text = title,
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.Medium,
+                color = colors.textPrimary
+            )
+            Spacer(modifier = Modifier.height(1.dp))
+            Text(
+                text = subtitle,
+                fontSize = 10.5.sp,
+                color = colors.textSecondary
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = switchColors,
+            modifier = Modifier.sizeIn(maxHeight = 28.dp)
+        )
+    }
 }

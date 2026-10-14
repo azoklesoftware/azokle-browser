@@ -39,15 +39,33 @@ object GeckoConfigManager {
     fun getOrCreateConfigFile(context: Context): File {
         val configFile = File(context.filesDir, CONFIG_FILE_NAME)
         try {
+            val prefs = com.azokle.search.common.util.PreferencesManager.getInstance(context)
             val savedDoh = try {
-                com.azokle.search.common.util.PreferencesManager(context).getDohProvider()
+                prefs.getDohProvider()
             } catch (e: Exception) {
                 com.azokle.search.core.DnsOverHttpsManager.activeProviderId
             }
+            val fpEnabled = prefs.isFingerprintProtectionEnabled()
+            val fontEnabled = prefs.isFontFingerprintProtectionEnabled()
+            val screenEnabled = prefs.isScreenFingerprintProtectionEnabled()
+            val uaEnabled = prefs.isUserAgentFingerprintProtectionEnabled()
+            val cookieCtrl = prefs.getCookieControl()
+            val blockingMode = prefs.getShieldBlockingMode()
+
             FileWriter(configFile, false).use { writer ->
-                writer.write(generatePerformanceConfigYaml(savedDoh))
+                writer.write(
+                    generatePerformanceConfigYaml(
+                        dohProviderId = savedDoh,
+                        fingerprintProtection = fpEnabled,
+                        fontProtection = fontEnabled,
+                        screenProtection = screenEnabled,
+                        userAgentProtection = uaEnabled,
+                        cookieControl = cookieCtrl,
+                        blockingMode = blockingMode
+                    )
+                )
             }
-            Log.i(TAG, "Successfully generated performance config at: ${configFile.absolutePath} (DoH: $savedDoh)")
+            Log.i(TAG, "Successfully generated performance config at: ${configFile.absolutePath} (DoH: $savedDoh, FP: $fpEnabled, Mode: $blockingMode, Cookies: $cookieCtrl)")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to write geckoview performance config", e)
         }
@@ -57,7 +75,15 @@ object GeckoConfigManager {
     /**
      * Executes the generate performance config yaml operation.
      */
-    internal fun generatePerformanceConfigYaml(dohProviderId: String = com.azokle.search.core.DnsOverHttpsManager.activeProviderId): String {
+    internal fun generatePerformanceConfigYaml(
+        dohProviderId: String = com.azokle.search.core.DnsOverHttpsManager.activeProviderId,
+        fingerprintProtection: Boolean = true,
+        fontProtection: Boolean = true,
+        screenProtection: Boolean = true,
+        userAgentProtection: Boolean = true,
+        cookieControl: String = com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_BLOCK_THIRD_PARTY,
+        blockingMode: String = com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_STANDARD
+    ): String {
         val provider = com.azokle.search.core.DnsOverHttpsManager.getProvider(dohProviderId)
         val isDohEnabled = !dohProviderId.equals("system", ignoreCase = true) && provider.url.isNotBlank()
 
@@ -161,8 +187,7 @@ object GeckoConfigManager {
             appendLine("  media.peerconnection.ice.obfuscate_host_addresses.sync: true")
             appendLine("  media.peerconnection.ice.link_local_ips: false")
 
-            // 8. Privacy & Engine-Level Hardware Uniformity
-            appendLine("  dom.maxHardwareConcurrency: 4")
+            // 8. Privacy & Engine-Level Anti-Tracking & Fingerprinting Shield
             appendLine("  privacy.reduceTimerPrecision: true")
             appendLine("  privacy.reduceTimerPrecision.microseconds: 2000")
             appendLine("  privacy.partition.serviceWorkers: true")
@@ -171,7 +196,66 @@ object GeckoConfigManager {
             appendLine("  privacy.query_stripping.strip_list: \"__hsfp __hssc __hstc __s _hsenc _openstat dclid fbclid gbraid gclid igshid mc_cid mc_eid ml_subscriber ml_subscriber_hash msclkid oly_anon_id oly_enc_id rb_clickid s_cid twclid utm_campaign utm_content utm_medium utm_name utm_reader utm_source utm_term utm_viz_id vgo_ee wbraid yclid\"")
             appendLine("  dom.security.https_only_mode_pbm: true")
 
+            // Fingerprinting Protection (RFC / Tor / GeckoView Master & Fine-Grained Controls)
+            if (fingerprintProtection) {
+                appendLine("  privacy.fingerprintingProtection: true")
+                appendLine("  privacy.fingerprintingProtection.overrides: \"+AllTargets,-CSSPrefersColorScheme\"")
+                if (fontProtection) {
+                    appendLine("  layout.css.font-visibility.level: 1")
+                } else {
+                    appendLine("  layout.css.font-visibility.level: 3")
+                }
+                if (screenProtection) {
+                    appendLine("  privacy.resistFingerprinting.letterboxing: true")
+                    appendLine("  privacy.window.maxInnerWidth: 1000")
+                    appendLine("  privacy.window.maxInnerHeight: 1000")
+                } else {
+                    appendLine("  privacy.resistFingerprinting.letterboxing: false")
+                }
+                if (userAgentProtection) {
+                    appendLine("  dom.maxHardwareConcurrency: 4")
+                    appendLine("  privacy.spoof_english: 1")
+                } else {
+                    appendLine("  privacy.spoof_english: 0")
+                }
+            } else {
+                appendLine("  privacy.fingerprintingProtection: false")
+                appendLine("  layout.css.font-visibility.level: 3")
+                appendLine("  privacy.resistFingerprinting.letterboxing: false")
+                appendLine("  privacy.spoof_english: 0")
+            }
+
+            // Tracker & Ad Blocking Engine Modes
+            when (blockingMode) {
+                com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_AGGRESSIVE -> {
+                    appendLine("  privacy.trackingprotection.enabled: true")
+                    appendLine("  privacy.trackingprotection.socialtracking.enabled: true")
+                    appendLine("  privacy.trackingprotection.cryptomining.enabled: true")
+                    appendLine("  privacy.trackingprotection.fingerprinting.enabled: true")
+                    appendLine("  privacy.trackingprotection.emailtracking.enabled: true")
+                    appendLine("  urlclassifier.trackingAnnotationTable: \"ads-track-digest256,social-track-digest256,tracker-track-digest256,email-track-digest256\"")
+                }
+                com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_OFF -> {
+                    appendLine("  privacy.trackingprotection.enabled: false")
+                    appendLine("  privacy.trackingprotection.socialtracking.enabled: false")
+                    appendLine("  privacy.trackingprotection.cryptomining.enabled: false")
+                    appendLine("  privacy.trackingprotection.fingerprinting.enabled: false")
+                }
+                else -> { // BLOCKING_MODE_STANDARD
+                    appendLine("  privacy.trackingprotection.enabled: true")
+                    appendLine("  privacy.trackingprotection.socialtracking.enabled: true")
+                    appendLine("  privacy.trackingprotection.cryptomining.enabled: true")
+                    appendLine("  privacy.trackingprotection.fingerprinting.enabled: true")
+                }
+            }
+
             // 8.5 Cookie Isolation, SameSite & Storage Access API (RFC 6265bis & W3C Storage Access API)
+            val cookieBehaviorValue = when (cookieControl) {
+                com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_BLOCK_ALL -> 2 // REJECT ALL
+                com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_ALLOW_ALL -> 0 // ACCEPT ALL
+                else -> 5 // Total Cookie Protection / Isolate Third-Party (Default)
+            }
+            appendLine("  network.cookie.cookieBehavior: $cookieBehaviorValue")
             appendLine("  dom.storage_access.enabled: true")
             appendLine("  dom.storage_access.forward_declares: true")
             appendLine("  privacy.restrict3rdpartystorage.heuristics: true")

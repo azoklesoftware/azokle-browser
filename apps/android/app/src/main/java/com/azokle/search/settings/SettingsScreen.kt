@@ -193,8 +193,10 @@ fun SettingsScreen(
     var currentSafeSearch by remember { mutableStateOf(prefsManager.getSafeSearch()) }
     var currentLocation by remember { mutableStateOf(prefsManager.getLocation()) }
     var isBackgroundAudio by remember { mutableStateOf(prefsManager.isBackgroundAudioEnabled()) }
+    var currentCookieControl by remember { mutableStateOf(prefsManager.getCookieControl()) }
     var currentCookiePolicy by remember { mutableStateOf(prefsManager.getCookiePolicy()) }
     var isCookieBannerHandling by remember { mutableStateOf(prefsManager.isCookieBannerHandlingEnabled()) }
+    var isFingerprintProtection by remember { mutableStateOf(prefsManager.isFingerprintProtectionEnabled()) }
 
     // Hardware & system back button handler
     BackHandler(enabled = true) {
@@ -561,17 +563,15 @@ fun SettingsScreen(
 
                         ItemDivider()
 
-                        val cookiePolicyLabel = when (currentCookiePolicy) {
-                            ContentBlocking.CookieBehavior.ACCEPT_FIRST_PARTY_AND_ISOLATE_OTHERS -> "Total Cookie Protection"
-                            ContentBlocking.CookieBehavior.ACCEPT_NON_TRACKERS -> "Block Trackers Only"
-                            ContentBlocking.CookieBehavior.ACCEPT_FIRST_PARTY -> "Block 3rd-Party"
-                            ContentBlocking.CookieBehavior.ACCEPT_NONE -> "Block All Cookies"
-                            else -> "Standard Protection"
+                        val cookiePolicyLabel = when (currentCookieControl) {
+                            com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_BLOCK_ALL -> "Block All Cookies"
+                            com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_ALLOW_ALL -> "Allow Cookies"
+                            else -> "Block 3rd-Party"
                         }
 
                         SettingsRow(
                             icon = Icons.Default.Cookie,
-                            title = "Cookie & Tracker Protection",
+                            title = "Cookie Controls",
                             trailingText = cookiePolicyLabel,
                             showChevron = true,
                             onClick = { showCookiePolicyDialog = true }
@@ -1008,16 +1008,27 @@ fun SettingsScreen(
     // Cookie & Tracker Policy Selection Dialog
     if (showCookiePolicyDialog) {
         val cookieOptions = listOf(
-            Pair(ContentBlocking.CookieBehavior.ACCEPT_FIRST_PARTY_AND_ISOLATE_OTHERS, "Total Cookie Protection\nIsolates third-party cookies per site (Recommended)"),
-            Pair(ContentBlocking.CookieBehavior.ACCEPT_NON_TRACKERS, "Block Cross-Site Trackers\nBlocks known third-party tracking cookies"),
-            Pair(ContentBlocking.CookieBehavior.ACCEPT_FIRST_PARTY, "Block All Third-Party Cookies\nStrict isolation (may cause some sign-in embeds to fail)"),
-            Pair(ContentBlocking.CookieBehavior.ACCEPT_ALL, "Allow All Cookies\nNo cross-site cookie restrictions (Maximum compatibility)")
+            Triple(
+                com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_BLOCK_THIRD_PARTY,
+                ContentBlocking.CookieBehavior.ACCEPT_FIRST_PARTY_AND_ISOLATE_OTHERS,
+                "Block Third-Party Cookies\nIsolates third-party storage & blocks cross-site trackers (Default)"
+            ),
+            Triple(
+                com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_BLOCK_ALL,
+                ContentBlocking.CookieBehavior.ACCEPT_NONE,
+                "Block All Cookies\nMaximum privacy; site sign-in states may be lost"
+            ),
+            Triple(
+                com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_ALLOW_ALL,
+                ContentBlocking.CookieBehavior.ACCEPT_ALL,
+                "Allow Cookies\nPermits all first and third-party cookies (Maximum compatibility)"
+            )
         )
         AlertDialog(
             onDismissRequest = { showCookiePolicyDialog = false },
             title = {
                 Text(
-                    text = "Cookie & Tracker Protection",
+                    text = "Cookie Controls",
                     fontSize = 16.5.sp,
                     fontWeight = FontWeight.Bold,
                     color = colors.textPrimary
@@ -1025,17 +1036,18 @@ fun SettingsScreen(
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    cookieOptions.forEach { (mode, desc) ->
-                        val isSelected = currentCookiePolicy == mode
+                    cookieOptions.forEach { (controlKey, mode, desc) ->
+                        val isSelected = currentCookieControl == controlKey
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(if (isSelected) colors.surfaceElevated else Color.Transparent)
                                 .clickable {
+                                    currentCookieControl = controlKey
                                     currentCookiePolicy = mode
-                                    prefsManager.setCookiePolicy(mode)
-                                    GeckoEngineManager.updateCookiePolicy(mode, isCookieBannerHandling)
+                                    prefsManager.setCookieControl(controlKey)
+                                    GeckoEngineManager.updateShieldSettings(context)
                                     showCookiePolicyDialog = false
                                 }
                                 .padding(horizontal = 12.dp, vertical = 9.dp),

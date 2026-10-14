@@ -42,8 +42,23 @@ class PreferencesManager(private val context: Context) {
         private const val MAX_RECENT = 6
         private const val PREFS_FILE = "azokle_search_secure_prefs"
         private const val LEGACY_PREFS_FILE = "azokle_search_prefs"
+
+        const val BLOCKING_MODE_STANDARD = "standard"
+        const val BLOCKING_MODE_AGGRESSIVE = "aggressive"
+        const val BLOCKING_MODE_OFF = "off"
+
+        const val COOKIE_CONTROL_BLOCK_THIRD_PARTY = "block_third_party"
+        const val COOKIE_CONTROL_BLOCK_ALL = "block_all"
+        const val COOKIE_CONTROL_ALLOW_ALL = "allow_all"
+
+        private const val KEY_SHIELD_BLOCKING_MODE = "shield_blocking_mode"
+        private const val KEY_COOKIE_CONTROL = "cookie_control_mode"
         private const val KEY_COOKIE_POLICY = "cookie_policy_mode"
         private const val KEY_COOKIE_BANNER_HANDLING = "cookie_banner_handling_enabled"
+        private const val KEY_FINGERPRINT_PROTECTION_ENABLED = "fingerprint_protection_enabled"
+        private const val KEY_FONT_FINGERPRINT_PROTECTION = "font_fingerprint_protection_enabled"
+        private const val KEY_SCREEN_FINGERPRINT_PROTECTION = "screen_fingerprint_protection_enabled"
+        private const val KEY_USER_AGENT_FINGERPRINT_PROTECTION = "user_agent_fingerprint_protection_enabled"
 
         @Volatile
         private var cachedPrefs: SharedPreferences? = null
@@ -418,17 +433,72 @@ class PreferencesManager(private val context: Context) {
     }
 
     /**
-     * Retrieves the cookie policy mode (defaults to Total Cookie Protection / ACCEPT_FIRST_PARTY_AND_ISOLATE_OTHERS = 5).
+     * Retrieves the shield blocking mode: "standard" (default), "aggressive", or "off".
      */
-    fun getCookiePolicy(): Int {
-        return prefs.getInt(KEY_COOKIE_POLICY, 5)
+    fun getShieldBlockingMode(): String {
+        return prefs.getString(KEY_SHIELD_BLOCKING_MODE, BLOCKING_MODE_STANDARD) ?: BLOCKING_MODE_STANDARD
     }
 
     /**
-     * Updates the cookie policy mode.
+     * Updates the shield blocking mode.
+     */
+    fun setShieldBlockingMode(mode: String) {
+        prefs.edit().putString(KEY_SHIELD_BLOCKING_MODE, mode).apply()
+    }
+
+    /**
+     * Checks if aggressive tracker and ad blocking is enabled.
+     */
+    fun isAggressiveBlocking(): Boolean {
+        return getShieldBlockingMode() == BLOCKING_MODE_AGGRESSIVE
+    }
+
+    /**
+     * Retrieves cookie control mode: "block_third_party" (default), "block_all", or "allow_all".
+     */
+    fun getCookieControl(): String {
+        return prefs.getString(KEY_COOKIE_CONTROL, COOKIE_CONTROL_BLOCK_THIRD_PARTY) ?: COOKIE_CONTROL_BLOCK_THIRD_PARTY
+    }
+
+    /**
+     * Updates cookie control mode with automatic mapping to GeckoView cookie policy integer.
+     */
+    fun setCookieControl(control: String) {
+        val policyInt = when (control) {
+            COOKIE_CONTROL_BLOCK_ALL -> 2 // ContentBlocking.CookieBehavior.ACCEPT_NONE
+            COOKIE_CONTROL_ALLOW_ALL -> 0 // ContentBlocking.CookieBehavior.ACCEPT_ALL
+            else -> 5 // ContentBlocking.CookieBehavior.ACCEPT_FIRST_PARTY_AND_ISOLATE_OTHERS (Default)
+        }
+        prefs.edit()
+            .putString(KEY_COOKIE_CONTROL, control)
+            .putInt(KEY_COOKIE_POLICY, policyInt)
+            .apply()
+    }
+
+    /**
+     * Retrieves the cookie policy integer for GeckoView ContentBlocking.
+     */
+    fun getCookiePolicy(): Int {
+        return when (getCookieControl()) {
+            COOKIE_CONTROL_BLOCK_ALL -> 2
+            COOKIE_CONTROL_ALLOW_ALL -> 0
+            else -> 5 // ACCEPT_FIRST_PARTY_AND_ISOLATE_OTHERS
+        }
+    }
+
+    /**
+     * Updates the cookie policy mode directly.
      */
     fun setCookiePolicy(policy: Int) {
-        prefs.edit().putInt(KEY_COOKIE_POLICY, policy).apply()
+        val control = when (policy) {
+            2 -> COOKIE_CONTROL_BLOCK_ALL
+            0 -> COOKIE_CONTROL_ALLOW_ALL
+            else -> COOKIE_CONTROL_BLOCK_THIRD_PARTY
+        }
+        prefs.edit()
+            .putInt(KEY_COOKIE_POLICY, policy)
+            .putString(KEY_COOKIE_CONTROL, control)
+            .apply()
     }
 
     /**
@@ -443,6 +513,62 @@ class PreferencesManager(private val context: Context) {
      */
     fun setCookieBannerHandlingEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_COOKIE_BANNER_HANDLING, enabled).apply()
+    }
+
+    /**
+     * Checks if master fingerprinting protection is enabled (default: true).
+     */
+    fun isFingerprintProtectionEnabled(): Boolean {
+        return prefs.getBoolean(KEY_FINGERPRINT_PROTECTION_ENABLED, true)
+    }
+
+    /**
+     * Updates master fingerprinting protection preference.
+     */
+    fun setFingerprintProtectionEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_FINGERPRINT_PROTECTION_ENABLED, enabled).apply()
+    }
+
+    /**
+     * Checks if font fingerprinting protection is enabled (default: true).
+     */
+    fun isFontFingerprintProtectionEnabled(): Boolean {
+        return prefs.getBoolean(KEY_FONT_FINGERPRINT_PROTECTION, true)
+    }
+
+    /**
+     * Updates font fingerprinting protection preference.
+     */
+    fun setFontFingerprintProtectionEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_FONT_FINGERPRINT_PROTECTION, enabled).apply()
+    }
+
+    /**
+     * Checks if screen resolution fingerprinting protection is enabled (default: true).
+     */
+    fun isScreenFingerprintProtectionEnabled(): Boolean {
+        return prefs.getBoolean(KEY_SCREEN_FINGERPRINT_PROTECTION, true)
+    }
+
+    /**
+     * Updates screen resolution fingerprinting protection preference.
+     */
+    fun setScreenFingerprintProtectionEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SCREEN_FINGERPRINT_PROTECTION, enabled).apply()
+    }
+
+    /**
+     * Checks if user-agent and hardware concurrency fingerprinting protection is enabled (default: true).
+     */
+    fun isUserAgentFingerprintProtectionEnabled(): Boolean {
+        return prefs.getBoolean(KEY_USER_AGENT_FINGERPRINT_PROTECTION, true)
+    }
+
+    /**
+     * Updates user-agent fingerprinting protection preference.
+     */
+    fun setUserAgentFingerprintProtectionEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_USER_AGENT_FINGERPRINT_PROTECTION, enabled).apply()
     }
 }
 

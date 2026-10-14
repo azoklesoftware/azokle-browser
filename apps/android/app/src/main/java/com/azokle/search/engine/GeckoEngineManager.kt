@@ -85,6 +85,17 @@ object GeckoEngineManager {
                 else -> GeckoRuntimeSettings.COLOR_SCHEME_SYSTEM
             }
 
+            val blockingMode = prefs.getShieldBlockingMode()
+            val initialAntiTracking = when (blockingMode) {
+                com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_AGGRESSIVE -> ContentBlocking.AntiTracking.STRICT
+                com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_OFF -> ContentBlocking.AntiTracking.NONE
+                else -> ContentBlocking.AntiTracking.DEFAULT
+            }
+            val initialEtpLevel = when (blockingMode) {
+                com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_OFF -> ContentBlocking.EtpLevel.NONE
+                else -> ContentBlocking.EtpLevel.STRICT
+            }
+
             val configFile = GeckoConfigManager.getOrCreateConfigFile(context.applicationContext)
             val settings = GeckoRuntimeSettings.Builder()
                 .configFilePath(configFile.absolutePath)
@@ -109,8 +120,8 @@ object GeckoEngineManager {
                 .loginAutofillEnabled(true)
                 .contentBlocking(
                     ContentBlocking.Settings.Builder()
-                        .antiTracking(ContentBlocking.AntiTracking.DEFAULT)
-                        .enhancedTrackingProtectionLevel(ContentBlocking.EtpLevel.STRICT)
+                        .antiTracking(initialAntiTracking)
+                        .enhancedTrackingProtectionLevel(initialEtpLevel)
                         .cookieBehavior(cookiePolicy)
                         .cookieBehaviorPrivateMode(ContentBlocking.CookieBehavior.ACCEPT_FIRST_PARTY_AND_ISOLATE_OTHERS)
                         .cookiePurging(true)
@@ -764,6 +775,55 @@ object GeckoEngineManager {
             android.util.Log.i("GeckoEngineManager", "Dynamically updated cookie policy to $policy (Banner mode: $bannerMode)")
         } catch (e: Exception) {
             android.util.Log.w("GeckoEngineManager", "Failed to update dynamic cookie policy: ${e.message}")
+        }
+    }
+
+    /**
+     * Dynamically updates Ad & Tracker Blocker, Fingerprinting protection, and Cookie policies across active engine.
+     */
+    fun updateShieldSettings(context: Context) {
+        try {
+            val prefs = com.azokle.search.common.util.PreferencesManager.getInstance(context)
+            val blockingMode = prefs.getShieldBlockingMode()
+            val cookiePolicy = prefs.getCookiePolicy()
+            val cookieBannerEnabled = prefs.isCookieBannerHandlingEnabled()
+
+            val antiTracking = when (blockingMode) {
+                com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_AGGRESSIVE -> ContentBlocking.AntiTracking.STRICT
+                com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_OFF -> ContentBlocking.AntiTracking.NONE
+                else -> ContentBlocking.AntiTracking.DEFAULT
+            }
+            val etpLevel = when (blockingMode) {
+                com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_OFF -> ContentBlocking.EtpLevel.NONE
+                else -> ContentBlocking.EtpLevel.STRICT
+            }
+            val bannerMode = if (cookieBannerEnabled) {
+                ContentBlocking.CookieBannerMode.COOKIE_BANNER_MODE_REJECT_OR_ACCEPT
+            } else {
+                ContentBlocking.CookieBannerMode.COOKIE_BANNER_MODE_DISABLED
+            }
+
+            runtime?.settings?.contentBlocking?.let { cb ->
+                cb.setAntiTracking(antiTracking)
+                cb.setEnhancedTrackingProtectionLevel(etpLevel)
+                cb.setCookieBehavior(cookiePolicy)
+                cb.setCookieBehaviorPrivateMode(ContentBlocking.CookieBehavior.ACCEPT_FIRST_PARTY_AND_ISOLATE_OTHERS)
+                cb.setCookieBannerMode(bannerMode)
+                cb.setCookieBannerModePrivateBrowsing(ContentBlocking.CookieBannerMode.COOKIE_BANNER_MODE_REJECT_OR_ACCEPT)
+                cb.setCookiePurging(true)
+                cb.setCookieBannerGlobalRulesEnabled(true)
+                cb.setBounceTrackingProtectionMode(ContentBlocking.BounceTrackingProtectionMode.BOUNCE_TRACKING_PROTECTION_MODE_ENABLED)
+            }
+
+            // Regenerate config yaml with updated fingerprinting / cookie / tracker prefs
+            GeckoConfigManager.getOrCreateConfigFile(context.applicationContext)
+
+            // Notify extension port so background ad blocker syncs state
+            pushFullStatus()
+
+            android.util.Log.i("GeckoEngineManager", "Shield settings dynamically applied: mode=$blockingMode, cookiePolicy=$cookiePolicy")
+        } catch (e: Exception) {
+            android.util.Log.w("GeckoEngineManager", "Failed to dynamically update shield settings: ${e.message}")
         }
     }
 
