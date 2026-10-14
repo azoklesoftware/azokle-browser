@@ -87,6 +87,13 @@ class GeckoConfigManagerTest {
         assertTrue(yaml.contains("privacy.partition.blobURL: true"))
         assertTrue(yaml.contains("privacy.query_stripping.enabled: true"))
         assertTrue(yaml.contains("dom.security.https_only_mode_pbm: true"))
+        assertTrue(yaml.contains("dom.storage_access.enabled: true"))
+        assertTrue(yaml.contains("dom.storage_access.forward_declares: true"))
+        assertTrue(yaml.contains("privacy.restrict3rdpartystorage.heuristics: true"))
+        assertTrue(yaml.contains("network.cookie.sameSite.laxByDefault: true"))
+        assertTrue(yaml.contains("network.cookie.sameSite.noneRequiresSecure: true"))
+        assertTrue(yaml.contains("network.cookie.sameSite.schemeful: true"))
+        assertTrue(yaml.contains("privacy.partition.always_partition_third_party_non_cookie_storage: true"))
         assertTrue(yaml.contains("pdfjs.disabled: false"))
     }
 

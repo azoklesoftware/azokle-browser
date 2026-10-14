@@ -68,7 +68,16 @@ object GeckoEngineManager {
     @Synchronized
     fun getRuntime(context: Context): GeckoRuntime {
         if (runtime == null) {
-            val savedTheme = com.azokle.search.common.util.PreferencesManager.getInstance(context).getThemeMode().lowercase()
+            val prefs = com.azokle.search.common.util.PreferencesManager.getInstance(context)
+            val savedTheme = prefs.getThemeMode().lowercase()
+            val cookiePolicy = prefs.getCookiePolicy()
+            val cookieBannerEnabled = prefs.isCookieBannerHandlingEnabled()
+            val bannerMode = if (cookieBannerEnabled) {
+                ContentBlocking.CookieBannerMode.COOKIE_BANNER_MODE_REJECT_OR_ACCEPT
+            } else {
+                ContentBlocking.CookieBannerMode.COOKIE_BANNER_MODE_DISABLED
+            }
+
             currentThemeMode = savedTheme
             val initialScheme = when (savedTheme) {
                 "light" -> GeckoRuntimeSettings.COLOR_SCHEME_LIGHT
@@ -102,7 +111,14 @@ object GeckoEngineManager {
                     ContentBlocking.Settings.Builder()
                         .antiTracking(ContentBlocking.AntiTracking.DEFAULT)
                         .enhancedTrackingProtectionLevel(ContentBlocking.EtpLevel.STRICT)
-                        .cookieBehavior(ContentBlocking.CookieBehavior.ACCEPT_FIRST_PARTY_AND_ISOLATE_OTHERS)
+                        .cookieBehavior(cookiePolicy)
+                        .cookieBehaviorPrivateMode(ContentBlocking.CookieBehavior.ACCEPT_FIRST_PARTY_AND_ISOLATE_OTHERS)
+                        .cookiePurging(true)
+                        .cookieBannerHandlingMode(bannerMode)
+                        .cookieBannerHandlingModePrivateBrowsing(ContentBlocking.CookieBannerMode.COOKIE_BANNER_MODE_REJECT_OR_ACCEPT)
+                        .cookieBannerGlobalRulesEnabled(true)
+                        .cookieBannerGlobalRulesSubFramesEnabled(true)
+                        .bounceTrackingProtectionMode(ContentBlocking.BounceTrackingProtectionMode.BOUNCE_TRACKING_PROTECTION_MODE_ENABLED)
                         .safeBrowsing(ContentBlocking.SafeBrowsing.DEFAULT)
                         .build()
                 )
@@ -453,11 +469,14 @@ object GeckoEngineManager {
      * Clears all host data.
      */
     fun clearHostData(context: Context, host: String) {
+        if (host.isBlank()) return
         try {
-            getRuntime(context).storageController.clearDataFromHost(
-                host,
-                StorageController.ClearFlags.ALL
-            )
+            val sc = getRuntime(context).storageController
+            sc.clearDataFromHost(host, StorageController.ClearFlags.ALL)
+            val baseDomain = com.azokle.search.vault.OriginMatcher.extractRegistrableDomain(host)
+            if (baseDomain.isNotBlank() && !baseDomain.equals(host, ignoreCase = true)) {
+                sc.clearDataFromBaseDomain(baseDomain, StorageController.ClearFlags.ALL)
+            }
         } catch (e: Exception) {
             // Ignore
         }
@@ -646,7 +665,7 @@ object GeckoEngineManager {
     }
 
     /**
-     * Clears cookies and site storage for a specific host/domain.
+     * Clears cookies and site storage for a specific host and its registrable base domain.
      */
     fun clearStorageForHost(
         host: String,
@@ -660,15 +679,33 @@ object GeckoEngineManager {
         }
 
         try {
-            r.storageController.clearDataFromHost(host, flags).then({ _ ->
-                android.util.Log.i("GeckoEngineManager", "Cleared storage for host: $host")
-                onComplete?.invoke(true)
-                org.mozilla.geckoview.GeckoResult.fromValue(0)
-            }, { throwable: Throwable? ->
-                android.util.Log.e("GeckoEngineManager", "Failed to clear storage for host $host: ${throwable?.message}")
-                onComplete?.invoke(false)
-                org.mozilla.geckoview.GeckoResult.fromValue(0)
-            })
+            val baseDomain = com.azokle.search.vault.OriginMatcher.extractRegistrableDomain(host)
+            val hostResult = r.storageController.clearDataFromHost(host, flags)
+            if (baseDomain.isNotBlank() && !baseDomain.equals(host, ignoreCase = true)) {
+                hostResult.then({
+                    r.storageController.clearDataFromBaseDomain(baseDomain, flags)
+                }, {
+                    r.storageController.clearDataFromBaseDomain(baseDomain, flags)
+                }).then({ _ ->
+                    android.util.Log.i("GeckoEngineManager", "Cleared storage for host $host and base domain $baseDomain")
+                    onComplete?.invoke(true)
+                    org.mozilla.geckoview.GeckoResult.fromValue(0)
+                }, { throwable: Throwable? ->
+                    android.util.Log.e("GeckoEngineManager", "Failed to clear storage for domain $baseDomain: ${throwable?.message}")
+                    onComplete?.invoke(false)
+                    org.mozilla.geckoview.GeckoResult.fromValue(0)
+                })
+            } else {
+                hostResult.then({ _ ->
+                    android.util.Log.i("GeckoEngineManager", "Cleared storage for host: $host")
+                    onComplete?.invoke(true)
+                    org.mozilla.geckoview.GeckoResult.fromValue(0)
+                }, { throwable: Throwable? ->
+                    android.util.Log.e("GeckoEngineManager", "Failed to clear storage for host $host: ${throwable?.message}")
+                    onComplete?.invoke(false)
+                    org.mozilla.geckoview.GeckoResult.fromValue(0)
+                })
+            }
         } catch (e: Exception) {
             android.util.Log.e("GeckoEngineManager", "Exception clearing host storage: ${e.message}")
             onComplete?.invoke(false)
@@ -679,10 +716,11 @@ object GeckoEngineManager {
      * Clears global cookies and web storage.
      */
     fun clearAllCookiesAndSiteData(
+        context: Context? = null,
         flags: Long = org.mozilla.geckoview.StorageController.ClearFlags.ALL,
         onComplete: ((Boolean) -> Unit)? = null
     ) {
-        val r = runtime
+        val r = runtime ?: context?.let { getRuntime(it) }
         if (r == null) {
             onComplete?.invoke(false)
             return
@@ -690,7 +728,7 @@ object GeckoEngineManager {
 
         try {
             r.storageController.clearData(flags).then({ _ ->
-                android.util.Log.i("GeckoEngineManager", "Cleared all cookies and site storage.")
+                android.util.Log.i("GeckoEngineManager", "Cleared all cookies and site storage (flags: $flags).")
                 onComplete?.invoke(true)
                 org.mozilla.geckoview.GeckoResult.fromValue(null)
             }, { throwable: Throwable? ->
@@ -701,6 +739,31 @@ object GeckoEngineManager {
         } catch (e: Exception) {
             android.util.Log.e("GeckoEngineManager", "Exception clearing storage: ${e.message}")
             onComplete?.invoke(false)
+        }
+    }
+
+    /**
+     * Dynamically updates ContentBlocking cookie policy and cookie banner auto-rejection.
+     */
+    fun updateCookiePolicy(policy: Int, cookieBannerEnabled: Boolean = true) {
+        try {
+            val bannerMode = if (cookieBannerEnabled) {
+                ContentBlocking.CookieBannerMode.COOKIE_BANNER_MODE_REJECT_OR_ACCEPT
+            } else {
+                ContentBlocking.CookieBannerMode.COOKIE_BANNER_MODE_DISABLED
+            }
+            runtime?.settings?.contentBlocking?.let { cb ->
+                cb.setCookieBehavior(policy)
+                cb.setCookieBehaviorPrivateMode(ContentBlocking.CookieBehavior.ACCEPT_FIRST_PARTY_AND_ISOLATE_OTHERS)
+                cb.setCookieBannerMode(bannerMode)
+                cb.setCookieBannerModePrivateBrowsing(ContentBlocking.CookieBannerMode.COOKIE_BANNER_MODE_REJECT_OR_ACCEPT)
+                cb.setCookiePurging(true)
+                cb.setCookieBannerGlobalRulesEnabled(true)
+                cb.setBounceTrackingProtectionMode(ContentBlocking.BounceTrackingProtectionMode.BOUNCE_TRACKING_PROTECTION_MODE_ENABLED)
+            }
+            android.util.Log.i("GeckoEngineManager", "Dynamically updated cookie policy to $policy (Banner mode: $bannerMode)")
+        } catch (e: Exception) {
+            android.util.Log.w("GeckoEngineManager", "Failed to update dynamic cookie policy: ${e.message}")
         }
     }
 

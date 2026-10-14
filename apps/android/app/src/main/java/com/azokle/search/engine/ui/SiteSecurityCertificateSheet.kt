@@ -461,9 +461,10 @@ fun SiteSecurityCertificateSheet(
                         colors = colors,
                         onClick = {
                             GeckoEngineManager.clearHostData(context, host)
-                            GeckoEngineManager.clearStorageForHost(host)
-                            ToastManager.showSuccess("Site data cleared")
-                            onReload()
+                            GeckoEngineManager.clearStorageForHost(host) {
+                                ToastManager.showSuccess("Cookies & site data cleared")
+                                onReload()
+                            }
                         }
                     )
                 }

@@ -171,6 +171,16 @@ object GeckoConfigManager {
             appendLine("  privacy.query_stripping.strip_list: \"__hsfp __hssc __hstc __s _hsenc _openstat dclid fbclid gbraid gclid igshid mc_cid mc_eid ml_subscriber ml_subscriber_hash msclkid oly_anon_id oly_enc_id rb_clickid s_cid twclid utm_campaign utm_content utm_medium utm_name utm_reader utm_source utm_term utm_viz_id vgo_ee wbraid yclid\"")
             appendLine("  dom.security.https_only_mode_pbm: true")
 
+            // 8.5 Cookie Isolation, SameSite & Storage Access API (RFC 6265bis & W3C Storage Access API)
+            appendLine("  dom.storage_access.enabled: true")
+            appendLine("  dom.storage_access.forward_declares: true")
+            appendLine("  privacy.restrict3rdpartystorage.heuristics: true")
+            appendLine("  network.cookie.sameSite.laxByDefault: true")
+            appendLine("  network.cookie.sameSite.noneRequiresSecure: true")
+            appendLine("  network.cookie.sameSite.schemeful: true")
+            appendLine("  privacy.partition.always_partition_third_party_non_cookie_storage: true")
+            appendLine("  privacy.partition.always_partition_third_party_non_cookie_storage.exempt_sessionstorage: false")
+
             // 9. Post-Quantum Cryptography & Encrypted Client Hello (ECH)
             appendLine("  security.tls.enable_kyber: true")
             appendLine("  network.dns.echconfig.enabled: true")

@@ -72,6 +72,7 @@ import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Cookie
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Lock
@@ -80,6 +81,9 @@ import androidx.compose.material.icons.filled.SystemUpdate
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import org.mozilla.geckoview.ContentBlocking
+import org.mozilla.geckoview.StorageController
+import com.azokle.search.engine.GeckoEngineManager
 import com.azokle.search.vault.PasswordVaultManager
 import com.azokle.search.vault.PasswordManagerScreen
 import com.azokle.search.vault.EncryptedVaultManager
@@ -178,8 +182,10 @@ fun SettingsScreen(
     var showSafeSearchDialog by remember { mutableStateOf(false) }
     var showLocationDialog by remember { mutableStateOf(false) }
     var showClearCacheDialog by remember { mutableStateOf(false) }
+    var showClearCookiesDialog by remember { mutableStateOf(false) }
     var showClearHistoryDialog by remember { mutableStateOf(false) }
     var showIncinerateDialog by remember { mutableStateOf(false) }
+    var showCookiePolicyDialog by remember { mutableStateOf(false) }
     var showPasswordManagerScreen by remember { mutableStateOf(false) }
     var isCheckingUpdates by remember { mutableStateOf(false) }
 
@@ -187,6 +193,8 @@ fun SettingsScreen(
     var currentSafeSearch by remember { mutableStateOf(prefsManager.getSafeSearch()) }
     var currentLocation by remember { mutableStateOf(prefsManager.getLocation()) }
     var isBackgroundAudio by remember { mutableStateOf(prefsManager.isBackgroundAudioEnabled()) }
+    var currentCookiePolicy by remember { mutableStateOf(prefsManager.getCookiePolicy()) }
+    var isCookieBannerHandling by remember { mutableStateOf(prefsManager.isCookieBannerHandlingEnabled()) }
 
     // Hardware & system back button handler
     BackHandler(enabled = true) {
@@ -202,6 +210,10 @@ fun SettingsScreen(
             showLocationDialog = false
         } else if (showClearCacheDialog) {
             showClearCacheDialog = false
+        } else if (showClearCookiesDialog) {
+            showClearCookiesDialog = false
+        } else if (showCookiePolicyDialog) {
+            showCookiePolicyDialog = false
         } else if (showClearHistoryDialog) {
             showClearHistoryDialog = false
         } else if (showIncinerateDialog) {
@@ -546,6 +558,55 @@ fun SettingsScreen(
                             showChevron = true,
                             onClick = { showPasskeySheet = true }
                         )
+
+                        ItemDivider()
+
+                        val cookiePolicyLabel = when (currentCookiePolicy) {
+                            ContentBlocking.CookieBehavior.ACCEPT_FIRST_PARTY_AND_ISOLATE_OTHERS -> "Total Cookie Protection"
+                            ContentBlocking.CookieBehavior.ACCEPT_NON_TRACKERS -> "Block Trackers Only"
+                            ContentBlocking.CookieBehavior.ACCEPT_FIRST_PARTY -> "Block 3rd-Party"
+                            ContentBlocking.CookieBehavior.ACCEPT_NONE -> "Block All Cookies"
+                            else -> "Standard Protection"
+                        }
+
+                        SettingsRow(
+                            icon = Icons.Default.Cookie,
+                            title = "Cookie & Tracker Protection",
+                            trailingText = cookiePolicyLabel,
+                            showChevron = true,
+                            onClick = { showCookiePolicyDialog = true }
+                        )
+
+                        ItemDivider()
+
+                        SettingsRow(
+                            icon = Icons.Default.Shield,
+                            title = "Auto-Reject Cookie Banners",
+                            trailingContent = {
+                                Switch(
+                                    checked = isCookieBannerHandling,
+                                    onCheckedChange = { enabled ->
+                                        isCookieBannerHandling = enabled
+                                        prefsManager.setCookieBannerHandlingEnabled(enabled)
+                                        GeckoEngineManager.updateCookiePolicy(currentCookiePolicy, enabled)
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = colors.statusSuccess,
+                                        checkedBorderColor = Color.Transparent,
+                                        uncheckedThumbColor = colors.textMuted,
+                                        uncheckedTrackColor = colors.surfaceElevated,
+                                        uncheckedBorderColor = colors.borderSubtle
+                                    )
+                                )
+                            },
+                            onClick = {
+                                val toggled = !isCookieBannerHandling
+                                isCookieBannerHandling = toggled
+                                prefsManager.setCookieBannerHandlingEnabled(toggled)
+                                GeckoEngineManager.updateCookiePolicy(currentCookiePolicy, toggled)
+                            }
+                        )
                     }
 
                     // CATEGORY 4: BROWSING DATA & STORAGE
@@ -577,6 +638,14 @@ fun SettingsScreen(
                             icon = Icons.Default.Storage,
                             title = "Clear Web Cache",
                             onClick = { showClearCacheDialog = true }
+                        )
+
+                        ItemDivider()
+
+                        SettingsRow(
+                            icon = Icons.Default.Cookie,
+                            title = "Clear Cookies & Site Data",
+                            onClick = { showClearCookiesDialog = true }
                         )
 
                         ItemDivider()
@@ -865,8 +934,13 @@ fun SettingsScreen(
                         try {
                             context.cacheDir.deleteRecursively()
                         } catch (_: Exception) {}
+                        GeckoEngineManager.clearAllCookiesAndSiteData(
+                            context = context,
+                            flags = StorageController.ClearFlags.NETWORK_CACHE
+                        ) {
+                            ToastManager.showSuccess("Web cache cleared")
+                        }
                         showClearCacheDialog = false
-                        ToastManager.showSuccess("Web cache cleared")
                     }
                 ) {
                     Text("Clear", color = colors.statusDestructive, fontWeight = FontWeight.Bold)
@@ -875,6 +949,130 @@ fun SettingsScreen(
             dismissButton = {
                 TextButton(onClick = { showClearCacheDialog = false }) {
                     Text("Cancel", color = colors.textMuted)
+                }
+            },
+            containerColor = colors.surface,
+            shape = AzokleRadius.xl
+        )
+    }
+
+    // Clear Cookies & Site Data Confirmation Dialog
+    if (showClearCookiesDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearCookiesDialog = false },
+            title = {
+                Text(
+                    text = "Clear Cookies & Site Data?",
+                    fontSize = 16.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "Sign out of websites and purge local web storage and active sessions. Passwords in your encrypted vault remain completely safe.",
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val flags = StorageController.ClearFlags.COOKIES or
+                            StorageController.ClearFlags.DOM_STORAGES or
+                            StorageController.ClearFlags.AUTH_SESSIONS
+                        GeckoEngineManager.clearAllCookiesAndSiteData(
+                            context = context,
+                            flags = flags,
+                            onComplete = { success: Boolean ->
+                                ToastManager.showSuccess(if (success) "Cookies & site data cleared" else "Failed to clear cookies")
+                            }
+                        )
+                        showClearCookiesDialog = false
+                    }
+                ) {
+                    Text("Clear", color = colors.statusDestructive, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearCookiesDialog = false }) {
+                    Text("Cancel", color = colors.textMuted)
+                }
+            },
+            containerColor = colors.surface,
+            shape = AzokleRadius.xl
+        )
+    }
+
+    // Cookie & Tracker Policy Selection Dialog
+    if (showCookiePolicyDialog) {
+        val cookieOptions = listOf(
+            Pair(ContentBlocking.CookieBehavior.ACCEPT_FIRST_PARTY_AND_ISOLATE_OTHERS, "Total Cookie Protection\nIsolates third-party cookies per site (Recommended)"),
+            Pair(ContentBlocking.CookieBehavior.ACCEPT_NON_TRACKERS, "Block Cross-Site Trackers\nBlocks known third-party tracking cookies"),
+            Pair(ContentBlocking.CookieBehavior.ACCEPT_FIRST_PARTY, "Block All Third-Party Cookies\nStrict isolation (may cause some sign-in embeds to fail)"),
+            Pair(ContentBlocking.CookieBehavior.ACCEPT_ALL, "Allow All Cookies\nNo cross-site cookie restrictions (Maximum compatibility)")
+        )
+        AlertDialog(
+            onDismissRequest = { showCookiePolicyDialog = false },
+            title = {
+                Text(
+                    text = "Cookie & Tracker Protection",
+                    fontSize = 16.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    cookieOptions.forEach { (mode, desc) ->
+                        val isSelected = currentCookiePolicy == mode
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) colors.surfaceElevated else Color.Transparent)
+                                .clickable {
+                                    currentCookiePolicy = mode
+                                    prefsManager.setCookiePolicy(mode)
+                                    GeckoEngineManager.updateCookiePolicy(mode, isCookieBannerHandling)
+                                    showCookiePolicyDialog = false
+                                }
+                                .padding(horizontal = 12.dp, vertical = 9.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val parts = desc.split("\n")
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = parts[0],
+                                    color = colors.textPrimary,
+                                    fontSize = 13.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                                if (parts.size > 1) {
+                                    Text(
+                                        text = parts[1],
+                                        color = colors.textMuted,
+                                        fontSize = 11.5.sp
+                                    )
+                                }
+                            }
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Selected",
+                                    tint = colors.statusSuccess,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCookiePolicyDialog = false }) {
+                    Text("Done", color = colors.statusAccent, fontWeight = FontWeight.Bold)
                 }
             },
             containerColor = colors.surface,

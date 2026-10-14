@@ -42,6 +42,8 @@ class PreferencesManager(private val context: Context) {
         private const val MAX_RECENT = 6
         private const val PREFS_FILE = "azokle_search_secure_prefs"
         private const val LEGACY_PREFS_FILE = "azokle_search_prefs"
+        private const val KEY_COOKIE_POLICY = "cookie_policy_mode"
+        private const val KEY_COOKIE_BANNER_HANDLING = "cookie_banner_handling_enabled"
 
         @Volatile
         private var cachedPrefs: SharedPreferences? = null
@@ -413,6 +415,34 @@ class PreferencesManager(private val context: Context) {
             .remove("has_completed_tabs_tour")
             .remove("has_completed_driver_tour")
             .apply()
+    }
+
+    /**
+     * Retrieves the cookie policy mode (defaults to Total Cookie Protection / ACCEPT_FIRST_PARTY_AND_ISOLATE_OTHERS = 5).
+     */
+    fun getCookiePolicy(): Int {
+        return prefs.getInt(KEY_COOKIE_POLICY, 5)
+    }
+
+    /**
+     * Updates the cookie policy mode.
+     */
+    fun setCookiePolicy(policy: Int) {
+        prefs.edit().putInt(KEY_COOKIE_POLICY, policy).apply()
+    }
+
+    /**
+     * Checks if automated cookie banner handling / rejection is enabled.
+     */
+    fun isCookieBannerHandlingEnabled(): Boolean {
+        return prefs.getBoolean(KEY_COOKIE_BANNER_HANDLING, true)
+    }
+
+    /**
+     * Updates cookie banner handling preference.
+     */
+    fun setCookieBannerHandlingEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_COOKIE_BANNER_HANDLING, enabled).apply()
     }
 }
 
