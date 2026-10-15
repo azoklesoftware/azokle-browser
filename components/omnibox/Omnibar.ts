@@ -1,5 +1,5 @@
 /**
- * Azokle Browser - Modular Chrome Components
+ * Azokle Browser - Shared Desktop UI
  * Brave-Grade Omnibar Address & Search Capsule (Brave-Core LocationBarView Architecture)
  */
 
@@ -453,7 +453,7 @@ export class OmnibarComponent {
       const row = document.createElement('div');
       row.className = `suggestion-row ${idx === this.selectedIndex ? 'selected' : ''}`;
       row.innerHTML = `
-        <span class="suggestion-icon ${item.type}">${item.icon}</span>
+        <span class="suggestion-icon ${this.escapeHtml(item.type)}">${this.escapeHtml(item.icon)}</span>
         <div class="suggestion-text">
           <span class="suggestion-title">${this.escapeHtml(item.title)}</span>
           ${item.subtitle ? `<span class="suggestion-subtitle">${this.escapeHtml(item.subtitle)}</span>` : ''}

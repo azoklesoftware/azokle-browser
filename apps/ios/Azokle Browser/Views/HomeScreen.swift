@@ -24,13 +24,13 @@ public struct HomeScreen: View {
     let colors: AzokleColors = .dark
 
     let shortcuts: [BrowserShortcut] = [
-        BrowserShortcut(label: "Wikipedia", url: "https://www.wikipedia.org", faviconUrl: "https://www.google.com/s2/favicons?domain=wikipedia.org&sz=128"),
-        BrowserShortcut(label: "YouTube", url: "https://www.youtube.com", faviconUrl: "https://www.google.com/s2/favicons?domain=youtube.com&sz=128"),
-        BrowserShortcut(label: "Amazon", url: "https://www.amazon.com", faviconUrl: "https://www.google.com/s2/favicons?domain=amazon.com&sz=128", isSponsored: true),
-        BrowserShortcut(label: "Trip", url: "https://www.trip.com", faviconUrl: "https://www.google.com/s2/favicons?domain=trip.com&sz=128", isSponsored: true),
-        BrowserShortcut(label: "Reddit", url: "https://www.reddit.com", faviconUrl: "https://www.google.com/s2/favicons?domain=reddit.com&sz=128"),
+        BrowserShortcut(label: "Wikipedia", url: "https://www.wikipedia.org", faviconUrl: "https://www.wikipedia.org/static/favicon/wikipedia.ico"),
+        BrowserShortcut(label: "YouTube", url: "https://www.youtube.com", faviconUrl: "https://www.youtube.com/favicon.ico"),
+        BrowserShortcut(label: "Amazon", url: "https://www.amazon.com", faviconUrl: "https://www.amazon.com/favicon.ico", isSponsored: true),
+        BrowserShortcut(label: "Trip", url: "https://www.trip.com", faviconUrl: "https://www.trip.com/favicon.ico", isSponsored: true),
+        BrowserShortcut(label: "Reddit", url: "https://www.reddit.com", faviconUrl: "https://www.reddit.com/favicon.ico"),
         BrowserShortcut(label: "Azokle Auth", url: "https://azokle.com/authenticator", iconName: "ic_azokle_auth"),
-        BrowserShortcut(label: "Kick", url: "https://kick.com", faviconUrl: "https://www.google.com/s2/favicons?domain=kick.com&sz=128"),
+        BrowserShortcut(label: "Kick", url: "https://kick.com", faviconUrl: "https://kick.com/favicon.ico"),
         BrowserShortcut(label: "Azokle", url: "https://search.azokle.com", iconName: "ic_engine_azokle")
     ]
 

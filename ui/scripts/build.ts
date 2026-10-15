@@ -86,7 +86,7 @@ const distIndexHtml = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src https: http: data:; object-src 'none'; base-uri 'none';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src https: http: data:; frame-src 'self' https: http:; object-src 'none'; base-uri 'none';">
   <title>Azokle Browser</title>
   <link rel="stylesheet" href="./bundle.css">
 </head>

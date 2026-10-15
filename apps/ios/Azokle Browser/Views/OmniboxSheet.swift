@@ -333,7 +333,9 @@ public struct OmniboxSheet: View {
         debounceTask?.cancel()
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if trimmed.count < 2 || isDirectUrl(trimmed) {
+        let isTor = state.activeTab?.isTor ?? state.isTorCircuitActive
+        let isPrivate = state.activeTab?.isPrivate ?? false
+        if isTor || isPrivate || trimmed.count < 2 || isDirectUrl(trimmed) {
             suggestions = []
             isLoadingSuggestions = false
             return
@@ -359,6 +361,11 @@ public struct OmniboxSheet: View {
     }
 
     private func fetchAutosuggestions(query: String) async -> [String] {
+        let isTor = state.activeTab?.isTor ?? state.isTorCircuitActive
+        let isPrivate = state.activeTab?.isPrivate ?? false
+        if isTor || isPrivate {
+            return []
+        }
         guard let url = URL(string: "https://search.azokle.com/api/v1/autosuggest") else { return [] }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"

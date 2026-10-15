@@ -593,13 +593,13 @@ public class BrowserState: ObservableObject {
                 protocolVersion: "Tor v3 Onion Protocol (ed25519)",
                 cipherSuite: "Curve25519-SHA256-AES128GCM",
                 issuedToCn: cleanHost,
-                issuedToOrg: "Tor Hidden Service Identity",
+                issuedToOrg: "Tor Onion Service",
                 issuedByCn: "Decentralized Onion Directory Authority",
-                issuedByOrg: "Tor Sovereign Circuit Guard",
+                issuedByOrg: "The Tor Project",
                 validFrom: "Ephemeral Circuit",
                 validTo: "Active Session",
-                sha256Fingerprint: "7D:3A:9F:C1:B4:88:2E:61:A0:F3:C8:11:94:05:4B:92:DE:F1:64:33:8C:99:21:40:2A:B6:55:18:72:01:E4:9C",
-                keyAlgorithm: "Ed25519 / Curve25519 (256-bit)",
+                sha256Fingerprint: "Cryptographic Onion Service Identity",
+                keyAlgorithm: "Ed25519 Onion Key (256-bit)",
                 connectionStatusText: "End-to-End Encrypted via 3 Tor Relays"
             )
         } else if isHttps {
@@ -607,17 +607,17 @@ public class BrowserState: ObservableObject {
                 host: cleanHost,
                 isSecure: true,
                 isTor: false,
-                protocolVersion: "TLS 1.3 (RFC 8446)",
-                cipherSuite: "TLS_AES_256_GCM_SHA384",
+                protocolVersion: "TLS 1.2 / TLS 1.3",
+                cipherSuite: "Authenticated WebKit Cipher",
                 issuedToCn: cleanHost,
-                issuedToOrg: "\(cleanHost.capitalized) Entity",
-                issuedByCn: "GTS CA 1C3 / Let's Encrypt Authority",
-                issuedByOrg: "Internet Security Research Group",
-                validFrom: "Sep 01, 2026",
-                validTo: "Dec 01, 2026",
-                sha256Fingerprint: "9A:1B:7F:43:08:CE:33:51:B2:D9:E8:44:21:95:AC:00:FE:78:19:42:01:BC:54:19:6A:88:D1:29:F3:01:92:4B",
-                keyAlgorithm: "ECDSA (secp256r1) with P-256 (256-bit)",
-                connectionStatusText: "Connection is Secure (Verified Identity)"
+                issuedToOrg: "Verified Domain Owner",
+                issuedByCn: "Trusted Certificate Authority",
+                issuedByOrg: "Operating System Root Trust Store",
+                validFrom: "Validated",
+                validTo: "Valid",
+                sha256Fingerprint: "Verified by iOS Security Framework",
+                keyAlgorithm: "Public Key Cryptography",
+                connectionStatusText: "Connection is Secure (Verified by OS Trust Store)"
             )
         } else {
             return SiteSecurityInfo(

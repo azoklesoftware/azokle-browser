@@ -84,7 +84,7 @@ public final class EncryptedVaultManager: ObservableObject {
             let key = SymmetricKey(data: keyData)
             self.cachedMasterKey = key
             return key
-        } else {
+        } else if status == errSecItemNotFound {
             let newKey = SymmetricKey(size: .bits256)
             let rawData = newKey.withUnsafeBytes { Data($0) }
 
@@ -96,12 +96,16 @@ public final class EncryptedVaultManager: ObservableObject {
                 kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
             ]
             let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
-            if addStatus == errSecDuplicateItem {
-                SecItemDelete(addQuery as CFDictionary)
-                SecItemAdd(addQuery as CFDictionary, nil)
+            if addStatus == errSecSuccess {
+                self.cachedMasterKey = newKey
             }
-            self.cachedMasterKey = newKey
             return newKey
+        } else {
+            // Transient error or device locked - return cached key if present, avoid destructive overwrite
+            if let cached = self.cachedMasterKey {
+                return cached
+            }
+            return SymmetricKey(size: .bits256)
         }
     }
 

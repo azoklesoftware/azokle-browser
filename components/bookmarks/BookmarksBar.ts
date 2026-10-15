@@ -48,15 +48,44 @@ export class BookmarksBarComponent {
       btn.className = 'bookmark-pill';
       btn.title = `${b.title}\n${b.url}`;
 
-      const isUrl = b.favicon && (b.favicon.startsWith('http') || b.favicon.startsWith('data:') || b.favicon.startsWith('/'));
-      const iconContent = isUrl
-        ? `<img src="${b.favicon}" width="14" height="14" alt="" />`
-        : `<span class="bookmark-emoji">${b.favicon || '★'}</span>`;
+      const iconBox = document.createElement('span');
+      iconBox.className = 'bookmark-icon-box';
 
-      btn.innerHTML = `
-        <span class="bookmark-icon-box">${iconContent}</span>
-        <span class="bookmark-label">${this.escapeHtml(b.title)}</span>
-      `;
+      if (b.favicon && typeof b.favicon === 'string') {
+        try {
+          const u = new URL(b.favicon, window.location.href);
+          if (u.protocol === 'https:' || u.protocol === 'http:' || (u.protocol === 'data:' && u.href.startsWith('data:image/'))) {
+            const img = document.createElement('img');
+            img.src = u.href;
+            img.width = 14;
+            img.height = 14;
+            img.alt = '';
+            iconBox.appendChild(img);
+          } else {
+            const emoji = document.createElement('span');
+            emoji.className = 'bookmark-emoji';
+            emoji.textContent = b.favicon.slice(0, 4);
+            iconBox.appendChild(emoji);
+          }
+        } catch (_e) {
+          const emoji = document.createElement('span');
+          emoji.className = 'bookmark-emoji';
+          emoji.textContent = b.favicon.slice(0, 4);
+          iconBox.appendChild(emoji);
+        }
+      } else {
+        const emoji = document.createElement('span');
+        emoji.className = 'bookmark-emoji';
+        emoji.textContent = '★';
+        iconBox.appendChild(emoji);
+      }
+
+      const label = document.createElement('span');
+      label.className = 'bookmark-label';
+      label.textContent = b.title || b.url;
+
+      btn.appendChild(iconBox);
+      btn.appendChild(label);
       btn.onclick = () => this.tabStore.navigate(b.url);
       listWrapper.appendChild(btn);
     }
