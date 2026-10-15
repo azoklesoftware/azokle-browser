@@ -172,13 +172,11 @@ object UrlHelper {
         val engineId = prefs?.getSearchEngine() ?: "azokle"
         val queryUrl = com.azokle.search.common.util.SEARCH_ENGINE_PROVIDERS.find { it.id == engineId }?.queryUrl
             ?: com.azokle.search.common.util.SEARCH_ENGINE_PROVIDERS[0].queryUrl
-        val locationCode = prefs?.getLocation() ?: "auto"
         val safeSearch = prefs?.getSafeSearch() ?: "1"
 
         return resolveSearchOrUrl(
             input = input,
             searchEngineQueryUrl = queryUrl,
-            locationCode = locationCode,
             safeSearch = safeSearch,
             basePath = basePath
         )
@@ -190,7 +188,6 @@ object UrlHelper {
     fun resolveSearchOrUrl(
         input: String,
         searchEngineQueryUrl: String = "https://search.azokle.com/search?q=",
-        locationCode: String = "auto",
         safeSearch: String = "1",
         basePath: String = "/search"
     ): String {
@@ -205,7 +202,7 @@ object UrlHelper {
         // Block dangerous protocol injections
         val scheme = extractScheme(trimmed)
         if (scheme != null && scheme !in ALLOWED_SCHEMES) {
-            return buildSearchUrl(trimmed, searchEngineQueryUrl, locationCode, safeSearch, basePath)
+            return buildSearchUrl(trimmed, searchEngineQueryUrl, safeSearch, basePath)
         }
 
         if (isDirectUrl(trimmed)) {
@@ -219,7 +216,7 @@ object UrlHelper {
             return stripTrackingParameters(resolvedUrl)
         }
 
-        return buildSearchUrl(trimmed, searchEngineQueryUrl, locationCode, safeSearch, basePath)
+        return buildSearchUrl(trimmed, searchEngineQueryUrl, safeSearch, basePath)
     }
 
     /**
@@ -228,15 +225,13 @@ object UrlHelper {
     private fun buildSearchUrl(
         query: String,
         searchEngineQueryUrl: String,
-        locationCode: String,
         safeSearch: String,
         basePath: String
     ): String {
         val encodedQuery = try { java.net.URLEncoder.encode(query, "UTF-8") } catch (e: Exception) { query }
         return if (searchEngineQueryUrl.contains("azokle.com")) {
-            val encodedLc = try { java.net.URLEncoder.encode(locationCode, "UTF-8") } catch (e: Exception) { locationCode }
             val encodedSafe = try { java.net.URLEncoder.encode(safeSearch, "UTF-8") } catch (e: Exception) { safeSearch }
-            "https://search.azokle.com$basePath?q=$encodedQuery&lc=$encodedLc&safesearch=$encodedSafe"
+            "https://search.azokle.com$basePath?q=$encodedQuery&safesearch=$encodedSafe"
         } else {
             "${searchEngineQueryUrl}${encodedQuery}"
         }

@@ -171,7 +171,6 @@ fun BrowserUrlEditSheet(
         SEARCH_ENGINE_PROVIDERS.find { it.id.equals(selectedEngineId, ignoreCase = true) }
             ?: SEARCH_ENGINE_PROVIDERS[0]
     }
-    val locationCode = remember(preferences) { preferences.getLocation() }
     val safeSearch = remember(preferences) { preferences.getSafeSearch() }
 
     /**
@@ -181,7 +180,6 @@ fun BrowserUrlEditSheet(
         return UrlHelper.resolveSearchOrUrl(
             input = query,
             searchEngineQueryUrl = searchEngineConfig.queryUrl,
-            locationCode = locationCode,
             safeSearch = safeSearch
         )
     }

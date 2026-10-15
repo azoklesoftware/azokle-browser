@@ -25,19 +25,12 @@ import org.json.JSONArray
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
-data class SearchLocation(
-    val name: String,
-    val code: String,
-    val flag: String
-)
-
 class PreferencesManager(private val context: Context) {
     private val prefs: SharedPreferences = getOrCreateEncryptedPrefs(context)
 
     companion object {
         private const val KEY_RECENT_SEARCHES = "recent_searches"
         private const val KEY_SAFE_SEARCH = "safe_search"
-        private const val KEY_LOCATION = "location"
         private const val KEY_THEME = "app_theme_mode"
         private const val MAX_RECENT = 6
         private const val PREFS_FILE = "azokle_search_secure_prefs"
@@ -152,20 +145,9 @@ class PreferencesManager(private val context: Context) {
 
             return encPrefs
         }
-
-        val DEFAULT_LOCATIONS = listOf(
-            SearchLocation("All Regions", "auto", "🌐"),
-            SearchLocation("United States", "us-en", "🇺🇸"),
-            SearchLocation("United Kingdom", "uk-en", "🇬🇧"),
-            SearchLocation("India", "in-en", "🇮🇳"),
-            SearchLocation("Germany", "de-de", "🇩🇪"),
-            SearchLocation("France", "fr-fr", "🇫🇷"),
-            SearchLocation("Japan", "jp-jp", "🇯🇵"),
-            SearchLocation("Canada", "ca-en", "🇨🇦"),
-            SearchLocation("Australia", "au-en", "🇦🇺"),
-            SearchLocation("Brazil", "br-pt", "🇧🇷")
-        )
     }
+
+
 
     /**
      * Retrieves the recent searches.
@@ -236,19 +218,6 @@ class PreferencesManager(private val context: Context) {
         prefs.edit().putString(KEY_SAFE_SEARCH, mode).apply()
     }
 
-    /**
-     * Retrieves the location.
-     */
-    fun getLocation(): String {
-        return prefs.getString(KEY_LOCATION, "All Regions") ?: "All Regions"
-    }
-
-    /**
-     * Updates the location.
-     */
-    fun setLocation(locationName: String) {
-        prefs.edit().putString(KEY_LOCATION, locationName).apply()
-    }
 
     /**
      * Retrieves the theme mode.

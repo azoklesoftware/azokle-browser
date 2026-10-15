@@ -23,7 +23,6 @@ import androidx.lifecycle.viewModelScope
 import com.azokle.search.tabs.TabManager
 import com.azokle.search.common.util.PreferencesManager
 import com.azokle.search.discover.SearchItem
-import com.azokle.search.common.util.SearchLocation
 import com.azokle.search.discover.SearchRepository
 import com.azokle.search.common.util.UrlHelper
 import kotlinx.coroutines.Job
@@ -56,7 +55,6 @@ data class HomeUiState(
     val isAboutModalOpen: Boolean = false,
     val isVoiceModalOpen: Boolean = false,
     val isQrScannerOpen: Boolean = false,
-    val selectedLocation: SearchLocation = PreferencesManager.DEFAULT_LOCATIONS[0],
     val selectedSafeSearch: String = "Moderate",
     val selectedThemeMode: String = "system",
     val selectedBrowserEngine: String = "gecko",
@@ -122,10 +120,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val savedDoh = preferences.getDohProvider()
         val savedSearchEngine = preferences.getSearchEngine()
         val savedLanguage = preferences.getAppLanguage()
-        val savedLocName = preferences.getLocation()
         val hasCompletedOnboarding = preferences.hasCompletedOnboarding()
-        val matchedLoc = PreferencesManager.DEFAULT_LOCATIONS.find { it.name == savedLocName }
-            ?: PreferencesManager.DEFAULT_LOCATIONS[0]
 
         _uiState.update {
             it.copy(
@@ -136,7 +131,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 selectedDohProvider = savedDoh,
                 selectedSearchEngine = savedSearchEngine,
                 selectedLanguage = savedLanguage,
-                selectedLocation = matchedLoc,
                 placeholderText = "Search web or type URL",
                 isOnboardingVisible = !hasCompletedOnboarding
             )
@@ -219,7 +213,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val targetUrl = UrlHelper.resolveSearchOrUrl(
             input = cleanQuery,
             searchEngineQueryUrl = searchEngineConfig.queryUrl,
-            locationCode = _uiState.value.selectedLocation.code,
             safeSearch = safeParam,
             basePath = basePath
         )
@@ -352,14 +345,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         com.azokle.search.AzokleApplication.applyThemeMode(cleanMode)
         com.azokle.search.engine.GeckoEngineManager.updateThemeMode(cleanMode)
         _uiState.update { it.copy(selectedThemeMode = cleanMode) }
-    }
-
-    /**
-     * Updates the location.
-     */
-    fun setLocation(location: SearchLocation) {
-        preferences.setLocation(location.name)
-        _uiState.update { it.copy(selectedLocation = location) }
     }
 
     /**

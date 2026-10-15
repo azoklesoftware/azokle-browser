@@ -180,7 +180,6 @@ fun SettingsScreen(
     var showSiteSettingsSheet by remember { mutableStateOf(false) }
     var showPasskeySheet by remember { mutableStateOf(false) }
     var showSafeSearchDialog by remember { mutableStateOf(false) }
-    var showLocationDialog by remember { mutableStateOf(false) }
     var showClearCacheDialog by remember { mutableStateOf(false) }
     var showClearCookiesDialog by remember { mutableStateOf(false) }
     var showClearHistoryDialog by remember { mutableStateOf(false) }
@@ -192,7 +191,6 @@ fun SettingsScreen(
 
     // Dynamic preferences states
     var currentSafeSearch by remember { mutableStateOf(prefsManager.getSafeSearch()) }
-    var currentLocation by remember { mutableStateOf(prefsManager.getLocation()) }
     var isBackgroundAudio by remember { mutableStateOf(prefsManager.isBackgroundAudioEnabled()) }
     var currentCookieControl by remember { mutableStateOf(prefsManager.getCookieControl()) }
     var currentCookiePolicy by remember { mutableStateOf(prefsManager.getCookiePolicy()) }
@@ -211,8 +209,6 @@ fun SettingsScreen(
             showPasskeySheet = false
         } else if (showSafeSearchDialog) {
             showSafeSearchDialog = false
-        } else if (showLocationDialog) {
-            showLocationDialog = false
         } else if (showClearCacheDialog) {
             showClearCacheDialog = false
         } else if (showClearCookiesDialog) {
@@ -469,16 +465,6 @@ fun SettingsScreen(
                             trailingText = currentSafeSearch,
                             showChevron = true,
                             onClick = { showSafeSearchDialog = true }
-                        )
-
-                        ItemDivider()
-
-                        SettingsRow(
-                            icon = Icons.Default.Public,
-                            title = "Search Region",
-                            trailingText = currentLocation,
-                            showChevron = true,
-                            onClick = { showLocationDialog = true }
                         )
                     }
 
@@ -896,70 +882,6 @@ fun SettingsScreen(
         )
     }
 
-    if (showLocationDialog) {
-        val locations = PreferencesManager.DEFAULT_LOCATIONS
-        AlertDialog(
-            onDismissRequest = { showLocationDialog = false },
-            title = {
-                Text(
-                    text = "Search Region",
-                    fontSize = 16.5.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.textPrimary
-                )
-            },
-            text = {
-                Column(
-                    modifier = Modifier.verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    locations.forEach { loc ->
-                        val isSelected = currentLocation.equals(loc.name, ignoreCase = true)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) colors.surfaceElevated else Color.Transparent)
-                                .clickable {
-                                    currentLocation = loc.name
-                                    prefsManager.setLocation(loc.name)
-                                    showLocationDialog = false
-                                }
-                                .padding(horizontal = 12.dp, vertical = 9.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = loc.flag, fontSize = 15.sp)
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(
-                                    text = loc.name,
-                                    color = colors.textPrimary,
-                                    fontSize = 13.5.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                )
-                            }
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Selected",
-                                    tint = colors.statusSuccess,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showLocationDialog = false }) {
-                    Text("Done", color = colors.statusAccent, fontWeight = FontWeight.SemiBold)
-                }
-            },
-            containerColor = colors.surface,
-            shape = AzokleRadius.xl
-        )
-    }
 
     // Clear Web Cache Confirmation Dialog
     if (showClearCacheDialog) {
