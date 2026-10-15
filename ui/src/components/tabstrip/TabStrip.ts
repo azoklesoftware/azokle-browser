@@ -76,10 +76,22 @@ export class TabStripComponent {
       iconEl.textContent = '🧅';
     } else if (tab.isPrivate) {
       iconEl.textContent = '🕶️';
-    } else if (tab.favicon && (tab.favicon.startsWith('http') || tab.favicon.startsWith('data:') || tab.favicon.startsWith('/'))) {
-      iconEl.innerHTML = `<img src="${tab.favicon}" width="14" height="14" alt="" />`;
-    } else if (tab.favicon) {
-      iconEl.textContent = tab.favicon;
+    } else if (tab.favicon && typeof tab.favicon === 'string') {
+      try {
+        const u = new URL(tab.favicon, window.location.href);
+        if (u.protocol === 'https:' || u.protocol === 'http:' || (u.protocol === 'data:' && u.href.startsWith('data:image/'))) {
+          const img = document.createElement('img');
+          img.src = u.href;
+          img.width = 14;
+          img.height = 14;
+          img.alt = '';
+          iconEl.replaceChildren(img);
+        } else {
+          iconEl.textContent = tab.favicon.slice(0, 4);
+        }
+      } catch (_e) {
+        iconEl.textContent = tab.favicon.slice(0, 4);
+      }
     } else {
       iconEl.innerHTML = `
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

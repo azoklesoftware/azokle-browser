@@ -189,6 +189,11 @@ object GeckoConfigManager {
             appendLine("  media.peerconnection.ice.obfuscate_host_addresses: true")
             appendLine("  media.peerconnection.ice.obfuscate_host_addresses.sync: true")
             appendLine("  media.peerconnection.ice.link_local_ips: false")
+            appendLine("  media.peerconnection.ice.proxy_only: true")
+            appendLine("  network.proxy.failover_direct: false")
+            appendLine("  network.dns.disablePrefetch: true")
+            appendLine("  network.prefetch-next: false")
+            appendLine("  network.http.speculative-parallel-limit: 0")
 
             // 8. Privacy & Engine-Level Anti-Tracking & Fingerprinting Shield
             appendLine("  privacy.reduceTimerPrecision: true")

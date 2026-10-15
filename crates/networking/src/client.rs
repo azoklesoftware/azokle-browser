@@ -142,13 +142,16 @@ impl SovereignHttpClient {
         let host = parsed_url
             .host_str()
             .ok_or_else(|| NetworkError::InvalidUrl("Missing host in URL".to_string()))?;
-        let port = parsed_url
-            .port()
-            .unwrap_or(if parsed_url.scheme() == "https" {
-                443
-            } else {
-                80
-            });
+
+        // Fail closed on HTTPS: raw TCP socket cannot safely negotiate TLS.
+        // Plaintext transmission over port 443 violates transport security guarantees.
+        if parsed_url.scheme() == "https" {
+            return Err(NetworkError::TlsError(
+                "Plaintext socket cannot negotiate HTTPS. TLS is not configured for this raw socket client.".to_string(),
+            ));
+        }
+
+        let port = parsed_url.port().unwrap_or(80);
 
         // 2. Establish connection based on routing
         let mut stream = match request.route {
@@ -168,7 +171,8 @@ impl SovereignHttpClient {
                 Self::socks5_connect(proxy_addr, host, port, request.timeout)?
             }
             NetworkRoute::Direct => {
-                if !request.url.contains(".onion") {
+                let is_onion = host.eq_ignore_ascii_case("onion") || host.to_lowercase().ends_with(".onion");
+                if !is_onion {
                     let ips = self.dns.resolve(host)?;
                     let target_ip = ips
                         .first()
@@ -218,6 +222,12 @@ impl SovereignHttpClient {
         );
 
         for (k, v) in &request.headers {
+            if k.contains('\r') || k.contains('\n') || v.contains('\r') || v.contains('\n') {
+                return Err(NetworkError::InvalidUrl(format!(
+                    "CRLF injection detected in header '{}: {}'",
+                    k, v
+                )));
+            }
             http_req.push_str(&format!("{}: {}\r\n", k, v));
         }
 
@@ -238,24 +248,33 @@ impl SovereignHttpClient {
                 .map_err(|e| NetworkError::ConnectionFailed(format!("Body write failed: {}", e)))?;
         }
 
-        // 5. Read Response
+        // 5. Read Response with upper bound (10 MB) to prevent OOM DOS
+        const MAX_RESPONSE_BYTES: u64 = 10 * 1024 * 1024;
         let mut raw_response = Vec::new();
-        stream
+        (&mut stream)
+            .take(MAX_RESPONSE_BYTES)
             .read_to_end(&mut raw_response)
             .map_err(|e| NetworkError::ConnectionFailed(format!("Read failed: {}", e)))?;
 
         let latency = start_time.elapsed();
 
-        // 6. Parse Status Line and Body
+        // 6. Parse Status Line, Headers, and Body
+        let mut response_headers = HashMap::new();
         let (status, body) =
             if let Some(pos) = raw_response.windows(4).position(|w| w == b"\r\n\r\n") {
                 let header_part = String::from_utf8_lossy(&raw_response[..pos]);
-                let status_code = header_part
-                    .lines()
+                let mut lines = header_part.lines();
+                let status_code = lines
                     .next()
                     .and_then(|line| line.split_whitespace().nth(1))
                     .and_then(|code| code.parse::<u16>().ok())
                     .unwrap_or(200);
+
+                for line in lines {
+                    if let Some((name, val)) = line.split_once(':') {
+                        response_headers.insert(name.trim().to_string(), val.trim().to_string());
+                    }
+                }
 
                 let body_part = raw_response[(pos + 4)..].to_vec();
                 (status_code, body_part)
@@ -265,10 +284,55 @@ impl SovereignHttpClient {
 
         Ok(HttpResponse {
             status,
-            headers: HashMap::new(),
+            headers: response_headers,
             body,
             latency,
             remote_addr: None,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_https_scheme_fails_closed_without_tls() {
+        let client = SovereignHttpClient::default();
+        let req = HttpRequest::get("https://example.com/api");
+        let result = client.execute(req);
+        match result {
+            Err(NetworkError::TlsError(msg)) => {
+                assert!(msg.contains("Plaintext socket cannot negotiate HTTPS"));
+            }
+            other => panic!("Expected TlsError, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_crlf_header_injection_rejected() {
+        let client = SovereignHttpClient::default();
+        let mut req = HttpRequest::get("http://example.com/");
+        req.headers.insert("X-Inject".to_string(), "foo\r\nInjected-Header: evil".to_string());
+        let result = client.execute(req);
+        match result {
+            Err(NetworkError::InvalidUrl(msg)) => {
+                assert!(msg.contains("CRLF injection detected"));
+            }
+            other => panic!("Expected InvalidUrl error for CRLF injection, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_onion_direct_resolution_blocked() {
+        let client = SovereignHttpClient::default();
+        let req = HttpRequest::get("http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/test");
+        let result = client.execute(req);
+        match result {
+            Err(NetworkError::DnsLeakPrevented(msg)) => {
+                assert!(msg.contains("prohibited"));
+            }
+            other => panic!("Expected DnsLeakPrevented, got {:?}", other),
+        }
     }
 }

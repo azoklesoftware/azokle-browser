@@ -69,6 +69,11 @@ class GeckoConfigManagerTest {
         assertTrue(yaml.contains("media.peerconnection.ice.obfuscate_host_addresses: true"))
         assertTrue(yaml.contains("media.peerconnection.ice.obfuscate_host_addresses.sync: true"))
         assertTrue(yaml.contains("media.peerconnection.ice.link_local_ips: false"))
+        assertTrue(yaml.contains("media.peerconnection.ice.proxy_only: true"))
+        assertTrue(yaml.contains("network.proxy.failover_direct: false"))
+        assertTrue(yaml.contains("network.dns.disablePrefetch: true"))
+        assertTrue(yaml.contains("network.prefetch-next: false"))
+        assertTrue(yaml.contains("network.http.speculative-parallel-limit: 0"))
 
         // Trusted Recursive Resolver (TRR) DoH
         assertTrue(yaml.contains("network.trr.mode: 2"))

@@ -117,6 +117,8 @@ class SecurityRegressionUnitTest {
         val yaml = GeckoConfigManager.generatePerformanceConfigYaml()
         assertTrue("WebRTC no_host preference must be active", yaml.contains("media.peerconnection.ice.no_host: true"))
         assertTrue("WebRTC default_address_only must be active", yaml.contains("media.peerconnection.ice.default_address_only: true"))
+        assertTrue("WebRTC proxy_only preference must be active", yaml.contains("media.peerconnection.ice.proxy_only: true"))
+        assertTrue("Proxy failover_direct must be disabled", yaml.contains("network.proxy.failover_direct: false"))
         assertTrue("dom.maxHardwareConcurrency must be pinned to 4", yaml.contains("dom.maxHardwareConcurrency: 4"))
         assertTrue("privacy.reduceTimerPrecision must be enabled", yaml.contains("privacy.reduceTimerPrecision: true"))
     }

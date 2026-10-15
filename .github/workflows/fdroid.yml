@@ -87,7 +87,7 @@ jobs:
             echo "$KEYSTORE_BASE64" | base64 --decode > "${{ runner.temp }}/keystore/release.jks"
             echo "Keystore successfully placed at ${{ runner.temp }}/keystore/release.jks"
           else
-            echo "No ANDROID_KEYSTORE_BASE64 secret provided; building unsigned/debug APK."
+            echo "Notice: ANDROID_KEYSTORE_BASE64 secret not provided; building unsigned release APK."
           fi
 
       - name: Build F-Droid APKs
@@ -98,13 +98,8 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          if [ -f "${{ runner.temp }}/keystore/release.jks" ]; then
-            echo "Building signed Release APK for F-Droid..."
-            ./gradlew assembleRelease
-          else
-            echo "Building unsigned APK for F-Droid..."
-            ./gradlew assembleDebug
-          fi
+          echo "Building Release APK for F-Droid..."
+          ./gradlew assembleRelease
 
       - name: Clean Up Keystore
         if: always()
@@ -113,7 +108,7 @@ jobs:
       - name: Compute Reproducible SHA-256 Checksums
         run: |
           mkdir -p artifacts
-          cp apps/android/app/build/outputs/apk/**/*.apk artifacts/ 2>/dev/null || true
+          cp apps/android/app/build/outputs/apk/release/*.apk artifacts/ 2>/dev/null || true
           cd artifacts
           sha256sum *.apk > SHA256SUMS.txt
           cat SHA256SUMS.txt

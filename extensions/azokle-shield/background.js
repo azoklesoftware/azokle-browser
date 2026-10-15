@@ -784,27 +784,59 @@
     }
     connectNativePort();
 
+    function isOnionHost(urlStr) {
+        if (!urlStr) return false;
+        try {
+            var parsed = new URL(urlStr);
+            var host = (parsed.hostname || '').toLowerCase();
+            return host === 'onion' || host.endsWith('.onion');
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // Non-routable blackhole proxy to enforce fail-closed security and block DNS leaks to ISP
+    var FAIL_CLOSED_PROXY = {
+        type: 'http',
+        host: '127.0.0.1',
+        port: 1
+    };
+
     browser.proxy.onRequest.addListener(
         function(requestInfo) {
-            // Zero-overhead fast path: clearnet requests when Tor is inactive bypass proxy completely
             var url = requestInfo.url || '';
-            var isOnion = url.indexOf('.onion') !== -1;
-            if (!isTorRoutingActive && !isOnion) {
-                return { type: 'direct' };
+            var isOnion = isOnionHost(url);
+
+            // 1. Hidden Services (.onion): MUST route through Tor SOCKS5 or FAIL CLOSED.
+            // Never allow an .onion request to leak via direct clearnet DNS / connection.
+            if (isOnion) {
+                if (isTorRoutingActive && activeSocksPort > 0) {
+                    return {
+                        type: 'socks',
+                        host: '127.0.0.1',
+                        port: activeSocksPort,
+                        proxyDNS: true
+                    };
+                }
+                // Tor routing inactive or daemon not ready: FAIL CLOSED
+                return FAIL_CLOSED_PROXY;
             }
 
-            var isTorCandidate = isOnion || (isTorRoutingActive && requestInfo.incognito === true);
-
-            if (isTorCandidate || isOnion) {
-                var port = activeSocksPort || 9050;
-                return {
-                    type: 'socks',
-                    host: '127.0.0.1',
-                    port: port,
-                    proxyDNS: true
-                };
+            // 2. Tor Private Browsing Session: route all traffic through SOCKS5 with remote DNS
+            if (isTorRoutingActive && requestInfo.incognito === true) {
+                if (activeSocksPort > 0) {
+                    return {
+                        type: 'socks',
+                        host: '127.0.0.1',
+                        port: activeSocksPort,
+                        proxyDNS: true
+                    };
+                }
+                // Tor is active for this session but SOCKS port is invalid: FAIL CLOSED
+                return FAIL_CLOSED_PROXY;
             }
 
+            // 3. Clearnet standard tabs when Tor is not active: direct
             return { type: 'direct' };
         },
         { urls: ['<all_urls>'] }
