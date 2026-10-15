@@ -15,7 +15,7 @@ path = "src/bin/bindgen.rs"
 
 [dependencies]
 azokle-core = { path = "../../crates/core" }
-uniffi = { version = "0.28", features = ["cli"] }
+uniffi = { version = "0.32", features = ["cli"] }
 parking_lot.workspace = true
 serde.workspace = true
 serde_json.workspace = true
