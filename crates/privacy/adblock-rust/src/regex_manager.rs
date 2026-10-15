@@ -31,9 +31,15 @@ impl Instant {
     }
 }
 
-/// `*const NetworkFilter` could technically leak across threads through `RegexDebugEntry::id`, but
-/// it's disguised as a unique identifier and not intended to be dereferenced.
-unsafe impl Send for RegexManager {}
+// SAFETY / SOUNDNESS (AZB-P01):
+// `RegexManager` contains exclusively safe standard library types (HashMap<u64, RegexEntry>, usize,
+// Instant, and Duration). All stored keys are plain `u64` values and no raw pointers are stored
+// or dereferenced anywhere within this struct. Therefore, `RegexManager` naturally and safely implements
+// `Send` without requiring any `unsafe` block.
+const _: () = {
+    fn assert_send<T: Send>() {}
+    let _ = assert_send::<RegexManager>;
+};
 
 const DEFAULT_CLEAN_UP_INTERVAL: Duration = Duration::from_secs(30);
 const DEFAULT_DISCARD_UNUSED_TIME: Duration = Duration::from_secs(180);

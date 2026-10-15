@@ -124,11 +124,30 @@ impl TorController {
         response[0] == 0x05 && response[1] == 0x00
     }
 
+    /// Formats and sanitizes a Tor Control Protocol `AUTHENTICATE` command per the Tor control-spec.
+    ///
+    /// Rejects control characters (\r, \n, \0) to prevent control command injection,
+    /// and escapes backslashes and double quotes according to Tor QuotedString syntax.
+    pub fn format_authenticate_command(auth: Option<&str>) -> Result<String, String> {
+        match auth {
+            Some(a) if !a.is_empty() => {
+                if a.contains('\r') || a.contains('\n') || a.contains('\0') {
+                    return Err("Tor control authentication password contains illegal control characters".to_string());
+                }
+                let escaped = a.replace('\\', "\\\\").replace('"', "\\\"");
+                Ok(format!("AUTHENTICATE \"{}\"\r\n", escaped))
+            }
+            _ => Ok("AUTHENTICATE \"\"\r\n".to_string()),
+        }
+    }
+
     /// Rotates the Tor circuit via the Tor Control Port protocol (`SIGNAL NEWNYM`).
     ///
     /// Issues an `AUTHENTICATE` command followed by `SIGNAL NEWNYM` to instruct Tor to cease
     /// reusing existing circuits for new application requests. Generates a fresh circuit identifier.
     pub fn rotate_circuit(control_port: u16, auth: Option<&str>) -> Result<String, String> {
+        let auth_cmd = Self::format_authenticate_command(auth)?;
+
         let addr: SocketAddr = format!("127.0.0.1:{}", control_port)
             .parse()
             .map_err(|e| format!("Invalid control address: {}", e))?;
@@ -143,11 +162,6 @@ impl TorController {
 
         let _ = stream.set_read_timeout(Some(timeout));
         let _ = stream.set_write_timeout(Some(timeout));
-
-        let auth_cmd = match auth {
-            Some(a) if !a.is_empty() => format!("AUTHENTICATE \"{}\"\r\n", a),
-            _ => "AUTHENTICATE \"\"\r\n".to_string(),
-        };
 
         stream
             .write_all(auth_cmd.as_bytes())
@@ -330,5 +344,36 @@ mod tests {
             ),
             "https://duckduckgo.com/?q=sovereign+privacy+browser"
         );
+    }
+
+    #[test]
+    fn test_tor_authenticate_command_escaping_and_crlf_rejection() {
+        // Empty / None
+        assert_eq!(
+            TorController::format_authenticate_command(None).unwrap(),
+            "AUTHENTICATE \"\"\r\n"
+        );
+        assert_eq!(
+            TorController::format_authenticate_command(Some("")).unwrap(),
+            "AUTHENTICATE \"\"\r\n"
+        );
+
+        // Standard password
+        assert_eq!(
+            TorController::format_authenticate_command(Some("MyTorPassword123")).unwrap(),
+            "AUTHENTICATE \"MyTorPassword123\"\r\n"
+        );
+
+        // Quoted and backslash escaped
+        assert_eq!(
+            TorController::format_authenticate_command(Some(r#"secret"with\quotes"#)).unwrap(),
+            "AUTHENTICATE \"secret\\\"with\\\\quotes\"\r\n"
+        );
+
+        // CRLF injection attempts must be rejected
+        assert!(TorController::format_authenticate_command(Some("foo\r\nSIGNAL SHUTDOWN")).is_err());
+        assert!(TorController::format_authenticate_command(Some("foo\nbar")).is_err());
+        assert!(TorController::format_authenticate_command(Some("foo\rbar")).is_err());
+        assert!(TorController::format_authenticate_command(Some("foo\0bar")).is_err());
     }
 }

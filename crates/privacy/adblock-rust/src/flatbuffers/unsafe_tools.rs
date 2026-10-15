@@ -8,10 +8,13 @@ const MIN_ALIGNMENT: usize = 8;
 /// Converts a flatbuffers Vector to a slice.
 /// # Safety
 /// This function uses unsafe code to convert flatbuffer vector bytes to a slice.
-/// It asserts the vector data is properly aligned and sized.
+/// It asserts the vector data is properly aligned, non-null, and sized.
 #[inline(always)]
 pub fn fb_vector_to_slice<T>(vector: flatbuffers::Vector<'_, T>) -> &[T] {
     let bytes = vector.bytes();
+    if bytes.is_empty() {
+        return &[];
+    }
 
     const fn static_assert_alignment<T>() {
         // We can't use T with the size more than MIN_ALIGNMENT.
@@ -21,12 +24,21 @@ pub fn fb_vector_to_slice<T>(vector: flatbuffers::Vector<'_, T>) -> &[T] {
     }
     const { static_assert_alignment::<T>() };
 
-    assert!(bytes.len().is_multiple_of(std::mem::size_of::<T>()));
-    assert!((bytes.as_ptr() as usize).is_multiple_of(std::mem::align_of::<T>()));
+    let size = std::mem::size_of::<T>();
+    let align = std::mem::align_of::<T>();
+    assert!(size > 0, "Zero-sized types are not supported in fb_vector_to_slice");
+    assert!(bytes.len().is_multiple_of(size));
+    assert!((bytes.as_ptr() as usize).is_multiple_of(align));
+
+    // SAFETY:
+    // 1. `bytes` points to an initialized, contiguous FlatBuffers buffer whose lifetime is tied to `vector`.
+    // 2. Pointer alignment is checked: `(bytes.as_ptr() as usize).is_multiple_of(align_of::<T>())`.
+    // 3. Total byte length is an exact multiple of `size_of::<T>()`.
+    // 4. `bytes` is confirmed non-empty above, so `bytes.as_ptr()` is non-null and valid for reads.
     unsafe {
         std::slice::from_raw_parts(
             bytes.as_ptr() as *const T,
-            bytes.len() / std::mem::size_of::<T>(),
+            bytes.len() / size,
         )
     }
 }
@@ -90,6 +102,14 @@ impl VerifiedFlatbufferMemory {
     }
 
     pub(crate) fn root(&self) -> fb::Engine<'_> {
+        // In debug mode, re-verify root to catch any memory corruption early
+        debug_assert!(fb::root_as_engine(self.data()).is_ok(), "Flatbuffer root verification failed");
+
+        // SAFETY:
+        // `VerifiedFlatbufferMemory` enforces the invariant that `self.data()` was either validated
+        // via `fb::root_as_engine(memory.data())?` in `from_raw()` or constructed by a valid
+        // `FlatBufferBuilder` in `from_builder()`. The backing `raw_data` buffer is owned, aligned
+        // to `MIN_ALIGNMENT`, and immutable during the lifetime of this reference.
         unsafe { fb::root_as_engine_unchecked(self.data()) }
     }
 
