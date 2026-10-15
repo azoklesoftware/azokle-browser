@@ -325,7 +325,10 @@ object GeckoEngineManager {
                                     }
                                     val targetTabId = targetTab?.id ?: (com.azokle.search.tabs.TabManager.activeTabId.value ?: "active")
                                     if (fallbackIcon != null && targetTab != null && targetTab.id == activeTab?.id) {
-                                        com.azokle.search.tabs.TabManager.updateActiveTabFavicon(fallbackIcon)
+                                        // AZK-HIGH-05: Never accept out-of-band favicons for Tor or Private tabs to prevent proxy bypass
+                                        if (!targetTab.isTor && !targetTab.isPrivate) {
+                                            com.azokle.search.tabs.TabManager.updateActiveTabFavicon(fallbackIcon)
+                                        }
                                     }
                                     com.azokle.search.pwa.PwaManager.onManifestDiscovered(
                                         tabId = targetTabId,

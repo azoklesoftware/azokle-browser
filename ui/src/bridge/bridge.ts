@@ -46,13 +46,15 @@ class NativeDesktopBridge implements IDesktopBridge {
   }
 
   private setupHostDispatcher(): void {
-    // Expose global hook for C++ (WebKitGTK) / Swift (WKWebView) to push events into JS
-    window.__azokleHostDispatch = (event: string, payload: any) => {
+    // Expose non-writable global hook for C++ (WebKitGTK) / Swift (WKWebView) to push events into JS
+    const dispatchFn = (event: string, payload: any) => {
+      if (typeof event !== 'string' || !payload || typeof payload !== 'object') return;
       if (event === 'response') {
-        const pending = this.pendingRequests.get(payload.id);
+        const reqId = String(payload.id || '');
+        const pending = this.pendingRequests.get(reqId);
         if (pending) {
-          this.pendingRequests.delete(payload.id);
-          if (payload.error) pending.reject(new Error(payload.error));
+          this.pendingRequests.delete(reqId);
+          if (payload.error) pending.reject(new Error(String(payload.error)));
           else pending.resolve(payload.result);
         }
         return;
@@ -65,6 +67,16 @@ class NativeDesktopBridge implements IDesktopBridge {
         }
       }
     };
+
+    try {
+      Object.defineProperty(window, '__azokleHostDispatch', {
+        value: dispatchFn,
+        writable: false,
+        configurable: false,
+      });
+    } catch (_e) {
+      window.__azokleHostDispatch = dispatchFn;
+    }
 
     // Listen for WebView2 on Windows
     if (window.chrome?.webview?.addEventListener) {

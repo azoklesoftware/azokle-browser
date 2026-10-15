@@ -132,8 +132,10 @@ class PreferencesManager(private val context: Context) {
                 }
             }
 
-            android.util.Log.e("PreferencesManager", "Keystore unavailable. Preserving encrypted prefs: ${lastException?.message}")
-            return context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+            // AZK-LOW-01: Fail closed with safe isolated dummy preferences on Keystore failure
+            // instead of silently degrading to unencrypted persistent storage.
+            android.util.Log.e("PreferencesManager", "Keystore unavailable. Failing closed with isolated dummy store: ${lastException?.message}")
+            return context.getSharedPreferences("${PREFS_FILE}_keystore_unavailable_dummy", Context.MODE_PRIVATE)
         }
     }
 

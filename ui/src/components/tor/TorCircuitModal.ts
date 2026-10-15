@@ -28,7 +28,8 @@ export class TorCircuitModalComponent {
 
     const tor = this.browserStore.getTorCircuit();
     const activeTab = this.tabStore.getActiveTab();
-    const host = activeTab?.securityHost || (activeTab?.url.startsWith('http') ? new URL(activeTab.url).hostname : 'this site');
+    const rawHost = activeTab?.securityHost || (activeTab?.url.startsWith('http') ? new URL(activeTab.url).hostname : 'this site');
+    const host = this.escapeHtml(rawHost);
 
     this.container.style.display = 'block';
     this.container.className = 'flyout-overlay tor-modal-container';
@@ -79,10 +80,10 @@ export class TorCircuitModalComponent {
               <div class="node-bullet-outer"><div class="node-bullet-inner"></div></div>
               <div class="node-info">
                 <div class="node-title-row">
-                  <span class="node-name">${hop.name}</span>
+                  <span class="node-name">${this.escapeHtml(hop.name)}</span>
                   <span class="node-role-badge">${hop.isGuard ? 'Guard' : hop.isExit ? 'Exit' : `Hop ${idx + 1}`}</span>
                 </div>
-                <span class="node-details">${hop.country} • <span class="ip-mono">${hop.ip}</span></span>
+                <span class="node-details">${this.escapeHtml(hop.country)} • <span class="ip-mono">${this.escapeHtml(hop.ip)}</span></span>
               </div>
             </div>
             ${idx < hops.length - 1 ? '<div class="relay-connector-line"></div>' : ''}
@@ -123,5 +124,14 @@ export class TorCircuitModalComponent {
         }, 600);
       };
     }
+  }
+
+  private escapeHtml(str: string): string {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 }

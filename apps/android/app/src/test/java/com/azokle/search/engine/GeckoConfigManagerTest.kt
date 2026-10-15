@@ -57,11 +57,11 @@ class GeckoConfigManagerTest {
         assertTrue(yaml.contains("media.mediasource.mp4.enabled: true"))
         assertTrue(yaml.contains("media.mediasource.webm.enabled: true"))
         assertTrue(yaml.contains("media.mp4.enabled: true"))
-        assertTrue(yaml.contains("media.hardware-video-decoding.enabled: true"))
-        assertTrue(yaml.contains("media.autoplay.default: 0"))
+        assertTrue(yaml.contains("media.autoplay.default: 1"))
         assertTrue(yaml.contains("media.eme.enabled: true"))
-        assertTrue(yaml.contains("media.webspeech.recognition.enable: true"))
-        assertTrue(yaml.contains("media.webspeech.recognition.force_enable: true"))
+        assertTrue(yaml.contains("media.webspeech.recognition.enable: false"))
+        assertTrue(yaml.contains("media.webspeech.recognition.force_enable: false"))
+        assertTrue(yaml.contains("dom.events.asyncClipboard.readText: false"))
 
         // WebRTC Leak Prevention & Local IP Protection
         assertTrue(yaml.contains("media.peerconnection.ice.no_host: true"))

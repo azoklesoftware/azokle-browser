@@ -517,7 +517,9 @@ public class BrowserState: ObservableObject {
         showFindInPage = false
         findInPageQuery = ""
 
-        // 5. Purge history, tabs, and reseed fresh sandboxed tab
+        // 5. Purge history, recent searches, tabs, and reseed fresh sandboxed tab
+        // AZK-LOW-06: Ensure recent searches in UserDefaults are cleared upon data burn
+        UserDefaults.standard.removeObject(forKey: "azokle_recent_searches")
         history.removeAll()
         tabs.removeAll()
         openNewTab(url: "https://search.azokle.com", title: "Azokle Sovereign Search")

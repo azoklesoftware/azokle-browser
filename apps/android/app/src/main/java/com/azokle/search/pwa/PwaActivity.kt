@@ -875,17 +875,36 @@ fun PwaContainerScreen(
 
                                     val effectiveLength = stagedFile?.length()?.takeIf { it > 0L } ?: headerLength
 
-                                    com.azokle.search.downloads.DownloadManager.startDownload(
-                                        context = ctx,
-                                        url = downloadUrl,
-                                        filename = filename,
-                                        mimeType = mimeType,
-                                        contentLength = effectiveLength,
-                                        headers = response.headers,
-                                        isPrivate = isTor,
-                                        isTor = isTor,
-                                        stagedFilePath = stagedFile?.absolutePath
-                                    )
+                                    // AZK-MED-04: Show user confirmation and dangerous executable warning in PWA context
+                                    val isDangerous = com.azokle.search.downloads.DownloadManager.isDangerousExecutable(filename)
+                                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                        val act = (ctx as? android.app.Activity)
+                                            ?: ((ctx as? android.content.ContextWrapper)?.baseContext as? android.app.Activity)
+                                        if (act == null || act.isFinishing || act.isDestroyed) return@post
+                                        android.app.AlertDialog.Builder(act)
+                                            .setTitle(if (isDangerous) "Warning: Executable File" else "Confirm Download")
+                                            .setMessage(
+                                                (if (isDangerous) "WARNING: This file ($filename) can execute code and may harm your device.\n\n" else "") +
+                                                "Do you want to download $filename?"
+                                            )
+                                            .setPositiveButton("Download") { _, _ ->
+                                                com.azokle.search.downloads.DownloadManager.startDownload(
+                                                    context = ctx,
+                                                    url = downloadUrl,
+                                                    filename = filename,
+                                                    mimeType = mimeType,
+                                                    contentLength = effectiveLength,
+                                                    headers = response.headers,
+                                                    isPrivate = isTor,
+                                                    isTor = isTor,
+                                                    stagedFilePath = stagedFile?.absolutePath
+                                                )
+                                            }
+                                            .setNegativeButton("Cancel") { _, _ ->
+                                                stagedFile?.delete()
+                                            }
+                                            .show()
+                                    }
                                 } catch (e: Exception) {
                                     android.util.Log.e("PwaActivity", "Download routing error: ${e.message}")
                                 }

@@ -111,9 +111,9 @@ object BiometricAuthManager {
         }
 
         if (!isDeviceSecurityConfigured(activity)) {
-            // If device has no screen lock or biometrics configured, allow access or fail based on security policy
+            // AZK-MED-05: Strict default-deny: fail closed when no screen lock or biometrics are configured
             Handler(Looper.getMainLooper()).post {
-                onAuthenticated()
+                onDenied("Device security (PIN, pattern, password, or biometric) must be configured in Android Settings before accessing protected data.")
             }
             return
         }

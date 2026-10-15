@@ -134,23 +134,17 @@ fun FaviconImage(
         hues[hash % hues.size]
     }
 
+    // AZK-HIGH-05: Remove Google S2 endpoint queries to prevent clearnet IP leakage and tracking.
+    // If no direct site favicon exists, fall back securely to deterministic local domain monogram.
     val primaryFaviconUrl = remember(host, faviconUrl) {
-        if (!faviconUrl.isNullOrBlank() && !faviconUrl.contains("icons.duckduckgo.com")) {
+        if (!faviconUrl.isNullOrBlank() && (faviconUrl.startsWith("http://") || faviconUrl.startsWith("https://") || faviconUrl.startsWith("data:image/"))) {
             faviconUrl
-        } else if (host.contains(".")) {
-            "https://www.google.com/s2/favicons?domain=$host&sz=128"
         } else {
             null
         }
     }
 
-    val fallbackFaviconUrl = remember(host) {
-        if (host.contains(".")) {
-            "https://www.google.com/s2/favicons?domain=$host&sz=128"
-        } else {
-            null
-        }
-    }
+    val fallbackFaviconUrl: String? = null
 
     var activeFaviconUrl by remember(primaryFaviconUrl) { mutableStateOf(primaryFaviconUrl) }
     var isLoadFailed by remember(primaryFaviconUrl) { mutableStateOf(primaryFaviconUrl == null) }

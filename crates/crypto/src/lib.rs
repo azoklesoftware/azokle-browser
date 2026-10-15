@@ -41,6 +41,22 @@ mod tests {
     }
 
     #[test]
+    fn test_vault_encryption_with_aad() {
+        let salt = rand::random::<[u8; 24]>();
+        let key = VaultCrypto::derive_key("SuperSecretMasterPassword123!", &salt).unwrap();
+        let message = b"Confidential Password Payload";
+        let aad = b"account:user@example.com:domain:example.com";
+
+        let encrypted = VaultCrypto::encrypt_with_aad(&key, message, aad).unwrap();
+        let decrypted = VaultCrypto::decrypt_with_aad(&key, &encrypted, aad).unwrap();
+        assert_eq!(&decrypted[..], message);
+
+        // Mismatched AAD must fail closed (prevents record-swapping)
+        let wrong_aad = b"account:attacker@evil.com:domain:example.com";
+        assert!(VaultCrypto::decrypt_with_aad(&key, &encrypted, wrong_aad).is_err());
+    }
+
+    #[test]
     fn test_sovereign_passkey_creation_and_signing() {
         let (mut passkey, cred_id) =
             SovereignPasskey::create("github.com", "azokledev", b"user_12345").unwrap();

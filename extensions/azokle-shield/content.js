@@ -41,6 +41,7 @@
     // =========================================================================
     function injectScriptletIntoPage(code) {
         if (!code || typeof code !== 'string' || code.trim().length === 0) return;
+        if (code.length > 524288) return; // 512KB payload ceiling to prevent memory exhaustion DoS
         try {
             var script = document.createElement('script');
             script.textContent = code;

@@ -177,6 +177,15 @@ impl SovereignHttpClient {
                     let target_ip = ips
                         .first()
                         .ok_or_else(|| NetworkError::DnsError(host.to_string()))?;
+
+                    // AZK-MED-02: Re-validate resolved IP against SSRF policy before connection to prevent DNS rebinding attacks
+                    if !request.allow_private_ips && crate::security::SecurityPolicy::is_private_or_loopback_ip(target_ip) {
+                        return Err(NetworkError::SsrfBlocked(format!(
+                            "Resolved IP ({}) for host '{}' is a prohibited private/loopback address (DNS rebinding prevented)",
+                            target_ip, host
+                        )));
+                    }
+
                     let target_addr = SocketAddr::new(*target_ip, port);
                     let s =
                         TcpStream::connect_timeout(&target_addr, request.timeout).map_err(|e| {

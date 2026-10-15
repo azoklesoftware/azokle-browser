@@ -23,9 +23,14 @@ Azokle Browser bundles and dynamically updates high-efficiency adblock and track
 The repository provides an automated Python maintenance script located at:
 `tools/filter-update/update_filters.py`
 
+### Verifying Filter Pack Integrity
+```bash
+python3 tools/filter-update/update_filters.py --verify
+```
+
 ### Running the Updater
 ```bash
-python3 tools/filter-update/update_filters.py
+python3 tools/filter-update/update_filters.py --update --allow-unpinned
 ```
 
 ### Verification & Regression Checks

@@ -55,12 +55,10 @@ object DownloadManager {
     private val scope = CoroutineScope(Dispatchers.IO)
     private var isInitialized = false
 
-    // HTTP Response Headers that must NEVER be forwarded as outbound Request Headers
-    private val FORBIDDEN_OUTBOUND_HEADERS = hashSetOf(
-        "content-length", "content-type", "content-disposition",
-        "transfer-encoding", "set-cookie", "server", "date",
-        "connection", "keep-alive", "host", "user-agent",
-        "content-encoding", "vary", "age", "etag", "last-modified"
+    // AZK-LOW-03: HTTP Request Headers permitted to be forwarded for resumed downloads.
+    // Using a strict allowlist prevents leaking authorization, cookies, or proxy headers.
+    private val ALLOWED_OUTBOUND_HEADERS = hashSetOf(
+        "accept", "accept-language", "accept-encoding", "referer", "range", "if-range"
     )
 
     /**
@@ -319,9 +317,9 @@ object DownloadManager {
                     .url(item.url)
                     .header("User-Agent", com.azokle.search.engine.GeckoEngineManager.MODERN_MOBILE_UA)
 
-                // Forward only safe client request headers; strip response reflection headers
+                // Forward only safe client request headers using an allowlist
                 headers?.forEach { (k, v) ->
-                    if (!FORBIDDEN_OUTBOUND_HEADERS.contains(k.lowercase().trim())) {
+                    if (ALLOWED_OUTBOUND_HEADERS.contains(k.lowercase().trim())) {
                         requestBuilder.header(k, v)
                     }
                 }

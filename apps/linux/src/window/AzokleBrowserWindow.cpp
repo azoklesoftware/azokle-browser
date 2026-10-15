@@ -88,8 +88,15 @@ static std::string ResolveInputQuery(const std::string& input) {
         return BOOKMARKS_LOCAL_URL;
     }
 
-    if (q.rfind("http://", 0) == 0 || q.rfind("https://", 0) == 0 || q.rfind("file://", 0) == 0 || q.rfind("about:", 0) == 0) {
+    if (q.rfind("http://", 0) == 0 || q.rfind("https://", 0) == 0 || q == "about:blank") {
         return q;
+    }
+
+    // AZK-CRIT-02: Strictly reject arbitrary file://, javascript:, data:, and content: schemes
+    if (q.rfind("file://", 0) == 0 || q.rfind("javascript:", 0) == 0 || q.rfind("data:", 0) == 0 ||
+        q.rfind("blob:", 0) == 0 || q.rfind("content:", 0) == 0 || q.rfind("jar:", 0) == 0) {
+        std::cerr << "[AzokleSecurity] Blocked navigation attempt to prohibited scheme: " << q << "\n";
+        return NEWTAB_LOCAL_URL;
     }
 
     if (q.rfind("!g ", 0) == 0) {
@@ -274,12 +281,17 @@ void AzokleBrowserWindow::Show() {
     WebKitSettings* settings = loader.webkit_web_view_get_settings(g_webView);
     if (settings) {
         loader.webkit_settings_set_enable_javascript(settings, 1);
-        loader.webkit_settings_set_enable_developer_extras(settings, 1);
+        // AZK-LOW-12: Developer extras disabled by default in production
+        const char* devExtrasEnv = std::getenv("AZOKLE_DEV_EXTRAS");
+        if (devExtrasEnv && std::string(devExtrasEnv) == "1") {
+            loader.webkit_settings_set_enable_developer_extras(settings, 1);
+        }
+        // AZK-CRIT-02: Strict secure defaults - universal file access disabled
         if (loader.webkit_settings_set_allow_file_access_from_file_urls) {
-            loader.webkit_settings_set_allow_file_access_from_file_urls(settings, 1);
+            loader.webkit_settings_set_allow_file_access_from_file_urls(settings, 0);
         }
         if (loader.webkit_settings_set_allow_universal_access_from_file_urls) {
-            loader.webkit_settings_set_allow_universal_access_from_file_urls(settings, 1);
+            loader.webkit_settings_set_allow_universal_access_from_file_urls(settings, 0);
         }
         loader.webkit_settings_set_user_agent(settings, "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0 (Azokle Browser)");
     }
@@ -320,9 +332,47 @@ static std::string extract_json_str(const std::string& json, const std::string& 
     return "";
 }
 
+static bool is_safe_id(const std::string& id) {
+    if (id.empty() || id.length() > 64) return false;
+    for (char c : id) {
+        if (!isalnum(c) && c != '-' && c != '_') return false;
+    }
+    return true;
+}
+
+static std::string escape_json_str(const std::string& s) {
+    std::ostringstream o;
+    for (char c : s) {
+        if (c == '"') o << "\\\"";
+        else if (c == '\\') o << "\\\\";
+        else if (c == '\b') o << "\\b";
+        else if (c == '\f') o << "\\f";
+        else if (c == '\n') o << "\\n";
+        else if (c == '\r') o << "\\r";
+        else if (c == '\t') o << "\\t";
+        else if (static_cast<unsigned char>(c) < 32) {
+            // omit control char
+        } else {
+            o << c;
+        }
+    }
+    return o.str();
+}
+
 static void on_script_message_received(void* /*manager*/, void* js_result, void* user_data) {
     auto& loader = WebKitEngineLoader::Instance();
     if (!loader.webkit_javascript_result_get_js_value || !loader.jsc_value_to_json) return;
+
+    // AZK-CRIT-01: Verify that script message originates from the trusted Chrome UI
+    if (g_webView && loader.webkit_web_view_get_uri) {
+        const char* current_uri = loader.webkit_web_view_get_uri(g_webView);
+        if (!current_uri) return;
+        std::string uri_str(current_uri);
+        if (uri_str.rfind(CHROME_DESKTOP_URL, 0) != 0 && uri_str.rfind("azokle://", 0) != 0) {
+            std::cerr << "[AzokleSecurity] Rejected unauthorized native IPC from untrusted origin: " << uri_str << "\n";
+            return;
+        }
+    }
 
     void* js_val = loader.webkit_javascript_result_get_js_value(js_result);
     if (!js_val) return;
@@ -342,59 +392,67 @@ static void on_script_message_received(void* /*manager*/, void* js_result, void*
 void AzokleBrowserWindow::HandleNativeIpc(const std::string& json) {
     std::string reqId = extract_json_str(json, "id");
     std::string action = extract_json_str(json, "action");
-    if (reqId.empty() || action.empty()) return;
+    if (reqId.empty() || action.empty() || !is_safe_id(reqId)) return;
 
     auto& loader = WebKitEngineLoader::Instance();
     std::ostringstream ss;
 
     if (action == "getShieldMetrics") {
-        ss << "{\"id\":\"" << reqId << "\",\"result\":{"
+        ss << "{\"id\":\"" << escape_json_str(reqId) << "\",\"result\":{"
            << "\"totalBlocked\":0,\"adsBlocked\":0,\"trackersBlocked\":0,\"httpsUpgrades\":0,"
            << "\"isShieldActive\":" << (m_isShieldActive ? "true" : "false") << ","
            << "\"fingerprintProtection\":true,\"cookieBlocking\":true}}";
     } else if (action == "toggleShield") {
         m_isShieldActive = !m_isShieldActive;
-        ss << "{\"id\":\"" << reqId << "\",\"result\":" << (m_isShieldActive ? "true" : "false") << "}";
+        ss << "{\"id\":\"" << escape_json_str(reqId) << "\",\"result\":" << (m_isShieldActive ? "true" : "false") << "}";
     } else if (action == "navigate") {
         std::string url = extract_json_str(json, "url");
         if (!url.empty()) {
-            NavigateInternal(url);
+            // AZK-CRIT-01 & AZK-CRIT-02: Scheme allowlist
+            if (url.rfind("http://", 0) == 0 || url.rfind("https://", 0) == 0 || url.rfind("azokle://", 0) == 0) {
+                NavigateInternal(url);
+            } else {
+                std::cerr << "[AzokleSecurity] Blocked navigate IPC with disallowed URL scheme: " << url << "\n";
+            }
         }
-        ss << "{\"id\":\"" << reqId << "\",\"result\":true}";
+        ss << "{\"id\":\"" << escape_json_str(reqId) << "\",\"result\":true}";
     } else if (action == "reload") {
         Reload();
-        ss << "{\"id\":\"" << reqId << "\",\"result\":true}";
+        ss << "{\"id\":\"" << escape_json_str(reqId) << "\",\"result\":true}";
     } else if (action == "goBack") {
         GoBack();
-        ss << "{\"id\":\"" << reqId << "\",\"result\":true}";
+        ss << "{\"id\":\"" << escape_json_str(reqId) << "\",\"result\":true}";
     } else if (action == "goForward") {
         GoForward();
-        ss << "{\"id\":\"" << reqId << "\",\"result\":true}";
+        ss << "{\"id\":\"" << escape_json_str(reqId) << "\",\"result\":true}";
     } else if (action == "toggleTor") {
         m_isTorActive = !m_isTorActive;
-        ss << "{\"id\":\"" << reqId << "\",\"result\":" << (m_isTorActive ? "true" : "false") << "}";
+        ss << "{\"id\":\"" << escape_json_str(reqId) << "\",\"result\":" << (m_isTorActive ? "true" : "false") << "}";
     } else if (action == "getTorCircuit") {
-        ss << "{\"id\":\"" << reqId << "\",\"result\":{\"isActive\":" << (m_isTorActive ? "true" : "false") << ",\"hops\":[]}}";
+        ss << "{\"id\":\"" << escape_json_str(reqId) << "\",\"result\":{\"isActive\":" << (m_isTorActive ? "true" : "false") << ",\"hops\":[]}}";
     } else if (action == "getBookmarks") {
-        ss << "{\"id\":\"" << reqId << "\",\"result\":[]}";
+        ss << "{\"id\":\"" << escape_json_str(reqId) << "\",\"result\":[]}";
     } else if (action == "getHistory") {
-        ss << "{\"id\":\"" << reqId << "\",\"result\":[]}";
+        ss << "{\"id\":\"" << escape_json_str(reqId) << "\",\"result\":[]}";
     } else if (action == "getDownloads") {
-        ss << "{\"id\":\"" << reqId << "\",\"result\":[]}";
+        ss << "{\"id\":\"" << escape_json_str(reqId) << "\",\"result\":[]}";
     } else if (action == "createTab") {
         std::string url = extract_json_str(json, "url");
-        if (url.empty()) url = "azokle://newtab";
-        ss << "{\"id\":\"" << reqId << "\",\"result\":{"
-           << "\"id\":1,\"title\":\"New Tab\",\"url\":\"" << url << "\","
+        if (url.empty() || (url.rfind("http://", 0) != 0 && url.rfind("https://", 0) != 0 && url.rfind("azokle://", 0) != 0)) {
+            url = "azokle://newtab";
+        }
+        ss << "{\"id\":\"" << escape_json_str(reqId) << "\",\"result\":{"
+           << "\"id\":1,\"title\":\"New Tab\",\"url\":\"" << escape_json_str(url) << "\","
            << "\"isPrivate\":false,\"isTor\":false,\"isLoading\":false,\"progress\":1.0,"
            << "\"securityLevel\":\"SECURE\"}}";
     } else if (action == "closeWindow") {
         if (loader.gtk_main_quit) loader.gtk_main_quit();
         return;
     } else {
-        ss << "{\"id\":\"" << reqId << "\",\"result\":null}";
+        ss << "{\"id\":\"" << escape_json_str(reqId) << "\",\"result\":null}";
     }
 
+    // AZK-MED-11: Deliver serialized JSON safely
     if (g_webView && loader.webkit_web_view_run_javascript) {
         std::string script = "if (window.__azokleHostDispatch) window.__azokleHostDispatch('response', " + ss.str() + ");";
         loader.webkit_web_view_run_javascript(g_webView, script.c_str(), nullptr, nullptr, nullptr);

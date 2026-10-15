@@ -68,11 +68,21 @@ public struct WebViewContainer: UIViewRepresentable {
 
         context.coordinator.setupObservers(for: webView)
 
-        if let tab = state.tabs.first(where: { $0.id == tabId }),
-           let url = URL(string: tab.url) {
-            let safeUrl = NavigationSecurity.shared.upgradeToHttps(url: url)
-            let request = URLRequest(url: safeUrl)
-            webView.load(request)
+        if let tab = state.tabs.first(where: { $0.id == tabId }) {
+            // AZK-CRIT-03: Fail-closed on iOS Tor/onion navigation to prevent clearnet de-anonymization
+            if tab.isTor || tab.url.contains(".onion") {
+                let errorHtml = """
+                <!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'><style>body{background:#12141a;color:#f1f5f9;font-family:-apple-system,sans-serif;padding:32px;text-align:center;}h2{color:#f87171;margin-top:24px;}p{color:#94a3b8;font-size:15px;line-height:1.5;}</style></head><body><h2>Tor Routing Unavailable</h2><p>Tor onion routing is not supported on this platform build. To prevent de-anonymization and clearnet IP leakage, network requests in Tor mode are strictly blocked.</p></body></html>
+                """
+                webView.loadHTMLString(errorHtml, baseURL: nil)
+                return webView
+            }
+
+            if let url = URL(string: tab.url) {
+                let safeUrl = NavigationSecurity.shared.upgradeToHttps(url: url)
+                let request = URLRequest(url: safeUrl)
+                webView.load(request)
+            }
         }
 
         return webView
@@ -226,6 +236,25 @@ public struct WebViewContainer: UIViewRepresentable {
 
             let currentTab = parent.state.tabs.first(where: { $0.id == parent.tabId })
             let isTor = currentTab?.isTor ?? false
+
+            // AZK-CRIT-03: Block Tor/onion requests fail closed
+            if isTor || url.absoluteString.contains(".onion") {
+                decisionHandler(.cancel)
+                return
+            }
+
+            // AZK-MED-07: Intercept main-frame link navigation with SafeBrowsingGuard
+            if navigationAction.targetFrame?.isMainFrame ?? true {
+                let threat = SafeBrowsingGuard.shared.assessUrl(url.absoluteString)
+                if threat.isThreat {
+                    DispatchQueue.main.async {
+                        self.parent.state.activeThreatAssessment = threat
+                    }
+                    decisionHandler(.cancel)
+                    return
+                }
+            }
+
             let decision = NavigationSecurity.shared.evaluateNavigation(url: url, isTor: isTor)
 
             switch decision {

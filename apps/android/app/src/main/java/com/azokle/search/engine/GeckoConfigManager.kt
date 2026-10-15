@@ -166,16 +166,16 @@ object GeckoConfigManager {
             appendLine("  media.hls.enabled: true")
             appendLine("  media.hardware-video-decoding.enabled: true")
             appendLine("  media.suspend-bkgnd-video.enabled: false")
-            appendLine("  media.block-autoplay-until-in-foreground: false")
+            appendLine("  media.block-autoplay-until-in-foreground: true")
             appendLine("  media.geckoview.autoplay.request: true")
-            appendLine("  media.autoplay.default: 0")
+            appendLine("  media.autoplay.default: 1") // AZK-LOW-02: Block audible autoplay by default
             appendLine("  media.autoplay.blocking_policy: 0")
             appendLine("  media.eme.enabled: true")
-            appendLine("  media.webspeech.recognition.enable: true")
-            appendLine("  media.webspeech.recognition.force_enable: true")
+            appendLine("  media.webspeech.recognition.enable: false") // AZK-LOW-02: Do not force enable speech recognition
+            appendLine("  media.webspeech.recognition.force_enable: false")
 
             // 6. Advanced Web APIs: Async Clipboard, WebXR, WebAuthn
-            appendLine("  dom.events.asyncClipboard.readText: true")
+            appendLine("  dom.events.asyncClipboard.readText: false") // AZK-LOW-02: Prevent unprompted clipboard snooping
             appendLine("  dom.events.asyncClipboard.clipboardItem: true")
             appendLine("  dom.events.asyncClipboard.dataTransfer: true")
             appendLine("  dom.vr.enabled: true")

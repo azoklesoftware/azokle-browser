@@ -90,17 +90,20 @@ impl ProxyRouter {
         let port = guard.tor_socks_port;
         let is_tor = guard.is_tor_enabled;
 
+        // AZK-HIGH-06: Strict fail-closed Tor proxy PAC script.
+        // Never fall back to "DIRECT" when Tor mode is enabled to prevent clearnet IP leakage.
         format!(
             r#"function FindProxyForURL(url, host) {{
     if (shExpMatch(host, "*.onion") || shExpMatch(url, "*.onion/*")) {{
-        return "SOCKS5 127.0.0.1:{}; SOCKS 127.0.0.1:{}";
+        return "SOCKS5 127.0.0.1:{port}; SOCKS 127.0.0.1:{port}";
     }}
-    if ({}) {{
-        return "SOCKS5 127.0.0.1:{}; DIRECT";
+    if ({is_tor}) {{
+        return "SOCKS5 127.0.0.1:{port}; SOCKS 127.0.0.1:{port}";
     }}
     return "DIRECT";
 }}"#,
-            port, port, is_tor, port
+            port = port,
+            is_tor = is_tor
         )
     }
 }
@@ -133,5 +136,7 @@ mod tests {
         let pac = router.generate_pac_script();
         assert!(pac.contains("FindProxyForURL"));
         assert!(pac.contains("127.0.0.1:9050"));
+        // AZK-HIGH-06 regression test: Tor PAC script must NEVER contain fail-open DIRECT fallback
+        assert!(!pac.contains("SOCKS5 127.0.0.1:9050; DIRECT"));
     }
 }

@@ -124,13 +124,8 @@ object ExternalNavigationHandler {
         }
 
         // 3. Enforce user gesture for external application launches
-        // Exempt safe redirect targets (Play Store, UPI payments, OAuth) from strict user-gesture gating
-        // because redirect chains (e.g. Instagram/Facebook link-shims, ad clicks, or payment gateways)
-        // drop hasUserGesture in GeckoView.
-        val isRedirectExempt = isPlayStore ||
-                type == UriClassifier.UriType.APP_STORE ||
-                type == UriClassifier.UriType.UPI_PAYMENT ||
-                (type == UriClassifier.UriType.CUSTOM_APP_SCHEME && OAuthRedirectHandler.isOAuthCallback(trimmed))
+        // AZK-MED-03: Require user gesture for all external dispatches. Do not exempt UPI or Store redirects.
+        val isRedirectExempt = type == UriClassifier.UriType.CUSTOM_APP_SCHEME && OAuthRedirectHandler.isOAuthCallback(trimmed)
 
         if (!isRedirectExempt && !NavigationSecurity.isGestureAllowed(hasUserGesture, targetWindow)) {
             return true // blocked unauthorized auto-redirect

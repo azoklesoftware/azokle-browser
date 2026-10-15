@@ -586,9 +586,15 @@
                             return;
                         }
                         if (redirectUrl) {
-                            reportBlockToApp(host, category);
-                            resolve({ redirectUrl: redirectUrl });
-                            return;
+                            // AZK-MED-14: Validate redirectUrl scheme to strictly allow https: and safe data: surrogates
+                            var isSafeScheme = redirectUrl.startsWith('https://') ||
+                                redirectUrl.startsWith('data:application/javascript') ||
+                                redirectUrl.startsWith('data:image/');
+                            if (isSafeScheme) {
+                                reportBlockToApp(host, category);
+                                resolve({ redirectUrl: redirectUrl });
+                                return;
+                            }
                         }
                         reportBlockToApp(host, category);
                         resolve({ cancel: true });
@@ -617,14 +623,26 @@
     if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.onMessage) {
         browser.runtime.onMessage.addListener(function(message, sender, sendResponse) {
             if (!message) return;
-            if (message.type === 'RECORD_BLOCK' && message.host) {
-                reportBlockToApp(message.host, message.category || 1);
+            if (message.type === 'RECORD_BLOCK' && message.host && typeof message.host === 'string') {
+                // AZK-MED-14: Validate sender frame and host string sanity to prevent spoofed shield stats
+                if (sender && (sender.frameId === 0 || typeof sender.frameId === 'undefined')) {
+                    var sanitizedHost = message.host.trim().toLowerCase().slice(0, 255);
+                    var catNum = Number(message.category) || 1;
+                    if (/^[a-z0-9.-]+$/.test(sanitizedHost)) {
+                        reportBlockToApp(sanitizedHost, Math.max(1, Math.min(10, catNum)));
+                    }
+                }
                 if (sendResponse) sendResponse({ ok: true });
             } else if (message.type === 'GET_THEME') {
                 if (sendResponse) sendResponse({ theme: currentAppTheme });
             } else if (message.type === 'GET_COSMETIC_CSS') {
                 // Fetch tailored cosmetic CSS for the requested domain from native CosmeticEngine
-                var domain = message.domain || (sender && sender.tab && sender.tab.url ? extractHostname(sender.tab.url) : '');
+                var rawDomain = message.domain || (sender && sender.tab && sender.tab.url ? extractHostname(sender.tab.url) : '');
+                var domain = (typeof rawDomain === 'string' && /^[a-zA-Z0-9.-]{1,253}$/.test(rawDomain)) ? rawDomain : '';
+                if (!domain) {
+                    if (sendResponse) sendResponse({ css: '' });
+                    return;
+                }
                 if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendNativeMessage) {
                     browser.runtime.sendNativeMessage('nativeApp', {
                         type: 'GET_COSMETIC_CSS',
@@ -640,7 +658,12 @@
                 }
             } else if (message.type === 'GET_SCRIPTLETS') {
                 // Fetch tailored defuser scriptlets for the requested domain from native Rust engine
-                var domain = message.domain || (sender && sender.tab && sender.tab.url ? extractHostname(sender.tab.url) : '');
+                var rawDomain = message.domain || (sender && sender.tab && sender.tab.url ? extractHostname(sender.tab.url) : '');
+                var domain = (typeof rawDomain === 'string' && /^[a-zA-Z0-9.-]{1,253}$/.test(rawDomain)) ? rawDomain : '';
+                if (!domain) {
+                    if (sendResponse) sendResponse({ scriptlet: '' });
+                    return;
+                }
                 if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendNativeMessage) {
                     browser.runtime.sendNativeMessage('nativeApp', {
                         type: 'GET_SCRIPTLETS',

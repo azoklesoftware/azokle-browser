@@ -95,7 +95,11 @@ public final class EncryptedVaultManager: ObservableObject {
                 kSecValueData as String: rawData,
                 kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
             ]
-            SecItemAdd(addQuery as CFDictionary, nil)
+            let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
+            if addStatus == errSecDuplicateItem {
+                SecItemDelete(addQuery as CFDictionary)
+                SecItemAdd(addQuery as CFDictionary, nil)
+            }
             self.cachedMasterKey = newKey
             return newKey
         }
@@ -103,6 +107,8 @@ public final class EncryptedVaultManager: ObservableObject {
 
     // MARK: - AES-256-GCM Encryption / Decryption
     public func encryptString(_ plain: String) -> String? {
+        // AZK-MED-08: Gate crypto operations behind authentication check
+        guard isUnlocked else { return nil }
         guard let data = plain.data(using: .utf8) else { return nil }
         let key = loadOrGenerateKey()
         do {
@@ -114,6 +120,8 @@ public final class EncryptedVaultManager: ObservableObject {
     }
 
     public func decryptString(_ cipherBase64: String) -> String? {
+        // AZK-MED-08: Gate crypto operations behind authentication check
+        guard isUnlocked else { return nil }
         guard let combinedData = Data(base64Encoded: cipherBase64) else { return nil }
         let key = loadOrGenerateKey()
         do {
@@ -125,7 +133,7 @@ public final class EncryptedVaultManager: ObservableObject {
         }
     }
 
-    // MARK: - Cryptographically Secure Password Generator (CSPRNG)
+    // MARK: - Cryptographically Secure Password Generator (CSPRNG with Rejection Sampling)
     public func generateSecurePassword(length: Int = 20, includeSymbols: Bool = true) -> String {
         let letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         let digits = "0123456789"
@@ -136,23 +144,20 @@ public final class EncryptedVaultManager: ObservableObject {
 
         let poolArray = Array(pool)
         let poolSize = poolArray.count
-        guard poolSize > 0 else { return "" }
+        guard poolSize > 0, length > 0 else { return "" }
 
+        // AZK-LOW-05: Rejection sampling threshold to completely eliminate modulo bias
+        let maxValidByte = UInt8((256 / poolSize) * poolSize)
         var password = ""
-        var randomBytes = [UInt8](repeating: 0, count: length)
-        let status = SecRandomCopyBytes(kSecRandomDefault, length, &randomBytes)
+        var byteBuffer = [UInt8](repeating: 0, count: 1)
 
-        if status == errSecSuccess {
-            for byte in randomBytes {
-                let index = Int(byte) % poolSize
+        while password.count < length {
+            let status = SecRandomCopyBytes(kSecRandomDefault, 1, &byteBuffer)
+            guard status == errSecSuccess else { break }
+            let b = byteBuffer[0]
+            if b < maxValidByte {
+                let index = Int(b) % poolSize
                 password.append(poolArray[index])
-            }
-        } else {
-            // Fallback to Swift's standard crypto-safe SystemRandomNumberGenerator
-            for _ in 0..<length {
-                if let char = poolArray.randomElement() {
-                    password.append(char)
-                }
             }
         }
 

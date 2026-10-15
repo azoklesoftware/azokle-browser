@@ -55,8 +55,11 @@ public class SafeBrowsingGuard {
     ]
 
     public func assessUrl(_ rawUrl: String) -> ThreatAssessment {
-        guard !rawUrl.isEmpty, let url = URL(string: rawUrl), let host = url.host?.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) else {
-            return ThreatAssessment(url: rawUrl, host: "", isThreat: false, threatType: .none)
+        guard !rawUrl.isEmpty, let url = URL(string: rawUrl), let host = url.host?.lowercased().trimmingCharacters(in: .whitespacesAndNewlines), !host.isEmpty else {
+            // AZK-MED-07: Fail closed on malformed non-empty URLs
+            return rawUrl.isEmpty
+                ? ThreatAssessment(url: rawUrl, host: "", isThreat: false, threatType: .none)
+                : ThreatAssessment(url: rawUrl, host: "", isThreat: true, threatType: .malware)
         }
 
         lock.lock()

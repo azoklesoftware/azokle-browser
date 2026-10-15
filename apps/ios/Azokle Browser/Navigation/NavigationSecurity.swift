@@ -19,10 +19,10 @@ public final class NavigationSecurity {
         "file", "content", "chrome", "resource", "jar", "blob", "javascript", "data"
     ]
 
-    // Supported external app schemes
+    // Supported external app schemes (AZK-LOW-07: dropped x-callback-url to prevent unprompted IPC actions)
     private let safeExternalSchemes: Set<String> = [
         "tel", "mailto", "sms", "maps", "facetime", "facetime-audio",
-        "upi", "whatsapp", "tg", "twitter", "x-callback-url"
+        "upi", "whatsapp", "tg", "twitter"
     ]
 
     // Privacy tracking parameter blacklist

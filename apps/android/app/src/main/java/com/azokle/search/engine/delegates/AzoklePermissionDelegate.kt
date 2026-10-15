@@ -90,12 +90,10 @@ class AzoklePermissionDelegate(
             }
         }
 
-        // 3. Storage Access API for embedded third-party media players (Vimeo, Twitter/X, Reddit embeds)
+        // 3. Storage Access API: strictly deny on Tor; evaluate or prompt outside Tor
         if (permRequest.permission == GeckoSession.PermissionDelegate.PERMISSION_STORAGE_ACCESS) {
-            return if (isTor) {
-                GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
-            } else {
-                GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
+            if (isTor) {
+                return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
             }
         }
 

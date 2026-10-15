@@ -90,6 +90,13 @@ void DesktopBrowserApp::Navigate(const std::string& url) {
     auto tab = GetActiveTab();
     if (!tab) return;
 
+    // AZK-LOW-12: Enforce scheme allowlist (http, https, and internal safe schemes)
+    if (url.rfind("http://", 0) != 0 && url.rfind("https://", 0) != 0 &&
+        url.rfind("azokle://", 0) != 0 && url != "about:blank") {
+        std::cerr << "[DesktopBrowserApp] Blocked navigation attempt to prohibited scheme: " << url << "\n";
+        return;
+    }
+
     if (m_isShieldActive) {
         auto decision = azokle_core_check_url(url.c_str(), tab->url.c_str(), false);
         if (decision.should_block) {

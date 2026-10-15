@@ -78,23 +78,11 @@ public final class TorCircuitManager: ObservableObject {
 
     // MARK: - Connect & Bootstrap Lifecycle
     public func startTorConnection() {
-        state = .starting("Initiating Sovereign Onion Stack...")
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            self.state = .bootstrapping(progress: 25, statusText: "Connecting to \(self.selectedBridge.rawValue)...")
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
-            self.state = .bootstrapping(progress: 60, statusText: "Negotiating Onion Diffie-Hellman Keys...")
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
-            self.state = .bootstrapping(progress: 88, statusText: "Acquiring Directory Consensus & Guard Relay...")
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.9) {
-            self.buildSampleConnectedCircuit()
-        }
+        // AZK-CRIT-03: Fail closed truthfully instead of simulating fake hops over clearnet
+        state = .error(
+            message: "Tor onion routing daemon is not embedded on iOS. Tor mode is disabled to prevent clearnet IP leakage.",
+            canRetry: false
+        )
     }
 
     public func disconnectTor() {
@@ -102,10 +90,10 @@ public final class TorCircuitManager: ObservableObject {
     }
 
     public func rotateCircuit() {
-        state = .bootstrapping(progress: 50, statusText: "Negotiating New 3-Hop Circuit...")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            self.buildSampleConnectedCircuit()
-        }
+        state = .error(
+            message: "Tor onion routing daemon is not embedded on iOS.",
+            canRetry: false
+        )
     }
 
     private func buildSampleConnectedCircuit() {

@@ -128,9 +128,10 @@ object NavigationSecurity {
 
     /**
      * Verifies whether a navigation request is safe to execute based on user gesture.
+     * AZK-MED-03: Strictly require hasUserGesture to prevent unprompted background external dispatches.
      */
     fun isGestureAllowed(hasUserGesture: Boolean, targetWindow: Int): Boolean {
-        return hasUserGesture || targetWindow == 0 // TARGET_WINDOW_NONE
+        return hasUserGesture
     }
 
     /**

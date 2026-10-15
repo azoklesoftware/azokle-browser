@@ -87,26 +87,38 @@ impl VaultCrypto {
     ///
     /// # Wire Format:
     /// `[12-byte Nonce] || [Ciphertext] || [16-byte Poly1305 MAC Tag]`
-    pub fn encrypt(key: &SecretKey, plaintext: &[u8]) -> Result<Vec<u8>, VaultCryptoError> {
+    /// Encrypts plaintext using ChaCha20-Poly1305 with authenticated associated data (AAD).
+    ///
+    /// AZK-LOW-08: Binds context metadata (e.g. account domain, user id) to the ciphertext
+    /// tag, cryptographically preventing record-swapping and cut-and-paste tampering attacks.
+    pub fn encrypt_with_aad(
+        key: &SecretKey,
+        plaintext: &[u8],
+        aad: &[u8],
+    ) -> Result<Vec<u8>, VaultCryptoError> {
         let cipher = ChaCha20Poly1305::new(key.as_bytes().into());
         let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
+        let payload = chacha20poly1305::aead::Payload {
+            msg: plaintext,
+            aad,
+        };
 
         let mut ciphertext = cipher
-            .encrypt(&nonce, plaintext)
+            .encrypt(&nonce, payload)
             .map_err(|_| VaultCryptoError::EncryptionError)?;
 
-        // Output format: [12 bytes Nonce] + [Ciphertext + 16 bytes Poly1305 Tag]
         let mut result = Vec::with_capacity(12 + ciphertext.len());
         result.extend_from_slice(nonce.as_slice());
         result.append(&mut ciphertext);
         Ok(result)
     }
 
-    /// Decrypts a ChaCha20-Poly1305 payload and verifies the Poly1305 authentication tag.
-    ///
-    /// Ensures ciphertext integrity before yielding plaintext. Rejects truncated payloads
-    /// lacking the 12-byte nonce or 16-byte Poly1305 authentication tag.
-    pub fn decrypt(key: &SecretKey, payload: &[u8]) -> Result<Vec<u8>, VaultCryptoError> {
+    /// Decrypts a ChaCha20-Poly1305 payload and verifies the Poly1305 tag against provided AAD.
+    pub fn decrypt_with_aad(
+        key: &SecretKey,
+        payload: &[u8],
+        aad: &[u8],
+    ) -> Result<Vec<u8>, VaultCryptoError> {
         if payload.len() < 12 + 16 {
             return Err(VaultCryptoError::DecryptionError);
         }
@@ -114,9 +126,23 @@ impl VaultCrypto {
         let (nonce_bytes, ciphertext) = payload.split_at(12);
         let cipher = ChaCha20Poly1305::new(key.as_bytes().into());
         let nonce = Nonce::from_slice(nonce_bytes);
+        let payload = chacha20poly1305::aead::Payload {
+            msg: ciphertext,
+            aad,
+        };
 
         cipher
-            .decrypt(nonce, ciphertext)
+            .decrypt(nonce, payload)
             .map_err(|_| VaultCryptoError::DecryptionError)
+    }
+
+    /// Encrypts plaintext using ChaCha20-Poly1305 AEAD.
+    pub fn encrypt(key: &SecretKey, plaintext: &[u8]) -> Result<Vec<u8>, VaultCryptoError> {
+        Self::encrypt_with_aad(key, plaintext, &[])
+    }
+
+    /// Decrypts a ChaCha20-Poly1305 payload and verifies the Poly1305 authentication tag.
+    pub fn decrypt(key: &SecretKey, payload: &[u8]) -> Result<Vec<u8>, VaultCryptoError> {
+        Self::decrypt_with_aad(key, payload, &[])
     }
 }
