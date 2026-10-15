@@ -443,7 +443,22 @@ impl AdBlockEngine {
         if res.hide_selectors.is_empty() {
             String::new()
         } else {
-            let mut selectors: Vec<_> = res.hide_selectors.into_iter().collect();
+            let mut selectors: Vec<_> = res
+                .hide_selectors
+                .into_iter()
+                .filter(|sel| {
+                    let s = sel.trim();
+                    !s.is_empty()
+                        && !s.contains('{')
+                        && !s.contains('}')
+                        && !s.contains("/*")
+                        && !s.contains("*/")
+                        && !s.to_ascii_lowercase().contains("url(")
+                })
+                .collect();
+            if selectors.is_empty() {
+                return String::new();
+            }
             selectors.sort();
             format!("{} {{ display: none !important; }}", selectors.join(", "))
         }
@@ -641,6 +656,35 @@ mod tests {
         assert!(
             json.contains("url-filter"),
             "JSON should contain url-filter: {json}"
+        );
+    }
+
+    #[test]
+    fn test_cosmetic_css_sanitization_and_breakout_rejection() {
+        let engine = AdBlockEngine::new();
+        let rules = r#"
+            example.com##.valid-banner
+            example.com###valid-ad
+            example.com##x} *{background:url(//evil?c=1)!important} .y{
+            example.com##div[class*="test"]{display:block}
+            example.com##.injected/*comment*/
+        "#;
+        engine.load_rules_from_text(rules, BlockCategory::Ad);
+
+        let css = engine.get_cosmetic_css("example.com");
+        assert!(css.contains(".valid-banner"), "Should contain valid-banner");
+        assert!(css.contains("#valid-ad"), "Should contain #valid-ad");
+        assert!(
+            !css.contains("evil"),
+            "Breakout payload must be rejected: {css}"
+        );
+        assert!(
+            !css.contains("background"),
+            "Injected property must be rejected: {css}"
+        );
+        assert!(
+            !css.contains("/*"),
+            "Comment injection must be rejected: {css}"
         );
     }
 }

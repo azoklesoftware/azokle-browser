@@ -170,8 +170,11 @@ impl SovereignWhitelist {
             || clean.ends_with(".azokle.com")
             || clean == "cloudflare.com"
             || clean.ends_with(".cloudflare.com")
+            || clean == "cloudflareinsights.com"
             || clean.ends_with(".cloudflareinsights.com")
+            || clean == "hcaptcha.com"
             || clean.ends_with(".hcaptcha.com")
+            || clean == "recaptcha.net"
             || clean.ends_with(".recaptcha.net")
     }
 }

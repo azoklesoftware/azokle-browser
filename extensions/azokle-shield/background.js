@@ -155,15 +155,19 @@
         if (!host) return false;
         var h = host.toLowerCase().trim();
         if (sovereignHosts.has(h)) return true;
-        if (h.endsWith('.azokle.com') || h.endsWith('.cloudflare.com') ||
-            h.endsWith('.cloudflareinsights.com') || h.endsWith('.hcaptcha.com') ||
-            h.endsWith('.recaptcha.net') || h.includes('turnstile') ||
-            hostMatches(h, 'challenges.cloudflare.com')) {
+        if (hostMatches(h, 'azokle.com') ||
+            hostMatches(h, 'challenges.cloudflare.com') ||
+            hostMatches(h, 'cloudflareinsights.com') ||
+            hostMatches(h, 'hcaptcha.com') ||
+            hostMatches(h, 'recaptcha.net')) {
             return true;
         }
-        var u = (url || '').toLowerCase();
-        if (u.includes('/cdn-cgi/') || u.includes('/challenge-platform/')) {
-            return true;
+        // Path exemptions for Cloudflare challenge platform are strictly constrained to genuine Cloudflare hosts
+        if (hostMatches(h, 'cloudflare.com')) {
+            var u = (url || '').toLowerCase();
+            if (u.includes('/cdn-cgi/challenge-platform/') || u.includes('/challenge-platform/') || u.includes('/turnstile/')) {
+                return true;
+            }
         }
         return false;
     }
