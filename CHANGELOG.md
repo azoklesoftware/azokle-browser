@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [v2.0.9] — 2026-10-15
+
+### 🛡️ Independent Deep Security Audit Remediation Release
+Detailed audit findings remediation and verification artifacts can be reviewed in [`.azokle/changelog/android/v-2.0.9.md`](.azokle/changelog/android/v-2.0.9.md).
+
+#### Fixed & Hardened (68 Audit Findings Addressed)
+- **CSS Injection & Filter-list Sanitization (AZK-F-001)**: Enforced strict CSS selector sanitization preventing style breakouts (`{`, `}`, `/*`, `url(`) and enabled validation features in adblock engine.
+- **Component Synchronization & DOM Hardening (AZK-F-002)**: Synchronized and hardened duplicate modular chrome components (`BookmarksBar.ts`, `TorCircuitModal.ts`, `Omnibar.ts`) with safe DOM creation and HTML escaping.
+- **WHATWG URL Parsing & Normalization (AZK-F-005, AZK-F-006)**: Restored ASCII tab/LF/CR stripping and lowercase host normalization in adblock engine to eliminate tracker filter bypasses.
+- **Omnibox Search Query Percent-Encoding (AZK-F-007)**: Implemented robust `application/x-www-form-urlencoded` serialization preventing parameter injection (`&`, `#`, `?`, `%`).
+- **Apex Sovereign Domain Whitelisting (AZK-F-013, AZK-F-033)**: Replaced loose substring checks with exact and suffix domain matching; restricted Cloudflare challenge path exemptions.
+- **Flatbuffer Bounds & Deserialization Resilience (AZK-F-014, AZK-F-015, AZK-F-016, AZK-F-019)**: Enforced runtime length validation, bounded hash table probe loops to prevent infinite DoS, added regex slicing checks, and handled scriptlet arguments safely.
+- **FFI & JNI Panic Barriers (AZK-F-020, AZK-F-021)**: Wrapped all 87 JNI entry points with `catch_unwind` and removed `panic = "abort"` from release profile to protect host process integrity.
+- **Privacy Telemetry & Hotlink Elimination (AZK-F-027, AZK-F-028, AZK-F-029)**: Gated omnibox autosuggestions on non-Tor and non-private sessions; eliminated third-party Google favicon tracking and Unsplash wallpaper hotlinks in favor of local CSS gradients.
+- **iOS Keychain & Certificate Trust Realism (AZK-F-045, AZK-F-046)**: Replaced destructive key wipes on transient errors with fail-safe recovery; removed decorative/fabricated certificate hashes and dates in favor of accurate OS WebKit verification status.
+- **CI/CD Supply Chain Hardening (AZK-F-055, AZK-F-056, AZK-F-057, AZK-F-059, AZK-F-060, AZK-F-067)**: Pinned all GitHub Actions by immutable 40-character commit SHAs, added Gradle wrapper validation, enforced fail-closed signing, and generated SHA256 checksums.
+- **Desktop UI Dependency & CSP Hardening (AZK-F-064, AZK-F-065)**: Locked `@types/bun` to `^1.3.5` in lockfile and added `frame-src 'self' https: http:;` to UI CSP.
+
+---
+
 ## [v2.0.6] — 2026-10-10
 
 ### 🛡️ Android & Web Engine Hardening Release
