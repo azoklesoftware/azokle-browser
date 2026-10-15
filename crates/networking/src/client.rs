@@ -171,7 +171,8 @@ impl SovereignHttpClient {
                 Self::socks5_connect(proxy_addr, host, port, request.timeout)?
             }
             NetworkRoute::Direct => {
-                let is_onion = host.eq_ignore_ascii_case("onion") || host.to_lowercase().ends_with(".onion");
+                let is_onion =
+                    host.eq_ignore_ascii_case("onion") || host.to_lowercase().ends_with(".onion");
                 if !is_onion {
                     let ips = self.dns.resolve(host)?;
                     let target_ip = ips
@@ -179,7 +180,9 @@ impl SovereignHttpClient {
                         .ok_or_else(|| NetworkError::DnsError(host.to_string()))?;
 
                     // AZK-MED-02: Re-validate resolved IP against SSRF policy before connection to prevent DNS rebinding attacks
-                    if !request.allow_private_ips && crate::security::SecurityPolicy::is_private_or_loopback_ip(target_ip) {
+                    if !request.allow_private_ips
+                        && crate::security::SecurityPolicy::is_private_or_loopback_ip(target_ip)
+                    {
                         return Err(NetworkError::SsrfBlocked(format!(
                             "Resolved IP ({}) for host '{}' is a prohibited private/loopback address (DNS rebinding prevented)",
                             target_ip, host
@@ -322,20 +325,28 @@ mod tests {
     fn test_crlf_header_injection_rejected() {
         let client = SovereignHttpClient::default();
         let mut req = HttpRequest::get("http://example.com/");
-        req.headers.insert("X-Inject".to_string(), "foo\r\nInjected-Header: evil".to_string());
+        req.headers.insert(
+            "X-Inject".to_string(),
+            "foo\r\nInjected-Header: evil".to_string(),
+        );
         let result = client.execute(req);
         match result {
             Err(NetworkError::InvalidUrl(msg)) => {
                 assert!(msg.contains("CRLF injection detected"));
             }
-            other => panic!("Expected InvalidUrl error for CRLF injection, got {:?}", other),
+            other => panic!(
+                "Expected InvalidUrl error for CRLF injection, got {:?}",
+                other
+            ),
         }
     }
 
     #[test]
     fn test_onion_direct_resolution_blocked() {
         let client = SovereignHttpClient::default();
-        let req = HttpRequest::get("http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/test");
+        let req = HttpRequest::get(
+            "http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/test",
+        );
         let result = client.execute(req);
         match result {
             Err(NetworkError::DnsLeakPrevented(msg)) => {

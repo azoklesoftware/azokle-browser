@@ -26,7 +26,10 @@ pub fn fb_vector_to_slice<T>(vector: flatbuffers::Vector<'_, T>) -> &[T] {
 
     let size = std::mem::size_of::<T>();
     let align = std::mem::align_of::<T>();
-    assert!(size > 0, "Zero-sized types are not supported in fb_vector_to_slice");
+    assert!(
+        size > 0,
+        "Zero-sized types are not supported in fb_vector_to_slice"
+    );
     assert!(bytes.len().is_multiple_of(size));
     assert!((bytes.as_ptr() as usize).is_multiple_of(align));
 
@@ -35,12 +38,7 @@ pub fn fb_vector_to_slice<T>(vector: flatbuffers::Vector<'_, T>) -> &[T] {
     // 2. Pointer alignment is checked: `(bytes.as_ptr() as usize).is_multiple_of(align_of::<T>())`.
     // 3. Total byte length is an exact multiple of `size_of::<T>()`.
     // 4. `bytes` is confirmed non-empty above, so `bytes.as_ptr()` is non-null and valid for reads.
-    unsafe {
-        std::slice::from_raw_parts(
-            bytes.as_ptr() as *const T,
-            bytes.len() / size,
-        )
-    }
+    unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const T, bytes.len() / size) }
 }
 
 // A safe wrapper around the flatbuffer data.
@@ -103,7 +101,10 @@ impl VerifiedFlatbufferMemory {
 
     pub(crate) fn root(&self) -> fb::Engine<'_> {
         // In debug mode, re-verify root to catch any memory corruption early
-        debug_assert!(fb::root_as_engine(self.data()).is_ok(), "Flatbuffer root verification failed");
+        debug_assert!(
+            fb::root_as_engine(self.data()).is_ok(),
+            "Flatbuffer root verification failed"
+        );
 
         // SAFETY:
         // `VerifiedFlatbufferMemory` enforces the invariant that `self.data()` was either validated

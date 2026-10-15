@@ -132,7 +132,10 @@ impl TorController {
         match auth {
             Some(a) if !a.is_empty() => {
                 if a.contains('\r') || a.contains('\n') || a.contains('\0') {
-                    return Err("Tor control authentication password contains illegal control characters".to_string());
+                    return Err(
+                        "Tor control authentication password contains illegal control characters"
+                            .to_string(),
+                    );
                 }
                 let escaped = a.replace('\\', "\\\\").replace('"', "\\\"");
                 Ok(format!("AUTHENTICATE \"{}\"\r\n", escaped))
@@ -207,7 +210,10 @@ impl TorController {
 
     /// Queries the Tor control port to verify that the daemon has completed bootstrap
     /// and has active circuits established.
-    pub fn query_control_circuit_status(control_port: u16, auth: Option<&str>) -> Result<(String, String), String> {
+    pub fn query_control_circuit_status(
+        control_port: u16,
+        auth: Option<&str>,
+    ) -> Result<(String, String), String> {
         let auth_cmd = Self::format_authenticate_command(auth)?;
         let addr: SocketAddr = format!("127.0.0.1:{}", control_port)
             .parse()
@@ -293,7 +299,12 @@ impl TorController {
         // Query Tor control port (standard port = socks_port + 1, e.g. 9051 for 9050)
         let control_port = socks_port + 1;
         let (circuit_id, _status_desc) = Self::query_control_circuit_status(control_port, None)
-            .map_err(|e| format!("Tor SOCKS5 handshake passed but daemon verification failed: {}", e))?;
+            .map_err(|e| {
+                format!(
+                    "Tor SOCKS5 handshake passed but daemon verification failed: {}",
+                    e
+                )
+            })?;
 
         Ok(TorExitInfo {
             is_tor: true,
@@ -440,7 +451,9 @@ mod tests {
         );
 
         // CRLF injection attempts must be rejected
-        assert!(TorController::format_authenticate_command(Some("foo\r\nSIGNAL SHUTDOWN")).is_err());
+        assert!(
+            TorController::format_authenticate_command(Some("foo\r\nSIGNAL SHUTDOWN")).is_err()
+        );
         assert!(TorController::format_authenticate_command(Some("foo\nbar")).is_err());
         assert!(TorController::format_authenticate_command(Some("foo\rbar")).is_err());
         assert!(TorController::format_authenticate_command(Some("foo\0bar")).is_err());
