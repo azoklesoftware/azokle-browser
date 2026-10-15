@@ -42,18 +42,19 @@ pub fn find_slot<I: std::hash::Hash>(
     key: &I,
     table_size: usize,
     probe: impl Fn(usize) -> bool,
-) -> usize {
-    debug_assert!(table_size.is_power_of_two());
+) -> Option<usize> {
+    if table_size == 0 || !table_size.is_power_of_two() {
+        return None;
+    }
     let table_mask = table_size - 1;
     let mut slot = get_hash(&key) & table_mask;
-    let mut step = 1;
-    loop {
+    for step in 1..=table_size {
         if probe(slot) {
-            return slot;
+            return Some(slot);
         }
         slot = (slot + step) & table_mask;
-        step += 1;
     }
+    None
 }
 
 /// A flatbuffer-compatible view of a hash table.
@@ -83,7 +84,7 @@ impl<I: FbHashKey, V, Keys: FbIndex<I>, Values: FbIndex<V>> HashIndexView<I, V, 
     pub fn get_single(&self, key: I) -> Option<V> {
         let slot = find_slot(&key, self.capacity(), |slot| -> bool {
             FbHashKey::is_empty(&self.indexes.get(slot)) || self.indexes.get(slot) == key
-        });
+        })?;
         if FbHashKey::is_empty(&self.indexes.get(slot)) {
             None
         } else {
@@ -147,7 +148,8 @@ impl<I: HashKey, V: Default + Clone> HashIndexBuilder<I, V> {
         let slot = find_slot(&key, self.capacity(), |slot| -> bool {
             HashKey::is_empty(&self.indexes[slot])
                 || (self.indexes[slot] == key && !allow_duplicates)
-        });
+        })
+        .expect("hash table has empty slots");
 
         if HashKey::is_empty(&self.indexes[slot]) {
             self.indexes[slot] = key;
@@ -168,7 +170,8 @@ impl<I: HashKey, V: Default + Clone> HashIndexBuilder<I, V> {
     pub fn get_or_insert(&mut self, key: I, value: V) -> &mut V {
         let slot = find_slot(&key, self.capacity(), |slot| -> bool {
             HashKey::is_empty(&self.indexes[slot]) || self.indexes[slot] == key
-        });
+        })
+        .expect("hash table has empty slots");
         if !HashKey::is_empty(&self.indexes[slot]) {
             return &mut self.values[slot];
         }
@@ -192,7 +195,8 @@ impl<I: HashKey, V: Default + Clone> HashIndexBuilder<I, V> {
             if !HashKey::is_empty(&key) {
                 let slot = find_slot(&key, new_capacity, |slot| -> bool {
                     HashKey::is_empty(&self.indexes[slot])
-                });
+                })
+                .expect("hash table has empty slots");
                 self.indexes[slot] = key;
                 self.values[slot] = value;
             }

@@ -41,6 +41,9 @@ pub enum DeserializationError {
     /// The serialized data payload was not a valid flatbuffer format.
     #[error("flatbuffer parsing error")]
     FlatBufferParsingError(flatbuffers::InvalidFlatbuffer),
+    /// The serialized data failed semantic validation bounds checks.
+    #[error("semantic validation error")]
+    SemanticValidationError,
 }
 
 pub(crate) fn serialize_dat_file(data: &[u8]) -> Vec<u8> {

@@ -144,4 +144,12 @@ mod embedded_domain_resolver_tests {
         assert_eq!(domain("a.b.co.uk"), "b.co.uk");
         assert_eq!(domain("foo.bar"), "foo.bar");
     }
+
+    #[test]
+    fn test_parse_url_strips_tabs_newlines_and_lowercases_host() {
+        let req = parse_url("https://TRACKER.Example.COM/ad\tpath\r\n").expect("should parse");
+        assert_eq!(req.hostname(), "tracker.example.com");
+        assert_eq!(req.url, "https://tracker.example.com/adpath");
+        assert_eq!(req.domain(), "example.com");
+    }
 }

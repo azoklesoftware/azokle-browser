@@ -451,6 +451,9 @@ impl Engine {
             .map_err(DeserializationError::FlatBufferParsingError)?;
 
         let context = FilterDataContext::new(memory);
+        if context.memory.root().network_rules().len() < 8 {
+            return Err(DeserializationError::SemanticValidationError);
+        }
         self.filter_data_context = context;
         self.blocker =
             Blocker::from_context(FilterDataContextRef::clone(&self.filter_data_context));

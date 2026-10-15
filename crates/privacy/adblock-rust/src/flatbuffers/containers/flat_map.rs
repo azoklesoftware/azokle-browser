@@ -36,7 +36,7 @@ where
 
     pub fn get(&self, key: I) -> Option<<V as Follow<'a>>::Inner> {
         let index = self.keys.partition_point(|x| *x < key);
-        if index < self.keys.len() && self.keys.get(index) == key {
+        if index < self.keys.len() && index < self.values.len() && self.keys.get(index) == key {
             Some(self.values.get(index))
         } else {
             None

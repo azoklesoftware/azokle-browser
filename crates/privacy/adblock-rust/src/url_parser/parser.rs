@@ -304,7 +304,9 @@ impl<F: FnMut(char) -> bool> Pattern for F {
 impl Iterator for Input<'_> {
     type Item = char;
     fn next(&mut self) -> Option<char> {
-        self.chars.next() //by_ref().find(|&c| !matches!(c, '\t' | '\n' | '\r'))
+        self.chars
+            .by_ref()
+            .find(|&c| !matches!(c, '\t' | '\n' | '\r'))
     }
 }
 
@@ -385,7 +387,12 @@ impl Parser {
         let path_start = self.serialization.len();
         let host_start = path_start;
         let host_end = path_start;
-        self.serialization.push_str(input.chars.as_str());
+        let rem_str = input.chars.as_str();
+        if rem_str.bytes().any(|b| matches!(b, b'\t' | b'\n' | b'\r')) {
+            self.serialization.extend(input);
+        } else {
+            self.serialization.push_str(rem_str);
+        }
         let ser_remaining = self.serialization.as_mut_str().get_mut(host_end..);
         ser_remaining.map(|s| {
             s.make_ascii_lowercase();
@@ -412,7 +419,12 @@ impl Parser {
         // host state
         let host_start = self.serialization.len();
         let (host_end, remaining) = self.parse_host(remaining, scheme_type)?;
-        self.serialization.push_str(remaining.chars.as_str());
+        let rem_str = remaining.chars.as_str();
+        if rem_str.bytes().any(|b| matches!(b, b'\t' | b'\n' | b'\r')) {
+            self.serialization.extend(remaining);
+        } else {
+            self.serialization.push_str(rem_str);
+        }
         Ok(Hostname {
             serialization: self.serialization,
             scheme_end,
@@ -525,7 +537,8 @@ impl Parser {
         }
 
         if host_str.is_ascii() {
-            write!(&mut self.serialization, "{host_str}").unwrap();
+            let lower = host_str.to_ascii_lowercase();
+            write!(&mut self.serialization, "{lower}").unwrap();
         } else {
             let encoded = idna::domain_to_ascii(host_str)?;
             write!(&mut self.serialization, "{encoded}").unwrap();

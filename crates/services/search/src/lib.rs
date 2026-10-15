@@ -80,9 +80,9 @@ impl SearchEngine {
     }
 }
 
-/// Performs urlencoding simple operation.
+/// Performs percent-encoding for search query parameters.
 fn urlencoding_simple(s: &str) -> String {
-    s.replace(' ', "+")
+    url::form_urlencoded::byte_serialize(s.as_bytes()).collect::<String>()
 }
 
 #[cfg(test)]
@@ -94,6 +94,10 @@ mod tests {
         assert_eq!(
             SearchEngine::build_query_url("rustlang"),
             "https://search.azokle.com/search?q=rustlang"
+        );
+        assert_eq!(
+            SearchEngine::build_query_url("rust & tokio? #1"),
+            "https://search.azokle.com/search?q=rust+%26+tokio%3F+%231"
         );
         assert_eq!(
             SearchEngine::build_query_url("github.com"),

@@ -36,7 +36,7 @@ where
 
     pub fn get(&self, key: I) -> Option<FlatMultiMapViewIterator<'a, I, V, Keys>> {
         let index = self.keys.partition_point(|x| *x < key);
-        if index < self.keys.len() && self.keys.get(index) == key {
+        if index < self.keys.len() && index < self.values.len() && self.keys.get(index) == key {
             Some(FlatMultiMapViewIterator {
                 index,
                 key,
@@ -74,7 +74,10 @@ where
     type Item = <V as Follow<'a>>::Inner;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.index < self.keys.len() && self.keys.get(self.index) == self.key {
+        if self.index < self.keys.len()
+            && self.index < self.values.len()
+            && self.keys.get(self.index) == self.key
+        {
             self.index += 1;
             Some(self.values.get(self.index - 1))
         } else {

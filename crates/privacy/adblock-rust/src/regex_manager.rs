@@ -197,6 +197,9 @@ where
             return CompiledRegex::MatchAll;
         }
         if is_complete_regex {
+            if filter_str.len() < 2 {
+                continue;
+            }
             // unescape unrecognised escaping sequences, otherwise a normal regex
             let unescaped = filter_str[1..filter_str.len() - 1]
                 .replace("\\/", "/")
