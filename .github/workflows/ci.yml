@@ -56,6 +56,46 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      - name: Set up Rust Toolchain
+        uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@400e7407cfd7a091e5fbb6afec01ec146c432b7c # v2.7.7
+
+      - name: Set up Android NDK & cargo-ndk
+        run: |
+          if [ -z "$ANDROID_NDK_HOME" ] || [ ! -d "$ANDROID_NDK_HOME" ]; then
+            DETECTED_NDK=$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/ndk" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort -V | tail -n 1)
+            if [ -n "$DETECTED_NDK" ] && [ -d "$DETECTED_NDK" ]; then
+              export ANDROID_NDK_HOME="$DETECTED_NDK"
+            fi
+          fi
+          if [ -z "$ANDROID_NDK_HOME" ] || [ ! -d "$ANDROID_NDK_HOME" ]; then
+            echo "Installing Android NDK via sdkmanager..."
+            sdkmanager --install "ndk;27.0.12077973"
+            export ANDROID_NDK_HOME="${ANDROID_HOME:-$ANDROID_SDK_ROOT}/ndk/27.0.12077973"
+          fi
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME" >> $GITHUB_ENV
+          echo "Resolved ANDROID_NDK_HOME=$ANDROID_NDK_HOME"
+
+          if ! command -v cargo-ndk &> /dev/null; then
+            echo "Installing cargo-ndk..."
+            cargo install cargo-ndk --locked
+          fi
+
+      - name: Build Native JNI Libraries
+        run: |
+          cargo ndk \
+            --target aarch64-linux-android \
+            --target armv7-linux-androideabi \
+            --target x86_64-linux-android \
+            -o apps/android/app/src/main/jniLibs \
+            build --release -p azokle-jni
+          echo "Verifying compiled native JNI libraries:"
+          ls -la apps/android/app/src/main/jniLibs/*/*.so
+
       - name: Validate Gradle Wrapper
         uses: gradle/actions/wrapper-validation@d156388eb19639ec20ade50009f3d199ce1e2808 # v4.1.0
 
