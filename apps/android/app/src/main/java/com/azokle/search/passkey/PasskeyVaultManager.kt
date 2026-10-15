@@ -43,7 +43,6 @@ class PasskeyVaultManager private constructor(context: Context) {
     companion object {
         private const val KEY_PASSKEYS = "azokle_passkeys_v1"
         private const val PREFS_FILE = "azokle_passkey_vault_secure"
-        private const val FALLBACK_PREFS_FILE = "azokle_passkey_vault_fallback"
         private var instance: PasskeyVaultManager? = null
 
         @Volatile
@@ -95,7 +94,7 @@ class PasskeyVaultManager private constructor(context: Context) {
                 "Android Keystore unavailable. Preserving encrypted vault without deletion: ${lastException?.message}"
             )
             isEncryptedStoreActive = false
-            return context.getSharedPreferences(FALLBACK_PREFS_FILE, Context.MODE_PRIVATE)
+            return context.getSharedPreferences("${PREFS_FILE}_locked_dummy", Context.MODE_PRIVATE)
         }
     }
 
@@ -189,6 +188,10 @@ class PasskeyVaultManager private constructor(context: Context) {
      * Persists passkeys to storage.
      */
     private fun savePasskeys(list: List<PasskeyItem>) {
+        if (!isEncryptedStoreActive) {
+            android.util.Log.e("PasskeyVaultManager", "Refusing to persist passkeys: hardware encryption inactive")
+            return
+        }
         try {
             val arr = JSONArray()
             for (p in list) {

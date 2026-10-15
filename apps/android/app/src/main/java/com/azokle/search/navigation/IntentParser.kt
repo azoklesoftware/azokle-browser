@@ -59,6 +59,11 @@ object IntentParser {
      */
     private fun parseIntentUri(uriStr: String): ParsedIntent? {
         val pkg = extractPackageFromFragment(uriStr)
+        // Strictly prohibit web content from self-targeting Azokle internal browser components (H-3)
+        if (pkg != null && (pkg.equals("com.azokle.search", ignoreCase = true) || pkg.equals("com.azokle.browser", ignoreCase = true))) {
+            return null
+        }
+
         val rawFallback = extractFallbackFromFragment(uriStr)
         val safeFallback = sanitizeFallbackUrl(rawFallback)
         val rawScheme = extractSchemeFromFragment(uriStr)
@@ -69,15 +74,16 @@ object IntentParser {
             val intent = Intent.parseUri(uriStr, Intent.URI_INTENT_SCHEME)
             intent.apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                if (scheme == "http" || scheme == "https") {
-                    addCategory(Intent.CATEGORY_BROWSABLE)
-                }
+                // Unconditionally enforce CATEGORY_BROWSABLE to prevent invoking non-browsable exported activities (H-3)
+                addCategory(Intent.CATEGORY_BROWSABLE)
                 if (pkg != null) {
                     `package` = pkg
                 }
                 component = null
                 selector = null
                 clipData = null
+                // Drop ALL attacker-controlled extras (S., i., B.) from intent schemes (H-3)
+                replaceExtras(null as android.os.Bundle?)
                 val dataScheme = data?.scheme?.lowercase()
                 if (dataScheme != null && (NavigationSecurity.isForbiddenWebScheme(dataScheme) || !isValidScheme(dataScheme))) {
                     data = null
@@ -90,7 +96,7 @@ object IntentParser {
         return ParsedIntent(
             uri = null,
             action = Intent.ACTION_VIEW,
-            categories = if (scheme == "http" || scheme == "https") setOf(Intent.CATEGORY_BROWSABLE) else emptySet(),
+            categories = setOf(Intent.CATEGORY_BROWSABLE),
             packageName = pkg,
             componentName = null, // strictly stripped
             fallbackUrl = safeFallback,
@@ -120,9 +126,13 @@ object IntentParser {
             val uri = Uri.parse(uriStr)
             Intent(action, uri).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                if (action == Intent.ACTION_VIEW && (scheme == "http" || scheme == "https")) {
+                if (action == Intent.ACTION_VIEW) {
                     addCategory(Intent.CATEGORY_BROWSABLE)
                 }
+                component = null
+                selector = null
+                clipData = null
+                replaceExtras(null as android.os.Bundle?)
             }
         } catch (e: Throwable) {
             null
@@ -131,7 +141,7 @@ object IntentParser {
         return ParsedIntent(
             uri = null,
             action = action,
-            categories = if (action == Intent.ACTION_VIEW && (scheme == "http" || scheme == "https")) setOf(Intent.CATEGORY_BROWSABLE) else emptySet(),
+            categories = if (action == Intent.ACTION_VIEW) setOf(Intent.CATEGORY_BROWSABLE) else emptySet(),
             packageName = null,
             componentName = null,
             fallbackUrl = null,

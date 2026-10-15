@@ -39,14 +39,13 @@ object NavigationSecurity {
 
     /**
      * Whitelist of safe, standard Android intent actions permissible for web content to launch.
+     * Note: ACTION_SEND and ACTION_MAIN are excluded to prevent confused-deputy share dialog attacks (H-3).
      */
     val ALLOWED_ACTIONS = setOf(
         Intent.ACTION_VIEW,
         Intent.ACTION_DIAL,
         Intent.ACTION_SENDTO,
-        Intent.ACTION_SEND,
-        Intent.ACTION_WEB_SEARCH,
-        Intent.ACTION_MAIN
+        Intent.ACTION_WEB_SEARCH
     )
 
     /**
@@ -90,15 +89,22 @@ object NavigationSecurity {
      * and internal component targeting.
      *
      * Neutralizes intent selectors, explicit component destinations, and clip data.
-     * If the payload scheme references forbidden internal protocols (file, content),
-     * the data URI is stripped.
+     * Forces CATEGORY_BROWSABLE, strips all extras, and strictly prevents self-targeting (H-3).
      */
-    fun sanitizeIntent(intent: Intent): Intent {
+    fun sanitizeIntent(intent: Intent, context: Context? = null): Intent {
         intent.action = sanitizeAction(intent.action)
         intent.flags = sanitizeFlags(intent.flags)
+        intent.addCategory(Intent.CATEGORY_BROWSABLE)
         intent.selector = null
         intent.component = null
         intent.clipData = null
+        intent.replaceExtras(null as android.os.Bundle?)
+
+        val appPkg = context?.packageName ?: "com.azokle.search"
+        if (intent.`package` != null && (intent.`package`.equals(appPkg, ignoreCase = true) || intent.`package`.equals("com.azokle.browser", ignoreCase = true))) {
+            intent.`package` = null
+            intent.data = null
+        }
 
         val dataScheme = intent.data?.scheme?.lowercase()
         if (dataScheme != null && isForbiddenWebScheme(dataScheme)) {

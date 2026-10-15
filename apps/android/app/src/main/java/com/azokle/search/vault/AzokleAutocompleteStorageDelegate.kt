@@ -27,15 +27,15 @@ object AzokleAutocompleteStorageDelegate : Autocomplete.StorageDelegate {
 
     /**
      * Resolves matching logins from the vault for the given domain.
+     * Fails closed: never returns all logins on blank/empty domain queries (H-4).
      */
     fun resolveMatchingLogins(domain: String?): List<SavedLogin> {
-        val host = if (!domain.isNullOrBlank()) {
-            OriginMatcher.extractHost(domain)
-        } else ""
+        if (domain.isNullOrBlank()) return emptyList()
+        val host = OriginMatcher.extractHost(domain)
         return if (host.isNotEmpty()) {
             PasswordVaultManager.getLoginsForOrigin(host)
         } else {
-            PasswordVaultManager.getAllLogins()
+            emptyList()
         }
     }
 
@@ -43,6 +43,9 @@ object AzokleAutocompleteStorageDelegate : Autocomplete.StorageDelegate {
      * Fetches saved login credentials for the given origin domain.
      */
     override fun onLoginFetch(domain: String): GeckoResult<Array<Autocomplete.LoginEntry>>? {
+        if (domain.isBlank()) {
+            return GeckoResult.fromValue(emptyArray())
+        }
         return try {
             val logins = resolveMatchingLogins(domain)
             val entries = logins.map { login ->
@@ -64,7 +67,20 @@ object AzokleAutocompleteStorageDelegate : Autocomplete.StorageDelegate {
      * Fetches all saved logins.
      */
     override fun onLoginFetch(): GeckoResult<Array<Autocomplete.LoginEntry>>? {
-        return onLoginFetch("")
+        return try {
+            val logins = PasswordVaultManager.getAllLogins()
+            val entries = logins.map { login ->
+                Autocomplete.LoginEntry.Builder()
+                    .guid(login.id)
+                    .origin(login.origin)
+                    .username(login.username)
+                    .password(login.password)
+                    .build()
+            }.toTypedArray()
+            GeckoResult.fromValue(entries)
+        } catch (e: Exception) {
+            GeckoResult.fromValue(emptyArray())
+        }
     }
 
     /**

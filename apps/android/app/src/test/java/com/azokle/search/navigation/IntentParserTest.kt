@@ -91,4 +91,29 @@ class IntentParserTest {
         assertNotNull(parsed)
         assertNull("Malicious javascript fallback URL must be stripped", parsed?.fallbackUrl)
     }
+
+    @Test
+    fun testSelfTargetingPackageIsRejected() {
+        val intentStr = "intent://test/#Intent;scheme=azokle;package=com.azokle.search;end"
+        val parsed = IntentParser.parse(intentStr)
+        assertNull("Intent targeting com.azokle.search must be rejected to prevent confused-deputy attacks (H-3)", parsed)
+
+        val intentStrBrowser = "intent://test/#Intent;scheme=azokle;package=com.azokle.browser;end"
+        val parsedBrowser = IntentParser.parse(intentStrBrowser)
+        assertNull("Intent targeting com.azokle.browser must be rejected", parsedBrowser)
+    }
+
+    @Test
+    fun testAttackerExtrasAreDroppedAndBrowsableEnforced() {
+        val intentStr = "intent://view/#Intent;scheme=customapp;package=com.example.app;S.attacker_token=stolen;i.payload_code=1337;end"
+        val parsed = IntentParser.parse(intentStr)
+        assertNotNull(parsed)
+        assertEquals("com.example.app", parsed?.packageName)
+        assertEquals("customapp", parsed?.scheme)
+        assertTrue("CATEGORY_BROWSABLE must be enforced in parsed intent categories",
+            parsed?.categories?.contains(android.content.Intent.CATEGORY_BROWSABLE) == true)
+        assertTrue("All attacker extras must be stripped in parsed intent model",
+            parsed?.stringExtras?.isEmpty() == true)
+    }
 }
+

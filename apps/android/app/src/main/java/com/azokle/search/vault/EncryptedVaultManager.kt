@@ -55,6 +55,10 @@ class EncryptedVaultManager(context: Context) {
         private const val PREFS_FILE = "azokle_secure_vault_v2"
 
         @Volatile
+        var isEncryptedStoreActive: Boolean = false
+            private set
+
+        @Volatile
         private var cachedPrefs: SharedPreferences? = null
 
         @Volatile
@@ -83,44 +87,44 @@ class EncryptedVaultManager(context: Context) {
 
         /**
          * Executes the create encrypted prefs operation.
+         * Fails closed without deleting user data or falling back to unencrypted plaintext (H-7).
          */
         private fun createEncryptedPrefs(context: Context): SharedPreferences {
-            return try {
-                val masterKey = MasterKey.Builder(context)
-                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                    .build()
-
-                EncryptedSharedPreferences.create(
-                    context,
-                    PREFS_FILE,
-                    masterKey,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-                )
-            } catch (e: Exception) {
-                android.util.Log.e("EncryptedVaultManager", "Hardware Keystore init error: ${e.message}, attempting secure reset")
+            var lastException: Exception? = null
+            for (attempt in 1..3) {
                 try {
-                    val keyStore = java.security.KeyStore.getInstance("AndroidKeyStore")
-                    keyStore.load(null)
-                    keyStore.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
-                } catch (_: Exception) {}
-                try {
-                    context.deleteSharedPreferences(PREFS_FILE)
                     val masterKey = MasterKey.Builder(context)
                         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                         .build()
 
-                    EncryptedSharedPreferences.create(
+                    val p = EncryptedSharedPreferences.create(
                         context,
                         PREFS_FILE,
                         masterKey,
                         EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
                     )
-                } catch (ex: Exception) {
-                    context.getSharedPreferences("${PREFS_FILE}_fallback", Context.MODE_PRIVATE)
+                    isEncryptedStoreActive = true
+                    return p
+                } catch (e: Exception) {
+                    lastException = e
+                    android.util.Log.w("EncryptedVaultManager", "Keystore init attempt $attempt/3 failed: ${e.message}")
+                    try {
+                        Thread.sleep(50L * attempt)
+                    } catch (_: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                    }
                 }
             }
+
+            // FAIL CLOSED (H-7): Do NOT delete the Keystore master key, do NOT delete PREFS_FILE,
+            // and NEVER fall back to plaintext SharedPreferences.
+            android.util.Log.e(
+                "EncryptedVaultManager",
+                "Keystore unavailable. Preserving encrypted vault without deletion or plaintext fallback: ${lastException?.message}"
+            )
+            isEncryptedStoreActive = false
+            return context.getSharedPreferences("${PREFS_FILE}_locked_dummy", Context.MODE_PRIVATE)
         }
     }
 
@@ -207,6 +211,10 @@ class EncryptedVaultManager(context: Context) {
      * Persists bookmarks to prefs to storage.
      */
     private fun saveBookmarksToPrefs(bookmarks: List<BookmarkItem>) {
+        if (!isEncryptedStoreActive) {
+            android.util.Log.e("EncryptedVaultManager", "Refusing to persist bookmarks: hardware encryption inactive")
+            return
+        }
         try {
             val arr = JSONArray()
             for (b in bookmarks) {
@@ -376,6 +384,10 @@ class EncryptedVaultManager(context: Context) {
      * Persists quick links to prefs to storage.
      */
     private fun saveQuickLinksToPrefs(links: List<QuickLinkItem>) {
+        if (!isEncryptedStoreActive) {
+            android.util.Log.e("EncryptedVaultManager", "Refusing to persist quick links: hardware encryption inactive")
+            return
+        }
         try {
             val arr = JSONArray()
             for (l in links) {

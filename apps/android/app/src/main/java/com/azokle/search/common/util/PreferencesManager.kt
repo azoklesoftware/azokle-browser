@@ -95,55 +95,45 @@ class PreferencesManager(private val context: Context) {
          * Executes the create encrypted prefs operation.
          */
         private fun createEncryptedPrefs(context: Context): SharedPreferences {
-            val encPrefs = try {
-                val masterKey = MasterKey.Builder(context)
-                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                    .build()
-
-                EncryptedSharedPreferences.create(
-                    context,
-                    PREFS_FILE,
-                    masterKey,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-                )
-            } catch (e: Exception) {
+            var lastException: Exception? = null
+            for (attempt in 1..3) {
                 try {
-                    val keyStore = java.security.KeyStore.getInstance("AndroidKeyStore")
-                    keyStore.load(null)
-                    keyStore.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
-                } catch (_: Exception) {}
-                try {
-                    context.deleteSharedPreferences(PREFS_FILE)
                     val masterKey = MasterKey.Builder(context)
                         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                         .build()
 
-                    EncryptedSharedPreferences.create(
+                    val encPrefs = EncryptedSharedPreferences.create(
                         context,
                         PREFS_FILE,
                         masterKey,
                         EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
                     )
-                } catch (e2: Exception) {
-                    context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
+
+                    // Seamless migration from legacy unencrypted SharedPreferences
+                    try {
+                        val legacyPrefs = context.getSharedPreferences(LEGACY_PREFS_FILE, Context.MODE_PRIVATE)
+                        val legacySearches = legacyPrefs.getString(KEY_RECENT_SEARCHES, null)
+                        if (!legacySearches.isNullOrBlank() && !encPrefs.contains(KEY_RECENT_SEARCHES)) {
+                            encPrefs.edit().putString(KEY_RECENT_SEARCHES, legacySearches).apply()
+                            legacyPrefs.edit().remove(KEY_RECENT_SEARCHES).apply()
+                        }
+                    } catch (_: Exception) {}
+
+                    return encPrefs
+                } catch (e: Exception) {
+                    lastException = e
+                    android.util.Log.w("PreferencesManager", "Keystore init attempt $attempt/3 failed: ${e.message}")
+                    try {
+                        Thread.sleep(50L * attempt)
+                    } catch (_: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                    }
                 }
             }
 
-            // Seamless migration from legacy unencrypted SharedPreferences
-            try {
-                val legacyPrefs = context.getSharedPreferences(LEGACY_PREFS_FILE, Context.MODE_PRIVATE)
-                val legacySearches = legacyPrefs.getString(KEY_RECENT_SEARCHES, null)
-                if (!legacySearches.isNullOrBlank() && !encPrefs.contains(KEY_RECENT_SEARCHES)) {
-                    encPrefs.edit().putString(KEY_RECENT_SEARCHES, legacySearches).apply()
-                    legacyPrefs.edit().remove(KEY_RECENT_SEARCHES).apply()
-                }
-            } catch (e: Exception) {
-                // Ignore migration error
-            }
-
-            return encPrefs
+            android.util.Log.e("PreferencesManager", "Keystore unavailable. Preserving encrypted prefs: ${lastException?.message}")
+            return context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
         }
     }
 

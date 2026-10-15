@@ -24,6 +24,8 @@ import androidx.security.crypto.MasterKey
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
@@ -38,89 +40,213 @@ data class SavedLogin(
 
 /**
  * Enterprise Public Suffix and Host isolation utilities.
- * Completely eliminates CWE-346 (Origin Confusion) and prevents phishing credential theft.
+ * Hardened against CWE-346 (Origin Confusion) and credential autofill phishing (H-4).
  */
 object OriginMatcher {
-    private val KNOWN_MULTI_PART_TLDS = setOf(
-        "co.uk", "org.uk", "gov.uk", "ac.uk", "me.uk",
-        "co.nz", "org.nz", "govt.nz",
-        "com.au", "net.au", "org.au", "edu.au", "gov.au",
-        "co.jp", "ne.jp", "ac.jp", "go.jp",
-        "co.in", "net.in", "org.in", "gen.in", "firm.in", "ind.in",
-        "com.br", "net.br", "org.br",
-        "com.sg", "edu.sg", "gov.sg",
-        "co.za", "org.za", "web.za",
-        "com.cn", "net.cn", "org.cn", "gov.cn",
-        "com.tw", "org.tw", "club.tw",
-        "com.hk", "org.hk", "edu.hk",
-        "com.mx", "org.mx", "edu.mx",
-        "github.io", "gitlab.io"
+
+    val MULTI_PART_PUBLIC_SUFFIXES = setOf(
+        // Turkey
+        "com.tr", "org.tr", "net.tr", "edu.tr", "gov.tr", "info.tr", "biz.tr", "tv.tr",
+        // Korea
+        "co.kr", "ne.kr", "or.kr", "re.kr", "pe.kr", "go.kr", "mil.kr", "ac.kr", "hs.kr",
+        // UK
+        "co.uk", "org.uk", "me.uk", "gov.uk", "ac.uk", "ltd.uk", "plc.uk", "net.uk", "sch.uk",
+        // Australia
+        "com.au", "net.au", "org.au", "edu.au", "gov.au", "asn.au", "id.au",
+        // New Zealand
+        "co.nz", "net.nz", "org.nz", "govt.nz", "ac.nz", "geek.nz", "gen.nz", "school.nz",
+        // Japan
+        "co.jp", "ne.jp", "ac.jp", "go.jp", "or.jp", "ed.jp", "gr.jp", "lg.jp",
+        // India
+        "co.in", "net.in", "org.in", "gen.in", "firm.in", "ind.in", "nic.in", "ac.in", "edu.in", "res.in", "gov.in", "mil.in",
+        // Brazil
+        "com.br", "net.br", "org.br", "gov.br", "edu.br", "art.br", "eco.br", "emp.br",
+        // Singapore
+        "com.sg", "edu.sg", "gov.sg", "net.sg", "org.sg", "per.sg",
+        // South Africa
+        "co.za", "org.za", "web.za", "net.za", "gov.za", "ac.za", "edu.za",
+        // China
+        "com.cn", "net.cn", "org.cn", "gov.cn", "edu.cn",
+        // Taiwan
+        "com.tw", "org.tw", "club.tw", "net.tw", "gov.tw", "edu.tw", "idv.tw",
+        // Hong Kong
+        "com.hk", "org.hk", "edu.hk", "net.hk", "gov.hk", "idv.hk",
+        // Mexico
+        "com.mx", "org.mx", "edu.mx", "net.mx", "gob.mx",
+        // Additional ccTLDs
+        "com.ar", "net.ar", "org.ar", "gov.ar", "gob.ar",
+        "com.co", "net.co", "org.co", "edu.co", "gov.co",
+        "co.id", "web.id", "or.id", "ac.id", "sch.id", "go.id", "biz.id", "my.id",
+        "co.il", "org.il", "net.il", "ac.il", "gov.il",
+        "com.my", "net.my", "org.my", "gov.my", "edu.my",
+        "com.ph", "net.ph", "org.ph", "gov.ph", "edu.ph",
+        "com.pk", "net.pk", "org.pk", "gov.pk", "edu.pk",
+        "com.ng", "net.ng", "org.ng", "gov.ng", "edu.ng",
+        "com.eg", "net.eg", "org.eg", "gov.eg", "edu.eg",
+        "com.vn", "net.vn", "org.vn", "gov.vn", "edu.vn",
+        // Shared Hosting and PaaS Multi-Tenant Suffixes
+        "herokuapp.com",
+        "github.io",
+        "gitlab.io",
+        "pages.dev",
+        "vercel.app",
+        "netlify.app",
+        "blogspot.com",
+        "wordpress.com",
+        "azurewebsites.net",
+        "firebaseapp.com",
+        "web.app",
+        "appspot.com",
+        "cloudfront.net",
+        "workers.dev",
+        "fly.dev",
+        "onrender.com",
+        "myshopify.com"
     )
 
     /**
-     * Extracts canonical hostname from a URL or raw origin string.
-     * Strips scheme, credentials, port, path, query, and leading "www.".
+     * Converts a raw origin, domain, or URL string into a normalized okhttp3.HttpUrl.
+     * Uses real URI/URL parsing instead of naive string splitting to avoid userinfo parsing vulnerabilities.
      */
-    fun extractHost(raw: String): String {
-        var str = raw.trim()
-        if (str.isEmpty()) return ""
-
-        if (str.contains("://")) {
-            str = str.substringAfter("://")
+    fun toNormalizedHttpUrl(raw: String?): HttpUrl? {
+        if (raw.isNullOrBlank()) return null
+        val trimmed = raw.trim()
+        val withScheme = if (!trimmed.startsWith("http://", ignoreCase = true) &&
+            !trimmed.startsWith("https://", ignoreCase = true)
+        ) {
+            "https://$trimmed"
+        } else {
+            trimmed
         }
-        if (str.contains('@')) {
-            str = str.substringAfterLast('@')
+        return try {
+            withScheme.toHttpUrlOrNull()
+        } catch (_: Exception) {
+            null
         }
-        str = str.substringBefore('/').substringBefore('?').substringBefore('#')
-        str = str.substringBefore(':')
-        str = str.lowercase()
-
-        if (str.startsWith("www.")) {
-            str = str.substring(4)
-        }
-        return str
     }
 
     /**
-     * Extracts registrable domain (eTLD+1) from a canonical hostname.
+     * Extracts canonical hostname from a URL or raw origin string using safe URL parsing.
+     * Accurately parses RFC 3986 userinfo (e.g., https://evil.example/x@bank.com -> evil.example)
+     * and normalizes leading "www.".
      */
-    fun extractRegistrableDomain(host: String): String {
+    fun extractHost(raw: String?): String {
+        if (raw.isNullOrBlank()) return ""
+        val url = toNormalizedHttpUrl(raw)
+        val host = if (url != null) {
+            url.host
+        } else {
+            var str = raw.trim()
+            if (str.contains("://")) str = str.substringAfter("://")
+            str = str.substringBefore('/').substringBefore('?').substringBefore('#')
+            if (str.contains('@')) str = str.substringAfterLast('@')
+            str = str.substringBefore(':')
+            str.lowercase()
+        }
+        return if (host.startsWith("www.")) host.removePrefix("www.") else host
+    }
+
+    /**
+     * Extracts registrable domain (eTLD+1) using multi-part Public Suffix List resolution.
+     * Accurately handles multi-part TLDs (e.g. .com.tr, .co.kr) and shared hosting (e.g. .herokuapp.com, .github.io).
+     */
+    fun extractRegistrableDomain(rawOrHost: String?): String {
+        val host = extractHost(rawOrHost)
         if (host.isEmpty()) return ""
         if (host.all { it.isDigit() || it == '.' } || host.contains(':') || host == "localhost") {
             return host
         }
 
+        // 1. Attempt OkHttp built-in Public Suffix Database if available
+        try {
+            val tpd = toNormalizedHttpUrl(host)?.topPrivateDomain()
+            if (tpd != null && tpd.isNotEmpty()) {
+                return tpd
+            }
+        } catch (_: Throwable) {
+            // Fall back to pure Kotlin PSL table below
+        }
+
+        // 2. Pure Kotlin PSL resolution
         val parts = host.split('.').filter { it.isNotEmpty() }
         if (parts.size <= 1) return host
 
-        val lastTwo = "${parts[parts.size - 2]}.${parts.last()}"
-        if (KNOWN_MULTI_PART_TLDS.contains(lastTwo) && parts.size >= 3) {
-            return "${parts[parts.size - 3]}.$lastTwo"
+        if (parts.size >= 3) {
+            val lastTwo = "${parts[parts.size - 2]}.${parts.last()}"
+            if (MULTI_PART_PUBLIC_SUFFIXES.contains(lastTwo)) {
+                return "${parts[parts.size - 3]}.$lastTwo"
+            }
         }
-        return lastTwo
+        if (parts.size >= 4) {
+            val lastThree = "${parts[parts.size - 3]}.${parts[parts.size - 2]}.${parts.last()}"
+            if (MULTI_PART_PUBLIC_SUFFIXES.contains(lastThree)) {
+                return "${parts[parts.size - 4]}.$lastThree"
+            }
+        }
+
+        val lastTwo = "${parts[parts.size - 2]}.${parts.last()}"
+        if (MULTI_PART_PUBLIC_SUFFIXES.contains(lastTwo)) {
+            return host
+        }
+
+        return "${parts[parts.size - 2]}.${parts.last()}"
     }
 
     /**
-     * Determines whether two origins/URLs match for autofill purposes.
-     * Prevents cross-origin credential harvesting.
+     * Determines whether a saved login origin matches a target page origin for credential autofill.
+     *
+     * Security constraints (H-4):
+     * - Disallows cross-scheme autofill (https:// credentials are never offered on http://).
+     * - Requires exact port matching.
+     * - Disallows blank or wildcard queries.
+     * - Enforces exact host matching or strictly parent/child matching on the same topPrivateDomain.
+     * - Strictly prevents sibling subdomain cross-talk (e.g. accounts.example.com vs uploads.example.com)
+     *   and shared-hosting co-tenant leakage (e.g. victim.herokuapp.com vs evil.herokuapp.com).
      */
-    fun matches(origin1: String, origin2: String): Boolean {
-        val host1 = extractHost(origin1)
-        val host2 = extractHost(origin2)
-        if (host1.isEmpty() || host2.isEmpty()) return false
+    fun matches(savedOrigin: String?, pageOrigin: String?): Boolean {
+        if (savedOrigin.isNullOrBlank() || pageOrigin.isNullOrBlank()) return false
 
-        if (host1 == host2) return true
+        val savedUrl = toNormalizedHttpUrl(savedOrigin) ?: return false
+        val pageUrl = toNormalizedHttpUrl(pageOrigin) ?: return false
 
-        val root1 = extractRegistrableDomain(host1)
-        val root2 = extractRegistrableDomain(host2)
+        // 1. Strict Scheme Matching
+        if (savedUrl.scheme != pageUrl.scheme) return false
 
-        return root1.isNotEmpty() && root1 == root2
+        // 2. Disallow plain HTTP for credential autofill (allow HTTP only on local loopback)
+        val isLoopback = savedUrl.host == "localhost" || savedUrl.host == "127.0.0.1" || savedUrl.host == "::1"
+        if (savedUrl.scheme != "https" && !isLoopback) return false
+
+        // 3. Port Matching (treat standard ports as matching if implicit)
+        val savedPort = if (savedUrl.port != -1) savedUrl.port else if (savedUrl.scheme == "https") 443 else 80
+        val pagePort = if (pageUrl.port != -1) pageUrl.port else if (pageUrl.scheme == "https") 443 else 80
+        if (savedPort != pagePort) return false
+
+        // 4. Exact Host Match (ignoring leading www.)
+        val savedHost = extractHost(savedOrigin)
+        val pageHost = extractHost(pageOrigin)
+        if (savedHost.isNotEmpty() && savedHost.equals(pageHost, ignoreCase = true)) return true
+
+        // 5. Registrable Domain check using Public Suffix List
+        val savedTpd = extractRegistrableDomain(savedHost)
+        val pageTpd = extractRegistrableDomain(pageHost)
+
+        if (savedTpd.isEmpty() || pageTpd.isEmpty() || !savedTpd.equals(pageTpd, ignoreCase = true)) {
+            return false
+        }
+
+        // Only allow parent domain to child subdomain or vice-versa (e.g. login.example.com and example.com)
+        // Disallow sibling subdomains (e.g. accounts.example.com vs uploads.example.com)
+        val savedIsParent = savedHost.equals(savedTpd, ignoreCase = true)
+        val pageIsParent = pageHost.equals(pageTpd, ignoreCase = true)
+
+        return savedIsParent || pageIsParent
     }
 }
 
 /**
- * Military-grade AES-256 encrypted local password and autofill vault.
+ * AES-256 encrypted local password and autofill vault.
  * Backed by Android Jetpack Security EncryptedSharedPreferences with hardware-backed Keystore MasterKey.
+ * Fails closed without plaintext fallback or silent credential wipes (H-7).
  */
 object PasswordVaultManager {
 
@@ -130,44 +256,34 @@ object PasswordVaultManager {
     private val _loginsFlow = MutableStateFlow<List<SavedLogin>>(emptyList())
     val loginsFlow: StateFlow<List<SavedLogin>> = _loginsFlow.asStateFlow()
 
+    @Volatile
+    var isVaultAvailable: Boolean = false
+        private set
+
+    @Volatile
     private var isInitialized = false
+
+    @Volatile
     private var encryptedPrefs: android.content.SharedPreferences? = null
 
     /**
-     * Initializes .
+     * Initializes the encrypted password vault.
+     * Fail closed: never wipes master keys automatically and never falls back to plaintext SharedPreferences (H-7).
      */
     @Synchronized
     fun init(context: Context) {
-        if (isInitialized) return
-        try {
-            val masterKey = MasterKey.Builder(context.applicationContext)
-                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                .build()
+        if (isInitialized && encryptedPrefs != null) return
+        val appContext = context.applicationContext
+        var lastException: Exception? = null
 
-            encryptedPrefs = EncryptedSharedPreferences.create(
-                context.applicationContext,
-                PREFS_FILE,
-                masterKey,
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            )
-            loadLogins()
-            isInitialized = true
-        } catch (e: Exception) {
-            android.util.Log.e("PasswordVaultManager", "Hardware Keystore init error: ${e.message}, attempting secure reset")
+        for (attempt in 1..3) {
             try {
-                val keyStore = java.security.KeyStore.getInstance("AndroidKeyStore")
-                keyStore.load(null)
-                keyStore.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
-            } catch (_: Exception) {}
-            try {
-                context.applicationContext.deleteSharedPreferences(PREFS_FILE)
-                val masterKey = MasterKey.Builder(context.applicationContext)
+                val masterKey = MasterKey.Builder(appContext)
                     .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                     .build()
 
                 encryptedPrefs = EncryptedSharedPreferences.create(
-                    context.applicationContext,
+                    appContext,
                     PREFS_FILE,
                     masterKey,
                     EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
@@ -175,16 +291,32 @@ object PasswordVaultManager {
                 )
                 loadLogins()
                 isInitialized = true
-            } catch (ex: Exception) {
-                encryptedPrefs = context.applicationContext.getSharedPreferences("${PREFS_FILE}_fallback", Context.MODE_PRIVATE)
-                loadLogins()
-                isInitialized = true
+                isVaultAvailable = true
+                return
+            } catch (e: Exception) {
+                lastException = e
+                android.util.Log.w("PasswordVaultManager", "Keystore init attempt $attempt/3 failed: ${e.message}")
+                try {
+                    Thread.sleep(50L * attempt)
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                }
             }
         }
+
+        // FAIL CLOSED (H-7): Do NOT delete the Keystore master key, do NOT delete the preference file,
+        // and NEVER create an unencrypted plaintext SharedPreferences file.
+        android.util.Log.e(
+            "PasswordVaultManager",
+            "Keystore master key error or hardware unavailable. Vault remaining locked in encrypted state: ${lastException?.message}"
+        )
+        encryptedPrefs = null
+        isInitialized = true
+        isVaultAvailable = false
     }
 
     /**
-     * Loads logins.
+     * Loads logins from encrypted storage.
      */
     private fun loadLogins() {
         val prefs = encryptedPrefs ?: return
@@ -205,15 +337,21 @@ object PasswordVaultManager {
                 )
             }
             _loginsFlow.value = list
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("PasswordVaultManager", "Failed to deserialize encrypted vault logins: ${e.message}")
+            // Do NOT overwrite _loginsFlow on parse error to prevent data destruction
+        }
     }
 
     /**
-     * Executes the persist logins operation.
+     * Persists logins to secure storage atomically.
      */
     private fun persistLogins(list: List<SavedLogin>) {
-        _loginsFlow.value = list
-        val prefs = encryptedPrefs ?: return
+        val prefs = encryptedPrefs
+        if (prefs == null) {
+            android.util.Log.e("PasswordVaultManager", "Cannot persist logins: secure encrypted vault unavailable")
+            return
+        }
         try {
             val arr = JSONArray()
             for (l in list) {
@@ -225,8 +363,16 @@ object PasswordVaultManager {
                     put("dateModified", l.dateModified)
                 })
             }
-            prefs.edit().putString(KEY_LOGINS, arr.toString()).apply()
-        } catch (_: Exception) {}
+            // Use commit() for synchronous durability confirmation before publishing state update
+            val committed = prefs.edit().putString(KEY_LOGINS, arr.toString()).commit()
+            if (committed) {
+                _loginsFlow.value = list
+            } else {
+                android.util.Log.e("PasswordVaultManager", "Failed to atomically commit encrypted logins to disk")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("PasswordVaultManager", "Exception during encrypted logins commit: ${e.message}")
+        }
     }
 
     /**
