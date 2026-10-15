@@ -55,15 +55,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Cookie
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -393,46 +390,6 @@ fun PrivacyShieldSheet(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // 4. Protection Features Card (Clean single-line rows)
-                val featuresShape = AzokleRadius.lg
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(featuresShape)
-                        .background(colors.cardBg)
-                        .border(1.dp, colors.borderSubtle, featuresShape)
-                        .padding(vertical = 4.dp)
-                ) {
-                    MinimalFeatureRow(
-                        icon = Icons.Default.Block,
-                        title = "Ad & Tracker Blocking",
-                        isActive = isShieldActive,
-                        colors = colors
-                    )
-                    HorizontalDivider(color = colors.borderSubtle, thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 14.dp))
-                    MinimalFeatureRow(
-                        icon = Icons.Default.Lock,
-                        title = "HTTPS Upgrade",
-                        isActive = isShieldActive,
-                        colors = colors
-                    )
-                    HorizontalDivider(color = colors.borderSubtle, thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 14.dp))
-                    MinimalFeatureRow(
-                        icon = Icons.Default.Cookie,
-                        title = "Cookie Partitioning",
-                        isActive = isShieldActive,
-                        colors = colors
-                    )
-                    HorizontalDivider(color = colors.borderSubtle, thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 14.dp))
-                    MinimalFeatureRow(
-                        icon = Icons.Default.AutoAwesome,
-                        title = "Global Privacy Control (GPC)",
-                        isActive = isShieldActive,
-                        colors = colors
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
 
                 // 5. Ad & Tracker Protection Mode (Standard vs Aggressive)
                 val sectionShape = AzokleRadius.lg
@@ -924,50 +881,6 @@ private fun MinimalCounter(
     }
 }
 
-/**
- * Composable that renders the minimal feature row UI component.
- */
-@Composable
-private fun MinimalFeatureRow(
-    icon: ImageVector,
-    title: String,
-    isActive: Boolean,
-    colors: AzokleThemeColors
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 9.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (isActive) colors.textPrimary else colors.textMuted,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = title,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = if (isActive) colors.textPrimary else colors.textMuted
-            )
-        }
-
-        Icon(
-            imageVector = Icons.Default.Check,
-            contentDescription = null,
-            tint = if (isActive) colors.statusSuccess else colors.borderSubtle,
-            modifier = Modifier.size(15.dp)
-        )
-    }
-}
 
 /**
  * Formats compact number for display.

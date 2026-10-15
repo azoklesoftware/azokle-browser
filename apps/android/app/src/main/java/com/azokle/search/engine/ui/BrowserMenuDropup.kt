@@ -54,7 +54,6 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Refresh
@@ -208,103 +207,6 @@ fun BrowserMenuDropup(
                 )
             }
 
-            // 1. Context Header Capsule (Active Webpage Title, Host & Live Shield Pill)
-            if (isWebpage) {
-                val host = remember(url) {
-                    try {
-                        android.net.Uri.parse(url).host?.removePrefix("www.") ?: url
-                    } catch (e: Exception) {
-                        url
-                    }
-                }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(colors.surfaceElevated)
-                        .border(1.dp, colors.border.copy(alpha = 0.45f), RoundedCornerShape(16.dp))
-                        .padding(horizontal = 12.dp, vertical = 9.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 8.dp)
-                    ) {
-                        Text(
-                            text = if (title.isNotBlank()) title else "Webpage",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = colors.textPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(top = 1.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = null,
-                                tint = colors.textMuted,
-                                modifier = Modifier.size(10.dp)
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = host,
-                                fontSize = 11.sp,
-                                color = colors.textMuted,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    // Interactive Shield Status Capsule
-                    Box(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(colors.cardBg)
-                            .border(
-                                0.8.dp,
-                                colors.border.copy(alpha = 0.6f),
-                                CircleShape
-                            )
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(bounded = false, radius = 20.dp, color = colors.textSecondary),
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    onDismissRequest()
-                                    onOpenShield()
-                                }
-                            )
-                            .padding(horizontal = 9.dp, vertical = 4.5.dp)
-                            .semantics {
-                                role = Role.Button
-                                contentDescription = "Shield, $blockedTrackersCount trackers blocked"
-                            }
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Security,
-                                contentDescription = null,
-                                tint = colors.textPrimary,
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = if (blockedTrackersCount > 0) "$blockedTrackersCount" else "Shield",
-                                fontSize = 10.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = colors.textPrimary
-                            )
-                        }
-                    }
-                }
-            }
 
             // 2. Ergonomic Quick Action Toolbar (Reload, Share, Bookmark, Find, Desktop)
             Row(
