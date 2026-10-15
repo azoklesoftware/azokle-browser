@@ -131,6 +131,53 @@ class EncryptedVaultManager(context: Context) {
 
     // --- Bookmarks Management ---
 
+    /**
+     * Sanitizes and validates a URL for storage as a bookmark or shortcut.
+     * Blocks dangerous schemes (javascript:, file:, data:, content:, intent:, blob:, etc.)
+     * and normalizes missing schemes to https://.
+     */
+    fun sanitizeUrl(rawUrl: String): String? {
+        val trimmed = rawUrl.trim()
+        if (trimmed.isEmpty()) return null
+
+        val lower = trimmed.lowercase(Locale.ROOT)
+        // Block dangerous / script / local-file schemes
+        if (lower.startsWith("javascript:") ||
+            lower.startsWith("file:") ||
+            lower.startsWith("data:") ||
+            lower.startsWith("content:") ||
+            lower.startsWith("intent:") ||
+            lower.startsWith("blob:") ||
+            lower.startsWith("chrome:") ||
+            lower.startsWith("resource:")
+        ) {
+            return null
+        }
+
+        val finalUrl = when {
+            lower.startsWith("http://") || lower.startsWith("https://") -> trimmed
+            lower.startsWith("azokle://") || lower.startsWith("about:") -> trimmed
+            else -> "https://$trimmed"
+        }
+
+        return try {
+            val uri = android.net.Uri.parse(finalUrl)
+            val scheme = uri.scheme?.lowercase(Locale.ROOT)
+            if (scheme in listOf("http", "https", "azokle", "about")) {
+                finalUrl
+            } else {
+                null
+            }
+        } catch (_: Throwable) {
+            val scheme = finalUrl.substringBefore(':', "").lowercase(Locale.ROOT)
+            if (scheme in listOf("http", "https", "azokle", "about")) {
+                finalUrl
+            } else {
+                null
+            }
+        }
+    }
+
     private fun loadBookmarksFromPrefs() {
         try {
             val json = prefs.getString(KEY_BOOKMARKS, null) ?: return
@@ -138,12 +185,15 @@ class EncryptedVaultManager(context: Context) {
             val list = ArrayList<BookmarkItem>()
             for (i in 0 until arr.length()) {
                 val obj = arr.getJSONObject(i)
+                val rawUrl = obj.optString("url", "")
+                val safeUrl = sanitizeUrl(rawUrl) ?: continue
                 list.add(
                     BookmarkItem(
                         id = obj.optString("id", UUID.randomUUID().toString()),
-                        title = obj.optString("title", ""),
-                        url = obj.optString("url", ""),
-                        dateAdded = obj.optString("dateAdded", "")
+                        title = obj.optString("title", safeUrl),
+                        url = safeUrl,
+                        dateAdded = obj.optString("dateAdded", ""),
+                        favicon = if (obj.has("favicon") && !obj.isNull("favicon")) obj.getString("favicon") else null
                     )
                 )
             }
@@ -165,6 +215,7 @@ class EncryptedVaultManager(context: Context) {
                     put("title", b.title)
                     put("url", b.url)
                     put("dateAdded", b.dateAdded)
+                    b.favicon?.let { put("favicon", it) }
                 }
                 arr.put(obj)
             }
@@ -178,21 +229,27 @@ class EncryptedVaultManager(context: Context) {
      * Checks whether bookmarked.
      */
     fun isBookmarked(url: String): Boolean {
-        return _bookmarksFlow.value.any { it.url.equals(url, ignoreCase = true) }
+        val safeUrl = sanitizeUrl(url) ?: url.trim()
+        return _bookmarksFlow.value.any { it.url.equals(safeUrl, ignoreCase = true) }
     }
 
     /**
      * Executes the add bookmark operation.
+     * Preserves original ID and dateAdded when re-bookmarking an existing URL.
      */
-    fun addBookmark(title: String, url: String): BookmarkItem {
+    fun addBookmark(title: String, url: String, favicon: String? = null): BookmarkItem? {
+        val safeUrl = sanitizeUrl(url) ?: return null
         val current = _bookmarksFlow.value.toMutableList()
-        val existingIndex = current.indexOfFirst { it.url.equals(url, ignoreCase = true) }
+        val existingIndex = current.indexOfFirst { it.url.equals(safeUrl, ignoreCase = true) }
         val df = SimpleDateFormat("MMM dd", Locale.getDefault())
+        val existingItem = if (existingIndex >= 0) current[existingIndex] else null
+
         val item = BookmarkItem(
-            id = UUID.randomUUID().toString(),
-            title = title.ifBlank { url },
-            url = url,
-            dateAdded = df.format(Date())
+            id = existingItem?.id ?: UUID.randomUUID().toString(),
+            title = title.ifBlank { safeUrl },
+            url = safeUrl,
+            dateAdded = existingItem?.dateAdded?.takeIf { it.isNotBlank() } ?: df.format(Date()),
+            favicon = favicon ?: existingItem?.favicon
         )
         if (existingIndex >= 0) {
             current[existingIndex] = item
@@ -207,9 +264,10 @@ class EncryptedVaultManager(context: Context) {
     /**
      * Toggles the state of bookmark.
      */
-    fun toggleBookmark(title: String, url: String): Boolean {
+    fun toggleBookmark(title: String, url: String, favicon: String? = null): Boolean {
+        val safeUrl = sanitizeUrl(url) ?: return false
         val current = _bookmarksFlow.value.toMutableList()
-        val existingIndex = current.indexOfFirst { it.url.equals(url, ignoreCase = true) }
+        val existingIndex = current.indexOfFirst { it.url.equals(safeUrl, ignoreCase = true) }
         val added: Boolean
 
         if (existingIndex >= 0) {
@@ -219,9 +277,10 @@ class EncryptedVaultManager(context: Context) {
             val df = SimpleDateFormat("MMM dd", Locale.getDefault())
             val item = BookmarkItem(
                 id = UUID.randomUUID().toString(),
-                title = title.ifBlank { url },
-                url = url,
-                dateAdded = df.format(Date())
+                title = title.ifBlank { safeUrl },
+                url = safeUrl,
+                dateAdded = df.format(Date()),
+                favicon = favicon
             )
             current.add(0, item)
             added = true
@@ -233,17 +292,24 @@ class EncryptedVaultManager(context: Context) {
     }
 
     /**
-     * Updates bookmark.
+     * Updates bookmark title, URL, and optional favicon.
      */
-    fun updateBookmark(id: String, newTitle: String, newUrl: String) {
+    fun updateBookmark(id: String, newTitle: String, newUrl: String, newFavicon: String? = null): Boolean {
+        val safeUrl = sanitizeUrl(newUrl) ?: return false
         val current = _bookmarksFlow.value.toMutableList()
         val index = current.indexOfFirst { it.id == id }
         if (index >= 0) {
             val old = current[index]
-            current[index] = old.copy(title = newTitle, url = newUrl)
+            current[index] = old.copy(
+                title = newTitle.ifBlank { safeUrl },
+                url = safeUrl,
+                favicon = newFavicon ?: old.favicon
+            )
             _bookmarksFlow.value = current
             saveBookmarksToPrefs(current)
+            return true
         }
+        return false
     }
 
     /**
@@ -260,6 +326,25 @@ class EncryptedVaultManager(context: Context) {
      */
     fun deleteBookmark(id: String) = removeBookmark(id)
 
+    /**
+     * Batch removes multiple bookmarks by their IDs.
+     */
+    fun removeBookmarks(ids: Collection<String>) {
+        if (ids.isEmpty()) return
+        val idSet = ids.toSet()
+        val updated = _bookmarksFlow.value.filter { it.id !in idSet }
+        _bookmarksFlow.value = updated
+        saveBookmarksToPrefs(updated)
+    }
+
+    /**
+     * Clears all saved bookmarks.
+     */
+    fun clearAllBookmarks() {
+        _bookmarksFlow.value = emptyList()
+        saveBookmarksToPrefs(emptyList())
+    }
+
     // --- Quick Links Management ---
 
     private fun loadQuickLinksFromPrefs() {
@@ -269,11 +354,13 @@ class EncryptedVaultManager(context: Context) {
             val list = ArrayList<QuickLinkItem>()
             for (i in 0 until arr.length()) {
                 val obj = arr.getJSONObject(i)
+                val rawUrl = obj.optString("url", "")
+                val safeUrl = sanitizeUrl(rawUrl) ?: continue
                 list.add(
                     QuickLinkItem(
                         id = obj.optString("id", UUID.randomUUID().toString()),
-                        title = obj.optString("title", ""),
-                        url = obj.optString("url", ""),
+                        title = obj.optString("title", safeUrl),
+                        url = safeUrl,
                         icon = if (obj.has("icon") && !obj.isNull("icon")) obj.getString("icon") else null,
                         isPinned = obj.optBoolean("isPinned", true)
                     )
@@ -310,13 +397,16 @@ class EncryptedVaultManager(context: Context) {
     /**
      * Executes the add quick link operation.
      */
-    fun addQuickLink(title: String, url: String, icon: String? = null) {
+    fun addQuickLink(title: String, url: String, icon: String? = null): Boolean {
+        val safeUrl = sanitizeUrl(url) ?: return false
         val current = _quickLinksFlow.value.toMutableList()
-        if (current.none { it.url.equals(url, ignoreCase = true) }) {
-            current.add(QuickLinkItem(title = title.ifBlank { url }, url = url, icon = icon))
+        if (current.none { it.url.equals(safeUrl, ignoreCase = true) }) {
+            current.add(QuickLinkItem(title = title.ifBlank { safeUrl }, url = safeUrl, icon = icon))
             _quickLinksFlow.value = current
             saveQuickLinksToPrefs(current)
+            return true
         }
+        return false
     }
 
     /**
@@ -329,10 +419,41 @@ class EncryptedVaultManager(context: Context) {
     }
 
     /**
+     * Removes a quick link matching the given URL (case-insensitive).
+     */
+    fun removeQuickLinkByUrl(url: String) {
+        val safeUrl = sanitizeUrl(url) ?: url.trim()
+        val updated = _quickLinksFlow.value.filter { !it.url.equals(safeUrl, ignoreCase = true) }
+        _quickLinksFlow.value = updated
+        saveQuickLinksToPrefs(updated)
+    }
+
+    /**
+     * Toggles a quick link (pins if not present, unpins if present).
+     */
+    fun toggleQuickLink(title: String, url: String, icon: String? = null): Boolean {
+        val safeUrl = sanitizeUrl(url) ?: return false
+        val current = _quickLinksFlow.value.toMutableList()
+        val existingIndex = current.indexOfFirst { it.url.equals(safeUrl, ignoreCase = true) }
+        return if (existingIndex >= 0) {
+            current.removeAt(existingIndex)
+            _quickLinksFlow.value = current
+            saveQuickLinksToPrefs(current)
+            false
+        } else {
+            current.add(QuickLinkItem(title = title.ifBlank { safeUrl }, url = safeUrl, icon = icon))
+            _quickLinksFlow.value = current
+            saveQuickLinksToPrefs(current)
+            true
+        }
+    }
+
+    /**
      * Checks whether quick link pinned.
      */
     fun isQuickLinkPinned(url: String): Boolean {
-        return _quickLinksFlow.value.any { it.url.equals(url, ignoreCase = true) }
+        val safeUrl = sanitizeUrl(url) ?: url.trim()
+        return _quickLinksFlow.value.any { it.url.equals(safeUrl, ignoreCase = true) }
     }
 
     /**
@@ -342,12 +463,77 @@ class EncryptedVaultManager(context: Context) {
         val arr = JSONArray()
         for (b in _bookmarksFlow.value) {
             arr.put(JSONObject().apply {
+                put("id", b.id)
                 put("title", b.title)
                 put("url", b.url)
                 put("dateAdded", b.dateAdded)
+                b.favicon?.let { put("favicon", it) }
             })
         }
         return arr.toString(2)
+    }
+
+    /**
+     * Imports bookmarks from a JSON array string or JSON backup object string.
+     * Sanitizes all URLs and prevents duplicates.
+     */
+    fun importBookmarksJson(jsonString: String): Result<Int> {
+        return try {
+            val trimmed = jsonString.trim()
+            val list = mutableListOf<JSONObject>()
+            if (trimmed.startsWith("[")) {
+                val arr = JSONArray(trimmed)
+                for (i in 0 until arr.length()) {
+                    list.add(arr.getJSONObject(i))
+                }
+            } else if (trimmed.startsWith("{")) {
+                val root = JSONObject(trimmed)
+                if (root.has("bookmarks")) {
+                    val arr = root.getJSONArray("bookmarks")
+                    for (i in 0 until arr.length()) {
+                        list.add(arr.getJSONObject(i))
+                    }
+                } else {
+                    return Result.failure(IllegalArgumentException("No 'bookmarks' list found in JSON"))
+                }
+            } else {
+                return Result.failure(IllegalArgumentException("Invalid JSON format"))
+            }
+
+            val current = _bookmarksFlow.value.toMutableList()
+            val df = SimpleDateFormat("MMM dd", Locale.getDefault())
+            var count = 0
+
+            for (obj in list) {
+                val rawUrl = obj.optString("url", "").trim()
+                if (rawUrl.isEmpty()) continue
+                val safeUrl = sanitizeUrl(rawUrl) ?: continue
+                val title = obj.optString("title", safeUrl).ifBlank { safeUrl }
+                val dateAdded = obj.optString("dateAdded", df.format(Date()))
+                val favicon = if (obj.has("favicon") && !obj.isNull("favicon")) obj.getString("favicon") else null
+
+                if (current.none { it.url.equals(safeUrl, ignoreCase = true) }) {
+                    current.add(
+                        BookmarkItem(
+                            id = UUID.randomUUID().toString(),
+                            title = title,
+                            url = safeUrl,
+                            dateAdded = dateAdded,
+                            favicon = favicon
+                        )
+                    )
+                    count++
+                }
+            }
+
+            if (count > 0) {
+                _bookmarksFlow.value = current
+                saveBookmarksToPrefs(current)
+            }
+            Result.success(count)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     /**
@@ -365,6 +551,7 @@ class EncryptedVaultManager(context: Context) {
                 put("title", b.title)
                 put("url", b.url)
                 put("dateAdded", b.dateAdded)
+                b.favicon?.let { put("favicon", it) }
             })
         }
         root.put("bookmarks", bookmarksArr)
@@ -375,6 +562,7 @@ class EncryptedVaultManager(context: Context) {
                 put("id", q.id)
                 put("title", q.title)
                 put("url", q.url)
+                put("icon", q.icon)
             })
         }
         root.put("quickLinks", quickLinksArr)
@@ -391,12 +579,16 @@ class EncryptedVaultManager(context: Context) {
             if (root.has("bookmarks")) {
                 val arr = root.getJSONArray("bookmarks")
                 val existing = _bookmarksFlow.value.toMutableList()
+                val df = SimpleDateFormat("MMM dd", Locale.getDefault())
                 for (i in 0 until arr.length()) {
                     val obj = arr.getJSONObject(i)
-                    val url = obj.getString("url")
-                    val title = obj.optString("title", url)
-                    if (existing.none { it.url.equals(url, ignoreCase = true) }) {
-                        existing.add(BookmarkItem(url = url, title = title, dateAdded = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())))
+                    val rawUrl = obj.getString("url")
+                    val safeUrl = sanitizeUrl(rawUrl) ?: continue
+                    val title = obj.optString("title", safeUrl).ifBlank { safeUrl }
+                    val dateAdded = obj.optString("dateAdded", df.format(Date()))
+                    val favicon = if (obj.has("favicon") && !obj.isNull("favicon")) obj.getString("favicon") else null
+                    if (existing.none { it.url.equals(safeUrl, ignoreCase = true) }) {
+                        existing.add(BookmarkItem(url = safeUrl, title = title, dateAdded = dateAdded, favicon = favicon))
                         count++
                     }
                 }
@@ -408,10 +600,12 @@ class EncryptedVaultManager(context: Context) {
                 val existingQ = _quickLinksFlow.value.toMutableList()
                 for (i in 0 until arr.length()) {
                     val obj = arr.getJSONObject(i)
-                    val url = obj.getString("url")
-                    val title = obj.optString("title", url)
-                    if (existingQ.none { it.url.equals(url, ignoreCase = true) }) {
-                        existingQ.add(QuickLinkItem(url = url, title = title))
+                    val rawUrl = obj.getString("url")
+                    val safeUrl = sanitizeUrl(rawUrl) ?: continue
+                    val title = obj.optString("title", safeUrl).ifBlank { safeUrl }
+                    val icon = if (obj.has("icon") && !obj.isNull("icon")) obj.getString("icon") else null
+                    if (existingQ.none { it.url.equals(safeUrl, ignoreCase = true) }) {
+                        existingQ.add(QuickLinkItem(url = safeUrl, title = title, icon = icon))
                     }
                 }
                 _quickLinksFlow.value = existingQ
