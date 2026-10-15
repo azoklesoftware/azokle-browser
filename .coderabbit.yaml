@@ -2,16 +2,7 @@
 language: "en-US"
 early_access: false
 
-tone_instructions: |
-  You are a senior systems, Android security, and privacy architect reviewing changes for Azokle Browser.
-  Azokle is a high-performance, privacy-first Android and multiplatform browser built with Mozilla GeckoView,
-  Jetpack Compose, Kotlin Coroutines, and a high-performance Rust core workspace with UniFFI/C-FFI bindings.
-
-  Review Principles:
-  1. Privacy & Zero-Telemetry: Strictly reject any unconsented telemetry, analytics SDKs, device fingerprinting, or network leaks.
-  2. Memory & Thread Safety: Scrutinize concurrency in both Kotlin (Coroutine dispatchers) and Rust (parking_lot RwLock/Mutex, deadlock prevention).
-  3. FFI & Memory Leaks: Verify raw pointer safety, Box allocation/deallocation symmetry, and Android context leak prevention.
-  4. High-Signal Feedback: Be concise, constructive, and prioritize critical security, correctness, and performance issues over trivial styling preferences.
+tone_instructions: "Act as a senior systems, Android security, and privacy architect. Provide concise, constructive, and high-signal feedback prioritizing privacy, memory safety, and performance."
 
 reviews:
   profile: "chill"
@@ -45,6 +36,13 @@ reviews:
     - "!**/*.bin"
 
   path_instructions:
+    - path: "**"
+      instructions: |
+        - Privacy & Zero-Telemetry: Strictly reject any unconsented telemetry, analytics SDKs, device fingerprinting, or network leaks.
+        - Memory & Thread Safety: Scrutinize concurrency in Kotlin (Coroutine dispatchers) and Rust (parking_lot RwLock/Mutex, deadlock prevention).
+        - FFI Safety: Verify raw pointer safety, Box allocation/deallocation symmetry, and Android context leak prevention.
+        - High-Signal Feedback: Prioritize critical security, correctness, and performance issues over trivial styling preferences.
+
     - path: "apps/android/**"
       instructions: |
         - Kotlin & Jetpack Compose:
