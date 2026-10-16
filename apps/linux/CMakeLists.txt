@@ -24,7 +24,6 @@ add_executable(azokle-browser-linux
     src/window/AzokleBrowserWindow.cpp
     src/widget/AzokleGeckoWidget.cpp
     src/tabs/AzokleTabManager.cpp
-    src/ui/AzokleDrawUtils.cpp
 )
 
 target_include_directories(azokle-browser-linux PRIVATE

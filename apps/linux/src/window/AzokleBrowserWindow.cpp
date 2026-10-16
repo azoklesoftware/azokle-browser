@@ -1,6 +1,5 @@
 #include "AzokleBrowserWindow.hpp"
 #include "../widget/WebKitEngineLoader.hpp"
-#include "../ui/AzokleTheme.hpp"
 #include <iostream>
 #include <sstream>
 #include <filesystem>
