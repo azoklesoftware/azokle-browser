@@ -25,7 +25,7 @@ export class NavigationToolbarComponent {
     this.container.className = 'toolbar-container';
     this.container.innerHTML = '';
 
-    // Left Navigation Controls (Back, Forward, Reload, Home)
+    // Left Navigation Controls: Back, Forward, Refresh, Bookmark
     const leftNav = document.createElement('div');
     leftNav.className = 'nav-buttons-group';
 
@@ -45,29 +45,35 @@ export class NavigationToolbarComponent {
 
     const btnReload = this.createSvgButton(
       'nav-btn-reload',
-      'Reload this page (Ctrl+R)',
+      'Refresh this page (Ctrl+R)',
       `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`,
       () => this.tabStore.reload()
     );
 
-    const btnHome = this.createSvgButton(
-      'nav-btn-home',
-      'Open homepage (Alt+Home)',
-      `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
-      () => this.tabStore.navigate('azokle://newtab')
+    const btnBookmark = this.createSvgButton(
+      'nav-btn-bookmark',
+      'Bookmark this page (Ctrl+D)',
+      `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>`,
+      async () => {
+        const activeTab = this.tabStore.getActiveTab();
+        if (activeTab) {
+          await this.browserStore.addBookmark(activeTab.title || 'New Tab', activeTab.url || 'azokle://newtab');
+          btnBookmark.classList.toggle('bookmarked');
+        }
+      }
     );
 
     leftNav.appendChild(btnBack);
     leftNav.appendChild(btnForward);
     leftNav.appendChild(btnReload);
-    leftNav.appendChild(btnHome);
+    leftNav.appendChild(btnBookmark);
 
-    // Center Omnibar Slot
+    // Center Searchbox / Omnibar
     const omnibarSlot = document.createElement('div');
     omnibarSlot.className = 'omnibar-slot';
     new OmnibarComponent(omnibarSlot, this.tabStore, this.browserStore);
 
-    // Right Action Controls
+    // Right Action Controls: Shield & Settings
     const rightNav = document.createElement('div');
     rightNav.className = 'action-buttons-group';
 
@@ -83,40 +89,26 @@ export class NavigationToolbarComponent {
       this.browserStore.setMenuOpen(false);
     };
 
-    // Tor Circuit Button
-    const torBtn = document.createElement('button');
-    torBtn.id = 'toolbar-tor-btn';
-    torBtn.className = 'icon-btn tor-btn';
-    torBtn.title = 'Tor Onion Routing Circuit';
-    torBtn.setAttribute('aria-label', 'Tor Routing');
-    torBtn.onclick = () => {
-      this.browserStore.setTorOpen(!this.browserStore.isTorOpen());
-      this.browserStore.setShieldOpen(false);
-      this.browserStore.setMenuOpen(false);
-    };
-
-    // App Menu Button (3 Dots)
-    const menuBtn = document.createElement('button');
-    menuBtn.id = 'toolbar-menu-btn';
-    menuBtn.className = 'icon-btn menu-btn';
-    menuBtn.title = 'Customize and control Azokle';
-    menuBtn.setAttribute('aria-label', 'Main Menu');
-    menuBtn.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-        <circle cx="12" cy="5" r="2"/>
-        <circle cx="12" cy="12" r="2"/>
-        <circle cx="12" cy="19" r="2"/>
+    // Settings / App Menu Button (Gear Icon)
+    const settingsBtn = document.createElement('button');
+    settingsBtn.id = 'toolbar-menu-btn';
+    settingsBtn.className = 'icon-btn settings-btn';
+    settingsBtn.title = 'Settings and Browser Menu';
+    settingsBtn.setAttribute('aria-label', 'Settings');
+    settingsBtn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
       </svg>
     `;
-    menuBtn.onclick = () => {
+    settingsBtn.onclick = () => {
       this.browserStore.setMenuOpen(!this.browserStore.isBrowserMenuOpen());
       this.browserStore.setShieldOpen(false);
       this.browserStore.setTorOpen(false);
     };
 
     rightNav.appendChild(shieldBtn);
-    rightNav.appendChild(torBtn);
-    rightNav.appendChild(menuBtn);
+    rightNav.appendChild(settingsBtn);
 
     this.container.appendChild(leftNav);
     this.container.appendChild(omnibarSlot);

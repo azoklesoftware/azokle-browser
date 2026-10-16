@@ -63,7 +63,9 @@ AzokleBrowserWindow::AzokleBrowserWindow(std::shared_ptr<engine::IGeckoEngine> e
 }
 
 // Global GTK pointers
+static GtkWidget* g_mainWindow = nullptr;
 static GtkWidget* g_webView = nullptr;
+static bool g_isMaximized = false;
 static bool g_shieldActive = true;
 static uint64_t g_blockedCount = 42;
 
@@ -154,8 +156,13 @@ void AzokleBrowserWindow::Show() {
 
     // 1. Create Main Window
     GtkWidget* window = loader.gtk_window_new(0 /* GTK_WINDOW_TOPLEVEL */);
+    g_mainWindow = window;
     loader.gtk_window_set_title(window, "Azokle Browser");
     loader.gtk_window_set_default_size(window, 1280, 800);
+    // Remove redundant OS titlebar strip - seamless integrated WebUI tabstrip & window controls
+    if (loader.gtk_window_set_decorated) {
+        loader.gtk_window_set_decorated(window, 0);
+    }
 
     // 2. High-Polish Solid Dark CSS Design System
     GtkCssProvider* provider = loader.gtk_css_provider_new();
@@ -304,7 +311,7 @@ void AzokleBrowserWindow::Show() {
         std::cout << "[AzokleBrowserWindow] Registered native IPC message handler: window.webkit.messageHandlers.azokleNative\n";
     }
 
-    loader.webkit_web_view_load_uri(g_webView, CHROME_DESKTOP_URL);
+    loader.webkit_web_view_load_uri(g_webView, CHROME_DESKTOP_URL.c_str());
     loader.gtk_container_add(window, g_webView);
 
     // Window destroy signal
@@ -436,6 +443,29 @@ void AzokleBrowserWindow::HandleNativeIpc(const std::string& json) {
         ss << "{\"id\":\"" << escape_json_str(reqId) << "\",\"result\":[]}";
     } else if (action == "getDownloads") {
         ss << "{\"id\":\"" << escape_json_str(reqId) << "\",\"result\":[]}";
+    } else if (action == "minimizeWindow") {
+        if (g_mainWindow && loader.gtk_window_iconify) {
+            loader.gtk_window_iconify(g_mainWindow);
+        }
+        ss << "{\"id\":\"" << escape_json_str(reqId) << "\",\"result\":true}";
+    } else if (action == "maximizeWindow") {
+        if (g_mainWindow) {
+            if (g_isMaximized && loader.gtk_window_unmaximize) {
+                loader.gtk_window_unmaximize(g_mainWindow);
+                g_isMaximized = false;
+            } else if (loader.gtk_window_maximize) {
+                loader.gtk_window_maximize(g_mainWindow);
+                g_isMaximized = true;
+            }
+        }
+        ss << "{\"id\":\"" << escape_json_str(reqId) << "\",\"result\":true}";
+    } else if (action == "closeWindow") {
+        if (g_mainWindow && loader.gtk_window_close) {
+            loader.gtk_window_close(g_mainWindow);
+        } else if (loader.gtk_main_quit) {
+            loader.gtk_main_quit();
+        }
+        ss << "{\"id\":\"" << escape_json_str(reqId) << "\",\"result\":true}";
     } else if (action == "createTab") {
         std::string url = extract_json_str(json, "url");
         if (url.empty() || (url.rfind("http://", 0) != 0 && url.rfind("https://", 0) != 0 && url.rfind("azokle://", 0) != 0)) {
@@ -445,9 +475,6 @@ void AzokleBrowserWindow::HandleNativeIpc(const std::string& json) {
            << "\"id\":1,\"title\":\"New Tab\",\"url\":\"" << escape_json_str(url) << "\","
            << "\"isPrivate\":false,\"isTor\":false,\"isLoading\":false,\"progress\":1.0,"
            << "\"securityLevel\":\"SECURE\"}}";
-    } else if (action == "closeWindow") {
-        if (loader.gtk_main_quit) loader.gtk_main_quit();
-        return;
     } else {
         ss << "{\"id\":\"" << escape_json_str(reqId) << "\",\"result\":null}";
     }

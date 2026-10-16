@@ -24,33 +24,86 @@ export class TabStripComponent {
     this.container.innerHTML = '';
     this.container.className = 'tabstrip-container';
 
+    // 1. Scrollable Tabs Section (Tabs + Add Button)
+    const tabsArea = document.createElement('div');
+    tabsArea.className = 'tabs-scroll-area';
+
     // Separate pinned and unpinned tabs
     const pinnedTabs = tabs.filter(t => t.isPinned);
     const regularTabs = tabs.filter(t => !t.isPinned);
 
-    // 1. Render pinned tabs
     for (const tab of pinnedTabs) {
-      this.container.appendChild(this.createTabElement(tab, tab.id === activeId, true));
+      tabsArea.appendChild(this.createTabElement(tab, tab.id === activeId, true));
     }
 
-    // 2. Render regular tabs
     for (const tab of regularTabs) {
-      this.container.appendChild(this.createTabElement(tab, tab.id === activeId, false));
+      tabsArea.appendChild(this.createTabElement(tab, tab.id === activeId, false));
     }
 
-    // 3. Add Tab Button "+"
+    // Add Tab Button "+"
     const addBtn = document.createElement('button');
     addBtn.className = 'add-tab-btn';
     addBtn.title = 'New Tab (Ctrl+T)';
     addBtn.setAttribute('aria-label', 'New Tab');
     addBtn.innerHTML = `
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
         <line x1="12" y1="5" x2="12" y2="19"/>
         <line x1="5" y1="12" x2="19" y2="12"/>
       </svg>
     `;
     addBtn.onclick = () => this.tabStore.openTab('azokle://newtab');
-    this.container.appendChild(addBtn);
+    tabsArea.appendChild(addBtn);
+
+    this.container.appendChild(tabsArea);
+
+    // 2. Drag Spacer Region (allows moving the window from empty space)
+    const dragRegion = document.createElement('div');
+    dragRegion.className = 'tabstrip-drag-region';
+    this.container.appendChild(dragRegion);
+
+    // 3. Integrated Window Controls (Minimize, Maximize/Restore, Close)
+    const winControls = document.createElement('div');
+    winControls.className = 'window-controls-group';
+
+    const minBtn = document.createElement('button');
+    minBtn.className = 'win-control-btn win-minimize';
+    minBtn.title = 'Minimize';
+    minBtn.setAttribute('aria-label', 'Minimize');
+    minBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 12 12"><rect y="5.5" width="12" height="1.2" fill="currentColor"/></svg>`;
+    minBtn.onclick = () => {
+      this.tabStore.getBridge().minimizeWindow();
+    };
+
+    const maxBtn = document.createElement('button');
+    maxBtn.className = 'win-control-btn win-maximize';
+    maxBtn.title = 'Maximize';
+    maxBtn.setAttribute('aria-label', 'Maximize');
+    maxBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>`;
+    maxBtn.onclick = () => {
+      this.tabStore.getBridge().maximizeWindow();
+      if (typeof window !== 'undefined' && !window.webkit?.messageHandlers?.azokleNative) {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+    };
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'win-control-btn win-close';
+    closeBtn.title = 'Close';
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 12 12"><path d="M2 2L10 10M10 2L2 10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`;
+    closeBtn.onclick = () => {
+      this.tabStore.getBridge().closeWindow();
+    };
+
+    winControls.appendChild(minBtn);
+    winControls.appendChild(maxBtn);
+    winControls.appendChild(closeBtn);
+
+    this.container.appendChild(winControls);
   }
 
   private createTabElement(tab: TabInfo, isActive: boolean, isPinned: boolean): HTMLElement {

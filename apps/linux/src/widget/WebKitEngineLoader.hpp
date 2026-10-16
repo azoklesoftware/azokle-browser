@@ -48,6 +48,11 @@ public:
         gtk_window_new = (GtkWidget*(*)(int))dlsym(m_gtkLib, "gtk_window_new");
         gtk_window_set_title = (void(*)(GtkWidget*, const char*))dlsym(m_gtkLib, "gtk_window_set_title");
         gtk_window_set_default_size = (void(*)(GtkWidget*, int, int))dlsym(m_gtkLib, "gtk_window_set_default_size");
+        gtk_window_set_decorated = (void(*)(GtkWidget*, int))dlsym(m_gtkLib, "gtk_window_set_decorated");
+        gtk_window_iconify = (void(*)(GtkWidget*))dlsym(m_gtkLib, "gtk_window_iconify");
+        gtk_window_maximize = (void(*)(GtkWidget*))dlsym(m_gtkLib, "gtk_window_maximize");
+        gtk_window_unmaximize = (void(*)(GtkWidget*))dlsym(m_gtkLib, "gtk_window_unmaximize");
+        gtk_window_close = (void(*)(GtkWidget*))dlsym(m_gtkLib, "gtk_window_close");
         gtk_box_new = (GtkWidget*(*)(int, int))dlsym(m_gtkLib, "gtk_box_new");
         gtk_box_pack_start = (void(*)(GtkWidget*, GtkWidget*, int, int, unsigned int))dlsym(m_gtkLib, "gtk_box_pack_start");
         gtk_container_add = (void(*)(GtkWidget*, GtkWidget*))dlsym(m_gtkLib, "gtk_container_add");
@@ -121,6 +126,11 @@ public:
     GtkWidget* (*gtk_window_new)(int){nullptr};
     void (*gtk_window_set_title)(GtkWidget*, const char*){nullptr};
     void (*gtk_window_set_default_size)(GtkWidget*, int, int){nullptr};
+    void (*gtk_window_set_decorated)(GtkWidget*, int){nullptr};
+    void (*gtk_window_iconify)(GtkWidget*){nullptr};
+    void (*gtk_window_maximize)(GtkWidget*){nullptr};
+    void (*gtk_window_unmaximize)(GtkWidget*){nullptr};
+    void (*gtk_window_close)(GtkWidget*){nullptr};
     GtkWidget* (*gtk_box_new)(int, int){nullptr};
     void (*gtk_box_pack_start)(GtkWidget*, GtkWidget*, int, int, unsigned int){nullptr};
     void (*gtk_container_add)(GtkWidget*, GtkWidget*){nullptr};

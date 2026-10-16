@@ -147,4 +147,8 @@ export class TabStore {
       return this.bridge.goForward(active.id);
     }
   }
+
+  getBridge(): IDesktopBridge {
+    return this.bridge;
+  }
 }

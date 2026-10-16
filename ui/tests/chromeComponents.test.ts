@@ -75,19 +75,27 @@ describe('Brave-Grade Browser Chrome Components', () => {
 
       expect(tabStore.getTabs().length).toBeLessThan(initialTabsCount + 1);
     });
+
+    it('should render integrated window controls (minimize, maximize, close)', () => {
+      const root = document.createElement('div');
+      new TabStripComponent(root, tabStore);
+
+      expect(root.querySelector('.win-minimize')).not.toBeNull();
+      expect(root.querySelector('.win-maximize')).not.toBeNull();
+      expect(root.querySelector('.win-close')).not.toBeNull();
+    });
   });
 
   describe('NavigationToolbarComponent', () => {
-    it('should render navigation SVGs, Shield pill, and Menu button', () => {
+    it('should render navigation SVGs, Bookmark, Shield pill, and Settings/Menu button', () => {
       const root = document.createElement('div');
       new NavigationToolbarComponent(root, tabStore, browserStore);
 
       expect(root.querySelector('#nav-btn-back')).not.toBeNull();
       expect(root.querySelector('#nav-btn-forward')).not.toBeNull();
       expect(root.querySelector('#nav-btn-reload')).not.toBeNull();
-      expect(root.querySelector('#nav-btn-home')).not.toBeNull();
+      expect(root.querySelector('#nav-btn-bookmark')).not.toBeNull();
       expect(root.querySelector('#toolbar-shield-btn')).not.toBeNull();
-      expect(root.querySelector('#toolbar-tor-btn')).not.toBeNull();
       expect(root.querySelector('#toolbar-menu-btn')).not.toBeNull();
     });
 

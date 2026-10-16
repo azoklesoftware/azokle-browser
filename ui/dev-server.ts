@@ -24,6 +24,10 @@ Bun.serve({
     let pathname = url.pathname;
 
     if (pathname === '/' || pathname === '') {
+      const distIndex = Bun.file(resolve(join(ROOT, 'dist', 'index.html')));
+      if (await distIndex.exists()) {
+        return new Response(distIndex);
+      }
       pathname = '/index.html';
     }
 

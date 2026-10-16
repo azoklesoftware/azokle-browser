@@ -30,14 +30,10 @@ int main(int argc, char* argv[]) {
     engine->Initialize(config);
     std::cout << "[GeckoEngine] Cross-platform Gecko Runtime initialized.\n";
 
-    // 3. Create Main Browser Window
+    // 3. Create & Show Main Browser Window (enters GTK event loop)
     auto window = std::make_unique<azokle::linux_app::AzokleBrowserWindow>(engine);
     window->Show();
 
-    // 4. Test Navigation and AdBlock / Tracker Defense
-    std::string testUrl = "https://search.azokle.com/?utm_source=tracker_test";
-    window->Navigate(testUrl);
-
-    std::cout << "[AzokleBrowser] Ready. Engine running with sovereign protection.\n";
+    std::cout << "[AzokleBrowser] Exiting cleanly.\n";
     return 0;
 }

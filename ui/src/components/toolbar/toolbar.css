@@ -55,6 +55,15 @@
   transform: scale(0.94);
 }
 
+#nav-btn-bookmark.bookmarked {
+  color: #f59e0b;
+}
+
+#nav-btn-bookmark.bookmarked svg {
+  fill: #f59e0b;
+  stroke: #f59e0b;
+}
+
 /* Brave-Style Shield Pill Button */
 .shield-pill-btn {
   display: inline-flex;
