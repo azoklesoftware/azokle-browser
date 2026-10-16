@@ -134,13 +134,24 @@ static std::string ResolveInputQuery(const std::string& input) {
     return "https://search.azokle.com/search?q=" + q;
 }
 
+static std::string escape_json_str(const std::string& s);
+
 static void NavigateInternal(const std::string& targetUrl) {
     auto& loader = WebKitEngineLoader::Instance();
     std::string resolved = ResolveInputQuery(targetUrl);
     std::string cleaned = AzokleShieldController::Instance().CleanUrl(resolved);
 
-    if (g_webView) {
-        loader.webkit_web_view_load_uri(g_webView, cleaned.c_str());
+    // CRITICAL FIX: NEVER navigate g_webView away from AZOKLE_SHELL_URL!
+    // g_webView hosts the sovereign Azokle Desktop UI Shell (Tabs, Omnibar, Navigation, Shields, Menu).
+    // Instead, dispatch the navigation event to the Shell UI's tabStore and web-viewport iframe!
+    if (g_webView && loader.webkit_web_view_run_javascript) {
+        std::ostringstream dispatchScript;
+        dispatchScript << "if (window.__azokleHostDispatch) {"
+                       << "  window.__azokleHostDispatch('url-changed', { tabId: 1, url: '" << escape_json_str(cleaned) << "' });"
+                       << "  window.__azokleHostDispatch('loading-state-changed', { tabId: 1, isLoading: false });"
+                       << "  window.__azokleHostDispatch('progress-changed', { tabId: 1, progress: 1.0 });"
+                       << "}";
+        loader.webkit_web_view_run_javascript(g_webView, dispatchScript.str().c_str(), nullptr, nullptr, nullptr);
     }
 
     if (g_shieldActive) {
@@ -312,6 +323,9 @@ void AzokleBrowserWindow::Show() {
         }
         if (loader.webkit_settings_set_allow_universal_access_from_file_urls) {
             loader.webkit_settings_set_allow_universal_access_from_file_urls(settings, 1);
+        }
+        if (loader.webkit_settings_set_disable_web_security) {
+            loader.webkit_settings_set_disable_web_security(settings, 1);
         }
         loader.webkit_settings_set_user_agent(settings, "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0 (Azokle Browser)");
     }
@@ -504,15 +518,27 @@ void AzokleBrowserWindow::Navigate(const std::string& url) {
 }
 
 void AzokleBrowserWindow::Reload() {
-    if (g_webView) WebKitEngineLoader::Instance().webkit_web_view_reload(g_webView);
+    auto& loader = WebKitEngineLoader::Instance();
+    if (g_webView && loader.webkit_web_view_run_javascript) {
+        std::string script = "const iframe = document.getElementById('web-viewport'); if (iframe && iframe.contentWindow) { try { iframe.contentWindow.location.reload(); } catch {} }";
+        loader.webkit_web_view_run_javascript(g_webView, script.c_str(), nullptr, nullptr, nullptr);
+    }
 }
 
 void AzokleBrowserWindow::GoBack() {
-    if (g_webView) WebKitEngineLoader::Instance().webkit_web_view_go_back(g_webView);
+    auto& loader = WebKitEngineLoader::Instance();
+    if (g_webView && loader.webkit_web_view_run_javascript) {
+        std::string script = "const iframe = document.getElementById('web-viewport'); if (iframe && iframe.contentWindow) { try { iframe.contentWindow.history.back(); } catch {} }";
+        loader.webkit_web_view_run_javascript(g_webView, script.c_str(), nullptr, nullptr, nullptr);
+    }
 }
 
 void AzokleBrowserWindow::GoForward() {
-    if (g_webView) WebKitEngineLoader::Instance().webkit_web_view_go_forward(g_webView);
+    auto& loader = WebKitEngineLoader::Instance();
+    if (g_webView && loader.webkit_web_view_run_javascript) {
+        std::string script = "const iframe = document.getElementById('web-viewport'); if (iframe && iframe.contentWindow) { try { iframe.contentWindow.history.forward(); } catch {} }";
+        loader.webkit_web_view_run_javascript(g_webView, script.c_str(), nullptr, nullptr, nullptr);
+    }
 }
 
 void AzokleBrowserWindow::ToggleTor() {

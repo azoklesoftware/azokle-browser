@@ -100,6 +100,7 @@ public:
         webkit_settings_set_user_agent = (void(*)(WebKitSettings*, const char*))dlsym(m_webkitLib, "webkit_settings_set_user_agent");
         webkit_settings_set_allow_file_access_from_file_urls = (void(*)(WebKitSettings*, int))dlsym(m_webkitLib, "webkit_settings_set_allow_file_access_from_file_urls");
         webkit_settings_set_allow_universal_access_from_file_urls = (void(*)(WebKitSettings*, int))dlsym(m_webkitLib, "webkit_settings_set_allow_universal_access_from_file_urls");
+        webkit_settings_set_disable_web_security = (void(*)(WebKitSettings*, int))dlsym(m_webkitLib, "webkit_settings_set_disable_web_security");
 
         // Load WebKitGTK IPC & Script Message Handlers
         g_free = (void(*)(void*))dlsym(m_gtkLib, "g_free");
@@ -176,6 +177,7 @@ public:
     void (*webkit_settings_set_user_agent)(WebKitSettings*, const char*){nullptr};
     void (*webkit_settings_set_allow_file_access_from_file_urls)(WebKitSettings*, int){nullptr};
     void (*webkit_settings_set_allow_universal_access_from_file_urls)(WebKitSettings*, int){nullptr};
+    void (*webkit_settings_set_disable_web_security)(WebKitSettings*, int){nullptr};
     void (*g_free)(void*){nullptr};
     void* (*webkit_web_view_get_user_content_manager)(GtkWidget*){nullptr};
     void (*webkit_user_content_manager_register_script_message_handler)(void*, const char*){nullptr};

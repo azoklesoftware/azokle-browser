@@ -44,22 +44,27 @@ export function initializeDesktopUI(): void {
     tabStore.openTab('azokle://newtab');
   }
 
-  // Sync active tab URL to the in-browser viewport iframe (used during web preview / development)
+  // Sync active tab URL to the in-browser viewport iframe
   const viewportIframe = document.getElementById('web-viewport') as HTMLIFrameElement;
   if (viewportIframe) {
+    let currentSrc = '';
     tabStore.subscribe(() => {
       const activeTab = tabStore.getActiveTab();
       if (activeTab && activeTab.url) {
+        let targetSrc = '';
         if (activeTab.url === 'azokle://newtab' || activeTab.url === 'about:blank') {
-          viewportIframe.src = './pages/newtab/index.html';
+          targetSrc = './pages/newtab/index.html';
         } else if (activeTab.url === 'azokle://settings') {
-          viewportIframe.src = './pages/settings/index.html';
+          targetSrc = './pages/settings/index.html';
         } else if (activeTab.url.startsWith('http://') || activeTab.url.startsWith('https://')) {
+          targetSrc = activeTab.url;
+        }
+
+        if (targetSrc && targetSrc !== currentSrc) {
+          currentSrc = targetSrc;
           try {
-            viewportIframe.src = activeTab.url;
-          } catch {
-            // Content-Security-Policy or X-Frame-Options in local iframe
-          }
+            viewportIframe.src = targetSrc;
+          } catch {}
         }
       }
     });

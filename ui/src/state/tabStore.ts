@@ -160,6 +160,26 @@ export class TabStore {
   async navigate(url: string): Promise<void> {
     const active = this.getActiveTab();
     if (active) {
+      active.url = url;
+      active.isLoading = true;
+      active.progress = 0.2;
+      try {
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+          const u = new URL(url);
+          active.title = u.hostname;
+          active.securityHost = u.hostname;
+          active.securityLevel = url.startsWith('https://') ? 'SECURE' : 'LOCAL';
+        } else if (url === 'azokle://newtab' || url === 'about:blank') {
+          active.title = 'New Tab';
+          active.securityLevel = 'SECURE';
+        } else if (url === 'azokle://settings') {
+          active.title = 'Settings';
+          active.securityLevel = 'LOCAL';
+        }
+      } catch {
+        active.title = url;
+      }
+      this.notify();
       return this.bridge.navigate(url, active.id);
     }
   }
@@ -167,6 +187,13 @@ export class TabStore {
   async reload(): Promise<void> {
     const active = this.getActiveTab();
     if (active) {
+      const viewport = typeof document !== 'undefined' ? (document.getElementById('web-viewport') as HTMLIFrameElement) : null;
+      if (viewport && viewport.contentWindow) {
+        try {
+          viewport.contentWindow.location.reload();
+          return;
+        } catch {}
+      }
       return this.bridge.reload(active.id);
     }
   }
@@ -174,6 +201,13 @@ export class TabStore {
   async goBack(): Promise<void> {
     const active = this.getActiveTab();
     if (active) {
+      const viewport = typeof document !== 'undefined' ? (document.getElementById('web-viewport') as HTMLIFrameElement) : null;
+      if (viewport && viewport.contentWindow) {
+        try {
+          viewport.contentWindow.history.back();
+          return;
+        } catch {}
+      }
       return this.bridge.goBack(active.id);
     }
   }
@@ -181,6 +215,13 @@ export class TabStore {
   async goForward(): Promise<void> {
     const active = this.getActiveTab();
     if (active) {
+      const viewport = typeof document !== 'undefined' ? (document.getElementById('web-viewport') as HTMLIFrameElement) : null;
+      if (viewport && viewport.contentWindow) {
+        try {
+          viewport.contentWindow.history.forward();
+          return;
+        } catch {}
+      }
       return this.bridge.goForward(active.id);
     }
   }
