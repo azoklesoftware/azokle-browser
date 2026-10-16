@@ -53,7 +53,7 @@ struct MainWindowView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Unified Sovereign Chrome Toolbar
+            // Unified Sovereign Azokle Shell Toolbar
             HStack(spacing: 12) {
                 Button(action: {}) {
                     Image(systemName: "chevron.backward")

@@ -35,6 +35,8 @@ target_include_directories(azokle-browser-linux PRIVATE
 
 target_link_directories(azokle-browser-linux PRIVATE
     ${RUST_LIB_DIR}
+    ${CMAKE_SOURCE_DIR}/target/release
+    ${CMAKE_SOURCE_DIR}/target/debug
 )
 
 target_link_libraries(azokle-browser-linux PRIVATE

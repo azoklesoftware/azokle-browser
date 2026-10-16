@@ -25,12 +25,22 @@ target_include_directories(azokle-browser-windows PRIVATE
 
 target_link_directories(azokle-browser-windows PRIVATE
     ${RUST_LIB_DIR}
+    ${CMAKE_SOURCE_DIR}/target/release
+    ${CMAKE_SOURCE_DIR}/target/debug
 )
 
-target_link_libraries(azokle-browser-windows PRIVATE
-    azokle_engine
-    azokle_c
-    pthread
-    dl
-    m
-)
+if(WIN32)
+    target_link_libraries(azokle-browser-windows PRIVATE
+        azokle_engine
+        azokle_c
+    )
+else()
+    target_link_libraries(azokle-browser-windows PRIVATE
+        azokle_engine
+        azokle_c
+        pthread
+        dl
+        m
+    )
+endif()
+

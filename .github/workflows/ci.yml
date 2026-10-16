@@ -41,6 +41,172 @@ jobs:
       - name: Run Rust Unit & Integration Tests
         run: cargo test --workspace
 
+  desktop-linux:
+    name: Desktop Linux (Build & Test)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Rust Toolchain
+        uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master
+        with:
+          toolchain: stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@400e7407cfd7a091e5fbb6afec01ec146c432b7c # v2.7.7
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2
+        with:
+          bun-version: latest
+
+      - name: Install Linux System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libx11-dev \
+            ninja-build \
+            cmake \
+            build-essential
+
+      - name: Install Desktop UI Dependencies & Run Tests
+        working-directory: ui
+        run: |
+          bun install --frozen-lockfile || bun install
+          bun run typecheck
+          bun test
+          bun run build
+
+      - name: Build Rust Native C Bridge
+        run: cargo build --release --package azokle-c-bridge
+
+      - name: Configure & Build Linux Desktop Shell
+        run: |
+          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -G Ninja
+          cmake --build build --target azokle-browser-linux
+
+      - name: Verify Linux Executable
+        run: |
+          test -f build/apps/linux/azokle-browser-linux
+          ls -lh build/apps/linux/azokle-browser-linux
+
+      - name: Upload Linux Binary Artifact
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: azokle-browser-linux-x86_64
+          path: build/apps/linux/azokle-browser-linux
+          retention-days: 14
+
+  desktop-windows:
+    name: Desktop Windows (Build & Test)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Rust Toolchain
+        uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master
+        with:
+          toolchain: stable
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@400e7407cfd7a091e5fbb6afec01ec146c432b7c # v2.7.7
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2
+        with:
+          bun-version: latest
+
+      - name: Install Desktop UI Dependencies & Run Tests
+        working-directory: ui
+        shell: bash
+        run: |
+          bun install --frozen-lockfile || bun install
+          bun run typecheck
+          bun test
+          bun run build
+
+      - name: Build Rust Native C Bridge
+        shell: bash
+        run: cargo build --release --package azokle-c-bridge
+
+      - name: Configure & Build Windows Desktop Shell
+        shell: bash
+        run: |
+          cmake -B build -S . -DBUILD_WINDOWS=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release --target azokle-browser-windows
+
+      - name: Verify Windows Executable
+        shell: bash
+        run: |
+          find build -type f -name "azokle-browser-windows.exe" -ls
+
+      - name: Upload Windows Binary Artifact
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: azokle-browser-windows-x86_64
+          path: build/**/azokle-browser-windows.exe
+          retention-days: 14
+
+  desktop-macos:
+    name: Desktop macOS (Build & Test)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Rust Toolchain
+        uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master
+        with:
+          toolchain: stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@400e7407cfd7a091e5fbb6afec01ec146c432b7c # v2.7.7
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2
+        with:
+          bun-version: latest
+
+      - name: Install Desktop UI Dependencies & Run Tests
+        working-directory: ui
+        run: |
+          bun install --frozen-lockfile || bun install
+          bun run typecheck
+          bun test
+          bun run build
+
+      - name: Build Rust UniFFI & C Bridge
+        run: |
+          cargo build --release --package azokle-uniffi
+          cargo build --release --package azokle-c-bridge
+
+      - name: Build macOS Swift Presentation Shell
+        run: |
+          swift build --package-path apps/macos -c release
+
+      - name: Verify macOS Application Output
+        run: |
+          find apps/macos/.build -type f -name "AzokleBrowserMac" -ls
+
+      - name: Upload macOS Binary Artifact
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: azokle-browser-macos
+          path: apps/macos/.build/**/release/AzokleBrowserMac
+          retention-days: 14
+
+
   android-app:
     name: Android Application (Tests & Build)
     runs-on: ubuntu-latest
