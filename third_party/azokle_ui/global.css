@@ -32,8 +32,8 @@ html, body {
   height: 100%;
 }
 
-/* Chrome Header Wrapper */
-.browser-chrome-header {
+/* Azokle Shell Header Wrapper */
+.azokle-shell-header {
   display: flex;
   flex-direction: column;
   background-color: var(--bg-toolbar);

@@ -1,5 +1,5 @@
 /**
- * Bun Unit Tests: Brave-Grade Browser Chrome Components
+ * Bun Unit Tests: Azokle Browser Shell Components
  * Validates DOM rendering, event interactions, state reactivity, and keyboard handling
  */
 
@@ -16,7 +16,7 @@ import { BrowserMenuComponent } from '../src/components/menu/BrowserMenu.ts';
 import { TorCircuitModalComponent } from '../src/components/tor/TorCircuitModal.ts';
 import { BookmarksBarComponent } from '../src/components/bookmarks/BookmarksBar.ts';
 
-describe('Brave-Grade Browser Chrome Components', () => {
+describe('Azokle Browser Shell Components', () => {
   let bridge: MockDesktopBridge;
   let tabStore: TabStore;
   let browserStore: BrowserStore;

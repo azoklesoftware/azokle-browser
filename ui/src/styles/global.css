@@ -32,38 +32,13 @@ html, body {
   height: 100%;
 }
 
-/* Chrome Header Wrapper */
-.browser-chrome-header {
+/* Azokle Shell Header Wrapper */
+.azokle-shell-header {
   display: flex;
   flex-direction: column;
   background-color: var(--bg-toolbar);
   border-bottom: 1px solid var(--border-subtle);
   z-index: 100;
-}
-
-/* Tab Strip Row */
-.tabstrip-container {
-  display: flex;
-  align-items: flex-end;
-  background-color: var(--bg-tabstrip);
-  padding: 6px 8px 0px 8px;
-  min-height: 40px;
-  border-bottom: 1px solid var(--border-subtle);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.tabstrip-container::-webkit-scrollbar {
-  display: none;
-}
-
-/* Navigation Toolbar Row */
-.toolbar-container {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
-  min-height: 44px;
-  background-color: var(--bg-toolbar);
 }
 
 /* Live Web Content Container */
@@ -72,14 +47,14 @@ html, body {
   width: 100%;
   height: calc(100% - 84px);
   position: relative;
-  background-color: var(--bg-app, #12141a);
+  background-color: var(--bg-app, #101010);
 }
 
 .viewport-iframe {
   width: 100%;
   height: 100%;
   border: none;
-  background-color: var(--bg-app, #12141a);
+  background-color: var(--bg-app, #101010);
 }
 
 /* Universal Button Styles */

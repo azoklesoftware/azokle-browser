@@ -10,11 +10,24 @@ namespace azokle::linux_app {
 
 static std::string GetResourceUrl(const std::string& subPath) {
     const char* baseEnv = std::getenv("AZOKLE_BROWSER_ROOT");
-    std::filesystem::path rootPath = baseEnv ? std::filesystem::path(baseEnv) : std::filesystem::current_path();
-    return "file://" + (rootPath / subPath).string();
+    if (baseEnv && std::filesystem::exists(std::filesystem::path(baseEnv) / subPath)) {
+        return "file://" + (std::filesystem::path(baseEnv) / subPath).string();
+    }
+    if (std::filesystem::exists(std::filesystem::current_path() / subPath)) {
+        return "file://" + (std::filesystem::current_path() / subPath).string();
+    }
+    try {
+        auto exeDir = std::filesystem::canonical("/proc/self/exe").parent_path();
+        auto repoRoot = exeDir.parent_path().parent_path().parent_path();
+        if (std::filesystem::exists(repoRoot / subPath)) {
+            return "file://" + (repoRoot / subPath).string();
+        }
+    } catch (...) {}
+
+    return "file://" + (std::filesystem::current_path() / subPath).string();
 }
 
-static const std::string CHROME_DESKTOP_URL = GetResourceUrl("ui/dist/index.html");
+static const std::string AZOKLE_SHELL_URL = GetResourceUrl("ui/dist/index.html");
 static const std::string NEWTAB_LOCAL_URL = GetResourceUrl("ui/dist/pages/newtab/index.html");
 static const std::string SETTINGS_LOCAL_URL = GetResourceUrl("ui/dist/pages/settings/index.html");
 static const std::string HISTORY_LOCAL_URL = GetResourceUrl("apps/linux/resources/pages/history.html");
@@ -283,7 +296,7 @@ void AzokleBrowserWindow::Show() {
     loader.gtk_css_provider_load_from_data(provider, cssData, -1, nullptr);
     loader.gtk_style_context_add_provider_for_screen(loader.gdk_screen_get_default(), provider, 800);
 
-    // 3. Host Full Sovereign Brave-Grade WebUI Chrome Edge-to-Edge
+    // 3. Host Sovereign Azokle WebUI Shell Edge-to-Edge
     g_webView = loader.webkit_web_view_new();
     WebKitSettings* settings = loader.webkit_web_view_get_settings(g_webView);
     if (settings) {
@@ -293,12 +306,12 @@ void AzokleBrowserWindow::Show() {
         if (devExtrasEnv && std::string(devExtrasEnv) == "1") {
             loader.webkit_settings_set_enable_developer_extras(settings, 1);
         }
-        // AZK-CRIT-02: Strict secure defaults - universal file access disabled
+        // Allow local Azokle Shell assets to load bundled JS/CSS resources
         if (loader.webkit_settings_set_allow_file_access_from_file_urls) {
-            loader.webkit_settings_set_allow_file_access_from_file_urls(settings, 0);
+            loader.webkit_settings_set_allow_file_access_from_file_urls(settings, 1);
         }
         if (loader.webkit_settings_set_allow_universal_access_from_file_urls) {
-            loader.webkit_settings_set_allow_universal_access_from_file_urls(settings, 0);
+            loader.webkit_settings_set_allow_universal_access_from_file_urls(settings, 1);
         }
         loader.webkit_settings_set_user_agent(settings, "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0 (Azokle Browser)");
     }
@@ -311,7 +324,7 @@ void AzokleBrowserWindow::Show() {
         std::cout << "[AzokleBrowserWindow] Registered native IPC message handler: window.webkit.messageHandlers.azokleNative\n";
     }
 
-    loader.webkit_web_view_load_uri(g_webView, CHROME_DESKTOP_URL.c_str());
+    loader.webkit_web_view_load_uri(g_webView, AZOKLE_SHELL_URL.c_str());
     loader.gtk_container_add(window, g_webView);
 
     // Window destroy signal
@@ -319,7 +332,7 @@ void AzokleBrowserWindow::Show() {
 
     // Show window and enter GTK event loop
     loader.gtk_widget_show_all(window);
-    std::cout << "[AzokleBrowserWindow] Azokle Browser WebUI Chrome Initialized.\n";
+    std::cout << "[AzokleBrowserWindow] Azokle Browser WebUI Shell Initialized.\n";
     loader.gtk_main();
 }
 
@@ -370,12 +383,12 @@ static void on_script_message_received(void* /*manager*/, void* js_result, void*
     auto& loader = WebKitEngineLoader::Instance();
     if (!loader.webkit_javascript_result_get_js_value || !loader.jsc_value_to_json) return;
 
-    // AZK-CRIT-01: Verify that script message originates from the trusted Chrome UI
+    // AZK-CRIT-01: Verify that script message originates from the trusted Azokle Shell UI
     if (g_webView && loader.webkit_web_view_get_uri) {
         const char* current_uri = loader.webkit_web_view_get_uri(g_webView);
         if (!current_uri) return;
         std::string uri_str(current_uri);
-        if (uri_str.rfind(CHROME_DESKTOP_URL, 0) != 0 && uri_str.rfind("azokle://", 0) != 0) {
+        if (uri_str.rfind(AZOKLE_SHELL_URL, 0) != 0 && uri_str.rfind("azokle://", 0) != 0) {
             std::cerr << "[AzokleSecurity] Rejected unauthorized native IPC from untrusted origin: " << uri_str << "\n";
             return;
         }

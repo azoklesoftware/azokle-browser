@@ -1,7 +1,7 @@
 {
   "name": "azokle-desktop-ui",
   "version": "2.0.0",
-  "description": "Shared TypeScript + Bun Desktop Browser Chrome UI for macOS, Linux, and Windows",
+  "description": "Shared TypeScript + Bun Desktop Browser Shell UI for macOS, Linux, and Windows",
   "type": "module",
   "scripts": {
     "dev": "bun run dev-server.ts",

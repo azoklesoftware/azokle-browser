@@ -9,8 +9,17 @@ export type TabStoreListener = () => void;
 
 export class TabStore {
   private bridge: IDesktopBridge;
-  private tabs: TabInfo[] = [];
-  private activeTabId: number = -1;
+  private tabs: TabInfo[] = [{
+    id: 1,
+    title: 'New Tab',
+    url: 'azokle://newtab',
+    isPrivate: false,
+    isTor: false,
+    isLoading: false,
+    progress: 1.0,
+    securityLevel: 'SECURE'
+  }];
+  private activeTabId: number = 1;
   private groups: Map<string, TabGroupInfo> = new Map();
   private listeners: Set<TabStoreListener> = new Set();
 
@@ -107,11 +116,39 @@ export class TabStore {
   }
 
   async openTab(url?: string, isPrivate?: boolean, isTor?: boolean): Promise<TabInfo> {
-    return this.bridge.createTab(url, isPrivate, isTor);
+    const tab = await this.bridge.createTab(url, isPrivate, isTor);
+    if (tab && tab.id) {
+      const existing = this.tabs.findIndex(t => t.id === tab.id);
+      if (existing >= 0) {
+        this.tabs[existing] = tab;
+      } else {
+        this.tabs.push(tab);
+      }
+      this.activeTabId = tab.id;
+      this.notify();
+    }
+    return tab;
   }
 
   async closeTab(tabId: number): Promise<void> {
-    return this.bridge.closeTab(tabId);
+    await this.bridge.closeTab(tabId);
+    this.tabs = this.tabs.filter(t => t.id !== tabId);
+    if (this.tabs.length === 0) {
+      this.tabs.push({
+        id: Date.now(),
+        title: 'New Tab',
+        url: 'azokle://newtab',
+        isPrivate: false,
+        isTor: false,
+        isLoading: false,
+        progress: 1.0,
+        securityLevel: 'SECURE'
+      });
+    }
+    if (!this.tabs.some(t => t.id === this.activeTabId)) {
+      this.activeTabId = this.tabs[this.tabs.length - 1].id;
+    }
+    this.notify();
   }
 
   async selectTab(tabId: number): Promise<void> {

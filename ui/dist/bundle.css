@@ -3,44 +3,45 @@
 /* --- azokle_ui/theme.css --- */
 /**
  * Azokle Browser - Shared Desktop UI Design System
- * Obsidian Dark & Modern Light Theme Tokens
+ * Synchronized with Azokle Android Design System (DarkAzokleColors & LightAzokleColors)
  */
 
 :root {
-  /* Color Palette - Obsidian Dark */
-  --bg-app: #12141a;
-  --bg-tabstrip: #141720;
-  --bg-toolbar: #1c202c;
-  --bg-elevated: #242938;
-  --bg-omnibar: #262c3b;
-  --bg-omnibar-focus: #1f2330;
-  --bg-active-tab: #1c202c;
+  /* Color Palette - DarkAzokleColors */
+  --bg-app: #101010;                 /* Sleek, soft neutral dark canvas (zero brown/blue cast) */
+  --bg-tabstrip: #101010;            /* Smooth deep neutral canvas */
+  --bg-toolbar: #181818;             /* Sleek elevated dark surface */
+  --bg-elevated: #222222;            /* Modern elevated interactive surface */
+  --bg-omnibar: #181818;             /* Omnibar card surface */
+  --bg-omnibar-focus: #222222;       /* Focused omnibar elevation */
+  --bg-active-tab: #181818;          /* Flush with toolbar surface */
   --bg-inactive-tab: transparent;
-  --bg-hover: rgba(255, 255, 255, 0.06);
-  --bg-active: rgba(255, 255, 255, 0.12);
+  --bg-hover: rgba(255, 255, 255, 0.08);
+  --bg-active: rgba(255, 255, 255, 0.14);
 
-  /* Border & Separators */
-  --border-subtle: #232734;
-  --border-strong: #2c3244;
-  --border-omnibar: #384055;
-  --border-focus: #f97316;
+  /* Border & Separators - DarkAzokleColors */
+  --border-subtle: #282828;          /* Crisp, low-contrast neutral dark border */
+  --border-strong: #333333;
+  --border-omnibar: #282828;
+  --border-focus: #38bdf8;           /* statusAccent */
 
-  /* Typography Colors */
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --text-inverted: #0f172a;
+  /* Typography Colors - DarkAzokleColors */
+  --text-primary: #f3f3f3;           /* Soft off-white text (calm, zero glare) */
+  --text-secondary: #a0a0a0;         /* Balanced neutral secondary */
+  --text-muted: #707070;             /* Neutral muted */
+  --text-disabled: #424242;          /* Disabled state */
+  --text-inverted: #101010;
 
-  /* Accent & Status Colors */
-  --color-accent: #f97316;
-  --color-accent-hover: #ea580c;
-  --color-shield-green: #22c55e;
-  --color-shield-bg: #16291e;
-  --color-shield-border: #21432f;
-  --color-tor-purple: #c084fc;
-  --color-tor-bg: #2e1065;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
+  /* Accent & Status Colors - DarkAzokleColors */
+  --color-accent: #38bdf8;           /* statusAccent (Azokle Blue) */
+  --color-accent-hover: #0ea5e9;
+  --color-shield-green: #22c55e;     /* statusSuccess */
+  --color-shield-bg: #142a1b;
+  --color-shield-border: #1e452a;
+  --color-tor-purple: #a855f7;       /* statusTor */
+  --color-tor-bg: #2b134b;
+  --color-warning: #f59e0b;          /* statusWarning */
+  --color-danger: #ef4444;           /* statusDestructive */
 
   /* Radii */
   --radius-xs: 4px;
@@ -60,29 +61,41 @@
 }
 
 [data-theme='light'] {
-  --bg-app: #f1f5f9;
-  --bg-tabstrip: #e2e8f0;
-  --bg-toolbar: #ffffff;
-  --bg-elevated: #f8fafc;
-  --bg-omnibar: #edf2f7;
-  --bg-omnibar-focus: #ffffff;
-  --bg-active-tab: #ffffff;
+  /* Color Palette - LightAzokleColors */
+  --bg-app: #faf8f5;                 /* Soft, warm ivory white (reduces glare & eye fatigue) */
+  --bg-tabstrip: #f2efeb;            /* Gentle warm elevated surface */
+  --bg-toolbar: #ffffff;             /* Clean surface */
+  --bg-elevated: #f2efeb;            /* Gentle warm elevated surface */
+  --bg-omnibar: #ffffff;             /* Pure white omnibar surface */
+  --bg-omnibar-focus: #f2efeb;
+  --bg-active-tab: #ffffff;          /* Flush with toolbar */
   --bg-inactive-tab: transparent;
-  --bg-hover: rgba(0, 0, 0, 0.05);
-  --bg-active: rgba(0, 0, 0, 0.1);
+  --bg-hover: rgba(28, 25, 23, 0.06);
+  --bg-active: rgba(28, 25, 23, 0.12);
 
-  --border-subtle: #cbd5e1;
-  --border-strong: #94a3b8;
-  --border-omnibar: #cbd5e1;
-  --border-focus: #f97316;
+  /* Border & Separators - LightAzokleColors */
+  --border-subtle: #e8e4de;          /* Warm soft stone border */
+  --border-strong: #d6d0c7;
+  --border-omnibar: #e8e4de;
+  --border-focus: #0284c7;           /* statusAccent light */
 
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
-  --text-inverted: #ffffff;
+  /* Typography Colors - LightAzokleColors */
+  --text-primary: #1c1917;           /* Warm charcoal black (calm on the eyes) */
+  --text-secondary: #57534e;         /* Warm stone secondary */
+  --text-muted: #8c857e;             /* Warm muted text */
+  --text-disabled: #c7c2ba;
+  --text-inverted: #faf8f5;
 
+  /* Accent & Status Colors - LightAzokleColors */
+  --color-accent: #0284c7;           /* statusAccent */
+  --color-accent-hover: #0369a1;
+  --color-shield-green: #16a34a;     /* statusSuccess */
   --color-shield-bg: #dcfce7;
   --color-shield-border: #86efac;
+  --color-tor-purple: #9333ea;       /* statusTor */
+  --color-tor-bg: #f3e8ff;
+  --color-warning: #d97706;          /* statusWarning */
+  --color-danger: #dc2626;           /* statusDestructive */
 }
 
 /* --- azokle_ui/global.css --- */
@@ -120,8 +133,8 @@ html, body {
   height: 100%;
 }
 
-/* Chrome Header Wrapper */
-.browser-chrome-header {
+/* Azokle Shell Header Wrapper */
+.azokle-shell-header {
   display: flex;
   flex-direction: column;
   background-color: var(--bg-toolbar);
@@ -227,44 +240,45 @@ button.icon-btn:disabled {
 /* --- styles/theme.css --- */
 /**
  * Azokle Browser - Shared Desktop UI Design System
- * Obsidian Dark & Modern Light Theme Tokens
+ * Synchronized with Azokle Android Design System (DarkAzokleColors & LightAzokleColors)
  */
 
 :root {
-  /* Color Palette - Obsidian Dark */
-  --bg-app: #12141a;
-  --bg-tabstrip: #141720;
-  --bg-toolbar: #1c202c;
-  --bg-elevated: #242938;
-  --bg-omnibar: #262c3b;
-  --bg-omnibar-focus: #1f2330;
-  --bg-active-tab: #1c202c;
+  /* Color Palette - DarkAzokleColors */
+  --bg-app: #101010;                 /* Sleek, soft neutral dark canvas (zero brown/blue cast) */
+  --bg-tabstrip: #101010;            /* Smooth deep neutral canvas */
+  --bg-toolbar: #181818;             /* Sleek elevated dark surface */
+  --bg-elevated: #222222;            /* Modern elevated interactive surface */
+  --bg-omnibar: #181818;             /* Omnibar card surface */
+  --bg-omnibar-focus: #222222;       /* Focused omnibar elevation */
+  --bg-active-tab: #181818;          /* Flush with toolbar surface */
   --bg-inactive-tab: transparent;
-  --bg-hover: rgba(255, 255, 255, 0.06);
-  --bg-active: rgba(255, 255, 255, 0.12);
+  --bg-hover: rgba(255, 255, 255, 0.08);
+  --bg-active: rgba(255, 255, 255, 0.14);
 
-  /* Border & Separators */
-  --border-subtle: #232734;
-  --border-strong: #2c3244;
-  --border-omnibar: #384055;
-  --border-focus: #f97316;
+  /* Border & Separators - DarkAzokleColors */
+  --border-subtle: #282828;          /* Crisp, low-contrast neutral dark border */
+  --border-strong: #333333;
+  --border-omnibar: #282828;
+  --border-focus: #38bdf8;           /* statusAccent */
 
-  /* Typography Colors */
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --text-inverted: #0f172a;
+  /* Typography Colors - DarkAzokleColors */
+  --text-primary: #f3f3f3;           /* Soft off-white text (calm, zero glare) */
+  --text-secondary: #a0a0a0;         /* Balanced neutral secondary */
+  --text-muted: #707070;             /* Neutral muted */
+  --text-disabled: #424242;          /* Disabled state */
+  --text-inverted: #101010;
 
-  /* Accent & Status Colors */
-  --color-accent: #f97316;
-  --color-accent-hover: #ea580c;
-  --color-shield-green: #22c55e;
-  --color-shield-bg: #16291e;
-  --color-shield-border: #21432f;
-  --color-tor-purple: #c084fc;
-  --color-tor-bg: #2e1065;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
+  /* Accent & Status Colors - DarkAzokleColors */
+  --color-accent: #38bdf8;           /* statusAccent (Azokle Blue) */
+  --color-accent-hover: #0ea5e9;
+  --color-shield-green: #22c55e;     /* statusSuccess */
+  --color-shield-bg: #142a1b;
+  --color-shield-border: #1e452a;
+  --color-tor-purple: #a855f7;       /* statusTor */
+  --color-tor-bg: #2b134b;
+  --color-warning: #f59e0b;          /* statusWarning */
+  --color-danger: #ef4444;           /* statusDestructive */
 
   /* Radii */
   --radius-xs: 4px;
@@ -284,29 +298,41 @@ button.icon-btn:disabled {
 }
 
 [data-theme='light'] {
-  --bg-app: #f1f5f9;
-  --bg-tabstrip: #e2e8f0;
-  --bg-toolbar: #ffffff;
-  --bg-elevated: #f8fafc;
-  --bg-omnibar: #edf2f7;
-  --bg-omnibar-focus: #ffffff;
-  --bg-active-tab: #ffffff;
+  /* Color Palette - LightAzokleColors */
+  --bg-app: #faf8f5;                 /* Soft, warm ivory white (reduces glare & eye fatigue) */
+  --bg-tabstrip: #f2efeb;            /* Gentle warm elevated surface */
+  --bg-toolbar: #ffffff;             /* Clean surface */
+  --bg-elevated: #f2efeb;            /* Gentle warm elevated surface */
+  --bg-omnibar: #ffffff;             /* Pure white omnibar surface */
+  --bg-omnibar-focus: #f2efeb;
+  --bg-active-tab: #ffffff;          /* Flush with toolbar */
   --bg-inactive-tab: transparent;
-  --bg-hover: rgba(0, 0, 0, 0.05);
-  --bg-active: rgba(0, 0, 0, 0.1);
+  --bg-hover: rgba(28, 25, 23, 0.06);
+  --bg-active: rgba(28, 25, 23, 0.12);
 
-  --border-subtle: #cbd5e1;
-  --border-strong: #94a3b8;
-  --border-omnibar: #cbd5e1;
-  --border-focus: #f97316;
+  /* Border & Separators - LightAzokleColors */
+  --border-subtle: #e8e4de;          /* Warm soft stone border */
+  --border-strong: #d6d0c7;
+  --border-omnibar: #e8e4de;
+  --border-focus: #0284c7;           /* statusAccent light */
 
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
-  --text-inverted: #ffffff;
+  /* Typography Colors - LightAzokleColors */
+  --text-primary: #1c1917;           /* Warm charcoal black (calm on the eyes) */
+  --text-secondary: #57534e;         /* Warm stone secondary */
+  --text-muted: #8c857e;             /* Warm muted text */
+  --text-disabled: #c7c2ba;
+  --text-inverted: #faf8f5;
 
+  /* Accent & Status Colors - LightAzokleColors */
+  --color-accent: #0284c7;           /* statusAccent */
+  --color-accent-hover: #0369a1;
+  --color-shield-green: #16a34a;     /* statusSuccess */
   --color-shield-bg: #dcfce7;
   --color-shield-border: #86efac;
+  --color-tor-purple: #9333ea;       /* statusTor */
+  --color-tor-bg: #f3e8ff;
+  --color-warning: #d97706;          /* statusWarning */
+  --color-danger: #dc2626;           /* statusDestructive */
 }
 
 /* --- styles/global.css --- */
@@ -344,38 +370,13 @@ html, body {
   height: 100%;
 }
 
-/* Chrome Header Wrapper */
-.browser-chrome-header {
+/* Azokle Shell Header Wrapper */
+.azokle-shell-header {
   display: flex;
   flex-direction: column;
   background-color: var(--bg-toolbar);
   border-bottom: 1px solid var(--border-subtle);
   z-index: 100;
-}
-
-/* Tab Strip Row */
-.tabstrip-container {
-  display: flex;
-  align-items: flex-end;
-  background-color: var(--bg-tabstrip);
-  padding: 6px 8px 0px 8px;
-  min-height: 40px;
-  border-bottom: 1px solid var(--border-subtle);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.tabstrip-container::-webkit-scrollbar {
-  display: none;
-}
-
-/* Navigation Toolbar Row */
-.toolbar-container {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
-  min-height: 44px;
-  background-color: var(--bg-toolbar);
 }
 
 /* Live Web Content Container */
@@ -384,14 +385,14 @@ html, body {
   width: 100%;
   height: calc(100% - 84px);
   position: relative;
-  background-color: var(--bg-app, #12141a);
+  background-color: var(--bg-app, #101010);
 }
 
 .viewport-iframe {
   width: 100%;
   height: 100%;
   border: none;
-  background-color: var(--bg-app, #12141a);
+  background-color: var(--bg-app, #101010);
 }
 
 /* Universal Button Styles */

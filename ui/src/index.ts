@@ -14,7 +14,7 @@ import { TorCircuitModalComponent } from './components/tor/TorCircuitModal.ts';
 import { BrowserMenuComponent } from './components/menu/BrowserMenu.ts';
 
 export function initializeDesktopUI(): void {
-  console.log('[AzokleDesktopUI] Initializing Shared TypeScript Browser Chrome...');
+  console.log('[AzokleDesktopUI] Initializing Azokle Browser Shell...');
 
   const bridge = getDesktopBridge();
   const tabStore = new TabStore(bridge);
