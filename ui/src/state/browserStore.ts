@@ -124,6 +124,22 @@ export class BrowserStore {
     return this.bookmarks.some(b => b.url === url);
   }
 
+  addBookmark(title: string, url: string, favicon?: string): BookmarkItem {
+    const existing = this.bookmarks.find(b => b.url === url);
+    if (existing) {
+      return existing;
+    }
+    const item: BookmarkItem = {
+      id: `bm-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      title,
+      url,
+      favicon
+    };
+    this.bookmarks.push(item);
+    this.notify();
+    return item;
+  }
+
   toggleBookmark(item: BookmarkItem): boolean {
     const idx = this.bookmarks.findIndex(b => b.url === item.url);
     if (idx >= 0) {

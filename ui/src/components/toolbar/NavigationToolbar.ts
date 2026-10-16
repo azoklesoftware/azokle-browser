@@ -54,11 +54,16 @@ export class NavigationToolbarComponent {
       'nav-btn-bookmark',
       'Bookmark this page (Ctrl+D)',
       `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>`,
-      async () => {
+      () => {
         const activeTab = this.tabStore.getActiveTab();
         if (activeTab) {
-          await this.browserStore.addBookmark(activeTab.title || 'New Tab', activeTab.url || 'azokle://newtab');
-          btnBookmark.classList.toggle('bookmarked');
+          const isAdded = this.browserStore.toggleBookmark({
+            id: `bm-${Date.now()}`,
+            title: activeTab.title || 'New Tab',
+            url: activeTab.url || 'azokle://newtab',
+            favicon: activeTab.favicon
+          });
+          btnBookmark.classList.toggle('bookmarked', isAdded);
         }
       }
     );
