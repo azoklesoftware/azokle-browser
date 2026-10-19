@@ -90,7 +90,7 @@ jobs:
           cache: gradle
 
       - name: Validate Gradle Wrapper
-        uses: gradle/actions/wrapper-validation@d156388eb19639ec20ade50009f3d199ce1e2808 # v4.1.0
+        uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
       - name: Grant Execute Permissions
         run: chmod +x apps/android/gradlew
