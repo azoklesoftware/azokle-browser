@@ -27,26 +27,26 @@ addr = { version = "0.15", default-features = false, features = ["psl"], optiona
 percent-encoding = "2.1"
 regex = "1.12.3"
 bitflags = { version = "2.10.0", features = ["serde"] }
-itertools = "0.14"
+itertools = "0.15"
 idna = "1.0.3"
 serde = { workspace = true }
 serde_json = { workspace = true }
 seahash = "4.1.0"
 rustc-hash = { version = "2.1", default-features = false }
 memchr = "2.8"
-base64 = "0.22"
+base64 = "0.23"
 arrayvec = "0.7"
-cssparser = { version = "0.35", optional = true }
-selectors = { version = "0.32", optional = true }
+cssparser = { version = "0.38", optional = true }
+selectors = { version = "0.41", optional = true }
 precomputed-hash = { version = "0.1", optional = true }
-thiserror = "1.0"
+thiserror = "2.0"
 flatbuffers = { version = "25.12.19" }
 
 [dev-dependencies]
 criterion = "=0.8.2"
-csv = "=1.3.0"
-mock_instant = { version = "=0.5.1" }
-sha2 = "=0.9.9"
+csv = "=1.4.0"
+mock_instant = { version = "=0.6.1" }
+sha2 = "=0.11.1"
 url = "^2.5"
 
 [lib]
