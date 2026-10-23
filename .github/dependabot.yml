@@ -19,6 +19,13 @@ updates:
       rust-dependencies:
         patterns:
           - "*"
+    ignore:
+      - dependency-name: "uniffi"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "jni"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "p256"
+        update-types: ["version-update:semver-major"]
 
   # Maintain dependencies for Android application (Gradle & AndroidX / GeckoView)
   - package-ecosystem: "gradle"
