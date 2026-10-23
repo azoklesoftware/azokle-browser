@@ -96,7 +96,7 @@ jobs:
           ls -lh build/apps/linux/azokle-browser-linux
 
       - name: Upload Linux Binary Artifact
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: azokle-browser-linux-x86_64
           path: build/apps/linux/azokle-browser-linux
@@ -150,7 +150,7 @@ jobs:
           find build -type f -name "azokle-browser-windows.exe" -ls
 
       - name: Upload Windows Binary Artifact
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: azokle-browser-windows-x86_64
           path: build/**/azokle-browser-windows.exe
@@ -200,7 +200,7 @@ jobs:
           find apps/macos/.build -type f -name "AzokleBrowserMac" -ls
 
       - name: Upload macOS Binary Artifact
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: azokle-browser-macos
           path: apps/macos/.build/**/release/AzokleBrowserMac
@@ -283,7 +283,7 @@ jobs:
         run: ./gradlew assembleDebug
 
       - name: Upload Debug APK
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: azokle-browser-debug-apk
           path: apps/android/app/build/outputs/apk/debug/*.apk
