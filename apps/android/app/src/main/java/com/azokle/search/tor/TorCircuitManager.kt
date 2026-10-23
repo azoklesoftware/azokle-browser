@@ -153,7 +153,7 @@ object TorCircuitManager {
 
             val startIntent = Intent(appContext, TorService::class.java).apply {
                 action = TorService.ACTION_START
-                putExtra(TorService.EXTRA_PACKAGE_NAME, appContext.packageName)
+                putExtra(TorService.EXTRA_SERVICE_PACKAGE_NAME, appContext.packageName)
             }
             appContext.startService(startIntent)
             appContext.bindService(startIntent, serviceConnection, Context.BIND_AUTO_CREATE)
