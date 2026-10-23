@@ -100,6 +100,13 @@ class GeckoConfigManagerTest {
         assertTrue(yaml.contains("network.cookie.sameSite.schemeful: true"))
         assertTrue(yaml.contains("privacy.partition.always_partition_third_party_non_cookie_storage: true"))
         assertTrue(yaml.contains("pdfjs.disabled: false"))
+
+        // Certificate Security, CRLite & Static Key Pinning Enforcement (eMudhra incident mitigations)
+        assertTrue(yaml.contains("security.cert_pinning.enforcement_level: 2"))
+        assertTrue(yaml.contains("security.OCSP.enabled: 1"))
+        assertTrue(yaml.contains("security.ssl.enable_ocsp_stapling: true"))
+        assertTrue(yaml.contains("security.ssl.enable_ocsp_must_staple: true"))
+        assertTrue(yaml.contains("security.pki.crlite_mode: 2"))
     }
 
     @Test

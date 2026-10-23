@@ -87,6 +87,7 @@ class GeckoPromptDelegateTest {
         assertFalse(delegate.isCredentialStoragePermitted())
         assertFalse(delegate.isFedCmPermitted())
         assertFalse(delegate.isWebAuthnRelatedOriginPermitted())
+        assertFalse(delegate.isWebSharePermitted())
     }
 
     @Test
@@ -99,6 +100,7 @@ class GeckoPromptDelegateTest {
         assertFalse(delegate.isCredentialStoragePermitted())
         assertFalse(delegate.isFedCmPermitted())
         assertFalse(delegate.isWebAuthnRelatedOriginPermitted())
+        assertTrue(delegate.isWebSharePermitted())
     }
 
     @Test
@@ -112,6 +114,7 @@ class GeckoPromptDelegateTest {
         assertTrue(delegate.isCredentialStoragePermitted())
         assertTrue(delegate.isFedCmPermitted())
         assertTrue(delegate.isWebAuthnRelatedOriginPermitted())
+        assertTrue(delegate.isWebSharePermitted())
     }
 
     @Test

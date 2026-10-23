@@ -93,6 +93,7 @@ class SecurityRegressionUnitTest {
         assertTrue(NavigationSecurity.isForbiddenWebScheme("chrome"))
         assertTrue(NavigationSecurity.isForbiddenWebScheme("resource"))
         assertTrue(NavigationSecurity.isForbiddenWebScheme("jar"))
+        assertTrue(NavigationSecurity.isForbiddenWebScheme("javascript"))
         assertFalse(NavigationSecurity.isForbiddenWebScheme("https"))
         assertFalse(NavigationSecurity.isForbiddenWebScheme("http"))
         assertFalse(NavigationSecurity.isForbiddenWebScheme("about"))
@@ -121,5 +122,97 @@ class SecurityRegressionUnitTest {
         assertTrue("Proxy failover_direct must be disabled", yaml.contains("network.proxy.failover_direct: false"))
         assertTrue("dom.maxHardwareConcurrency must be pinned to 4", yaml.contains("dom.maxHardwareConcurrency: 4"))
         assertTrue("privacy.reduceTimerPrecision must be enabled", yaml.contains("privacy.reduceTimerPrecision: true"))
+    }
+
+    @Test
+    fun `test geckoview config enforces strict pki cert pinning ocsp must staple and crlite`() {
+        val yaml = GeckoConfigManager.generatePerformanceConfigYaml()
+        assertTrue("Cert pinning enforcement must be strict (2)", yaml.contains("security.cert_pinning.enforcement_level: 2"))
+        assertTrue("OCSP fetching must be enabled (1)", yaml.contains("security.OCSP.enabled: 1"))
+        assertTrue("OCSP stapling must be enabled", yaml.contains("security.ssl.enable_ocsp_stapling: true"))
+        assertTrue("OCSP must-staple must be enabled", yaml.contains("security.ssl.enable_ocsp_must_staple: true"))
+        assertTrue("CRLite mode must enforce certificate revocation (2)", yaml.contains("security.pki.crlite_mode: 2"))
+    }
+
+    @Test
+    fun `test filter update manager rejects directory traversal in rule paths`() {
+        val dummyContext = android.content.ContextWrapper(null)
+        assertNull(com.azokle.search.adblock.FilterUpdateManager.loadFilterContent(dummyContext, "../../../../etc/passwd"))
+        assertNull(com.azokle.search.adblock.FilterUpdateManager.loadFilterContent(dummyContext, "filters/../../secret.txt"))
+        assertNull(com.azokle.search.adblock.FilterUpdateManager.loadFilterContent(dummyContext, "sub\\dir\\rule.txt"))
+    }
+
+    @Test
+    fun `test external app launcher strictly rejects self-targeting components and packages`() {
+        // Direct validation of self-targeting detection (H-3, AZK-BUG-07)
+        assertTrue(NavigationSecurity.isSelfTargetingPackage("com.azokle.search", "com.azokle.search"))
+        assertTrue(NavigationSecurity.isSelfTargetingPackage("com.azokle.browser", "com.azokle.search"))
+        assertTrue(NavigationSecurity.isSelfTargetingPackage("COM.AZOKLE.SEARCH", "com.azokle.search"))
+        assertFalse(NavigationSecurity.isSelfTargetingPackage("com.example.app", "com.azokle.search"))
+        assertFalse(NavigationSecurity.isSelfTargetingPackage(null, "com.azokle.search"))
+        assertFalse(NavigationSecurity.isSelfTargetingPackage("", "com.azokle.search"))
+    }
+
+    @Test
+    fun `test ad click attribution is suppressed in tor mode`() {
+        val torMgr = com.azokle.search.tor.TorCircuitManager
+        torMgr.setTorMode(true)
+        try {
+            com.azokle.search.adblock.AdClickManager.registerAdClick("test-tab", "https://advertiser.example.com?gclid=123")
+            assertFalse(com.azokle.search.adblock.AdClickManager.isAttributionActive("test-tab"))
+            assertFalse(com.azokle.search.adblock.AdClickManager.isAttributionExempt("test-tab", "advertiser.example.com"))
+            assertFalse(com.azokle.search.adblock.AdClickManager.isExempt("test-tab", "https://advertiser.example.com", "https://googleadservices.com/pagead"))
+        } finally {
+            torMgr.setTorMode(false)
+        }
+    }
+
+    @Test
+    fun `test doh cname uncloaking is disabled during tor mode to prevent dns leaks`() {
+        val torMgr = com.azokle.search.tor.TorCircuitManager
+        torMgr.setTorMode(true)
+        try {
+            assertNull(com.azokle.search.core.DnsOverHttpsManager.resolveCname("analytics.example.com"))
+            val torDnsAddresses = com.azokle.search.core.DnsOverHttpsManager.sharedDns.lookup("example.com")
+            assertEquals(1, torDnsAddresses.size)
+            assertEquals("0.0.0.0", torDnsAddresses[0].hostAddress)
+        } finally {
+            torMgr.setTorMode(false)
+        }
+    }
+
+    @Test
+    fun `test search repository autosuggest returns empty in tor mode`() = kotlinx.coroutines.runBlocking {
+        val torMgr = com.azokle.search.tor.TorCircuitManager
+        torMgr.setTorMode(true)
+        try {
+            val repo = com.azokle.search.discover.SearchRepository()
+            val suggestions = repo.getAutosuggestions("tor test")
+            assertTrue(suggestions.isEmpty())
+        } finally {
+            torMgr.setTorMode(false)
+        }
+    }
+
+    @Test
+    fun `test pwa installability validator recognizes onion addresses as secure contexts`() {
+        val onionUrl = "http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/path"
+        val localhostUrl = "http://localhost:8080/index.html"
+        val httpsUrl = "https://example.com/login"
+        val insecureHttp = "http://example.com/insecure"
+
+        assertTrue(com.azokle.search.pwa.PwaInstallabilityValidator.isSecureOrigin(onionUrl))
+        assertTrue(com.azokle.search.pwa.PwaInstallabilityValidator.isSecureOrigin(localhostUrl))
+        assertTrue(com.azokle.search.pwa.PwaInstallabilityValidator.isSecureOrigin(httpsUrl))
+        assertFalse(com.azokle.search.pwa.PwaInstallabilityValidator.isSecureOrigin(insecureHttp))
+    }
+
+    @Test
+    fun `test file paths xml contains downloads_private and app_staging roots`() {
+        val filePathsXml = java.io.File("src/main/res/xml/file_paths.xml")
+        assertTrue("file_paths.xml must exist", filePathsXml.exists())
+        val xmlContent = filePathsXml.readText()
+        assertTrue("file_paths.xml must declare private_downloads path", xmlContent.contains("downloads_private/"))
+        assertTrue("file_paths.xml must declare app_staging as cache-path", xmlContent.contains("<cache-path name=\"app_staging\" path=\"download_staging/\" />"))
     }
 }

@@ -21,8 +21,11 @@ import com.azokle.search.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import com.azokle.search.tor.TorCircuitManager
 import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.InetSocketAddress
+import java.net.Proxy
 import java.net.URL
 
 data class UpdateInfo(
@@ -84,9 +87,15 @@ object AppUpdateChecker {
         var connection: HttpURLConnection? = null
         try {
             val url = URL(RELEASES_API)
-            connection = (url.openConnection() as HttpURLConnection).apply {
-                connectTimeout = 8000
-                readTimeout = 8000
+            val rawConnection = if (TorCircuitManager.isTorActive) {
+                val proxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress.createUnresolved("127.0.0.1", TorCircuitManager.socksPort))
+                url.openConnection(proxy)
+            } else {
+                url.openConnection()
+            }
+            connection = (rawConnection as HttpURLConnection).apply {
+                connectTimeout = if (TorCircuitManager.isTorActive) 15000 else 8000
+                readTimeout = if (TorCircuitManager.isTorActive) 15000 else 8000
                 requestMethod = "GET"
                 setRequestProperty("Accept", "application/vnd.github.v3+json")
                 setRequestProperty("User-Agent", "AzokleBrowser/${BuildConfig.VERSION_NAME}")

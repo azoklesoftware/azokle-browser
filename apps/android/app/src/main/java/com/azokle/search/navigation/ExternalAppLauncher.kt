@@ -48,13 +48,22 @@ object ExternalAppLauncher {
         session: GeckoSession? = null,
         showToastOnError: Boolean = true
     ): LaunchResult {
+        // Strictly prohibit web content from self-targeting Azokle internal components (H-3, AZK-BUG-07)
+        val appPkg = context.packageName ?: "com.azokle.search"
+        val rawPkg = intent.`package` ?: intent.component?.packageName
+        if (NavigationSecurity.isSelfTargetingPackage(rawPkg, appPkg)) {
+            return handleSecurityFailure(
+                context = context,
+                fallbackUrl = fallbackUrl,
+                session = session,
+                showToastOnError = showToastOnError
+            )
+        }
+
         val sanitized = NavigationSecurity.sanitizeIntent(intent, context)
 
-        // Strictly prohibit web content from self-targeting Azokle internal components (H-3)
-        val targetPkg = sanitized.`package`
-        if (targetPkg != null && (targetPkg.equals(context.packageName, ignoreCase = true) ||
-                    targetPkg.equals("com.azokle.search", ignoreCase = true) ||
-                    targetPkg.equals("com.azokle.browser", ignoreCase = true))) {
+        val targetPkg = sanitized.`package` ?: sanitized.component?.packageName
+        if (NavigationSecurity.isSelfTargetingPackage(targetPkg, appPkg)) {
             return handleSecurityFailure(
                 context = context,
                 fallbackUrl = fallbackUrl,

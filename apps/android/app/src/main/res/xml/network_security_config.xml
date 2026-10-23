@@ -9,6 +9,22 @@
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">azokle.com</domain>
         <domain includeSubdomains="true">search.azokle.com</domain>
+        <!-- SPKI Certificate Pinning against compromised or rogue Intermediate CAs -->
+        <pin-set expiration="2027-10-22">
+            <!-- Google Trust Services WE1 Intermediate SPKI -->
+            <pin digest="SHA-256">kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=</pin>
+            <!-- Google Trust Services Root R4 / GlobalSign Root SPKI -->
+            <pin digest="SHA-256">mEflZT5enoR1FuXLgYYGqnVEoZvmf9c2bVBpiOjYQ0c=</pin>
+            <!-- Backup Root Pin: Google Trust Services GTS Root R1 -->
+            <pin digest="SHA-256">hxqRlPTuQZQIGbRx48aREluWmBZKegwKLZRe9gkFXyk=</pin>
+            <!-- Backup Root Pin: Let's Encrypt ISRG Root X1 -->
+            <pin digest="SHA-256">C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M=</pin>
+        </pin-set>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+    <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">cloudflare-dns.com</domain>
         <domain includeSubdomains="true">dns.google</domain>
         <trust-anchors>

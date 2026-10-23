@@ -71,7 +71,22 @@ class SearchRepository(
         }
     }
 
-    private val client = sharedClient
+    private fun getClient(): OkHttpClient {
+        if (com.azokle.search.tor.TorCircuitManager.isTorActive) {
+            val socksProxy = java.net.Proxy(
+                java.net.Proxy.Type.SOCKS,
+                java.net.InetSocketAddress.createUnresolved("127.0.0.1", com.azokle.search.tor.TorCircuitManager.socksPort)
+            )
+            return OkHttpClient.Builder()
+                .proxy(socksProxy)
+                .dns(com.azokle.search.tor.TorRemoteDns)
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(15, TimeUnit.SECONDS)
+                .retryOnConnectionFailure(true)
+                .build()
+        }
+        return sharedClient
+    }
 
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
@@ -107,6 +122,8 @@ class SearchRepository(
      * Retrieves the autosuggestions.
      */
     suspend fun getAutosuggestions(query: String): List<String> = withContext(Dispatchers.IO) {
+        // AZK-VULN-16: Never query remote autosuggest in Tor mode to prevent keystroke timing analysis and IP leakage
+        if (com.azokle.search.tor.TorCircuitManager.isTorActive) return@withContext emptyList()
         val trimmed = query.trim()
         if (trimmed.length < 2) return@withContext emptyList()
 
@@ -122,7 +139,7 @@ class SearchRepository(
                 .header("Accept", "application/json")
                 .build()
 
-            client.newCall(request).executeCancellably().use { response ->
+            getClient().newCall(request).executeCancellably().use { response ->
                 if (!response.isSuccessful) return@withContext emptyList()
                 val bodyStr = response.body.string()
 
@@ -182,7 +199,7 @@ class SearchRepository(
                 .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36")
                 .build()
 
-            client.newCall(request).executeCancellably().use { response ->
+            getClient().newCall(request).executeCancellably().use { response ->
                 val bodyStr = response.body.string()
                 if (!response.isSuccessful) {
                     return@withContext SearchResultResponse(

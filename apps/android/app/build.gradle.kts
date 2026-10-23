@@ -24,8 +24,8 @@ android {
         applicationId = "com.azokle.search"
         minSdk = 26
         targetSdk = 36
-        versionCode = 20
-        versionName = "2.0.9"
+        versionCode = 21
+        versionName = "2.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

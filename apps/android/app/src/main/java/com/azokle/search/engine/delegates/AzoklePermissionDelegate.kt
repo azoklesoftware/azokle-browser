@@ -97,8 +97,14 @@ class AzoklePermissionDelegate(
             }
         }
 
-        // 4. Deny all sensors & permissions on insecure HTTP origins (except localhost/testing)
-        if (scheme != "https" && !host.equals("localhost", true) && !host.equals("127.0.0.1", true)) {
+        // 4. Deny all sensors & permissions on insecure HTTP origins (except localhost/testing and Tor onion)
+        val isTrustworthyOrigin = scheme == "https" ||
+            host.equals("localhost", true) ||
+            host.equals("127.0.0.1", true) ||
+            host.equals("::1", true) ||
+            (isTor && host.endsWith(".onion", ignoreCase = true))
+
+        if (!isTrustworthyOrigin) {
             return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
         }
 
@@ -126,6 +132,11 @@ class AzoklePermissionDelegate(
 
         // Hard-deny persistent storage in Private / Tor mode
         if (isTabPrivate && mappedType == SitePermissionType.PERSISTENT_STORAGE) {
+            return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
+        }
+
+        // AZK-VULN-01: Hard-deny Geolocation and VR/AR in Tor mode to prevent physical coordinates and sensor deanonymization
+        if (isTor && (mappedType == SitePermissionType.GEOLOCATION || mappedType == SitePermissionType.VR_AR)) {
             return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
         }
 
@@ -217,6 +228,12 @@ class AzoklePermissionDelegate(
 
         // Insecure origins are strictly denied media hardware access
         if (scheme != "https" && !host.equals("localhost", true) && !host.equals("127.0.0.1", true)) {
+            callback.reject()
+            return
+        }
+
+        // AZK-VULN-07: Reject camera, microphone, and screen-sharing in Tor mode to prevent hardware deanonymization & device fingerprinting
+        if (isTor) {
             callback.reject()
             return
         }

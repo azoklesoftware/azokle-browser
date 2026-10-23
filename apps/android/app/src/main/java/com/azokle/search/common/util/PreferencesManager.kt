@@ -52,6 +52,7 @@ class PreferencesManager(private val context: Context) {
         private const val KEY_FONT_FINGERPRINT_PROTECTION = "font_fingerprint_protection_enabled"
         private const val KEY_SCREEN_FINGERPRINT_PROTECTION = "screen_fingerprint_protection_enabled"
         private const val KEY_USER_AGENT_FINGERPRINT_PROTECTION = "user_agent_fingerprint_protection_enabled"
+        private const val KEY_ENTERPRISE_ROOTS_ENABLED = "enterprise_roots_enabled"
 
         @Volatile
         private var cachedPrefs: SharedPreferences? = null
@@ -530,6 +531,20 @@ class PreferencesManager(private val context: Context) {
      */
     fun setUserAgentFingerprintProtectionEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_USER_AGENT_FINGERPRINT_PROTECTION, enabled).apply()
+    }
+
+    /**
+     * Checks if enterprise/system root certificates are imported into GeckoView (default: false for sovereign security).
+     */
+    fun isEnterpriseRootsEnabled(): Boolean {
+        return prefs.getBoolean(KEY_ENTERPRISE_ROOTS_ENABLED, false)
+    }
+
+    /**
+     * Updates enterprise/system root certificates import preference.
+     */
+    fun setEnterpriseRootsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_ENTERPRISE_ROOTS_ENABLED, enabled).apply()
     }
 }
 

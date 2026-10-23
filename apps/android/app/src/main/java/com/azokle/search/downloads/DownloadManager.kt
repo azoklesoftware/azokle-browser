@@ -850,13 +850,19 @@ object DownloadManager {
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager ?: return
             val notifId = item.id.hashCode()
 
+            val isConfidential = item.isPrivate || item.isTor
             val notif = androidx.core.app.NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.stat_sys_download)
-                .setContentTitle(item.filename)
+                .setContentTitle(if (isConfidential) "Private Download" else item.filename)
                 .setContentText(if (isIndeterminate) "Downloading..." else "$progress%")
                 .setProgress(100, progress, isIndeterminate)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
+                .apply {
+                    if (isConfidential) {
+                        setVisibility(androidx.core.app.NotificationCompat.VISIBILITY_SECRET)
+                    }
+                }
                 .build()
 
             manager.notify(notifId, notif)
@@ -873,6 +879,7 @@ object DownloadManager {
             ensureNotificationChannel(context)
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager ?: return
             val notifId = item.id.hashCode()
+            val isConfidential = item.isPrivate || item.isTor
 
             if (isSuccess) {
                 val file = File(item.filePath)
@@ -881,7 +888,8 @@ object DownloadManager {
                 } catch (e: Exception) {
                     null
                 }
-                val pendingIntent = if (uri != null) {
+                // AZK-VULN-10: Do not dispatch external VIEW intent for Tor/Private downloads to avoid leaking isolated files
+                val pendingIntent = if (uri != null && !isConfidential) {
                     val openIntent = Intent(Intent.ACTION_VIEW).apply {
                         setDataAndType(uri, item.mimeType)
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -896,9 +904,14 @@ object DownloadManager {
 
                 val builder = androidx.core.app.NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
                     .setSmallIcon(android.R.drawable.stat_sys_download_done)
-                    .setContentTitle("Download Complete")
-                    .setContentText(item.filename)
+                    .setContentTitle(if (isConfidential) "Private Download Complete" else "Download Complete")
+                    .setContentText(if (isConfidential) "Private file saved securely" else item.filename)
                     .setAutoCancel(true)
+                    .apply {
+                        if (isConfidential) {
+                            setVisibility(androidx.core.app.NotificationCompat.VISIBILITY_SECRET)
+                        }
+                    }
 
                 if (pendingIntent != null) {
                     builder.setContentIntent(pendingIntent)
@@ -908,9 +921,14 @@ object DownloadManager {
             } else {
                 val notif = androidx.core.app.NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
                     .setSmallIcon(android.R.drawable.stat_notify_error)
-                    .setContentTitle("Download Failed")
-                    .setContentText(item.filename)
+                    .setContentTitle(if (isConfidential) "Private Download Failed" else "Download Failed")
+                    .setContentText(if (isConfidential) "Private download failed" else item.filename)
                     .setAutoCancel(true)
+                    .apply {
+                        if (isConfidential) {
+                            setVisibility(androidx.core.app.NotificationCompat.VISIBILITY_SECRET)
+                        }
+                    }
                     .build()
 
                 manager.notify(notifId, notif)

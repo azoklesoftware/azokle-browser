@@ -2,7 +2,8 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Restrict FileProvider strictly to downloads, staging, and shared cache -->
     <cache-path name="app_cache" path="shared/" />
+    <cache-path name="app_staging" path="download_staging/" />
     <files-path name="app_downloads" path="downloads/" />
-    <files-path name="app_staging" path="download_staging/" />
+    <files-path name="private_downloads" path="downloads_private/" />
     <external-files-path name="external_downloads" path="downloads/" />
 </paths>

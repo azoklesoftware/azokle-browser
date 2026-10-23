@@ -18,6 +18,8 @@ package com.azokle.search.core
 
 import android.content.Context
 import com.azokle.search.common.util.PreferencesManager
+import com.azokle.search.tor.TorCircuitManager
+import com.azokle.search.tor.TorRemoteDns
 import okhttp3.Dns
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -133,6 +135,9 @@ object DnsOverHttpsManager {
          * Executes the lookup operation.
          */
         override fun lookup(hostname: String): List<InetAddress> {
+            if (TorCircuitManager.isTorActive) {
+                return TorRemoteDns.lookup(hostname)
+            }
             val dns = getDnsForProvider(activeProviderId)
             return try {
                 dns.lookup(hostname)
@@ -154,6 +159,10 @@ object DnsOverHttpsManager {
      * Used for uncovering CNAME-cloaked third-party trackers disguised under first-party subdomains.
      */
     fun resolveCname(hostname: String): String? {
+        // AZK-VULN-15: Never query clearnet DoH during active Tor sessions to prevent DNS leaks
+        if (TorCircuitManager.isTorActive) {
+            return null
+        }
         val cleanHost = hostname.lowercase().trim().trimEnd('.')
         if (cleanHost.isBlank() || cleanHost == "localhost" || cleanHost.endsWith(".local") || cleanHost.contains(":") || cleanHost.all { it.isDigit() || it == '.' }) {
             return null

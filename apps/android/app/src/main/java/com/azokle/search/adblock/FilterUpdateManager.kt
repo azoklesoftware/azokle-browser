@@ -84,16 +84,41 @@ object FilterUpdateManager {
         return dir
     }
 
+    @Volatile
+    var signatureValidator: com.azokle.search.security.ScriptletSignatureValidator? = null
+
     /**
      * Retrieves the most recent rule content for a filter file, checking dynamic storage first
      * before falling back to bundled assets.
      */
     fun loadFilterContent(context: Context, relativePath: String): String? {
+        // AZK-VULN-04: Prevent path traversal in filter file requests
+        if (relativePath.contains("..") || relativePath.contains('\\')) {
+            Log.w(TAG, "Rejected suspicious filter path traversal: $relativePath")
+            return null
+        }
+
         val fileName = relativePath.substringAfterLast('/')
-        val downloadedFile = File(getFiltersDir(context), fileName)
+        val filtersDir = getFiltersDir(context)
+        val downloadedFile = File(filtersDir, fileName).canonicalFile
+        if (!downloadedFile.toPath().startsWith(filtersDir.canonicalFile.toPath())) {
+            Log.w(TAG, "Path traversal detected outside filters dir: $relativePath")
+            return null
+        }
         if (downloadedFile.exists() && downloadedFile.length() > 0) {
             try {
-                return downloadedFile.readText()
+                val contentBytes = downloadedFile.readBytes()
+                val sigFile = File(filtersDir, "$fileName.sig")
+                val validator = signatureValidator
+                if (sigFile.exists() && validator != null) {
+                    val sigBase64 = sigFile.readText().trim()
+                    val result = validator.validate(contentBytes, sigBase64)
+                    if (result !is com.azokle.search.security.ScriptletValidationResult.Valid) {
+                        Log.e(TAG, "Dynamic filter list $fileName failed cryptographic signature verification: $result")
+                        return null
+                    }
+                }
+                return String(contentBytes, java.nio.charset.StandardCharsets.UTF_8)
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to read downloaded filter file $fileName: ${e.message}")
             }

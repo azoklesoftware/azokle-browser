@@ -72,14 +72,49 @@ class ReaderExtractorSecurityTest {
         val privateResult3 = ReaderExtractor.extractArticleFromUrl("http://172.16.0.1/config", "Fallback")
         assertTrue(privateResult3.paragraphs.first().contains("disabled for local and internal network"))
 
+        // Cloud Metadata and link-local (RFC 3927)
+        val cloudMetadataResult = ReaderExtractor.extractArticleFromUrl("http://169.254.169.254/latest/meta-data/", "Fallback")
+        assertTrue(cloudMetadataResult.paragraphs.first().contains("disabled for local and internal network"))
+
+        // IPv6 Loopback and link-local
+        val ipv6Loopback = ReaderExtractor.extractArticleFromUrl("http://[::1]:8080/secret", "Fallback")
+        assertTrue(ipv6Loopback.paragraphs.first().contains("disabled for local and internal network"))
+
+        val ipv6LinkLocal = ReaderExtractor.extractArticleFromUrl("http://[fe80::1]/admin", "Fallback")
+        assertTrue(ipv6LinkLocal.paragraphs.first().contains("disabled for local and internal network"))
+
         // Non-HTTP schemes
         val fileResult = ReaderExtractor.extractArticleFromUrl("file:///android_asset/secret.txt", "Fallback")
         assertTrue(fileResult.paragraphs.first().contains("disabled for local and internal network"))
     }
 
     @Test
+    fun testCacheLruBounding() {
+        val sampleArticle = ArticleContent("Title", "Author", emptyList(), listOf("p"), 1)
+        for (i in 1..60) {
+            ReaderExtractor.cacheArticle("https://example.com/article$i", sampleArticle)
+        }
+        // Oldest articles (e.g., article1) should have been evicted by the bounded LRU cache (max 50)
+        assertNull(ReaderExtractor.getCachedArticle("https://example.com/article1"))
+        // Most recent articles should be present
+        assertNotNull(ReaderExtractor.getCachedArticle("https://example.com/article60"))
+    }
+
+    @Test
     fun testInternalBrowserPageHandledGracefully() = runBlocking {
         val result = ReaderExtractor.extractArticleFromUrl("about:home", "Fallback")
         assertTrue(result.paragraphs.first().contains("internal browser page"))
+    }
+
+    @Test
+    fun testClearCacheEmptiesAllEntries() {
+        val article = ArticleContent("Headline", "Author", emptyList(), listOf("p"), 1)
+        ReaderExtractor.cacheArticle("https://example.com/item1", article)
+        ReaderExtractor.cacheArticle("https://example.com/item2", article)
+        assertNotNull(ReaderExtractor.getCachedArticle("https://example.com/item1"))
+
+        ReaderExtractor.clearCache()
+        assertNull(ReaderExtractor.getCachedArticle("https://example.com/item1"))
+        assertNull(ReaderExtractor.getCachedArticle("https://example.com/item2"))
     }
 }

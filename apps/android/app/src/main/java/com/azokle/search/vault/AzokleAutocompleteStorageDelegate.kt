@@ -64,23 +64,13 @@ object AzokleAutocompleteStorageDelegate : Autocomplete.StorageDelegate {
     }
 
     /**
-     * Fetches all saved logins.
+     * AZK-VULN-17: Least-privilege credential protection.
+     * Unbounded zero-argument login fetch is deliberately disabled to prevent leaking the entire
+     * decrypted password vault into GeckoView engine memory or exposing it across domains.
+     * Login retrieval is strictly restricted to origin-scoped onLoginFetch(domain).
      */
     override fun onLoginFetch(): GeckoResult<Array<Autocomplete.LoginEntry>>? {
-        return try {
-            val logins = PasswordVaultManager.getAllLogins()
-            val entries = logins.map { login ->
-                Autocomplete.LoginEntry.Builder()
-                    .guid(login.id)
-                    .origin(login.origin)
-                    .username(login.username)
-                    .password(login.password)
-                    .build()
-            }.toTypedArray()
-            GeckoResult.fromValue(entries)
-        } catch (e: Exception) {
-            GeckoResult.fromValue(emptyArray())
-        }
+        return GeckoResult.fromValue(emptyArray())
     }
 
     /**

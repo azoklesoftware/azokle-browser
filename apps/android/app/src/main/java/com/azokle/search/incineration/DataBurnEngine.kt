@@ -192,6 +192,8 @@ object DataBurnEngine {
 
             // Layer 12: Memory Sanitization & Garbage Collection
             try {
+                // AZK-VULN-09: Purge Reader Mode in-memory extracted article text and DOM cache
+                com.azokle.search.reader.ReaderExtractor.clearCache()
                 System.gc()
                 Runtime.getRuntime().gc()
             } catch (_: Exception) {}

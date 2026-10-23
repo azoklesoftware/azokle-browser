@@ -111,6 +111,8 @@ import com.azokle.search.history.HistoryManager
 import com.azokle.search.qr.QrScannerScreen
 import com.azokle.search.search.SearchEngineIconDropdown
 import com.azokle.search.search.VoiceSearchModal
+import com.azokle.search.tabs.TabManager
+import com.azokle.search.tor.TorCircuitManager
 import com.azokle.search.vault.EncryptedVaultManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -296,7 +298,10 @@ fun BrowserUrlEditSheet(
                                 }
                                 historySuggestions = histMatches
 
-                                if (query.length < 2 || UrlHelper.isDirectUrl(query)) {
+                                val activeTab = TabManager.activeTab
+                                val isPrivateOrTor = TorCircuitManager.isTorActive || (activeTab?.isPrivate == true) || (activeTab?.isTor == true)
+
+                                if (isPrivateOrTor || query.length < 2 || UrlHelper.isDirectUrl(query)) {
                                     suggestions = emptyList()
                                     isLoadingSuggestions = false
                                 } else {
@@ -607,18 +612,25 @@ fun BrowserUrlEditSheet(
                                         },
                                         onFill = {
                                             textValue = TextFieldValue(item.target, selection = TextRange(item.target.length))
+                                            val activeTab = TabManager.activeTab
+                                            val isPrivateOrTor = TorCircuitManager.isTorActive || (activeTab?.isPrivate == true) || (activeTab?.isTor == true)
                                             debounceJob?.cancel()
-                                            debounceJob = scope.launch {
-                                                isLoadingSuggestions = true
-                                                try {
-                                                    suggestions = withContext(Dispatchers.IO) {
-                                                        repository.getAutosuggestions(item.target)
+                                            if (!isPrivateOrTor) {
+                                                debounceJob = scope.launch {
+                                                    isLoadingSuggestions = true
+                                                    try {
+                                                        suggestions = withContext(Dispatchers.IO) {
+                                                            repository.getAutosuggestions(item.target)
+                                                        }
+                                                    } catch (_: Exception) {
+                                                        suggestions = emptyList()
+                                                    } finally {
+                                                        isLoadingSuggestions = false
                                                     }
-                                                } catch (_: Exception) {
-                                                    suggestions = emptyList()
-                                                } finally {
-                                                    isLoadingSuggestions = false
                                                 }
+                                            } else {
+                                                suggestions = emptyList()
+                                                isLoadingSuggestions = false
                                             }
                                         }
                                     )

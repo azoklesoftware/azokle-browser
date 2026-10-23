@@ -16,6 +16,8 @@
 
 package com.azokle.search.adblock
 
+import com.azokle.search.tabs.TabManager
+import com.azokle.search.tor.TorCircuitManager
 import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -140,8 +142,13 @@ object AdClickManager {
 
     /**
      * Registers a tab-scoped exemption for an advertiser when an ad is clicked.
+     * AZK-VULN-12: Strictly refused for Tor and Private tabs.
      */
     fun registerAdClick(tabId: String, landingUrl: String) {
+        if (TorCircuitManager.isTorActive) return
+        val tab = TabManager.getTab(tabId)
+        if (tab != null && (tab.isPrivate || tab.isTor)) return
+
         val host = extractHost(landingUrl) ?: return
         val key = "$tabId:$host"
         activeExemptions[key] = AdClickExemption(tabId = tabId, advertiserHost = host)
@@ -152,6 +159,9 @@ object AdClickManager {
      * Checks if an exemption exists and is active for the given tab and document/advertiser host.
      */
     fun isAttributionActive(tabId: String): Boolean {
+        if (TorCircuitManager.isTorActive) return false
+        val tab = TabManager.getTab(tabId)
+        if (tab != null && (tab.isPrivate || tab.isTor)) return false
         return activeExemptions.values.any { it.tabId == tabId && System.currentTimeMillis() <= it.expiresAtMs }
     }
 
@@ -159,6 +169,10 @@ object AdClickManager {
      * Checks whether a specific host is exempt under this tab.
      */
     fun isAttributionExempt(tabId: String, host: String): Boolean {
+        if (TorCircuitManager.isTorActive) return false
+        val tab = TabManager.getTab(tabId)
+        if (tab != null && (tab.isPrivate || tab.isTor)) return false
+
         val cleanHost = host.lowercase().trim()
         val exemption = activeExemptions.values.firstOrNull { it.tabId == tabId && (cleanHost == it.advertiserHost || cleanHost.endsWith(".${it.advertiserHost}")) }
             ?: return false
@@ -179,7 +193,10 @@ object AdClickManager {
      * Checks whether a subresource request is exempt from blocking due to an active ad click in this tab.
      */
     fun isExempt(tabId: String?, documentUrl: String?, targetUrl: String?): Boolean {
+        if (TorCircuitManager.isTorActive) return false
         if (tabId.isNullOrBlank() || documentUrl.isNullOrBlank() || targetUrl.isNullOrBlank()) return false
+        val tab = TabManager.getTab(tabId)
+        if (tab != null && (tab.isPrivate || tab.isTor)) return false
 
         val docHost = extractHost(documentUrl) ?: return false
         val targetHost = extractHost(targetUrl) ?: return false

@@ -56,8 +56,9 @@ class AzokleHistoryDelegate(
         val isError = (flags and GeckoSession.HistoryDelegate.VISIT_UNRECOVERABLE_ERROR) != 0
 
         if (!isRedirect && !isError && url.isNotBlank() && !isIgnoredUrl(url)) {
-            val activeTab = TabManager.activeTab
-            if (activeTab != null && (activeTab.isPrivate || activeTab.isTor)) {
+            // AZK-BUG-05: Check session's own tab instead of foreground activeTab to prevent race conditions during tab switching
+            val sessionTab = tabId?.let { id -> TabManager.tabs.value.find { it.id == id } }
+            if (sessionTab != null && (sessionTab.isPrivate || sessionTab.isTor)) {
                 return GeckoResult.fromValue(true)
             }
 

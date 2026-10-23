@@ -293,6 +293,15 @@ object GeckoConfigManager {
             appendLine("  network.http.referer.trimmingPolicy: 2")
             appendLine("  network.http.referer.XOriginPolicy: 1")
 
+            // 9.1 Certificate Security, CRLite & Static Key Pinning Enforcement
+            // Mitigates compromised/weak intermediate CA attacks (e.g., eMudhra/emSign incident)
+            appendLine("  security.cert_pinning.enforcement_level: 2")
+            appendLine("  security.OCSP.enabled: 1")
+            appendLine("  security.OCSP.require: false")
+            appendLine("  security.ssl.enable_ocsp_stapling: true")
+            appendLine("  security.ssl.enable_ocsp_must_staple: true")
+            appendLine("  security.pki.crlite_mode: 2")
+
             // 10. Native PDF.js In-Tab Document Rendering
             appendLine("  pdfjs.disabled: false")
         }

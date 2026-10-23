@@ -89,6 +89,7 @@ import com.azokle.search.media.MediaPlaybackManager
 import com.azokle.search.media.PlaybackStatus
 import com.azokle.search.navigation.ExternalSchemeHandler
 import com.azokle.search.navigation.HttpsUpgrader
+import com.azokle.search.navigation.NavigationSecurity
 import com.azokle.search.permissions.SitePermissionRequest
 import com.azokle.search.permissions.SitePermissionState
 import com.azokle.search.permissions.SitePermissionType
@@ -320,10 +321,21 @@ fun BrowserScreen(
     fun navigateToUrl(targetUrl: String, title: String = "") {
         val upgradedUrl = HttpsUpgrader.upgrade(targetUrl)
         val activeTabId = TabManager.activeTabId.value ?: "active"
-        if (AdClickManager.hasAdClickParameter(upgradedUrl)) {
+        val activeTab = TabManager.activeTab
+        val isPrivateOrTor = TorCircuitManager.isTorActive || (activeTab?.isPrivate == true) || (activeTab?.isTor == true)
+        if (!isPrivateOrTor && AdClickManager.hasAdClickParameter(upgradedUrl)) {
             AdClickManager.registerAdClick(activeTabId, upgradedUrl)
         }
         val cleanTargetUrl = AdClickManager.cleanTrackingParameters(upgradedUrl)
+
+        // AZK-VULN-11: Validate URI scheme before loading in Gecko engine
+        val scheme = UrlHelper.extractScheme(cleanTargetUrl)
+        if (scheme != null && NavigationSecurity.isForbiddenWebScheme(scheme)) {
+            targetLoadingUrl = ""
+            isPageTransitioning = false
+            currentError = BrowserErrorType.generic(cleanTargetUrl, "ERR_BLOCKED_SCHEME")
+            return
+        }
 
         val threatAssessment = SafeBrowsingGuard.assessUrl(cleanTargetUrl)
         if (threatAssessment.isThreat) {
@@ -1651,7 +1663,7 @@ fun BrowserScreen(
             onOpenUrlFromSettings = { url ->
                 val newId = TabManager.openTab(url, "Azokle")
                 TabManager.selectTab(newId)
-                geckoSession?.loadUri(url)
+                navigateToUrl(url, "Azokle")
             },
             isSearchEngineSheetOpen = homeUiState?.isSearchEngineSheetOpen == true,
             onDismissSearchEngineSheet = { viewModel?.setSearchEngineSheetOpen(false) },

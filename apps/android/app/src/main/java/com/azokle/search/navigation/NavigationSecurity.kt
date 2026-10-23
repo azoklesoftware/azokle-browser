@@ -151,6 +151,18 @@ object NavigationSecurity {
     fun isForbiddenWebScheme(scheme: String?): Boolean {
         if (scheme.isNullOrBlank()) return false
         val s = scheme.lowercase()
-        return s in setOf("file", "content", "chrome", "resource", "jar")
+        return s in setOf("file", "content", "chrome", "resource", "jar", "javascript")
+    }
+
+    /**
+     * Determines whether a package or component destination represents an attempt
+     * to self-target the browser's own internal application components (AZK-BUG-07, H-3).
+     */
+    fun isSelfTargetingPackage(targetPkg: String?, appPkg: String = "com.azokle.search"): Boolean {
+        if (targetPkg.isNullOrBlank()) return false
+        val pkg = targetPkg.trim()
+        return pkg.equals(appPkg, ignoreCase = true) ||
+               pkg.equals("com.azokle.search", ignoreCase = true) ||
+               pkg.equals("com.azokle.browser", ignoreCase = true)
     }
 }

@@ -127,6 +127,11 @@ class GeckoPromptDelegateImpl(
     fun isFedCmPermitted(): Boolean = !isTor && !isPrivate
 
     /**
+     * Checks whether web share permitted (strictly disabled in Tor mode to prevent OS intent data leakage).
+     */
+    fun isWebSharePermitted(): Boolean = !isTor
+
+    /**
      * Checks whether web authn related origin permitted.
      */
     fun isWebAuthnRelatedOriginPermitted(): Boolean = !isTor && !isPrivate
@@ -770,6 +775,12 @@ class GeckoPromptDelegateImpl(
         session: GeckoSession,
         prompt: SharePrompt
     ): GeckoResult<PromptResponse>? {
+        // AZK-VULN-02: Strictly suppress Web Share in Tor mode to prevent leaking .onion URLs or session tokens to clearnet apps
+        if (!isWebSharePermitted()) {
+            Log.w(TAG, "Blocked Web Share dispatch from Tor session to preserve isolation")
+            return GeckoResult.fromValue(prompt.confirm(SharePrompt.Result.FAILURE))
+        }
+
         val result = GeckoResult<PromptResponse>()
         mainHandler.post {
             val activity = unwrapActivity(context)

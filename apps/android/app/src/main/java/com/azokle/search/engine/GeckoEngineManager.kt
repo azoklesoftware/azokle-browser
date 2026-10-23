@@ -107,6 +107,12 @@ object GeckoEngineManager {
                 else -> ContentBlocking.EtpLevel.STRICT
             }
 
+            val enterpriseRoots = try {
+                com.azokle.search.common.util.PreferencesManager.getInstance(context.applicationContext).isEnterpriseRootsEnabled()
+            } catch (e: Exception) {
+                false
+            }
+
             val configFile = GeckoConfigManager.getOrCreateConfigFile(context.applicationContext)
             val settings = GeckoRuntimeSettings.Builder()
                 .configFilePath(configFile.absolutePath)
@@ -116,7 +122,7 @@ object GeckoEngineManager {
                 .remoteDebuggingEnabled(false)
                 .fissionEnabled(false)
                 .lowMemoryDetection(false)
-                .enterpriseRootsEnabled(true)
+                .enterpriseRootsEnabled(enterpriseRoots)
                 .globalPrivacyControlEnabled(true)
                 .forceUserScalableEnabled(true)
                 .doubleTapZoomingEnabled(true)

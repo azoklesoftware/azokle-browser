@@ -45,7 +45,7 @@ object PwaInstallabilityValidator {
         val host = uri.host?.lowercase() ?: return false
 
         if (scheme == "https") return true
-        if (scheme == "http" && (host == "localhost" || host == "127.0.0.1" || host == "::1")) return true
+        if (scheme == "http" && (host == "localhost" || host == "127.0.0.1" || host == "::1" || host.endsWith(".onion"))) return true
         return false
     }
 

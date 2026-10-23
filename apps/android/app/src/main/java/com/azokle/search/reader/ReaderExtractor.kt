@@ -18,6 +18,7 @@ package com.azokle.search.reader
 
 import android.net.Uri
 import android.text.Html
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -55,19 +56,27 @@ data class ArticleContent(
  * - Privacy-First Tor SOCKS5 & Clearnet DoH support.
  */
 object ReaderExtractor {
-    // In-memory normalized URL cache for instant DOM-first retrieval
-    private val articleCache = ConcurrentHashMap<String, ArticleContent>()
+    private const val TAG = "ReaderExtractor"
+    private const val MAX_CACHED_ARTICLES = 50
+
+    // Bounded LRU in-memory cache to prevent OutOfMemoryError DoS
+    private val articleCache = object : LinkedHashMap<String, ArticleContent>(MAX_CACHED_ARTICLES, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ArticleContent>?): Boolean {
+            return size > MAX_CACHED_ARTICLES
+        }
+    }
 
     private val httpClient = OkHttpClient.Builder()
         .dns(com.azokle.search.core.DnsOverHttpsManager.sharedDns)
         .connectTimeout(8, TimeUnit.SECONDS)
         .readTimeout(10, TimeUnit.SECONDS)
-        .followRedirects(true)
+        .followRedirects(false)
         .build()
 
     /**
      * Executes the cache article operation.
      */
+    @Synchronized
     fun cacheArticle(url: String, article: ArticleContent) {
         val key = normalizeUrl(url)
         if (key.isNotBlank()) {
@@ -78,6 +87,7 @@ object ReaderExtractor {
     /**
      * Retrieves the cached article.
      */
+    @Synchronized
     fun getCachedArticle(url: String): ArticleContent? {
         val key = normalizeUrl(url)
         if (key.isBlank()) return null
@@ -87,6 +97,7 @@ object ReaderExtractor {
     /**
      * Clears all cache.
      */
+    @Synchronized
     fun clearCache() {
         articleCache.clear()
     }
@@ -106,33 +117,82 @@ object ReaderExtractor {
     }
 
     /**
+     * Evaluates whether an IP address belongs to a private network, loopback, or link-local subnet.
+     * Hardened against RFC 1918, RFC 3927 (169.254.x.x cloud metadata), IPv6 ULA, and IPv4-mapped loopback.
+     */
+    internal fun isPrivateOrLoopbackIp(inetAddr: java.net.InetAddress): Boolean {
+        if (inetAddr.isLoopbackAddress || inetAddr.isAnyLocalAddress || inetAddr.isLinkLocalAddress || inetAddr.isSiteLocalAddress) {
+            return true
+        }
+        val bytes = inetAddr.address
+        if (bytes.size == 4) {
+            val b0 = bytes[0].toInt() and 0xFF
+            val b1 = bytes[1].toInt() and 0xFF
+            // 10.0.0.0/8
+            if (b0 == 10) return true
+            // 172.16.0.0/12
+            if (b0 == 172 && b1 in 16..31) return true
+            // 192.168.0.0/16
+            if (b0 == 192 && b1 == 168) return true
+            // 169.254.0.0/16 (Link-Local & Cloud Metadata e.g. AWS/GCP 169.254.169.254)
+            if (b0 == 169 && b1 == 254) return true
+            // 127.0.0.0/8 (Loopback)
+            if (b0 == 127) return true
+            // 0.0.0.0/32 or 255.255.255.255
+            if (b0 == 0 || b0 == 255) return true
+        } else if (bytes.size == 16) {
+            val b0 = bytes[0].toInt() and 0xFF
+            // IPv6 Unique Local (fc00::/7)
+            if ((b0 and 0xFE) == 0xFC) return true
+            // IPv6 Link-Local (fe80::/10)
+            val b1 = bytes[1].toInt() and 0xFF
+            if (b0 == 0xFE && (b1 and 0xC0) == 0x80) return true
+            // IPv4-mapped loopback/private (::ffff:127.0.0.1)
+            val isIpv4Mapped = (0..9).all { bytes[it] == 0.toByte() } && bytes[10] == 0xFF.toByte() && bytes[11] == 0xFF.toByte()
+            if (isIpv4Mapped) {
+                val ipv4Bytes = bytes.copyOfRange(12, 16)
+                try {
+                    return isPrivateOrLoopbackIp(java.net.InetAddress.getByAddress(ipv4Bytes))
+                } catch (_: Exception) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    /**
      * Checks whether safe public url.
      */
-    private fun isSafePublicUrl(url: String, isTor: Boolean): Boolean {
+    internal fun isSafePublicUrl(url: String, isTor: Boolean): Boolean {
         val trimmed = url.trim().lowercase()
         if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) return false
 
         val hostAndRest = trimmed.substringAfter("://")
         val hostWithPort = hostAndRest.substringBefore("/").substringBefore("?").substringBefore("#")
-        val host = hostWithPort.substringBefore(":")
+        val cleanHost = if (hostWithPort.startsWith("[")) {
+            hostWithPort.substringAfter("[").substringBefore("]")
+        } else {
+            hostWithPort.substringBefore(":")
+        }.trim().substringBefore("%")
 
-        if (isTor && host.endsWith(".onion")) return true
+        if (cleanHost.isBlank()) return false
+        if (isTor && cleanHost.endsWith(".onion")) return true
 
         // Disallow loopback and local domain probing (SSRF defense)
-        if (host == "localhost" || host == "127.0.0.1" || host == "::1" || host.endsWith(".local") || host.endsWith(".internal")) {
+        if (cleanHost == "localhost" || cleanHost == "127.0.0.1" || cleanHost == "::1" ||
+            cleanHost.endsWith(".localhost") || cleanHost.endsWith(".local") || cleanHost.endsWith(".internal")) {
             return false
         }
 
-        // Disallow RFC 1918 Private & Link-Local CIDRs
-        if (host.startsWith("10.") || host.startsWith("192.168.") || host.startsWith("169.254.")) {
-            return false
-        }
-        if (host.startsWith("172.")) {
-            val parts = host.split(".")
-            if (parts.size == 4) {
-                val second = parts[1].toIntOrNull()
-                if (second != null && second in 16..31) return false
+        // Validate IP literals and resolve hostname to block private IP and cloud metadata SSRF
+        try {
+            val addrs = java.net.InetAddress.getAllByName(cleanHost)
+            if (addrs.any { isPrivateOrLoopbackIp(it) }) {
+                return false
             }
+        } catch (_: Exception) {
+            // Cannot resolve or offline; if it's an onion in Tor mode, handled above, else safe to fail closed or let network handle
         }
 
         return true
@@ -148,7 +208,7 @@ object ReaderExtractor {
                 .dns(com.azokle.search.tor.TorRemoteDns)
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(15, TimeUnit.SECONDS)
-                .followRedirects(true)
+                .followRedirects(false)
                 .build()
         } else {
             httpClient
@@ -190,15 +250,41 @@ object ReaderExtractor {
         }
 
         try {
-            val request = Request.Builder()
-                .url(url)
-                .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36")
-                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-                .build()
-
+            var currentUrl = url
+            var redirectCount = 0
+            var rawHtml = ""
             val clientToUse = getClient(isTor || url.contains(".onion"), socksPort)
-            val rawHtml = clientToUse.newCall(request).execute().use { response ->
-                response.body.string()
+
+            // AZK-VULN-08: Follow redirects safely with step-by-step SSRF validation (max 5 hops)
+            while (redirectCount <= 5) {
+                val request = Request.Builder()
+                    .url(currentUrl)
+                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36")
+                    .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                    .build()
+
+                val response = clientToUse.newCall(request).execute()
+                if (response.isRedirect) {
+                    val location = response.header("Location")
+                    val resolvedUrl = location?.let { response.request.url.resolve(it)?.toString() }
+                    response.close()
+
+                    if (resolvedUrl == null || !isSafePublicUrl(resolvedUrl, isTor)) {
+                        Log.w(TAG, "Blocked unsafe redirect in Reader Mode: $location (resolved: $resolvedUrl)")
+                        return@withContext ArticleContent(
+                            title = fallbackTitle.ifBlank { "Restricted Content" },
+                            byline = "Azokle Shield",
+                            paragraphs = listOf("Reader Mode is disabled for local and internal network endpoints for your security."),
+                            blocks = listOf(ArticleBlock(BlockType.PARAGRAPH, "Reader Mode is disabled for local and internal network endpoints for your security.")),
+                            estimatedMinutes = 1
+                        )
+                    }
+                    currentUrl = resolvedUrl
+                    redirectCount++
+                } else {
+                    rawHtml = response.use { it.body.string() }
+                    break
+                }
             }
 
             if (rawHtml.isBlank()) {
