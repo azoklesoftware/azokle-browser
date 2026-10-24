@@ -1,0 +1,5 @@
+scan:
+  skip-dirs:
+    - "crates/privacy/adblock-rust/data"
+    - "build"
+    - "dist"
