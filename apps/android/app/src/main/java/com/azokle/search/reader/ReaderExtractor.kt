@@ -185,6 +185,23 @@ object ReaderExtractor {
             return false
         }
 
+        // AZK-SEC-01: In Tor mode, NEVER execute host OS DNS resolution (java.net.InetAddress.getAllByName)
+        // for domain names. Doing so leaks visited clearnet domains over unencrypted local/cellular DNS.
+        // In Tor mode, OkHttp SOCKS5 proxy handles remote DNS resolution securely over the onion circuit.
+        // We only inspect raw IP literals locally to block private subnets.
+        val isIpLiteral = (cleanHost.all { it.isDigit() || it == '.' } && cleanHost.count { it == '.' } == 3) || cleanHost.contains(':')
+        if (isTor) {
+            if (isIpLiteral) {
+                try {
+                    val addr = java.net.InetAddress.getByName(cleanHost)
+                    if (isPrivateOrLoopbackIp(addr)) return false
+                } catch (_: Exception) {
+                    return false
+                }
+            }
+            return true
+        }
+
         // Validate IP literals and resolve hostname to block private IP and cloud metadata SSRF
         try {
             val addrs = java.net.InetAddress.getAllByName(cleanHost)

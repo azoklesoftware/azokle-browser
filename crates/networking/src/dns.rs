@@ -151,13 +151,6 @@ impl SovereignDnsResolver {
 
     /// Performs resolve internal operation.
     fn resolve_internal(&self, host: &str) -> Result<Vec<IpAddr>, NetworkError> {
-        // Fast hardcoded resolution for known Azokle endpoints to guarantee bootstrap speed
-        if host == "search.azokle.com" || host == "api.azokle.com" {
-            if let Ok(ip) = "104.21.5.12".parse::<IpAddr>() {
-                return Ok(vec![ip]);
-            }
-        }
-
         // System fallback
         use std::net::ToSocketAddrs;
         let addr_str = format!("{}:443", host);
@@ -179,6 +172,13 @@ impl SovereignDnsResolver {
     /// Performs clear cache operation.
     pub fn clear_cache(&self) {
         self.cache.write().clear();
+    }
+
+    #[cfg(test)]
+    pub fn insert_cache_for_test(&self, host: &str, ips: Vec<IpAddr>) {
+        self.cache
+            .write()
+            .insert(host.to_lowercase(), (ips, Instant::now()));
     }
 }
 

@@ -299,11 +299,57 @@ pub extern "C" fn azokle_passkey_create(
         match SovereignPasskey::create(rp_str, user_str, handle_slice) {
             Ok((passkey, _cred_id)) => {
                 let json = serde_json::to_string(&passkey).unwrap_or_default();
+                passkey.store_in_vault();
                 CString::new(json)
                     .map(|c| c.into_raw())
                     .unwrap_or(std::ptr::null_mut())
             }
             Err(_) => std::ptr::null_mut(),
+        }
+    }));
+    result.unwrap_or(std::ptr::null_mut())
+}
+
+/// Signs an assertion using a stored passkey.
+#[no_mangle]
+pub extern "C" fn azokle_passkey_sign(
+    credential_id_b64: *const c_char,
+    auth_data: *const u8,
+    auth_len: usize,
+    client_hash: *const u8,
+    hash_len: usize,
+) -> *mut c_char {
+    if credential_id_b64.is_null() || auth_data.is_null() || client_hash.is_null() {
+        return std::ptr::null_mut();
+    }
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        let cred_id = unsafe { CStr::from_ptr(credential_id_b64).to_str().unwrap_or("") };
+        let auth_slice = unsafe { std::slice::from_raw_parts(auth_data, auth_len) };
+        let hash_slice = unsafe { std::slice::from_raw_parts(client_hash, hash_len) };
+
+        match SovereignPasskey::sign_with_stored(cred_id, auth_slice, hash_slice) {
+            Ok(sig_der) => {
+                use base64ct::{Base64UrlUnpadded, Encoding};
+                let sig_b64 = Base64UrlUnpadded::encode_string(&sig_der);
+                let res_json = serde_json::json!({
+                    "status": "ok",
+                    "signature_der_b64": sig_b64,
+                })
+                .to_string();
+                CString::new(res_json)
+                    .map(|c| c.into_raw())
+                    .unwrap_or(std::ptr::null_mut())
+            }
+            Err(e) => {
+                let err_json = serde_json::json!({
+                    "status": "error",
+                    "error": e.to_string(),
+                })
+                .to_string();
+                CString::new(err_json)
+                    .map(|c| c.into_raw())
+                    .unwrap_or(std::ptr::null_mut())
+            }
         }
     }));
     result.unwrap_or(std::ptr::null_mut())

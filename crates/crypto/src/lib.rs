@@ -71,4 +71,22 @@ mod tests {
         assert!(!sig.is_empty());
         assert_eq!(passkey.sign_count, 1);
     }
+
+    #[test]
+    fn test_passkey_vault_retention_and_sign_with_stored() {
+        let (passkey, _cred_id) =
+            SovereignPasskey::create("gitlab.com", "devuser", b"user_999").unwrap();
+        let cred_id_b64 = passkey.credential_id_b64.clone();
+        passkey.store_in_vault();
+
+        let auth_data = b"sample_authenticator_data_32_bytes";
+        let client_hash = [0x55u8; 32];
+        let sig =
+            SovereignPasskey::sign_with_stored(&cred_id_b64, auth_data, &client_hash).unwrap();
+        assert!(!sig.is_empty());
+
+        assert!(
+            SovereignPasskey::sign_with_stored("non-existent-id", auth_data, &client_hash).is_err()
+        );
+    }
 }

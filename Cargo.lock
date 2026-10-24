@@ -246,6 +246,7 @@ version = "1.0.0"
 dependencies = [
  "azokle-core",
  "azokle-networking",
+ "base64ct",
  "log",
  "serde",
  "serde_json",
@@ -296,6 +297,7 @@ dependencies = [
  "ciborium",
  "log",
  "p256",
+ "parking_lot",
  "rand",
  "serde",
  "serde_json",

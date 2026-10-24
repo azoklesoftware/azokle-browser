@@ -321,9 +321,33 @@ impl TorController {
     }
 
     /// Checks if a string or host is an Onion hidden service domain (`.onion`).
+    ///
+    /// AZK-SEC-06: Accurately extracts authority hostname to prevent path/query substring
+    /// spoofing (e.g. `example.com/.onion/index.html` must not be classified as an onion domain).
     pub fn is_onion_url(url: &str) -> bool {
         let clean = url.trim().to_lowercase();
-        clean.contains(".onion/") || clean.ends_with(".onion") || clean.contains(".onion:")
+        let without_scheme = if let Some(idx) = clean.find("://") {
+            &clean[idx + 3..]
+        } else {
+            &clean
+        };
+        let host_and_port = without_scheme
+            .split('/')
+            .next()
+            .unwrap_or("")
+            .split('?')
+            .next()
+            .unwrap_or("")
+            .split('#')
+            .next()
+            .unwrap_or("");
+        let host = if host_and_port.starts_with('[') {
+            host_and_port.split(']').next().unwrap_or("")
+        } else {
+            host_and_port.split(':').next().unwrap_or("")
+        };
+        let clean_host = host.trim_end_matches('.');
+        clean_host == "onion" || clean_host.ends_with(".onion")
     }
 
     /// Normalizes navigation input inside a Tor browsing session.
@@ -338,14 +362,15 @@ impl TorController {
             return "about:tor".to_string();
         }
 
-        let lower = trimmed.to_lowercase();
-        if lower.ends_with(".onion") || lower.contains(".onion/") || lower.contains(".onion:") {
+        if Self::is_onion_url(trimmed) {
+            let lower = trimmed.to_lowercase();
             if !lower.starts_with("http://") && !lower.starts_with("https://") {
                 return format!("http://{}", trimmed);
             }
             return trimmed.to_string();
         }
 
+        let lower = trimmed.to_lowercase();
         if lower.starts_with("http://") || lower.starts_with("https://") {
             return trimmed.to_string();
         }
@@ -414,6 +439,16 @@ mod tests {
         assert_eq!(
             TorController::resolve_tor_url("wikipedia.org", "https://duckduckgo.com/?q="),
             "https://wikipedia.org"
+        );
+
+        // AZK-SEC-06: Path/query spoofed .onion strings must NOT be identified as onion URLs
+        assert!(!TorController::is_onion_url("https://attacker.com/.onion/index.html"));
+        assert!(!TorController::is_onion_url("attacker.com/.onion/test"));
+        assert!(!TorController::is_onion_url("attacker.com?ref=.onion/"));
+        assert!(!TorController::is_onion_url("subdomain.onion.attacker.com"));
+        assert_eq!(
+            TorController::resolve_tor_url("attacker.com/.onion/index.html", "https://duckduckgo.com/?q="),
+            "https://attacker.com/.onion/index.html"
         );
 
         // 3. Search Queries

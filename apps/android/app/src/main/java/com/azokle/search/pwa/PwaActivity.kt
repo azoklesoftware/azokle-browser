@@ -223,13 +223,35 @@ class PwaActivity : FragmentActivity(), FilePromptHost {
             if (bg != 0) backgroundColor = bg
         }
 
-        // Try loading registered icon from PwaStorageManager
+        // AZK-SEC-02: Enforce PWA registration and origin authentication.
+        // Prevent external apps or malicious intents from launching chromeless standalone
+        // webviews for unregistered domains (phishing / origin spoofing defense).
         val storedPwa = PwaStorageManager.getInstance(this).getPwaById(pwaId)
             ?: PwaStorageManager.getInstance(this).findPwaForUrl(startUrl)
-        if (storedPwa != null) {
-            cachedIconBitmap = storedPwa.getIconBitmap()
-            if (themeColor == null) themeColor = storedPwa.themeColor
-            if (backgroundColor == null) backgroundColor = storedPwa.backgroundColor
+
+        if (storedPwa == null) {
+            val browserIntent = Intent(this, MainActivity::class.java).apply {
+                action = Intent.ACTION_VIEW
+                data = Uri.parse(startUrl)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            startActivity(browserIntent)
+            finish()
+            return
+        }
+
+        // Enforce verified parameters from persistent PWA storage to defeat intent parameter spoofing
+        pwaId = storedPwa.id
+        pwaName = storedPwa.title
+        pwaScope = storedPwa.scope
+        displayMode = storedPwa.displayMode
+        cachedIconBitmap = storedPwa.getIconBitmap()
+        if (themeColor == null) themeColor = storedPwa.themeColor
+        if (backgroundColor == null) backgroundColor = storedPwa.backgroundColor
+
+        // Constrain startUrl to registered scope
+        if (!PwaInstallabilityValidator.isUrlInScope(startUrl, pwaScope)) {
+            startUrl = storedPwa.startUrl
         }
 
         activeThemeColor = themeColor
@@ -330,18 +352,31 @@ class PwaActivity : FragmentActivity(), FilePromptHost {
         val newName = intent.getStringExtra(PwaShortcutManager.EXTRA_PWA_NAME) ?: "Web App"
         val newDisplay = DisplayMode.fromString(intent.getStringExtra(PwaShortcutManager.EXTRA_PWA_DISPLAY_MODE))
 
-        pwaId = newPwaId
-        startUrl = newStartUrl
-        pwaScope = newScope
-        pwaName = newName
-        displayMode = newDisplay
+        val storedPwa = PwaStorageManager.getInstance(this).getPwaById(newPwaId)
+            ?: PwaStorageManager.getInstance(this).findPwaForUrl(newStartUrl)
 
-        val storedPwa = PwaStorageManager.getInstance(this).getPwaById(pwaId)
-            ?: PwaStorageManager.getInstance(this).findPwaForUrl(startUrl)
-        if (storedPwa != null) {
-            cachedIconBitmap = storedPwa.getIconBitmap()
-            themeColor = storedPwa.themeColor
-            backgroundColor = storedPwa.backgroundColor
+        if (storedPwa == null) {
+            val browserIntent = Intent(this, MainActivity::class.java).apply {
+                action = Intent.ACTION_VIEW
+                data = Uri.parse(newStartUrl)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            startActivity(browserIntent)
+            finish()
+            return
+        }
+
+        pwaId = storedPwa.id
+        pwaName = storedPwa.title
+        pwaScope = storedPwa.scope
+        displayMode = storedPwa.displayMode
+        cachedIconBitmap = storedPwa.getIconBitmap()
+        themeColor = storedPwa.themeColor
+        backgroundColor = storedPwa.backgroundColor
+        startUrl = if (PwaInstallabilityValidator.isUrlInScope(newStartUrl, pwaScope)) {
+            newStartUrl
+        } else {
+            storedPwa.startUrl
         }
 
         activeThemeColor = themeColor

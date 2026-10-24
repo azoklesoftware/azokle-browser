@@ -117,4 +117,21 @@ class ReaderExtractorSecurityTest {
         assertNull(ReaderExtractor.getCachedArticle("https://example.com/item1"))
         assertNull(ReaderExtractor.getCachedArticle("https://example.com/item2"))
     }
+
+    @Test
+    fun testTorModeDnsLeakDefenseAndSsrfMitigation() {
+        // AZK-SEC-01: Clearnet domains in Tor mode must be allowed without triggering host OS DNS leaks
+        assertTrue(ReaderExtractor.isSafePublicUrl("https://en.wikipedia.org/wiki/Privacy", isTor = true))
+        assertTrue(ReaderExtractor.isSafePublicUrl("https://reuters.com/news", isTor = true))
+
+        // Onion hidden services in Tor mode must always be allowed
+        assertTrue(ReaderExtractor.isSafePublicUrl("http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion", isTor = true))
+
+        // Private IP literals must still be blocked even in Tor mode
+        org.junit.Assert.assertFalse(ReaderExtractor.isSafePublicUrl("http://192.168.1.1/admin", isTor = true))
+        org.junit.Assert.assertFalse(ReaderExtractor.isSafePublicUrl("http://10.0.0.1/status", isTor = true))
+        org.junit.Assert.assertFalse(ReaderExtractor.isSafePublicUrl("http://127.0.0.1:8080", isTor = true))
+        org.junit.Assert.assertFalse(ReaderExtractor.isSafePublicUrl("http://localhost:8080", isTor = true))
+    }
 }
+

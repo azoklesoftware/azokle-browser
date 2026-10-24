@@ -22,7 +22,6 @@
         "*://cloudflare.com/*",
         "*://*.challenges.cloudflare.com/*",
         "*://challenges.cloudflare.com/*",
-        "*://*.cloudflareinsights.com/*",
         "*://*.hcaptcha.com/*",
         "*://*.recaptcha.net/*",
         "*://*.browserbench.org/*",
@@ -43,8 +42,7 @@
     }
   ],
   "web_accessible_resources": [
-    "surrogates/*",
-    "scriptlets/*"
+    "surrogates/*"
   ],
   "incognito": "spanning",
   "permissions": [

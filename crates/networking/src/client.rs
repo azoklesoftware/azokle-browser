@@ -167,6 +167,14 @@ impl SovereignHttpClient {
                 let proxy_ip = resolved_proxy_ips.first().ok_or_else(|| {
                     NetworkError::ProxyUnreachable("Proxy IP resolution failed".to_string())
                 })?;
+                if !request.allow_private_ips
+                    && crate::security::SecurityPolicy::is_private_or_loopback_ip(proxy_ip)
+                {
+                    return Err(NetworkError::SsrfBlocked(format!(
+                        "Proxy IP ({}) for proxy host '{}' is a prohibited private/loopback address",
+                        proxy_ip, p_host
+                    )));
+                }
                 let proxy_addr = SocketAddr::new(*proxy_ip, p_port);
                 Self::socks5_connect(proxy_addr, host, port, request.timeout)?
             }
@@ -179,14 +187,16 @@ impl SovereignHttpClient {
                         .first()
                         .ok_or_else(|| NetworkError::DnsError(host.to_string()))?;
 
-                    // AZK-MED-02: Re-validate resolved IP against SSRF policy before connection to prevent DNS rebinding attacks
-                    if !request.allow_private_ips
-                        && crate::security::SecurityPolicy::is_private_or_loopback_ip(target_ip)
-                    {
-                        return Err(NetworkError::SsrfBlocked(format!(
-                            "Resolved IP ({}) for host '{}' is a prohibited private/loopback address (DNS rebinding prevented)",
-                            target_ip, host
-                        )));
+                    // AZK-SEC-03: Validate all resolved IPs against SSRF policy before connection to prevent DNS rebinding attacks
+                    if !request.allow_private_ips {
+                        for ip in &ips {
+                            if crate::security::SecurityPolicy::is_private_or_loopback_ip(ip) {
+                                return Err(NetworkError::SsrfBlocked(format!(
+                                    "Resolved IP ({}) for host '{}' is a prohibited private/loopback address (DNS rebinding prevented)",
+                                    ip, host
+                                )));
+                            }
+                        }
                     }
 
                     let target_addr = SocketAddr::new(*target_ip, port);
@@ -353,6 +363,25 @@ mod tests {
                 assert!(msg.contains("prohibited"));
             }
             other => panic!("Expected DnsLeakPrevented, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_resolved_ip_ssrf_blocked() {
+        let dns = Arc::new(SovereignDnsResolver::new());
+        // AZK-SEC-03: Simulate DNS rebinding: public-looking hostname resolving to loopback IP
+        dns.insert_cache_for_test(
+            "rebind.attacker.test",
+            vec!["127.0.0.1".parse().unwrap()],
+        );
+        let client = SovereignHttpClient::new(dns);
+        let req = HttpRequest::get("http://rebind.attacker.test/");
+        let result = client.execute(req);
+        match result {
+            Err(NetworkError::SsrfBlocked(msg)) => {
+                assert!(msg.contains("prohibited private/loopback address"));
+            }
+            other => panic!("Expected SsrfBlocked, got {:?}", other),
         }
     }
 }

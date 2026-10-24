@@ -46,12 +46,8 @@
             var script = document.createElement('script');
             script.textContent = code;
 
-            // Inherit CSP nonce from existing script if present
-            var nonceHolder = document.querySelector('script[nonce]');
-            if (nonceHolder) {
-                var n = nonceHolder.nonce || nonceHolder.getAttribute('nonce');
-                if (n) script.setAttribute('nonce', n);
-            }
+            // AZK-SEC-09: Do not scrape and clone host DOM CSP nonces onto injected elements.
+            // Scraped nonces can be inspected or abused by hostile page scripts.
 
             var target = document.head || document.documentElement || document;
             if (target) {

@@ -19,6 +19,16 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
+use parking_lot::RwLock;
+use std::collections::HashMap;
+use std::sync::OnceLock;
+
+static PASSKEY_VAULT: OnceLock<RwLock<HashMap<String, SovereignPasskey>>> = OnceLock::new();
+
+fn get_passkey_vault() -> &'static RwLock<HashMap<String, SovereignPasskey>> {
+    PASSKEY_VAULT.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
 #[derive(Error, Debug)]
 pub enum PasskeyError {
     #[error("Failed to generate P-256 keypair: {0}")]
@@ -27,6 +37,8 @@ pub enum PasskeyError {
     SigningError(String),
     #[error("Serialization error: {0}")]
     SerializationError(String),
+    #[error("Passkey not found in vault: {0}")]
+    NotFound(String),
 }
 
 /// In-browser sovereign passkey credential compliant with WebAuthn / FIDO2 standards.
@@ -123,6 +135,36 @@ impl SovereignPasskey {
 
         let signature: p256::ecdsa::Signature = signing_key.sign(&signed_data);
         Ok(signature.to_der().as_bytes().to_vec())
+    }
+
+    /// Stores this passkey in the secure in-memory vault keyed by its credential ID.
+    pub fn store_in_vault(self) -> String {
+        let id = self.credential_id_b64.clone();
+        get_passkey_vault().write().insert(id.clone(), self);
+        id
+    }
+
+    /// Retrieves a cloned passkey credential from the in-memory vault by credential ID.
+    pub fn get_from_vault(credential_id_b64: &str) -> Option<Self> {
+        get_passkey_vault().read().get(credential_id_b64).cloned()
+    }
+
+    /// Signs an authentication challenge using a passkey stored in the vault.
+    pub fn sign_with_stored(
+        credential_id_b64: &str,
+        authenticator_data: &[u8],
+        client_data_hash: &[u8],
+    ) -> Result<Vec<u8>, PasskeyError> {
+        let mut guard = get_passkey_vault().write();
+        let passkey = guard
+            .get_mut(credential_id_b64)
+            .ok_or_else(|| PasskeyError::NotFound(credential_id_b64.to_string()))?;
+        passkey.sign_assertion(authenticator_data, client_data_hash)
+    }
+
+    /// Purges all stored passkeys from memory (e.g. during incineration).
+    pub fn clear_vault() {
+        get_passkey_vault().write().clear();
     }
 }
 

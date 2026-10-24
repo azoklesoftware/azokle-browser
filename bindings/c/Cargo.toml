@@ -15,4 +15,5 @@ azokle-networking = { path = "../../crates/networking" }
 serde_json.workspace = true
 serde.workspace = true
 url.workspace = true
+base64ct.workspace = true
 log.workspace = true

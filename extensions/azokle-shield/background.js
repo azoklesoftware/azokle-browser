@@ -23,8 +23,8 @@
     // Core Sovereign & Bot-Challenge Whitelist (Infrastructure endpoints only)
     var sovereignHosts = new Set([
         'azokle.com', 'search.azokle.com', 'api.azokle.com',
-        'cloudflare.com', 'cloudflareinsights.com', 'challenges.cloudflare.com',
-        'challenge.cloudflare.com', 'static.cloudflareinsights.com', 'static.cloudflare.com',
+        'cloudflare.com', 'challenges.cloudflare.com',
+        'challenge.cloudflare.com', 'static.cloudflare.com',
         'hcaptcha.com', 'recaptcha.net'
     ]);
 
@@ -157,7 +157,6 @@
         if (sovereignHosts.has(h)) return true;
         if (hostMatches(h, 'azokle.com') ||
             hostMatches(h, 'challenges.cloudflare.com') ||
-            hostMatches(h, 'cloudflareinsights.com') ||
             hostMatches(h, 'hcaptcha.com') ||
             hostMatches(h, 'recaptcha.net')) {
             return true;
