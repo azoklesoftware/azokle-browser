@@ -198,12 +198,15 @@ jobs:
       - name: Verify macOS Application Output
         run: |
           find apps/macos/.build -type f -name "AzokleBrowserMac" -ls
+          BIN_PATH=$(find apps/macos/.build -type f -name "AzokleBrowserMac" | grep -v "\.dSYM" | head -n 1)
+          cp "$BIN_PATH" apps/macos/AzokleBrowserMac
+          chmod +x apps/macos/AzokleBrowserMac
 
       - name: Upload macOS Binary Artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: azokle-browser-macos
-          path: apps/macos/.build/**/release/AzokleBrowserMac
+          path: apps/macos/AzokleBrowserMac
           retention-days: 14
 
 
