@@ -2085,7 +2085,6 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_passkeyClearVaultN
 }
 
 #[cfg(test)]
-
 mod tests {
     use super::*;
 

@@ -78,6 +78,7 @@ mod tests {
 
     #[test]
     fn test_passkey_vault_retention_and_sign_with_stored() {
+        let _lock = crate::passkey::TEST_VAULT_MUTEX.lock();
         use sha2::{Digest, Sha256};
         let (passkey, _cred_id) =
             SovereignPasskey::create("gitlab.com", "devuser", b"user_999").unwrap();

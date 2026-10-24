@@ -207,6 +207,9 @@ impl Drop for SovereignPasskey {
 }
 
 #[cfg(test)]
+pub(crate) static TEST_VAULT_MUTEX: parking_lot::Mutex<()> = parking_lot::Mutex::new(());
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -257,6 +260,7 @@ mod tests {
 
     #[test]
     fn test_passkey_vault_clear() {
+        let _lock = TEST_VAULT_MUTEX.lock();
         let (passkey, _) = SovereignPasskey::create("vault.com", "bob", b"user_456")
             .expect("Passkey creation failed");
         let cred_id = passkey.store_in_vault();

@@ -106,7 +106,7 @@ impl TabSession {
             title: if title.is_empty() {
                 "New Tab".to_string()
             } else {
-                title.replace('\r', "").replace('\n', "").trim().to_string()
+                title.replace(['\r', '\n'], "").trim().to_string()
             },
             favicon_url: None,
             is_private,
@@ -277,7 +277,7 @@ impl TabManager {
                 tab.url = TabSession::sanitize_tab_url(url);
             }
             if !title.is_empty() {
-                tab.title = title.replace('\r', "").replace('\n', "").trim().to_string();
+                tab.title = title.replace(['\r', '\n'], "").trim().to_string();
             }
             true
         } else {
