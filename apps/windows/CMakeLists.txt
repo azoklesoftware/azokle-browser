@@ -33,6 +33,13 @@ if(WIN32)
     target_link_libraries(azokle-browser-windows PRIVATE
         azokle_engine
         azokle_c
+        ws2_32
+        userenv
+        bcrypt
+        ntdll
+        secur32
+        crypt32
+        ncrypt
     )
 else()
     target_link_libraries(azokle-browser-windows PRIVATE
