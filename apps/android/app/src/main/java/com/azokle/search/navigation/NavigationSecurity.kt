@@ -151,7 +151,7 @@ object NavigationSecurity {
     fun isForbiddenWebScheme(scheme: String?): Boolean {
         if (scheme.isNullOrBlank()) return false
         val s = scheme.lowercase()
-        return s in setOf("file", "content", "chrome", "resource", "jar", "javascript")
+        return s in setOf("file", "content", "chrome", "resource", "jar", "javascript", "view-source")
     }
 
     /**

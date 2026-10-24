@@ -16,7 +16,7 @@ pub mod crypto;
 pub mod passkey;
 
 pub use crypto::{SecretKey, VaultCrypto, VaultCryptoError};
-pub use passkey::{PasskeyError, SovereignPasskey};
+pub use passkey::{clear_global_passkey_vault, PasskeyError, SovereignPasskey};
 
 #[cfg(test)]
 mod tests {
@@ -58,6 +58,7 @@ mod tests {
 
     #[test]
     fn test_sovereign_passkey_creation_and_signing() {
+        use sha2::{Digest, Sha256};
         let (mut passkey, cred_id) =
             SovereignPasskey::create("github.com", "azokledev", b"user_12345").unwrap();
         assert_eq!(passkey.rp_id, "github.com");
@@ -65,28 +66,35 @@ mod tests {
         assert!(!passkey.public_key_der_b64.is_empty());
         assert_eq!(cred_id.len(), 20);
 
-        let auth_data = b"sample_authenticator_data_32_bytes";
+        let mut auth_data = Vec::new();
+        auth_data.extend_from_slice(&Sha256::digest(b"github.com"));
+        auth_data.push(0x05); // flags
+        auth_data.extend_from_slice(&[0, 0, 0, 1]); // counter
         let client_hash = [0xabu8; 32];
-        let sig = passkey.sign_assertion(auth_data, &client_hash).unwrap();
+        let sig = passkey.sign_assertion(&auth_data, &client_hash).unwrap();
         assert!(!sig.is_empty());
         assert_eq!(passkey.sign_count, 1);
     }
 
     #[test]
     fn test_passkey_vault_retention_and_sign_with_stored() {
+        use sha2::{Digest, Sha256};
         let (passkey, _cred_id) =
             SovereignPasskey::create("gitlab.com", "devuser", b"user_999").unwrap();
         let cred_id_b64 = passkey.credential_id_b64.clone();
         passkey.store_in_vault();
 
-        let auth_data = b"sample_authenticator_data_32_bytes";
+        let mut auth_data = Vec::new();
+        auth_data.extend_from_slice(&Sha256::digest(b"gitlab.com"));
+        auth_data.push(0x05);
+        auth_data.extend_from_slice(&[0, 0, 0, 1]);
         let client_hash = [0x55u8; 32];
         let sig =
-            SovereignPasskey::sign_with_stored(&cred_id_b64, auth_data, &client_hash).unwrap();
+            SovereignPasskey::sign_with_stored(&cred_id_b64, &auth_data, &client_hash).unwrap();
         assert!(!sig.is_empty());
 
         assert!(
-            SovereignPasskey::sign_with_stored("non-existent-id", auth_data, &client_hash).is_err()
+            SovereignPasskey::sign_with_stored("non-existent-id", &auth_data, &client_hash).is_err()
         );
     }
 }

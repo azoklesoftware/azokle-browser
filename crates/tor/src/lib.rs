@@ -341,10 +341,15 @@ impl TorController {
             .split('#')
             .next()
             .unwrap_or("");
-        let host = if host_and_port.starts_with('[') {
-            host_and_port.split(']').next().unwrap_or("")
+        let authority = if let Some(at_idx) = host_and_port.rfind('@') {
+            &host_and_port[at_idx + 1..]
         } else {
-            host_and_port.split(':').next().unwrap_or("")
+            host_and_port
+        };
+        let host = if authority.starts_with('[') {
+            authority.split(']').next().unwrap_or("")
+        } else {
+            authority.split(':').next().unwrap_or("")
         };
         let clean_host = host.trim_end_matches('.');
         clean_host == "onion" || clean_host.ends_with(".onion")
@@ -450,6 +455,11 @@ mod tests {
             TorController::resolve_tor_url("attacker.com/.onion/index.html", "https://duckduckgo.com/?q="),
             "https://attacker.com/.onion/index.html"
         );
+
+        // AZK-VULN-27: Userinfo handling in .onion detection
+        assert!(TorController::is_onion_url("http://user:password@duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/"));
+        assert!(TorController::is_onion_url("https://admin:secret@site.onion:8443/api"));
+        assert!(!TorController::is_onion_url("https://evil.onion@attacker.com/leak"));
 
         // 3. Search Queries
         assert_eq!(

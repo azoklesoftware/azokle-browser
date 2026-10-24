@@ -258,6 +258,15 @@ class AzokleContentDelegate(
                 onDownloadConfirmationRequested.invoke(payload)
             }
         } else {
+            // AZK-VULN-06: Refuse silent drive-by downloads of executable or application package binaries
+            if (DownloadManager.isDangerousExecutable(filename, mimeType)) {
+                Log.w("AzokleContentDelegate", "AZK-VULN-06: Blocked unconfirmed drive-by download of executable '$filename' ($mimeType)")
+                try {
+                    stagedFile?.delete()
+                } catch (_: Throwable) {}
+                return
+            }
+
             DownloadManager.startDownload(
                 context = context,
                 url = downloadUrl,

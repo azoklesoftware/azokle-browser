@@ -25,8 +25,17 @@ class OAuthRedirectHandlerTest {
     @Test
     fun testDetectsOAuthCode() {
         assertTrue(OAuthRedirectHandler.isOAuthCallback("myapp://oauth-callback?code=auth_code_123&state=xyz"))
-        assertTrue(OAuthRedirectHandler.isOAuthCallback("slack://oauth?access_token=token_abc"))
+        assertTrue(OAuthRedirectHandler.isOAuthCallback("com.auth0.myapp://callback?access_token=token_abc"))
         assertTrue(OAuthRedirectHandler.isOAuthCallback("com.example.app:/oauth2redirect?code=456"))
+    }
+
+    @Test
+    fun testRejectsNonOAuthAppSchemes() {
+        // AZK-VULN-13: Messaging, telephony, and social schemes must never be gesture-exempt
+        assertFalse(OAuthRedirectHandler.isOAuthCallback("slack://oauth?access_token=token_abc"))
+        assertFalse(OAuthRedirectHandler.isOAuthCallback("whatsapp://send?code=123"))
+        assertFalse(OAuthRedirectHandler.isOAuthCallback("tg://resolve?domain=test&code=123"))
+        assertFalse(OAuthRedirectHandler.isOAuthCallback("tel:1234567890?code=123"))
     }
 
     @Test

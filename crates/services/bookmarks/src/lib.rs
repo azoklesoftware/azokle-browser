@@ -48,6 +48,45 @@ impl Default for BookmarkManager {
     }
 }
 
+/// Sanitizes bookmark URLs against dangerous schemes, non-standard schemes, and control characters.
+/// Strictly permits only http, https, and internal safe schemes (azokle, about:blank, about:tor).
+fn sanitize_bookmark_url(url: &str) -> String {
+    let clean: String = url
+        .chars()
+        .filter(|c| !c.is_control() && *c != '\u{FEFF}' && *c != '\u{200B}')
+        .collect();
+    let trimmed = clean.trim();
+    if trimmed.is_empty() {
+        return "about:blank".to_string();
+    }
+
+    let lower = trimmed.to_ascii_lowercase();
+    if lower == "about:blank" || lower == "about:tor" {
+        return lower;
+    }
+
+    if lower.starts_with("javascript:")
+        || lower.starts_with("file:")
+        || lower.starts_with("content:")
+        || lower.starts_with("chrome:")
+        || lower.starts_with("resource:")
+        || lower.starts_with("view-source:")
+        || lower.starts_with("data:")
+        || lower.starts_with("blob:")
+        || lower.starts_with("jar:")
+        || lower.starts_with("intent:")
+        || lower.starts_with("about:")
+    {
+        return "about:blank".to_string();
+    }
+
+    if lower.starts_with("http://") || lower.starts_with("https://") || lower.starts_with("azokle://") {
+        trimmed.to_string()
+    } else {
+        format!("https://{}", trimmed)
+    }
+}
+
 impl BookmarkManager {
     /// Creates an empty bookmarks manager.
     pub fn new() -> Self {
@@ -70,14 +109,26 @@ impl BookmarkManager {
             .unwrap_or(0);
 
         let id = format!("bm_{}_{}", now_ms, self.items.read().len());
+        let safe_url = sanitize_bookmark_url(url_str);
+        let safe_title: String = if title.trim().is_empty() {
+            safe_url.clone()
+        } else {
+            let t: String = title
+                .trim()
+                .chars()
+                .filter(|c| !c.is_control() || *c == ' ')
+                .take(256)
+                .collect();
+            if t.is_empty() {
+                safe_url.clone()
+            } else {
+                t
+            }
+        };
         let item = BookmarkItem {
             id,
-            title: if title.trim().is_empty() {
-                url_str.to_string()
-            } else {
-                title.trim().to_string()
-            },
-            url: url_str.trim().to_string(),
+            title: safe_title,
+            url: safe_url,
             parent_folder_id: parent_folder_id.map(|s| s.to_string()),
             date_added: now_ms,
             favicon_url: favicon_url.map(|s| s.to_string()),
@@ -138,10 +189,22 @@ impl BookmarkManager {
         let mut list = self.items.write();
         if let Some(item) = list.iter_mut().find(|b| b.id == id) {
             if let Some(t) = title {
-                item.title = t.trim().to_string();
+                let clean_t: String = t
+                    .trim()
+                    .chars()
+                    .filter(|c| !c.is_control() || *c == ' ')
+                    .take(256)
+                    .collect();
+                if !clean_t.is_empty() {
+                    item.title = clean_t;
+                }
             }
             if let Some(u) = url_str {
-                item.url = u.trim().to_string();
+                item.url = if item.is_folder {
+                    String::new()
+                } else {
+                    sanitize_bookmark_url(u)
+                };
             }
             if let Some(parent) = parent_folder_id {
                 item.parent_folder_id = parent.map(|s| s.to_string());
@@ -218,9 +281,31 @@ impl BookmarkManager {
             Err(_) => return 0,
         };
 
-        let count = imported.len();
+        let valid_entries: Vec<BookmarkItem> = imported
+            .into_iter()
+            .map(|mut b| {
+                if !b.is_folder {
+                    b.url = sanitize_bookmark_url(&b.url);
+                }
+                let clean_t: String = b
+                    .title
+                    .trim()
+                    .chars()
+                    .filter(|c| !c.is_control() || *c == ' ')
+                    .take(256)
+                    .collect();
+                b.title = if clean_t.is_empty() {
+                    if b.is_folder { "Folder".to_string() } else { b.url.clone() }
+                } else {
+                    clean_t
+                };
+                b
+            })
+            .collect();
+
+        let count = valid_entries.len();
         let mut list = self.items.write();
-        *list = imported;
+        *list = valid_entries;
         count
     }
 }
@@ -262,5 +347,33 @@ mod tests {
         assert!(manager.remove_item(&folder.id));
         assert!(!manager.is_bookmarked("https://azokle.com"));
         assert_eq!(manager.get_all().len(), 1);
+    }
+
+    #[test]
+    fn test_bookmark_scheme_sanitization() {
+        let manager = BookmarkManager::new();
+
+        // Dangerous schemes must be sanitized to about:blank
+        let b_js = manager.add_bookmark("XSS", "javascript:alert(1)", None, None);
+        assert_eq!(b_js.url, "about:blank");
+
+        let b_file = manager.add_bookmark("File", "file:///etc/passwd", None, None);
+        assert_eq!(b_file.url, "about:blank");
+
+        let b_content = manager.add_bookmark("Content", "content://media/external", None, None);
+        assert_eq!(b_content.url, "about:blank");
+
+        let b_source = manager.add_bookmark("Source", "view-source:https://azokle.com", None, None);
+        assert_eq!(b_source.url, "about:blank");
+
+        // Legitimate schemes are preserved
+        let b_valid = manager.add_bookmark("Azokle", "https://azokle.com", None, None);
+        assert_eq!(b_valid.url, "https://azokle.com");
+
+        // Updating with dangerous scheme must also sanitize
+        assert!(manager.update_item(&b_valid.id, None, Some("javascript:alert(2)"), None, None));
+        let updated = manager.get_all();
+        let target = updated.iter().find(|b| b.id == b_valid.id).unwrap();
+        assert_eq!(target.url, "about:blank");
     }
 }

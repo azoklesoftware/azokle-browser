@@ -802,7 +802,9 @@ fun PwaContainerScreen(
                                         uriStr = uriStr,
                                         session = session,
                                         hasUserGesture = request.hasUserGesture,
-                                        targetWindow = request.target
+                                        targetWindow = request.target,
+                                        isPrivate = isTor,
+                                        isTor = isTor
                                     )
                                     return GeckoResult.fromValue(org.mozilla.geckoview.AllowOrDeny.DENY)
                                 }

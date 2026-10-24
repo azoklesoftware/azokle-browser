@@ -63,7 +63,8 @@ object GeckoConfigManager {
                         userAgentProtection = uaEnabled,
                         cookieControl = cookieCtrl,
                         blockingMode = blockingMode,
-                        cookieBannerHandling = cookieBannerEnabled
+                        cookieBannerHandling = cookieBannerEnabled,
+                        isTor = com.azokle.search.tor.TorCircuitManager.isTorActive
                     )
                 )
             }
@@ -85,7 +86,8 @@ object GeckoConfigManager {
         userAgentProtection: Boolean = true,
         cookieControl: String = com.azokle.search.common.util.PreferencesManager.COOKIE_CONTROL_BLOCK_THIRD_PARTY,
         blockingMode: String = com.azokle.search.common.util.PreferencesManager.BLOCKING_MODE_STANDARD,
-        cookieBannerHandling: Boolean = true
+        cookieBannerHandling: Boolean = true,
+        isTor: Boolean = com.azokle.search.tor.TorCircuitManager.isTorActive
     ): String {
         val provider = com.azokle.search.core.DnsOverHttpsManager.getProvider(dohProviderId)
         val isDohEnabled = !dohProviderId.equals("system", ignoreCase = true) && provider.url.isNotBlank()
@@ -170,7 +172,14 @@ object GeckoConfigManager {
             appendLine("  media.geckoview.autoplay.request: true")
             appendLine("  media.autoplay.default: 1") // AZK-LOW-02: Block audible autoplay by default
             appendLine("  media.autoplay.blocking_policy: 0")
-            appendLine("  media.eme.enabled: true")
+            if (isTor) {
+                // AZK-VULN-18: Disable EME (Widevine DRM) in Tor mode to prevent deanonymization
+                // via device-unique hardware/keystore DRM certificates and hardware IDs.
+                appendLine("  media.eme.enabled: false")
+                appendLine("  media.eme.widevine.enabled: false")
+            } else {
+                appendLine("  media.eme.enabled: true")
+            }
             appendLine("  media.webspeech.recognition.enable: false") // AZK-LOW-02: Do not force enable speech recognition
             appendLine("  media.webspeech.recognition.force_enable: false")
 
@@ -184,6 +193,14 @@ object GeckoConfigManager {
             appendLine("  security.webauth.webauthn.enable_android_fido2: true")
 
             // 7. WebRTC Leak Prevention & Local IP Shield (RFC 8828 / LibreWolf / Tor Standards)
+            if (isTor) {
+                // AZK-VULN-18: Completely disable WebRTC in Tor mode to prevent ICE leaks
+                appendLine("  media.peerconnection.enabled: false")
+                appendLine("  media.peerconnection.use_document_iceservers: false")
+                appendLine("  media.peerconnection.video.enabled: false")
+            } else {
+                appendLine("  media.peerconnection.enabled: true")
+            }
             appendLine("  media.peerconnection.ice.no_host: true")
             appendLine("  media.peerconnection.ice.default_address_only: true")
             appendLine("  media.peerconnection.ice.obfuscate_host_addresses: true")

@@ -181,6 +181,36 @@ impl DownloadManager {
         format!("download_{}.{}", now_sec, ext)
     }
 
+    /// Checks whether a URL is safe for download creation and storage.
+    /// Strictly rejects dangerous URI schemes (javascript:, file:, intent:, content:, chrome:, etc.)
+    /// and control characters.
+    pub fn is_safe_download_url(url_str: &str) -> bool {
+        let trimmed = url_str.trim();
+        if trimmed.is_empty()
+            || trimmed.contains('\r')
+            || trimmed.contains('\n')
+            || trimmed.contains('\0')
+        {
+            return false;
+        }
+        let lower = trimmed.to_lowercase();
+        if lower.starts_with("javascript:")
+            || lower.starts_with("file:")
+            || lower.starts_with("intent:")
+            || lower.starts_with("content:")
+            || lower.starts_with("about:")
+            || lower.starts_with("chrome:")
+            || lower.starts_with("resource:")
+            || lower.starts_with("jar:")
+        {
+            return false;
+        }
+        lower.starts_with("http://")
+            || lower.starts_with("https://")
+            || lower.starts_with("blob:")
+            || lower.starts_with("data:")
+    }
+
     /// Performs create download operation.
     pub fn create_download(
         &self,
@@ -189,7 +219,20 @@ impl DownloadManager {
         destination_path: &str,
         total_bytes: u64,
         mime_type: Option<&str>,
-    ) -> DownloadItem {
+    ) -> Option<DownloadItem> {
+        if !Self::is_safe_download_url(url_str) {
+            return None;
+        }
+
+        let clean_dest = destination_path.trim();
+        if clean_dest.is_empty()
+            || clean_dest.contains('\0')
+            || clean_dest.contains("../")
+            || clean_dest.contains("..\\")
+        {
+            return None;
+        }
+
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as u64)
@@ -205,7 +248,7 @@ impl DownloadManager {
             id,
             url: url_str.to_string(),
             filename: safe_name,
-            destination_path: destination_path.to_string(),
+            destination_path: clean_dest.to_string(),
             total_bytes,
             downloaded_bytes: 0,
             state: DownloadState::Downloading,
@@ -215,7 +258,7 @@ impl DownloadManager {
         };
 
         self.items.write().insert(0, item.clone());
-        item
+        Some(item)
     }
 
     /// Updates the progress.
@@ -289,9 +332,27 @@ impl DownloadManager {
             Err(_) => return 0,
         };
 
-        let count = imported.len();
+        let mut sanitized = Vec::with_capacity(imported.len());
+        for mut item in imported {
+            if !Self::is_safe_download_url(&item.url) {
+                continue;
+            }
+            item.filename = Self::sanitize_filename(&item.filename);
+            let dest = item.destination_path.trim();
+            if dest.is_empty()
+                || dest.contains('\0')
+                || dest.contains("../")
+                || dest.contains("..\\")
+            {
+                continue;
+            }
+            item.destination_path = dest.to_string();
+            sanitized.push(item);
+        }
+
+        let count = sanitized.len();
         let mut list = self.items.write();
-        *list = imported;
+        *list = sanitized;
         count
     }
 }
@@ -325,13 +386,15 @@ mod tests {
     #[test]
     fn test_download_lifecycle() {
         let manager = DownloadManager::new();
-        let item = manager.create_download(
-            "https://example.com/file.zip",
-            Some("file.zip"),
-            "/downloads/file.zip",
-            2048,
-            Some("application/zip"),
-        );
+        let item = manager
+            .create_download(
+                "https://example.com/file.zip",
+                Some("file.zip"),
+                "/downloads/file.zip",
+                2048,
+                Some("application/zip"),
+            )
+            .expect("Valid download should be created");
         assert_eq!(item.state, DownloadState::Downloading);
 
         // Progress update
@@ -348,5 +411,42 @@ mod tests {
         // Delete
         assert!(manager.delete_item(&item.id));
         assert_eq!(manager.get_all().len(), 0);
+    }
+
+    #[test]
+    fn test_download_security_url_and_path_sanitization() {
+        let manager = DownloadManager::new();
+
+        // Reject dangerous schemes
+        assert!(!DownloadManager::is_safe_download_url("javascript:alert(1)"));
+        assert!(!DownloadManager::is_safe_download_url("file:///etc/passwd"));
+        assert!(!DownloadManager::is_safe_download_url("intent://scan/#Intent;scheme=zxing;end"));
+        assert!(!DownloadManager::is_safe_download_url("content://media/external/images"));
+        assert!(!DownloadManager::is_safe_download_url("chrome://settings"));
+        assert!(!DownloadManager::is_safe_download_url("about:config"));
+
+        // Accept safe schemes
+        assert!(DownloadManager::is_safe_download_url("https://example.com/file.zip"));
+        assert!(DownloadManager::is_safe_download_url("http://example.com/image.png"));
+        assert!(DownloadManager::is_safe_download_url("blob:https://example.com/uuid"));
+        assert!(DownloadManager::is_safe_download_url("data:image/png;base64,iVBORw0KGgo="));
+
+        // Rejections in create_download
+        assert!(manager.create_download("javascript:alert(1)", None, "/downloads/a.txt", 100, None).is_none());
+        assert!(manager.create_download("https://example.com/a.txt", None, "/downloads/../../etc/passwd", 100, None).is_none());
+
+        // Import JSON sanitization
+        let malicious_json = r#"[
+            {"id":"1","url":"javascript:malicious()","filename":"mal.js","destination_path":"/safe/path","total_bytes":10,"downloaded_bytes":0,"state":"Completed","started_at":0},
+            {"id":"2","url":"https://example.com/safe.pdf","filename":"../../traversal.pdf","destination_path":"/safe/path/safe.pdf","total_bytes":100,"downloaded_bytes":100,"state":"Completed","started_at":0},
+            {"id":"3","url":"https://example.com/evil.sh","filename":"evil.sh","destination_path":"/downloads/../../bin/evil.sh","total_bytes":50,"downloaded_bytes":50,"state":"Completed","started_at":0}
+        ]"#;
+
+        let imported_count = manager.import_json(malicious_json);
+        assert_eq!(imported_count, 1, "Only safe entries without path traversal should be imported");
+        let all = manager.get_all();
+        assert_eq!(all.len(), 1);
+        assert_eq!(all[0].url, "https://example.com/safe.pdf");
+        assert_eq!(all[0].filename, "____traversal.pdf");
     }
 }

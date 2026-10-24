@@ -127,11 +127,26 @@ class ReaderExtractorSecurityTest {
         // Onion hidden services in Tor mode must always be allowed
         assertTrue(ReaderExtractor.isSafePublicUrl("http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion", isTor = true))
 
+        // AZK-VULN-07: Onion hidden services in clearnet mode (isTor = false) must be rejected to prevent DNS leaks
+        org.junit.Assert.assertFalse(ReaderExtractor.isSafePublicUrl("http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion", isTor = false))
+
         // Private IP literals must still be blocked even in Tor mode
         org.junit.Assert.assertFalse(ReaderExtractor.isSafePublicUrl("http://192.168.1.1/admin", isTor = true))
         org.junit.Assert.assertFalse(ReaderExtractor.isSafePublicUrl("http://10.0.0.1/status", isTor = true))
         org.junit.Assert.assertFalse(ReaderExtractor.isSafePublicUrl("http://127.0.0.1:8080", isTor = true))
         org.junit.Assert.assertFalse(ReaderExtractor.isSafePublicUrl("http://localhost:8080", isTor = true))
+        org.junit.Assert.assertFalse(ReaderExtractor.isSafePublicUrl("http://169.254.169.254/latest/meta-data/", isTor = true))
+        org.junit.Assert.assertFalse(ReaderExtractor.isSafePublicUrl("http://100.64.0.1/cgnat", isTor = true))
+
+        // Substring spoofing in path or query must not trick .onion validation
+        org.junit.Assert.assertFalse(ReaderExtractor.isSafePublicUrl("http://192.168.1.1/test.onion", isTor = true))
+        org.junit.Assert.assertFalse(ReaderExtractor.isSafePublicUrl("http://127.0.0.1/?search=.onion", isTor = true))
+
+        // AZK-VULN-27: Userinfo in Tor mode and SSRF blocking
+        assertTrue(ReaderExtractor.isSafePublicUrl("http://user:pass@duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/test", isTor = true))
+        org.junit.Assert.assertFalse(ReaderExtractor.isSafePublicUrl("http://user:pass@duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/test", isTor = false))
+        org.junit.Assert.assertFalse(ReaderExtractor.isSafePublicUrl("http://user:pass@127.0.0.1:8080/admin", isTor = true))
+        org.junit.Assert.assertFalse(ReaderExtractor.isSafePublicUrl("http://user:pass@169.254.169.254/meta", isTor = true))
     }
 }
 

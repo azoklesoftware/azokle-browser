@@ -34,12 +34,22 @@ import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import com.azokle.search.common.util.PreferencesManager
 
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
+
 class AzokleApplication : Application(), ImageLoaderFactory {
     /**
      * Executes the new image loader operation.
      */
     override fun newImageLoader(): ImageLoader {
+        val safeOkHttpClient = OkHttpClient.Builder()
+            .dns(com.azokle.search.downloads.DownloadManager.ClearnetSafeDns)
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .build()
+
         return ImageLoader.Builder(this)
+            .okHttpClient(safeOkHttpClient)
             .memoryCache {
                 MemoryCache.Builder(this)
                     .maxSizePercent(0.20) // Use at most 20% of app RAM for bitmap caching
@@ -62,6 +72,7 @@ class AzokleApplication : Application(), ImageLoaderFactory {
             .crossfade(true)
             .build()
     }
+
 
     /**
      * Initializes dependencies and components when created.

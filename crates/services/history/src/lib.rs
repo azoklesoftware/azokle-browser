@@ -153,12 +153,22 @@ impl HistoryManager {
         }
 
         let clean_url = url_str.trim();
-        if clean_url.starts_with("about:")
-            || clean_url.starts_with("chrome:")
-            || clean_url.starts_with("javascript:")
-            || clean_url.starts_with("data:")
-            || clean_url.starts_with("blob:")
-            || clean_url.starts_with("resource:")
+        // AZK-VULN-29: Reject excessively large URLs or URLs with embedded control chars
+        if clean_url.len() > 4096 || clean_url.chars().any(|c| c.is_control()) {
+            return None;
+        }
+
+        let lower = clean_url.to_ascii_lowercase();
+        if lower.starts_with("about:")
+            || lower.starts_with("chrome:")
+            || lower.starts_with("javascript:")
+            || lower.starts_with("data:")
+            || lower.starts_with("blob:")
+            || lower.starts_with("resource:")
+            || lower.starts_with("file:")
+            || lower.starts_with("content:")
+            || lower.starts_with("view-source:")
+            || lower.starts_with("jar:")
         {
             return None;
         }
@@ -173,10 +183,21 @@ impl HistoryManager {
             .and_then(|u| u.host_str().map(|h| h.to_string()))
             .unwrap_or_default();
 
-        let clean_title = if title.trim().is_empty() {
-            clean_url.to_string()
+        // AZK-VULN-29: Strip control/CRLF characters and enforce 256-character upper bound
+        let clean_title: String = if title.trim().is_empty() {
+            clean_url.chars().filter(|c| !c.is_control() || *c == ' ').take(256).collect()
         } else {
-            title.trim().to_string()
+            let t: String = title
+                .trim()
+                .chars()
+                .filter(|c| !c.is_control() || *c == ' ')
+                .take(256)
+                .collect();
+            if t.is_empty() {
+                clean_url.chars().filter(|c| !c.is_control() || *c == ' ').take(256).collect()
+            } else {
+                t
+            }
         };
 
         let mut list = self.entries.write();
@@ -225,7 +246,12 @@ impl HistoryManager {
     /// Updates the page title for an existing history entry without incrementing visit counts or altering timestamps.
     pub fn update_title(&self, url_str: &str, title: &str) -> bool {
         let clean_url = url_str.trim();
-        let clean_title = title.trim();
+        let clean_title: String = title
+            .trim()
+            .chars()
+            .filter(|c| !c.is_control() || *c == ' ')
+            .take(256)
+            .collect();
         if clean_url.is_empty() || clean_title.is_empty() {
             return false;
         }
@@ -409,9 +435,27 @@ impl HistoryManager {
             Err(_) => return 0,
         };
 
-        let count = imported.len();
+        let valid_entries: VecDeque<HistoryEntry> = imported
+            .into_iter()
+            .filter(|e| {
+                let lower = e.url.trim().to_ascii_lowercase();
+                !lower.is_empty()
+                    && !lower.starts_with("about:")
+                    && !lower.starts_with("chrome:")
+                    && !lower.starts_with("javascript:")
+                    && !lower.starts_with("data:")
+                    && !lower.starts_with("blob:")
+                    && !lower.starts_with("resource:")
+                    && !lower.starts_with("file:")
+                    && !lower.starts_with("content:")
+                    && !lower.starts_with("view-source:")
+                    && !lower.starts_with("jar:")
+            })
+            .collect();
+
+        let count = valid_entries.len();
         let mut list = self.entries.write();
-        *list = imported;
+        *list = valid_entries;
         count
     }
 }
@@ -419,6 +463,28 @@ impl HistoryManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_history_scheme_filtering() {
+        let manager = HistoryManager::new();
+        assert!(manager.record_visit("Google", "https://google.com", false).is_some());
+        assert!(manager.record_visit("Privileged File", "file:///etc/passwd", false).is_none());
+        assert!(manager.record_visit("Android Content", "content://media/external", false).is_none());
+        assert!(manager.record_visit("View Source", "view-source:https://azokle.com", false).is_none());
+        assert!(manager.record_visit("XSS", "javascript:alert(1)", false).is_none());
+
+        // Test import_json filtering
+        let json = r#"[
+            {"id":"1","title":"Safe","url":"https://example.com","visit_time":100,"visit_count":1,"typed_count":0,"frecency":100,"domain":"example.com","is_bookmarked":false},
+            {"id":"2","title":"Danger File","url":"file:///sdcard/leak","visit_time":100,"visit_count":1,"typed_count":0,"frecency":100,"domain":"","is_bookmarked":false},
+            {"id":"3","title":"Danger JS","url":"javascript:steal()","visit_time":100,"visit_count":1,"typed_count":0,"frecency":100,"domain":"","is_bookmarked":false}
+        ]"#;
+        let count = manager.import_json(json);
+        assert_eq!(count, 1);
+        let entries = manager.get_recent(10, 0);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].url, "https://example.com");
+    }
 
     #[test]
     fn test_frecency_calculation() {

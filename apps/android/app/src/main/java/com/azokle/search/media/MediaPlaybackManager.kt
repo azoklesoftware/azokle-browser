@@ -660,8 +660,16 @@ object MediaPlaybackManager {
      */
     private suspend fun fetchArtworkBitmap(url: String): Bitmap? {
         val ctx = appContext ?: return null
+        if (_mediaState.value.isPrivateSession) {
+            // AZK-VULN-20 / AZK-VULN-17: Do not fetch remote artwork for private sessions to prevent network leak
+            return null
+        }
+        val isTor = com.azokle.search.tor.TorCircuitManager.isTorActive
+        if (!com.azokle.search.reader.ReaderExtractor.isSafePublicUrl(url, isTor)) {
+            return null
+        }
         return try {
-            val loader = ImageLoader(ctx)
+            val loader = coil.Coil.imageLoader(ctx)
             val request = ImageRequest.Builder(ctx)
                 .data(url)
                 .size(512, 512)

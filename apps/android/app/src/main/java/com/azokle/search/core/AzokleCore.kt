@@ -186,6 +186,9 @@ object AzokleCore {
     // Universal Protocol Dispatcher JNI Declaration
     private external fun protocolDispatch(envelopeJson: String): String
 
+    // Passkey Sovereign Vault JNI Declaration
+    private external fun passkeyClearVaultNative()
+
     /**
      * Initializes the Rust Engine by asynchronously streaming all packaged AdBlock,
      * Tracker, Telemetry, Fingerprinting, and Cosmetic rules from assets.
@@ -1425,4 +1428,15 @@ object AzokleCore {
             JSONObject()
         }
     }
+
+    /**
+     * Clears the global sovereign passkey vault in native Rust memory.
+     */
+    fun passkeyClearVault() {
+        if (!isNativeLoaded) return
+        try {
+            passkeyClearVaultNative()
+        } catch (_: Throwable) {}
+    }
 }
+

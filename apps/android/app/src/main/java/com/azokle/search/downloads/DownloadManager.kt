@@ -134,6 +134,94 @@ object DownloadManager {
     }
 
     /**
+     * AZK-VULN-02: Checks if a URL targets an authentic Tor hidden service (.onion domain).
+     * Strictly parses authority hostname to prevent path/query substring spoofing.
+     */
+    fun isOnionUrl(urlStr: String?): Boolean {
+        if (urlStr.isNullOrBlank()) return false
+        val trimmed = urlStr.trim().lowercase()
+        val withoutScheme = if (trimmed.contains("://")) trimmed.substringAfter("://") else trimmed
+        val hostAndPort = withoutScheme.substringBefore("/").substringBefore("?").substringBefore("#")
+        val authority = if (hostAndPort.contains('@')) hostAndPort.substringAfterLast('@') else hostAndPort
+        val host = if (authority.startsWith("[")) {
+            authority.substringAfter("[").substringBefore("]")
+        } else {
+            authority.substringBefore(":")
+        }.trim().trimEnd('.')
+        return host == "onion" || host.endsWith(".onion")
+    }
+
+    /**
+     * AZK-VULN-01: Evaluates whether an IP address belongs to loopback, private RFC 1918,
+     * link-local, broadcast, or cloud metadata subnets (SSRF defense).
+     */
+    fun isPrivateOrLoopbackAddress(addr: java.net.InetAddress): Boolean {
+        if (addr.isLoopbackAddress || addr.isAnyLocalAddress || addr.isLinkLocalAddress || addr.isSiteLocalAddress || addr.isMulticastAddress) {
+            return true
+        }
+        val bytes = addr.address ?: return false
+        if (bytes.size == 4) {
+            val b0 = bytes[0].toInt() and 0xFF
+            val b1 = bytes[1].toInt() and 0xFF
+            // 127.0.0.0/8 (Loopback)
+            if (b0 == 127) return true
+            // 10.0.0.0/8 (Class A Private)
+            if (b0 == 10) return true
+            // 172.16.0.0/12 (Class B Private)
+            if (b0 == 172 && (b1 in 16..31)) return true
+            // 192.168.0.0/16 (Class C Private)
+            if (b0 == 192 && b1 == 168) return true
+            // 169.254.0.0/16 (Link-Local & Cloud Metadata AWS/GCP 169.254.169.254)
+            if (b0 == 169 && b1 == 254) return true
+            // 100.64.0.0/10 (Carrier-Grade NAT RFC 6598)
+            if (b0 == 100 && (b1 and 0xC0) == 64) return true
+            // 198.18.0.0/15 (Network Benchmark RFC 2544)
+            if (b0 == 198 && (b1 in 18..19)) return true
+            // 0.0.0.0/8, 224.0.0.0/4 (Multicast), 240.0.0.0/4 (Reserved / Future Use)
+            if (b0 == 0 || b0 >= 224) return true
+        } else if (bytes.size == 16) {
+            val b0 = bytes[0].toInt() and 0xFF
+            // IPv6 Unique Local (fc00::/7)
+            if ((b0 and 0xFE) == 0xFC) return true
+            // IPv6 Link-Local (fe80::/10)
+            val b1 = bytes[1].toInt() and 0xFF
+            if (b0 == 0xFE && (b1 and 0xC0) == 0x80) return true
+            // IPv4-mapped / IPv4-compatible
+            val isIpv4Mapped = (0..9).all { bytes[it] == 0.toByte() } && bytes[10] == 0xFF.toByte() && bytes[11] == 0xFF.toByte()
+            if (isIpv4Mapped) {
+                try {
+                    return isPrivateOrLoopbackAddress(java.net.InetAddress.getByAddress(bytes.copyOfRange(12, 16)))
+                } catch (_: Exception) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    /**
+     * AZK-VULN-01: OkHttp Dns implementation enforcing SSRF defenses across all direct connections and redirects.
+     */
+    internal object ClearnetSafeDns : okhttp3.Dns {
+        override fun lookup(hostname: String): List<java.net.InetAddress> {
+            val cleanHost = hostname.trim().lowercase().trimEnd('.')
+            if (cleanHost == "localhost" || cleanHost.endsWith(".localhost") || cleanHost.endsWith(".local") || cleanHost.endsWith(".internal")) {
+                throw java.io.IOException("SSRF Blocked: Internal/loopback domain '$hostname' is prohibited")
+            }
+            if (cleanHost == "onion" || cleanHost.endsWith(".onion")) {
+                throw java.io.IOException("Tor Isolation: .onion domain '$hostname' cannot be resolved via clearnet DNS")
+            }
+            val addresses = okhttp3.Dns.SYSTEM.lookup(hostname)
+            for (addr in addresses) {
+                if (isPrivateOrLoopbackAddress(addr)) {
+                    throw java.io.IOException("SSRF Blocked: Host '$hostname' resolved to private/loopback IP '${addr.hostAddress}'")
+                }
+            }
+            return addresses
+        }
+    }
+
+    /**
      * Initiates a new high-speed sovereign download.
      * Isolates Private and Tor downloads into a sandboxed internal directory without MediaStore leakage.
      */
@@ -287,9 +375,31 @@ object DownloadManager {
                     throw Exception("Blob data stream timed out or was not supplied by page context.")
                 }
 
-                val isTorActive = item.isTor || com.azokle.search.tor.TorCircuitManager.isTorActive || item.url.contains(".onion", ignoreCase = true)
+                // AZK-VULN-01 & AZK-VULN-02: Validate URL scheme and evaluate .onion hidden services strictly
+                val lowerUrl = item.url.trim().lowercase()
+                if (!lowerUrl.startsWith("http://") && !lowerUrl.startsWith("https://") &&
+                    !lowerUrl.startsWith("data:") && !lowerUrl.startsWith("blob:")) {
+                    throw java.io.IOException("Unsupported download protocol scheme for URL: ${item.url}")
+                }
+
+                val isTorActive = item.isTor || com.azokle.search.tor.TorCircuitManager.isTorActive || isOnionUrl(item.url)
 
                 val client = if (isTorActive) {
+                    // In Tor mode, reject private/loopback IP literals locally to prevent intranet SSRF
+                    val uri = try { Uri.parse(item.url) } catch (_: Exception) { null }
+                    val host = uri?.host ?: ""
+                    val isIpLiteral = (host.all { it.isDigit() || it == '.' } && host.count { it == '.' } == 3) || host.contains(':')
+                    if (isIpLiteral) {
+                        try {
+                            val addr = java.net.InetAddress.getByName(host)
+                            if (isPrivateOrLoopbackAddress(addr)) {
+                                throw java.io.IOException("SSRF Blocked: Private/loopback IP literal '$host' is prohibited in Tor mode")
+                            }
+                        } catch (e: java.io.IOException) {
+                            throw e
+                        } catch (_: Exception) {}
+                    }
+
                     val socksPort = com.azokle.search.tor.TorCircuitManager.socksPort.takeIf { it > 0 } ?: 9050
                     val socksProxy = java.net.Proxy(
                         java.net.Proxy.Type.SOCKS,
@@ -304,8 +414,10 @@ object DownloadManager {
                         .followSslRedirects(true)
                         .build()
                 } else {
-                    // Clearnet modern OkHttpClient: supports HTTP/2, TLS 1.3, and automatic HTTP -> HTTPS redirects!
+                    // AZK-VULN-01: Clearnet OkHttpClient with ClearnetSafeDns to block private/loopback/metadata SSRF
+                    // and DNS rebinding across all connections and followed redirects!
                     okhttp3.OkHttpClient.Builder()
+                        .dns(ClearnetSafeDns)
                         .connectTimeout(25, java.util.concurrent.TimeUnit.SECONDS)
                         .readTimeout(45, java.util.concurrent.TimeUnit.SECONDS)
                         .followRedirects(true)

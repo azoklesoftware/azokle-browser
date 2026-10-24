@@ -355,6 +355,15 @@ pub extern "C" fn azokle_passkey_sign(
     result.unwrap_or(std::ptr::null_mut())
 }
 
+/// Clears the global sovereign passkey in-memory vault.
+#[no_mangle]
+pub extern "C" fn azokle_passkey_clear_vault() {
+    let _ = catch_unwind(AssertUnwindSafe(|| {
+        azokle_core::clear_global_passkey_vault();
+    }));
+}
+
+
 /// Performs azokle protocol dispatch operation.
 #[no_mangle]
 pub extern "C" fn azokle_protocol_dispatch(envelope_json: *const c_char) -> *mut c_char {
@@ -495,19 +504,18 @@ pub extern "C" fn azokle_core_fetch_page_json(url: *const c_char, is_tor: bool) 
                     .map(|c| c.into_raw())
                     .unwrap_or(std::ptr::null_mut())
             }
-            Err(_e) => {
+            Err(e) => {
                 let fallback = serde_json::json!({
                     "url": url_str,
-                    "title": "Azokle Sovereign View",
-                    "status_code": 200,
-                    "headings": ["Azokle Search Results", "Live Web View"],
+                    "title": "Azokle Sovereign Error",
+                    "status_code": 502,
+                    "error": e.to_string(),
+                    "headings": ["Network Request Blocked or Failed"],
                     "paragraphs": [
-                        "Sovereign privacy pipeline is active. All trackers and ads have been stripped.",
-                        format!("Connection status: Direct Quantum Pipe. Target: {}", url_str)
+                        format!("Connection failed or security policy prevented request: {}", e)
                     ],
                     "links": [
                         ["Azokle Home", "https://search.azokle.com/"],
-                        ["GitHub", "https://github.com/azokle-browser"],
                         ["DuckDuckGo (.onion)", "https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion"]
                     ]
                 });

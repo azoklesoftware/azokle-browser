@@ -29,10 +29,12 @@ import java.util.Locale
 class BookmarkItemAndSanitizationTest {
 
     private fun sanitizeUrl(rawUrl: String): String? {
-        val trimmed = rawUrl.trim()
-        if (trimmed.isEmpty()) return null
+        val clean = rawUrl
+            .filter { !it.isISOControl() && it != '\uFEFF' && it != '\u200B' && it != '\u00A0' }
+            .trim()
+        if (clean.isEmpty()) return null
 
-        val lower = trimmed.lowercase(Locale.ROOT)
+        val lower = clean.lowercase(Locale.ROOT)
         if (lower.startsWith("javascript:") ||
             lower.startsWith("file:") ||
             lower.startsWith("data:") ||
@@ -40,19 +42,27 @@ class BookmarkItemAndSanitizationTest {
             lower.startsWith("intent:") ||
             lower.startsWith("blob:") ||
             lower.startsWith("chrome:") ||
-            lower.startsWith("resource:")
+            lower.startsWith("resource:") ||
+            lower.startsWith("view-source:") ||
+            lower.startsWith("jar:")
         ) {
             return null
         }
 
+        // AZK-VULN-26: Block internal privileged about: URLs (e.g. about:config, about:debugging)
+        if (lower.startsWith("about:") && lower != "about:blank" && lower != "about:tor") {
+            return null
+        }
+
         val finalUrl = when {
-            lower.startsWith("http://") || lower.startsWith("https://") -> trimmed
-            lower.startsWith("azokle://") || lower.startsWith("about:") -> trimmed
-            else -> "https://$trimmed"
+            lower.startsWith("http://") || lower.startsWith("https://") -> clean
+            lower.startsWith("azokle://") || lower == "about:blank" || lower == "about:tor" -> clean
+            else -> "https://$clean"
         }
 
         val scheme = finalUrl.substringBefore(':', "").lowercase(Locale.ROOT)
-        return if (scheme in listOf("http", "https", "azokle", "about")) finalUrl else null
+        val isAllowed = scheme in listOf("http", "https", "azokle") || finalUrl == "about:blank" || finalUrl == "about:tor"
+        return if (isAllowed) finalUrl else null
     }
 
     @Test
@@ -81,6 +91,12 @@ class BookmarkItemAndSanitizationTest {
         assertNull("blob: must be blocked", sanitizeUrl("blob:https://example.com/uuid"))
         assertNull("chrome: must be blocked", sanitizeUrl("chrome://settings"))
         assertNull("empty URL must be blocked", sanitizeUrl("   "))
+        // AZK-VULN-26: Unicode whitespace and privileged about: URLs
+        assertNull("about:config must be blocked", sanitizeUrl("about:config"))
+        assertNull("about:debugging must be blocked", sanitizeUrl("about:debugging"))
+        assertNull("BOM with javascript must be blocked", sanitizeUrl("\uFEFFjavascript:alert(1)"))
+        assertNull("Zero-width space with javascript must be blocked", sanitizeUrl("  \u200Bjavascript:alert(1)"))
+        assertNull("view-source must be blocked", sanitizeUrl("view-source:https://azokle.com"))
     }
 
     @Test

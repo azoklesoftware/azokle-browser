@@ -31,7 +31,10 @@ object AzokleAutocompleteStorageDelegate : Autocomplete.StorageDelegate {
      */
     fun resolveMatchingLogins(domain: String?): List<SavedLogin> {
         if (domain.isNullOrBlank()) return emptyList()
-        val host = OriginMatcher.extractHost(domain)
+        val clean = domain.trim()
+        val directLogins = PasswordVaultManager.getLoginsForOrigin(clean)
+        if (directLogins.isNotEmpty()) return directLogins
+        val host = OriginMatcher.extractHost(clean)
         return if (host.isNotEmpty()) {
             PasswordVaultManager.getLoginsForOrigin(host)
         } else {
@@ -77,12 +80,21 @@ object AzokleAutocompleteStorageDelegate : Autocomplete.StorageDelegate {
      * Saves or updates a login entry from the Gecko autocomplete pipeline.
      */
     override fun onLoginSave(entry: Autocomplete.LoginEntry) {
+        // AZK-VULN-28: Privacy Guard: never persist credentials submitted from Private or Tor tabs
+        val activeTabId = com.azokle.search.tabs.TabManager.activeTabId.value
+        val activeTab = if (activeTabId != null) com.azokle.search.tabs.TabManager.getTab(activeTabId) else null
+        if (activeTab?.isPrivate == true || activeTab?.isTor == true) {
+            android.util.Log.i("AzokleAutofill", "Suppressed login save: active session is Private or Tor")
+            return
+        }
+
         try {
             val origin = entry.origin
             val user = entry.username
             val pass = entry.password
             if (origin.isNotBlank() && user.isNotBlank() && pass.isNotBlank()) {
-                PasswordVaultManager.saveLogin(origin, user, pass)
+                val canonicalOrigin = OriginMatcher.toCanonicalOrigin(origin).ifEmpty { origin.trim() }
+                PasswordVaultManager.saveLogin(canonicalOrigin, user, pass)
             }
         } catch (e: Exception) {
             android.util.Log.w("AzokleAutofill", "Error saving autocomplete login entry: ${e.message}")

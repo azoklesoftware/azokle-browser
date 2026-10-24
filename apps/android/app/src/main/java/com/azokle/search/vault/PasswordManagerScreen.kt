@@ -23,6 +23,8 @@ import android.content.Context
 import android.os.Build
 import android.os.PersistableBundle
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -160,6 +162,25 @@ fun PasswordManagerScreen(
     var loginToEdit by remember { mutableStateOf<SavedLogin?>(null) }
     var loginToDelete by remember { mutableStateOf<SavedLogin?>(null) }
 
+    // AZK-VULN-14: Save password vault directly to storage via Storage Access Framework
+    // instead of exfiltrating credentials to the shared Android system clipboard.
+    val exportDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            try {
+                val json = PasswordVaultManager.exportVaultJson()
+                context.contentResolver.openOutputStream(uri)?.use { outStream ->
+                    outStream.write(json.toByteArray(Charsets.UTF_8))
+                    outStream.flush()
+                }
+                ToastManager.showSuccess("Passwords exported successfully to file")
+            } catch (e: Exception) {
+                ToastManager.showError("Failed to save password backup: ${e.message}")
+            }
+        }
+    }
+
     val filteredLogins = remember(allLogins, searchQuery) {
         if (searchQuery.isBlank()) allLogins
         else allLogins.filter {
@@ -239,16 +260,15 @@ fun PasswordManagerScreen(
                         )
                     }
 
-                    // Secure Export
+                    // Secure Export via File Creation (Zero Clipboard Exposure)
                     IconButton(onClick = {
                         BiometricAuthManager.authenticate(
                             context = context,
                             title = "Export Passwords",
-                            subtitle = "Authenticate to copy password backup",
+                            subtitle = "Authenticate to save password backup file",
                             onAuthenticated = {
-                                val json = PasswordVaultManager.exportVaultJson()
-                                copySensitiveToClipboard(context, "Azokle Passwords Backup", json, coroutineScope)
-                                ToastManager.showSuccess("Vault exported (clipboard clears in 45s)")
+                                val dateStr = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+                                exportDocumentLauncher.launch("azokle_passwords_backup_$dateStr.json")
                             },
                             onDenied = { ToastManager.showError("Authentication required to export credentials") }
                         )

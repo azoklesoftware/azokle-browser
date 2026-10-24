@@ -351,8 +351,12 @@ object GeckoEngineManager {
                                     val url = json.optString("url", "").trim().take(2048)
                                     val title = json.optString("title", "").trim().take(512)
                                     val byline = json.optString("byline", "").trim().take(256)
-                                    val leadImageUrl = json.optString("leadImageUrl", "").trim().take(2048).takeIf { it.isNotBlank() }
+                                    val rawLeadImageUrl = json.optString("leadImageUrl", "").trim().take(2048).takeIf { it.isNotBlank() }
+                                    val leadImageUrl = if (!rawLeadImageUrl.isNullOrBlank() && com.azokle.search.reader.ReaderExtractor.isSafePublicUrl(rawLeadImageUrl, com.azokle.search.tor.TorCircuitManager.isTorActive)) {
+                                        rawLeadImageUrl
+                                    } else null
                                     val readingMinutes = json.optInt("readingMinutes", 1).coerceAtLeast(1)
+
 
                                     val blocksArr = json.optJSONArray("blocks")
                                     val blocksList = mutableListOf<com.azokle.search.reader.ArticleBlock>()

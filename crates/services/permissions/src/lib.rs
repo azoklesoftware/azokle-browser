@@ -216,6 +216,9 @@ impl PermissionsManager {
                     return state;
                 }
             }
+            // AZK-VULN-09: Strict partition. Private and Tor browsing sessions must NEVER
+            // inherit persistent permissions granted in standard clearnet sessions.
+            return PermissionState::Prompt;
         }
 
         let cache = self.persistent_rules.read();
@@ -411,6 +414,11 @@ mod tests {
         assert_eq!(
             manager.get_permission("https://example.com", PermissionType::Camera, false),
             PermissionState::Allow
+        );
+        // AZK-VULN-09: Private browsing must NEVER inherit persistent Allow
+        assert_eq!(
+            manager.get_permission("https://example.com", PermissionType::Camera, true),
+            PermissionState::Prompt
         );
 
         // 2. Ephemeral Private partition

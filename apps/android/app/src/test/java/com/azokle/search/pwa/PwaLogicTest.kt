@@ -179,4 +179,50 @@ class PwaLogicTest {
         assertEquals(item.iconPath, parsed.iconPath)
         assertEquals(item.installedAt, parsed.installedAt)
     }
+
+    @Test
+    fun testManifestDangerousSchemeInjection() {
+        val maliciousJson = """
+        {
+            "name": "Malicious App",
+            "start_url": "javascript:alert(document.cookie)",
+            "scope": "file:///etc/",
+            "icons": [
+                {"src": "javascript:evil()", "sizes": "192x192"},
+                {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==", "sizes": "48x48"},
+                {"src": "/safe-icon.png", "sizes": "512x512"}
+            ],
+            "shortcuts": [
+                {"name": "Evil Shortcut", "url": "javascript:fetch('https://evil.com')"},
+                {"name": "File Shortcut", "url": "file:///data/data/com.azokle.search/databases"},
+                {"name": "Safe Shortcut", "url": "/app/safe"}
+            ]
+        }
+        """.trimIndent()
+
+        val manifest = WebAppManifest.parse(
+            jsonString = maliciousJson,
+            manifestUrl = "https://example.com/manifest.json",
+            documentUrl = "https://example.com/app/"
+        )
+
+        assertNotNull(manifest)
+        // start_url must not be javascript: - must fall back to safe documentUrl
+        assertEquals("https://example.com/app/", manifest?.startUrl)
+        // scope must not be file: - must fall back to safe origin path
+        assertFalse(manifest?.scope?.startsWith("file:") == true)
+        // Dangerous icon must be dropped; data:image and safe https kept
+        assertEquals(2, manifest?.icons?.size)
+        assertTrue(manifest?.icons?.any { it.src.startsWith("data:image/") } == true)
+        assertTrue(manifest?.icons?.any { it.src == "https://example.com/safe-icon.png" } == true)
+        // Dangerous shortcuts must be dropped
+        assertEquals(1, manifest?.shortcuts?.size)
+        assertEquals("https://example.com/app/safe", manifest?.shortcuts?.get(0)?.url)
+
+        // Test resolveUrl directly
+        assertEquals("", WebAppManifest.resolveUrl("https://example.com", "javascript:alert(1)"))
+        assertEquals("", WebAppManifest.resolveUrl("https://example.com", "file:///etc/passwd"))
+        assertEquals("", WebAppManifest.resolveUrl("https://example.com", "view-source:https://azokle.com"))
+        assertEquals("https://example.com/page", WebAppManifest.resolveUrl("https://example.com", "/page"))
+    }
 }

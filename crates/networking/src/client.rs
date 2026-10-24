@@ -290,7 +290,11 @@ impl SovereignHttpClient {
                     .next()
                     .and_then(|line| line.split_whitespace().nth(1))
                     .and_then(|code| code.parse::<u16>().ok())
-                    .unwrap_or(200);
+                    .ok_or_else(|| {
+                        NetworkError::ProtocolError(
+                            "Malformed HTTP response: missing or invalid status line".to_string(),
+                        )
+                    })?;
 
                 for line in lines {
                     if let Some((name, val)) = line.split_once(':') {
@@ -301,7 +305,9 @@ impl SovereignHttpClient {
                 let body_part = raw_response[(pos + 4)..].to_vec();
                 (status_code, body_part)
             } else {
-                (200, raw_response)
+                return Err(NetworkError::ProtocolError(
+                    "Malformed or truncated HTTP response: missing header delimiter (\\r\\n\\r\\n)".to_string(),
+                ));
             };
 
         Ok(HttpResponse {

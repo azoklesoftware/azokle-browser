@@ -53,6 +53,33 @@ pub struct TabSession {
 }
 
 impl TabSession {
+    /// Sanitizes an untrusted URL intended for a browser tab.
+    /// Strictly rejects dangerous and privileged execution schemes (javascript:, file:, content:,
+    /// intent:, chrome:, resource:, etc.) and falls back to the default search engine homepage.
+    pub fn sanitize_tab_url(url: &str) -> String {
+        let trimmed = url.trim();
+        if trimmed.is_empty()
+            || trimmed.contains('\r')
+            || trimmed.contains('\n')
+            || trimmed.contains('\0')
+        {
+            return "https://search.azokle.com".to_string();
+        }
+        let lower = trimmed.to_lowercase();
+        if lower.starts_with("javascript:")
+            || lower.starts_with("file:")
+            || lower.starts_with("content:")
+            || lower.starts_with("intent:")
+            || lower.starts_with("chrome:")
+            || lower.starts_with("resource:")
+            || lower.starts_with("jar:")
+            || lower.starts_with("view-source:")
+        {
+            return "https://search.azokle.com".to_string();
+        }
+        trimmed.to_string()
+    }
+
     /// Constructs a new tab session initialized with defaults.
     pub fn new(
         url: &str,
@@ -74,12 +101,12 @@ impl TabSession {
             url: if url.is_empty() {
                 "https://search.azokle.com".to_string()
             } else {
-                url.to_string()
+                Self::sanitize_tab_url(url)
             },
             title: if title.is_empty() {
                 "New Tab".to_string()
             } else {
-                title.to_string()
+                title.replace('\r', "").replace('\n', "").trim().to_string()
             },
             favicon_url: None,
             is_private,
@@ -247,10 +274,10 @@ impl TabManager {
         let mut tabs = self.tabs.write();
         if let Some(tab) = tabs.iter_mut().find(|t| t.id == id) {
             if !url.is_empty() {
-                tab.url = url.to_string();
+                tab.url = TabSession::sanitize_tab_url(url);
             }
             if !title.is_empty() {
-                tab.title = title.to_string();
+                tab.title = title.replace('\r', "").replace('\n', "").trim().to_string();
             }
             true
         } else {
@@ -331,8 +358,40 @@ impl TabManager {
         tabs.retain(|t| t.is_private || t.is_tor); // keep private in memory
 
         for mut tab in imported {
-            tab.is_private = false;
-            tab.is_tor = false;
+            let lower_url = tab.url.trim().to_lowercase();
+            // AZK-VULN-12: Reject dangerous and privileged schemes from imported tab backups
+            if lower_url.starts_with("javascript:")
+                || lower_url.starts_with("file:")
+                || lower_url.starts_with("content:")
+                || lower_url.starts_with("chrome:")
+                || lower_url.starts_with("resource:")
+                || lower_url.starts_with("view-source:")
+                || lower_url.starts_with("data:")
+                || lower_url.starts_with("blob:")
+                || lower_url.is_empty()
+            {
+                tab.url = "https://search.azokle.com".to_string();
+                tab.title = "New Tab".to_string();
+            }
+
+            // Detect .onion URLs and enforce Tor/Private mode isolation
+            let is_onion = if let Ok(parsed) = Url::parse(&tab.url) {
+                parsed.host_str().map(|h| {
+                    let host = h.trim_end_matches('.').to_lowercase();
+                    host == "onion" || host.ends_with(".onion")
+                }).unwrap_or(false)
+            } else {
+                false
+            };
+
+            if is_onion {
+                tab.is_tor = true;
+                tab.is_private = true;
+            } else {
+                tab.is_private = false;
+                tab.is_tor = false;
+            }
+
             tabs.push(tab);
             count += 1;
         }
@@ -424,5 +483,71 @@ mod tests {
         assert_eq!(yt_priv.group_id.as_deref(), Some("group_priv_youtube.com"));
         assert_eq!(yt_tor.group_id.as_deref(), Some("group_tor_youtube.com"));
         assert_eq!(yt_std.group_title.as_deref(), Some("youtube.com"));
+    }
+
+    #[test]
+    fn test_import_persistent_json_sanitization() {
+        let manager = TabManager::new();
+        let mut t1 = TabSession::new("https://example.com", "Legit", false, false, None, None);
+        t1.id = "1".to_string();
+        let mut t2 = TabSession::new("javascript:steal()", "Danger JS", false, false, None, None);
+        t2.id = "2".to_string();
+        let mut t3 = TabSession::new("file:///etc/hosts", "Danger File", false, false, None, None);
+        t3.id = "3".to_string();
+        let mut t4 = TabSession::new("http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion", "Onion Tab", false, false, None, None);
+        t4.id = "4".to_string();
+
+        let backup = serde_json::to_string(&vec![t1, t2, t3, t4]).unwrap();
+        let count = manager.import_persistent_json(&backup);
+        assert_eq!(count, 4);
+
+        let tabs = manager.get_all_tabs();
+        let js_tab = tabs.iter().find(|t| t.id == "2").unwrap();
+        assert_eq!(js_tab.url, "https://search.azokle.com");
+
+        let file_tab = tabs.iter().find(|t| t.id == "3").unwrap();
+        assert_eq!(file_tab.url, "https://search.azokle.com");
+
+        let onion_tab = tabs.iter().find(|t| t.id == "4").unwrap();
+        assert!(onion_tab.is_tor);
+        assert!(onion_tab.is_private);
+    }
+
+    #[test]
+    fn test_tab_session_and_update_url_sanitization() {
+        let manager = TabManager::new();
+        let tab = manager.open_tab(
+            "javascript:alert(document.cookie)",
+            "Malicious Tab",
+            false,
+            false,
+            None,
+            None,
+        );
+        assert_eq!(tab.url, "https://search.azokle.com");
+
+        let file_tab = manager.open_tab(
+            "file:///data/data/com.azokle.search/databases/history.db",
+            "File Tab",
+            false,
+            false,
+            None,
+            None,
+        );
+        assert_eq!(file_tab.url, "https://search.azokle.com");
+
+        // Updating with dangerous scheme
+        assert!(manager.update_tab_url_and_title(
+            &tab.id,
+            "chrome://flags",
+            "Updated Title\r\nInjected",
+        ));
+        let updated = manager
+            .get_all_tabs()
+            .into_iter()
+            .find(|t| t.id == tab.id)
+            .unwrap();
+        assert_eq!(updated.url, "https://search.azokle.com");
+        assert_eq!(updated.title, "Updated TitleInjected");
     }
 }

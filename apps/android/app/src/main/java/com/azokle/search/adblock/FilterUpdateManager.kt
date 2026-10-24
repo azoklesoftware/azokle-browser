@@ -110,13 +110,17 @@ object FilterUpdateManager {
                 val contentBytes = downloadedFile.readBytes()
                 val sigFile = File(filtersDir, "$fileName.sig")
                 val validator = signatureValidator
-                if (sigFile.exists() && validator != null) {
-                    val sigBase64 = sigFile.readText().trim()
-                    val result = validator.validate(contentBytes, sigBase64)
-                    if (result !is com.azokle.search.security.ScriptletValidationResult.Valid) {
-                        Log.e(TAG, "Dynamic filter list $fileName failed cryptographic signature verification: $result")
-                        return null
-                    }
+                // AZK-VULN-25: Fail closed: dynamic OTA filter lists MUST have a valid .sig file
+                // and an active cryptographic signature validator to prevent unauthenticated scriptlet injection.
+                if (!sigFile.exists() || validator == null) {
+                    Log.w(TAG, "Dynamic filter list $fileName rejected: missing signature file or uninitialized validator")
+                    return null
+                }
+                val sigBase64 = sigFile.readText().trim()
+                val result = validator.validate(contentBytes, sigBase64)
+                if (result !is com.azokle.search.security.ScriptletValidationResult.Valid) {
+                    Log.e(TAG, "Dynamic filter list $fileName failed cryptographic signature verification: $result")
+                    return null
                 }
                 return String(contentBytes, java.nio.charset.StandardCharsets.UTF_8)
             } catch (e: Exception) {

@@ -175,6 +175,17 @@ class PasskeyVaultManager private constructor(context: Context) {
     }
 
     /**
+     * Clears all passkey metadata from secure storage and memory.
+     */
+    fun clearAll() {
+        _passkeysFlow.value = emptyList()
+        try {
+            prefs.edit().remove(KEY_PASSKEYS).apply()
+        } catch (_: Exception) {}
+    }
+
+
+    /**
      * Retrieves the passkeys for domain.
      */
     fun getPasskeysForDomain(domain: String): List<PasskeyItem> {

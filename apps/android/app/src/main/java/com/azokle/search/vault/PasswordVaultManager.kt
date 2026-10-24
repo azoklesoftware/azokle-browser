@@ -147,6 +147,25 @@ object OriginMatcher {
     }
 
     /**
+     * AZK-VULN-23: Normalizes a raw origin, domain, or URL into a canonical W3C origin string:
+     * scheme://host[:port] (e.g. "https://example.com" or "https://intranet.corp:8443").
+     * Non-default ports are strictly preserved to prevent port confusion and cross-port credential leaks.
+     */
+    fun toCanonicalOrigin(raw: String?): String {
+        if (raw.isNullOrBlank()) return ""
+        val url = toNormalizedHttpUrl(raw) ?: return extractHost(raw)
+        val scheme = url.scheme
+        val host = if (url.host.startsWith("www.")) url.host.removePrefix("www.") else url.host
+        val port = url.port
+        val isDefaultPort = (scheme == "http" && port == 80) || (scheme == "https" && port == 443)
+        return if (!isDefaultPort && port != -1) {
+            "$scheme://$host:$port"
+        } else {
+            "$scheme://$host"
+        }
+    }
+
+    /**
      * Extracts registrable domain (eTLD+1) using multi-part Public Suffix List resolution.
      * Accurately handles multi-part TLDs (e.g. .com.tr, .co.kr) and shared hosting (e.g. .herokuapp.com, .github.io).
      */
@@ -381,7 +400,7 @@ object PasswordVaultManager {
     @Synchronized
     fun saveLogin(origin: String, username: String, password: String) {
         if (origin.isBlank() || username.isBlank() || password.isBlank()) return
-        val canonicalOrigin = OriginMatcher.extractHost(origin).ifEmpty { origin.trim() }
+        val canonicalOrigin = OriginMatcher.toCanonicalOrigin(origin).ifEmpty { origin.trim() }
         val cleanUsername = username.trim()
         val current = _loginsFlow.value.toMutableList()
         val existingIndex = current.indexOfFirst {
@@ -414,7 +433,7 @@ object PasswordVaultManager {
         val current = _loginsFlow.value.toMutableList()
         val index = current.indexOfFirst { it.id == id }
         if (index >= 0) {
-            val canonicalOrigin = OriginMatcher.extractHost(origin).ifEmpty { origin.trim() }
+            val canonicalOrigin = OriginMatcher.toCanonicalOrigin(origin).ifEmpty { origin.trim() }
             current[index] = current[index].copy(
                 origin = canonicalOrigin,
                 username = username.trim(),

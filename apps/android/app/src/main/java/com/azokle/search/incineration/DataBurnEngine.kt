@@ -194,9 +194,16 @@ object DataBurnEngine {
             try {
                 // AZK-VULN-09: Purge Reader Mode in-memory extracted article text and DOM cache
                 com.azokle.search.reader.ReaderExtractor.clearCache()
+                // AZK-VULN-16: Purge in-memory PWA tab states and Passkey vaults (Rust native & keystore)
+                com.azokle.search.pwa.PwaManager.clear()
+                AzokleCore.passkeyClearVault()
+                com.azokle.search.passkey.PasskeyVaultManager.getInstance(context).clearAll()
+                // AZK-VULN-24: Purge Sovereign Password Vault in-memory decrypted logins and encrypted storage
+                com.azokle.search.vault.PasswordVaultManager.clearAllLogins()
                 System.gc()
                 Runtime.getRuntime().gc()
             } catch (_: Exception) {}
+
 
             Log.i(TAG, "Forensic-grade data burn completed successfully.")
         } finally {

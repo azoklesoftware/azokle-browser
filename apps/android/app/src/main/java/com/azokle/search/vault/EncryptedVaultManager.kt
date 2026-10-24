@@ -136,15 +136,29 @@ class EncryptedVaultManager(context: Context) {
     // --- Bookmarks Management ---
 
     /**
+     * Sanitizes bookmark and quick link titles against control characters and size bloat.
+     */
+    fun sanitizeTitle(rawTitle: String, fallback: String): String {
+        val clean = rawTitle
+            .filter { !it.isISOControl() }
+            .trim()
+            .take(256)
+        return clean.ifBlank { fallback.take(256) }
+    }
+
+    /**
      * Sanitizes and validates a URL for storage as a bookmark or shortcut.
      * Blocks dangerous schemes (javascript:, file:, data:, content:, intent:, blob:, etc.)
-     * and normalizes missing schemes to https://.
+     * and non-standard/privileged about: URLs (allowing only about:blank and about:tor).
+     * Normalizes missing schemes to https://.
      */
     fun sanitizeUrl(rawUrl: String): String? {
-        val trimmed = rawUrl.trim()
-        if (trimmed.isEmpty()) return null
+        val clean = rawUrl
+            .filter { !it.isISOControl() && it != '\uFEFF' && it != '\u200B' && it != '\u00A0' }
+            .trim()
+        if (clean.isEmpty()) return null
 
-        val lower = trimmed.lowercase(Locale.ROOT)
+        val lower = clean.lowercase(Locale.ROOT)
         // Block dangerous / script / local-file schemes
         if (lower.startsWith("javascript:") ||
             lower.startsWith("file:") ||
@@ -153,28 +167,37 @@ class EncryptedVaultManager(context: Context) {
             lower.startsWith("intent:") ||
             lower.startsWith("blob:") ||
             lower.startsWith("chrome:") ||
-            lower.startsWith("resource:")
+            lower.startsWith("resource:") ||
+            lower.startsWith("view-source:") ||
+            lower.startsWith("jar:")
         ) {
             return null
         }
 
+        // AZK-VULN-26: Block internal privileged about: URLs (e.g. about:config, about:debugging)
+        if (lower.startsWith("about:") && lower != "about:blank" && lower != "about:tor") {
+            return null
+        }
+
         val finalUrl = when {
-            lower.startsWith("http://") || lower.startsWith("https://") -> trimmed
-            lower.startsWith("azokle://") || lower.startsWith("about:") -> trimmed
-            else -> "https://$trimmed"
+            lower.startsWith("http://") || lower.startsWith("https://") -> clean
+            lower.startsWith("azokle://") || lower == "about:blank" || lower == "about:tor" -> clean
+            else -> "https://$clean"
         }
 
         return try {
             val uri = android.net.Uri.parse(finalUrl)
             val scheme = uri.scheme?.lowercase(Locale.ROOT)
-            if (scheme in listOf("http", "https", "azokle", "about")) {
+            val isAllowedScheme = scheme in listOf("http", "https", "azokle") || finalUrl == "about:blank" || finalUrl == "about:tor"
+            if (isAllowedScheme) {
                 finalUrl
             } else {
                 null
             }
         } catch (_: Throwable) {
             val scheme = finalUrl.substringBefore(':', "").lowercase(Locale.ROOT)
-            if (scheme in listOf("http", "https", "azokle", "about")) {
+            val isAllowedScheme = scheme in listOf("http", "https", "azokle") || finalUrl == "about:blank" || finalUrl == "about:tor"
+            if (isAllowedScheme) {
                 finalUrl
             } else {
                 null
@@ -252,9 +275,10 @@ class EncryptedVaultManager(context: Context) {
         val df = SimpleDateFormat("MMM dd", Locale.getDefault())
         val existingItem = if (existingIndex >= 0) current[existingIndex] else null
 
+        val safeTitle = sanitizeTitle(title, safeUrl)
         val item = BookmarkItem(
             id = existingItem?.id ?: UUID.randomUUID().toString(),
-            title = title.ifBlank { safeUrl },
+            title = safeTitle,
             url = safeUrl,
             dateAdded = existingItem?.dateAdded?.takeIf { it.isNotBlank() } ?: df.format(Date()),
             favicon = favicon ?: existingItem?.favicon
@@ -283,9 +307,10 @@ class EncryptedVaultManager(context: Context) {
             added = false
         } else {
             val df = SimpleDateFormat("MMM dd", Locale.getDefault())
+            val safeTitle = sanitizeTitle(title, safeUrl)
             val item = BookmarkItem(
                 id = UUID.randomUUID().toString(),
-                title = title.ifBlank { safeUrl },
+                title = safeTitle,
                 url = safeUrl,
                 dateAdded = df.format(Date()),
                 favicon = favicon
@@ -308,8 +333,9 @@ class EncryptedVaultManager(context: Context) {
         val index = current.indexOfFirst { it.id == id }
         if (index >= 0) {
             val old = current[index]
+            val safeTitle = sanitizeTitle(newTitle, safeUrl)
             current[index] = old.copy(
-                title = newTitle.ifBlank { safeUrl },
+                title = safeTitle,
                 url = safeUrl,
                 favicon = newFavicon ?: old.favicon
             )
@@ -411,9 +437,10 @@ class EncryptedVaultManager(context: Context) {
      */
     fun addQuickLink(title: String, url: String, icon: String? = null): Boolean {
         val safeUrl = sanitizeUrl(url) ?: return false
+        val safeTitle = sanitizeTitle(title, safeUrl)
         val current = _quickLinksFlow.value.toMutableList()
         if (current.none { it.url.equals(safeUrl, ignoreCase = true) }) {
-            current.add(QuickLinkItem(title = title.ifBlank { safeUrl }, url = safeUrl, icon = icon))
+            current.add(QuickLinkItem(title = safeTitle, url = safeUrl, icon = icon))
             _quickLinksFlow.value = current
             saveQuickLinksToPrefs(current)
             return true
@@ -520,7 +547,8 @@ class EncryptedVaultManager(context: Context) {
                 val rawUrl = obj.optString("url", "").trim()
                 if (rawUrl.isEmpty()) continue
                 val safeUrl = sanitizeUrl(rawUrl) ?: continue
-                val title = obj.optString("title", safeUrl).ifBlank { safeUrl }
+                val rawTitle = obj.optString("title", safeUrl)
+                val safeTitle = sanitizeTitle(rawTitle, safeUrl)
                 val dateAdded = obj.optString("dateAdded", df.format(Date()))
                 val favicon = if (obj.has("favicon") && !obj.isNull("favicon")) obj.getString("favicon") else null
 
@@ -528,7 +556,7 @@ class EncryptedVaultManager(context: Context) {
                     current.add(
                         BookmarkItem(
                             id = UUID.randomUUID().toString(),
-                            title = title,
+                            title = safeTitle,
                             url = safeUrl,
                             dateAdded = dateAdded,
                             favicon = favicon
@@ -596,11 +624,12 @@ class EncryptedVaultManager(context: Context) {
                     val obj = arr.getJSONObject(i)
                     val rawUrl = obj.getString("url")
                     val safeUrl = sanitizeUrl(rawUrl) ?: continue
-                    val title = obj.optString("title", safeUrl).ifBlank { safeUrl }
+                    val rawTitle = obj.optString("title", safeUrl)
+                    val safeTitle = sanitizeTitle(rawTitle, safeUrl)
                     val dateAdded = obj.optString("dateAdded", df.format(Date()))
                     val favicon = if (obj.has("favicon") && !obj.isNull("favicon")) obj.getString("favicon") else null
                     if (existing.none { it.url.equals(safeUrl, ignoreCase = true) }) {
-                        existing.add(BookmarkItem(url = safeUrl, title = title, dateAdded = dateAdded, favicon = favicon))
+                        existing.add(BookmarkItem(url = safeUrl, title = safeTitle, dateAdded = dateAdded, favicon = favicon))
                         count++
                     }
                 }
@@ -614,10 +643,11 @@ class EncryptedVaultManager(context: Context) {
                     val obj = arr.getJSONObject(i)
                     val rawUrl = obj.getString("url")
                     val safeUrl = sanitizeUrl(rawUrl) ?: continue
-                    val title = obj.optString("title", safeUrl).ifBlank { safeUrl }
+                    val rawTitle = obj.optString("title", safeUrl)
+                    val safeTitle = sanitizeTitle(rawTitle, safeUrl)
                     val icon = if (obj.has("icon") && !obj.isNull("icon")) obj.getString("icon") else null
                     if (existingQ.none { it.url.equals(safeUrl, ignoreCase = true) }) {
-                        existingQ.add(QuickLinkItem(url = safeUrl, title = title, icon = icon))
+                        existingQ.add(QuickLinkItem(url = safeUrl, title = safeTitle, icon = icon))
                     }
                 }
                 _quickLinksFlow.value = existingQ

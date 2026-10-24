@@ -32,6 +32,9 @@ class NavigationSecurityTest {
         assertTrue(NavigationSecurity.isForbiddenWebScheme("chrome"))
         assertTrue(NavigationSecurity.isForbiddenWebScheme("resource"))
         assertTrue(NavigationSecurity.isForbiddenWebScheme("jar"))
+        assertTrue(NavigationSecurity.isForbiddenWebScheme("javascript"))
+        assertTrue(NavigationSecurity.isForbiddenWebScheme("view-source"))
+        assertTrue(NavigationSecurity.isForbiddenWebScheme("VIEW-SOURCE"))
 
         assertFalse(NavigationSecurity.isForbiddenWebScheme("https"))
         assertFalse(NavigationSecurity.isForbiddenWebScheme("http"))
@@ -72,5 +75,21 @@ class NavigationSecurityTest {
     fun testTorIsolationCheck() {
         assertTrue(NavigationSecurity.isTorIsolationRisk(isTor = true))
         assertFalse(NavigationSecurity.isTorIsolationRisk(isTor = false))
+    }
+
+    @Test
+    fun testOAuthRedirectClassification() {
+        // Parameter spoofing attempts on generic messaging/social apps must be rejected
+        assertFalse(OAuthRedirectHandler.isOAuthCallback("whatsapp://send?phone=+1234567890&code=12345"))
+        assertFalse(OAuthRedirectHandler.isOAuthCallback("tg://resolve?domain=test&code=12345"))
+        assertFalse(OAuthRedirectHandler.isOAuthCallback("slack://channel?code=12345"))
+        assertFalse(OAuthRedirectHandler.isOAuthCallback("zoommtg://zoom.us/join?code=12345"))
+        assertFalse(OAuthRedirectHandler.isOAuthCallback("arbitraryapp://open?code=12345"))
+
+        // Legitimate reverse-domain or explicit OAuth endpoints must be accepted
+        assertTrue(OAuthRedirectHandler.isOAuthCallback("com.example.app:/oauth2callback?code=abc123xyz"))
+        assertTrue(OAuthRedirectHandler.isOAuthCallback("org.mozilla.firefox:/oauth-callback?code=auth_token"))
+        assertTrue(OAuthRedirectHandler.isOAuthCallback("customapp:/oauth2callback?code=valid_code"))
+        assertTrue(OAuthRedirectHandler.isOAuthCallback("customapp:/auth/callback?access_token=bearer_123"))
     }
 }

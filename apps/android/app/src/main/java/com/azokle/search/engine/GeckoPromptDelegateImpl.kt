@@ -830,7 +830,7 @@ class GeckoPromptDelegateImpl(
         val entry = option.value
         val username = entry.username ?: ""
         val rawOrigin = entry.origin ?: ""
-        val cleanOrigin = com.azokle.search.vault.OriginMatcher.extractHost(rawOrigin).ifEmpty { rawOrigin }
+        val cleanOrigin = com.azokle.search.vault.OriginMatcher.toCanonicalOrigin(rawOrigin).ifEmpty { rawOrigin }
         val isUpdate = isUpdateLoginPrompt(cleanOrigin, username)
 
         val result = GeckoResult<PromptResponse>()

@@ -123,6 +123,29 @@ impl SovereignPasskey {
         authenticator_data: &[u8],
         client_data_hash: &[u8],
     ) -> Result<Vec<u8>, PasskeyError> {
+        // AZK-VULN-15: Enforce WebAuthn Level 3 authenticatorData validation
+        // Structure: rpIdHash (32 bytes) || flags (1 byte) || signCount (4 bytes)
+        if authenticator_data.len() < 37 {
+            return Err(PasskeyError::SigningError(
+                "Authenticator data too short (must be at least 37 bytes)".to_string(),
+            ));
+        }
+
+        // Verify that the rpIdHash matches sha256(self.rp_id) to prevent cross-origin assertion forging
+        let expected_rp_id_hash = Sha256::digest(self.rp_id.as_bytes());
+        if authenticator_data[..32] != expected_rp_id_hash[..] {
+            return Err(PasskeyError::SigningError(
+                "RP ID hash mismatch: authenticator data does not match passkey relying party".to_string(),
+            ));
+        }
+
+        // AZK-VULN-30: Enforce strict WebAuthn Level 3 clientDataHash length (SHA-256 digest = 32 bytes)
+        if client_data_hash.len() != 32 {
+            return Err(PasskeyError::SigningError(
+                "Client data hash must be exactly 32 bytes (SHA-256 digest)".to_string(),
+            ));
+        }
+
         self.sign_count += 1;
 
         let signing_key = SigningKey::from_slice(&self.private_key_bytes)
@@ -134,6 +157,8 @@ impl SovereignPasskey {
         signed_data.extend_from_slice(client_data_hash);
 
         let signature: p256::ecdsa::Signature = signing_key.sign(&signed_data);
+        use zeroize::Zeroize;
+        signed_data.zeroize();
         Ok(signature.to_der().as_bytes().to_vec())
     }
 
@@ -168,9 +193,76 @@ impl SovereignPasskey {
     }
 }
 
+/// Purges all stored passkeys from the global in-memory vault.
+pub fn clear_global_passkey_vault() {
+    SovereignPasskey::clear_vault();
+}
+
+
 impl Drop for SovereignPasskey {
     fn drop(&mut self) {
         use zeroize::Zeroize;
         self.private_key_bytes.zeroize();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_passkey_creation_and_assertion_verification() {
+        let (mut passkey, _cred_id) = SovereignPasskey::create("example.com", "alice", b"user_123")
+            .expect("Passkey creation failed");
+
+        assert_eq!(passkey.rp_id, "example.com");
+        assert_eq!(passkey.user_name, "alice");
+
+        // Construct valid authenticator_data (37 bytes: 32 bytes rpIdHash + 1 byte flags + 4 bytes counter)
+        let rp_id_hash = Sha256::digest(b"example.com");
+        let mut valid_auth_data = Vec::new();
+        valid_auth_data.extend_from_slice(&rp_id_hash);
+        valid_auth_data.push(0x05); // UP + UV flags
+        valid_auth_data.extend_from_slice(&[0, 0, 0, 1]); // signCount = 1
+
+        let client_hash = [0x42u8; 32];
+
+        // 1. Valid signing must succeed
+        let sig = passkey
+            .sign_assertion(&valid_auth_data, &client_hash)
+            .expect("Assertion signing failed");
+        assert!(!sig.is_empty());
+        assert_eq!(passkey.sign_count, 1);
+
+        // 2. Reject if authenticator_data is too short (< 37 bytes)
+        let short_auth_data = vec![0u8; 20];
+        let err_short = passkey.sign_assertion(&short_auth_data, &client_hash);
+        assert!(err_short.is_err());
+
+        // 3. Reject if rpIdHash does not match (cross-origin attack attempt)
+        let evil_rp_hash = Sha256::digest(b"attacker.com");
+        let mut forged_auth_data = Vec::new();
+        forged_auth_data.extend_from_slice(&evil_rp_hash);
+        forged_auth_data.push(0x05);
+        forged_auth_data.extend_from_slice(&[0, 0, 0, 2]);
+
+        let err_mismatch = passkey.sign_assertion(&forged_auth_data, &client_hash);
+        assert!(err_mismatch.is_err());
+
+        // 4. AZK-VULN-30: Reject if client_data_hash is not exactly 32 bytes
+        let invalid_client_hash = vec![0x42u8; 16];
+        let err_bad_hash = passkey.sign_assertion(&valid_auth_data, &invalid_client_hash);
+        assert!(err_bad_hash.is_err());
+    }
+
+    #[test]
+    fn test_passkey_vault_clear() {
+        let (passkey, _) = SovereignPasskey::create("vault.com", "bob", b"user_456")
+            .expect("Passkey creation failed");
+        let cred_id = passkey.store_in_vault();
+
+        assert!(SovereignPasskey::get_from_vault(&cred_id).is_some());
+        SovereignPasskey::clear_vault();
+        assert!(SovereignPasskey::get_from_vault(&cred_id).is_none());
     }
 }

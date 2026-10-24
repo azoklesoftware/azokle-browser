@@ -28,16 +28,27 @@ object OAuthRedirectHandler {
 
     private val OAUTH_PARAMS = setOf("code", "access_token", "id_token", "state", "error")
 
+    private val NON_OAUTH_APP_SCHEMES = setOf(
+        "whatsapp", "tg", "telegram", "slack", "viber", "skype", "zoommtg",
+        "fb", "facebook", "twitter", "x", "instagram", "snapchat", "tiktok",
+        "tel", "telprompt", "callto", "sms", "smsto", "mms", "mmsto", "mailto",
+        "geo", "market", "upi", "paytmmp", "phonepe", "gpay", "webcal"
+    )
+
     /**
      * Checks if a URI represents an OAuth or authentication callback.
+     * Hardened against parameter spoofing and gesture-bypass attacks (AZK-VULN-13).
      */
     fun isOAuthCallback(uriStr: String?): Boolean {
         if (uriStr.isNullOrBlank()) return false
         val trimmed = uriStr.trim()
         val scheme = UriClassifier.extractScheme(trimmed) ?: return false
 
-        // Internal and dangerous schemes cannot be external OAuth callbacks
-        if (scheme in UriClassifier.INTERNAL_SCHEMES || scheme in UriClassifier.DANGEROUS_SCHEMES) {
+        // Internal, dangerous, and known non-OAuth app schemes cannot be gesture-exempt OAuth callbacks
+        if (scheme in UriClassifier.INTERNAL_SCHEMES ||
+            scheme in UriClassifier.DANGEROUS_SCHEMES ||
+            scheme in NON_OAUTH_APP_SCHEMES
+        ) {
             return false
         }
 
@@ -66,11 +77,8 @@ object OAuthRedirectHandler {
             trimmed.lowercase()
         }
 
-        // Check query parameters and fragment parameters (for implicit OAuth / PKCE flows)
-        val hasCoreOAuthParam = listOf("code=", "access_token=", "id_token=").any {
-            query.contains(it) || fragment.contains(it)
-        }
-
+        // RFC 8252: Native app OAuth schemes must follow reverse-DNS convention or use dedicated callback endpoints
+        val isReverseDomainScheme = scheme.contains('.') && scheme.first().isLetter()
         val isExplicitOAuthPath = path.endsWith("/oauth2callback") ||
                 path.endsWith("/oauth2redirect") ||
                 path.endsWith("/oauth-callback") ||
@@ -78,6 +86,16 @@ object OAuthRedirectHandler {
                 path.endsWith("/auth/callback") ||
                 path.endsWith("/callback") ||
                 path.endsWith("/oauth")
+
+        // Reject arbitrary schemes that lack reverse-domain notation or explicit callback paths
+        if (!isReverseDomainScheme && !isExplicitOAuthPath) {
+            return false
+        }
+
+        // Check query parameters and fragment parameters (for implicit OAuth / PKCE flows)
+        val hasCoreOAuthParam = listOf("code=", "access_token=", "id_token=").any {
+            query.contains(it) || fragment.contains(it)
+        }
 
         val hasStateOrError = (query.contains("state=") || fragment.contains("state=")) ||
                 (query.contains("error=") || fragment.contains("error="))

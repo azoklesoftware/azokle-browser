@@ -129,11 +129,19 @@ data class WebAppManifest(
                 val fallbackName = if (name.isNotBlank()) name else (if (shortName.isNotBlank()) shortName else host)
 
                 val rawStartUrl = json.optString("start_url", "").trim()
-                val startUrl = resolveUrl(baseUrl, if (rawStartUrl.isNotBlank()) rawStartUrl else documentUrl)
+                val candidateStartUrl = if (rawStartUrl.isNotBlank()) rawStartUrl else documentUrl
+                val startUrl = resolveUrl(baseUrl, candidateStartUrl).ifBlank { documentUrl }
 
                 val rawScope = json.optString("scope", "").trim()
                 val scope = if (rawScope.isNotBlank()) {
-                    resolveUrl(baseUrl, rawScope)
+                    resolveUrl(baseUrl, rawScope).ifBlank {
+                        val startUri = try { URI(startUrl) } catch (e: Exception) { null }
+                        val path = startUri?.path ?: "/"
+                        val parentPath = if (path.contains("/")) path.substringBeforeLast('/') + "/" else "/"
+                        val scheme = startUri?.scheme ?: "https"
+                        val auth = startUri?.authority ?: host
+                        "$scheme://$auth$parentPath"
+                    }
                 } else {
                     // Default scope is the parent path of startUrl
                     val startUri = try { URI(startUrl) } catch (e: Exception) { null }
@@ -158,7 +166,8 @@ data class WebAppManifest(
                         val iconObj = iconsArr.optJSONObject(i) ?: continue
                         val src = iconObj.optString("src", "").trim()
                         if (src.isBlank()) continue
-                        val resolvedSrc = resolveUrl(baseUrl, src)
+                        val resolvedSrc = resolveUrl(baseUrl, src, allowDataImage = true)
+                        if (resolvedSrc.isBlank()) continue
                         iconsList.add(
                             ManifestIcon(
                                 src = resolvedSrc,
@@ -180,6 +189,7 @@ data class WebAppManifest(
                         val scUrl = scObj.optString("url", "").trim()
                         if (scName.isBlank() || scUrl.isBlank()) continue
                         val resolvedScUrl = resolveUrl(baseUrl, scUrl)
+                        if (resolvedScUrl.isBlank()) continue
                         shortcutsList.add(
                             ManifestShortcut(
                                 name = scName,
@@ -213,20 +223,31 @@ data class WebAppManifest(
         }
 
         /**
-         * Executes the resolve url operation.
+         * AZK-VULN-11: Resolves and strictly validates URLs against dangerous/privileged schemes.
+         * Only http:// and https:// schemes are permitted (with optional data:image/ for icons).
+         * Dangerous schemes (javascript:, file:, content:, chrome:, resource:, view-source:) return empty string.
          */
-        fun resolveUrl(baseUrl: String, relativeOrAbsolute: String): String {
+        fun resolveUrl(baseUrl: String, relativeOrAbsolute: String, allowDataImage: Boolean = false): String {
             val trimmed = relativeOrAbsolute.trim()
-            if (trimmed.startsWith("http://", ignoreCase = true) ||
-                trimmed.startsWith("https://", ignoreCase = true)
-            ) {
+            if (trimmed.isBlank()) return ""
+            if (allowDataImage && trimmed.startsWith("data:image/", ignoreCase = true)) {
                 return trimmed
             }
-            return try {
+            val resolvedStr = try {
                 val base = URI(baseUrl)
                 base.resolve(trimmed).toString()
             } catch (e: Exception) {
-                trimmed
+                return ""
+            }
+            val resolvedScheme = try {
+                URI(resolvedStr).scheme?.lowercase()
+            } catch (e: Exception) {
+                null
+            }
+            return if (resolvedScheme == "http" || resolvedScheme == "https") {
+                resolvedStr
+            } else {
+                ""
             }
         }
 

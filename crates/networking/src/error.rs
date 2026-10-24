@@ -52,6 +52,9 @@ pub enum NetworkError {
     #[error("Serialization / Deserialization error: {0}")]
     SerializationError(String),
 
+    #[error("Protocol error: {0}")]
+    ProtocolError(String),
+
     #[error("Network I/O error: {0}")]
     IoError(String),
 }

@@ -45,6 +45,7 @@ object PwaManager {
 
     private val httpClient by lazy {
         OkHttpClient.Builder()
+            .dns(com.azokle.search.downloads.DownloadManager.ClearnetSafeDns)
             .connectTimeout(8, TimeUnit.SECONDS)
             .readTimeout(8, TimeUnit.SECONDS)
             .followRedirects(true)
@@ -56,6 +57,15 @@ object PwaManager {
 
     private val _activeTabPwaState = MutableStateFlow<TabPwaState?>(null)
     val activeTabPwaState: StateFlow<TabPwaState?> = _activeTabPwaState.asStateFlow()
+
+    /**
+     * Clears all cached PWA tab states and active eligibility state.
+     */
+    fun clear() {
+        tabStateMap.clear()
+        _activeTabPwaState.value = null
+    }
+
 
     /**
      * Handles on page started events.
@@ -112,8 +122,27 @@ object PwaManager {
                 var parsedManifest: WebAppManifest? = null
 
                 val isTor = com.azokle.search.tor.TorCircuitManager.isTorActive ||
-                    documentUrl.contains(".onion", ignoreCase = true) ||
-                    (manifestUrl?.contains(".onion", ignoreCase = true) == true)
+                    com.azokle.search.downloads.DownloadManager.isOnionUrl(documentUrl) ||
+                    com.azokle.search.downloads.DownloadManager.isOnionUrl(manifestUrl)
+
+                val isSafeManifestUrl = if (!manifestUrl.isNullOrBlank()) {
+                    try {
+                        val uri = java.net.URI(manifestUrl)
+                        val scheme = uri.scheme?.lowercase()
+                        val host = uri.host?.lowercase()?.trimEnd('.') ?: ""
+                        val isIpLiteral = (host.all { it.isDigit() || it == '.' } && host.count { it == '.' } == 3) || host.contains(':')
+                        if (isIpLiteral) {
+                            val addr = java.net.InetAddress.getByName(host)
+                            !com.azokle.search.downloads.DownloadManager.isPrivateOrLoopbackAddress(addr)
+                        } else if (host == "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host.endsWith(".internal")) {
+                            false
+                        } else {
+                            scheme == "https" || scheme == "http"
+                        }
+                    } catch (_: Exception) {
+                        false
+                    }
+                } else false
 
                 if (!manifestJson.isNullOrBlank()) {
                     parsedManifest = WebAppManifest.parse(
@@ -121,7 +150,7 @@ object PwaManager {
                         manifestUrl = manifestUrl ?: "",
                         documentUrl = documentUrl
                     )
-                } else if (!isTor && !manifestUrl.isNullOrBlank() && PwaInstallabilityValidator.isSecureOrigin(manifestUrl)) {
+                } else if (!isTor && isSafeManifestUrl && !manifestUrl.isNullOrBlank() && PwaInstallabilityValidator.isSecureOrigin(manifestUrl)) {
                     // Fetch manifest JSON directly over HTTPS only on clearnet
                     try {
                         val req = Request.Builder()

@@ -197,7 +197,7 @@ impl SovereignNetworkingEngine {
         let http = Arc::new(SovereignHttpClient::new(dns.clone()));
         let search_api = Arc::new(SearchApiClient::new(
             http.clone(),
-            "https://search.azokle.com",
+            "http://search.azokle.com",
         ));
 
         Self {

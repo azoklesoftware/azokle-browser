@@ -390,8 +390,10 @@ fun ReaderModeScreen(
                 }
 
                 // Optional Lead Image
-                if (!article.leadImageUrl.isNullOrBlank()) {
+                val isTor = com.azokle.search.tor.TorCircuitManager.isTorActive
+                if (!article.leadImageUrl.isNullOrBlank() && com.azokle.search.reader.ReaderExtractor.isSafePublicUrl(article.leadImageUrl, isTor)) {
                     item {
+
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()

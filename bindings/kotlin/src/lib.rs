@@ -2073,7 +2073,19 @@ pub extern "system" fn Java_com_azokle_search_core_AzokleCore_protocolDispatch(
     })
 }
 
+/// Clears the global passkey vault in memory.
+#[no_mangle]
+pub extern "system" fn Java_com_azokle_search_core_AzokleCore_passkeyClearVaultNative(
+    _env: JNIEnv,
+    _class: JClass,
+) {
+    safe_jni_void!({
+        azokle_core::clear_global_passkey_vault();
+    });
+}
+
 #[cfg(test)]
+
 mod tests {
     use super::*;
 

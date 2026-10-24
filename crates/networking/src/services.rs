@@ -48,7 +48,7 @@ impl Default for SearchApiClient {
     fn default() -> Self {
         Self::new(
             Arc::new(SovereignHttpClient::default()),
-            "https://search.azokle.com",
+            "http://search.azokle.com",
         )
     }
 }

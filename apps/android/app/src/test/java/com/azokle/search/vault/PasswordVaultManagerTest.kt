@@ -70,6 +70,14 @@ class PasswordVaultManagerTest {
         assertFalse("Unrelated bank must not match", OriginMatcher.matches("mybank.com", "bank.com"))
         assertFalse("Different TLD must not match", OriginMatcher.matches("https://gitlab.com", "github.com"))
         assertFalse("Phishing TLD must not match", OriginMatcher.matches("paypal.com-auth.net", "paypal.com"))
+
+        // AZK-VULN-23: Canonical origin with ports
+        assertEquals("https://github.com", OriginMatcher.toCanonicalOrigin("https://github.com"))
+        assertEquals("https://intranet.corp:8443", OriginMatcher.toCanonicalOrigin("https://intranet.corp:8443"))
+        assertEquals("http://localhost:8080", OriginMatcher.toCanonicalOrigin("http://localhost:8080"))
+        assertTrue(OriginMatcher.matches("https://intranet.corp:8443", "https://intranet.corp:8443"))
+        assertFalse(OriginMatcher.matches("https://intranet.corp:8443", "https://intranet.corp:443"))
+        assertFalse(OriginMatcher.matches("https://intranet.corp:443", "https://intranet.corp:8443"))
     }
 
     @Test

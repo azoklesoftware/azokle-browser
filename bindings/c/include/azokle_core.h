@@ -164,6 +164,12 @@ char* azokle_passkey_sign(
 );
 
 /**
+ * Clears the global sovereign passkey in-memory vault.
+ */
+void azokle_passkey_clear_vault(void);
+
+
+/**
  * Deallocates a NUL-terminated string returned by any `azokle_*` function.
  * Safe to call with NULL.
  */

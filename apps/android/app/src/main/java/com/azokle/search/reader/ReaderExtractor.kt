@@ -121,44 +121,7 @@ object ReaderExtractor {
      * Hardened against RFC 1918, RFC 3927 (169.254.x.x cloud metadata), IPv6 ULA, and IPv4-mapped loopback.
      */
     internal fun isPrivateOrLoopbackIp(inetAddr: java.net.InetAddress): Boolean {
-        if (inetAddr.isLoopbackAddress || inetAddr.isAnyLocalAddress || inetAddr.isLinkLocalAddress || inetAddr.isSiteLocalAddress) {
-            return true
-        }
-        val bytes = inetAddr.address
-        if (bytes.size == 4) {
-            val b0 = bytes[0].toInt() and 0xFF
-            val b1 = bytes[1].toInt() and 0xFF
-            // 10.0.0.0/8
-            if (b0 == 10) return true
-            // 172.16.0.0/12
-            if (b0 == 172 && b1 in 16..31) return true
-            // 192.168.0.0/16
-            if (b0 == 192 && b1 == 168) return true
-            // 169.254.0.0/16 (Link-Local & Cloud Metadata e.g. AWS/GCP 169.254.169.254)
-            if (b0 == 169 && b1 == 254) return true
-            // 127.0.0.0/8 (Loopback)
-            if (b0 == 127) return true
-            // 0.0.0.0/32 or 255.255.255.255
-            if (b0 == 0 || b0 == 255) return true
-        } else if (bytes.size == 16) {
-            val b0 = bytes[0].toInt() and 0xFF
-            // IPv6 Unique Local (fc00::/7)
-            if ((b0 and 0xFE) == 0xFC) return true
-            // IPv6 Link-Local (fe80::/10)
-            val b1 = bytes[1].toInt() and 0xFF
-            if (b0 == 0xFE && (b1 and 0xC0) == 0x80) return true
-            // IPv4-mapped loopback/private (::ffff:127.0.0.1)
-            val isIpv4Mapped = (0..9).all { bytes[it] == 0.toByte() } && bytes[10] == 0xFF.toByte() && bytes[11] == 0xFF.toByte()
-            if (isIpv4Mapped) {
-                val ipv4Bytes = bytes.copyOfRange(12, 16)
-                try {
-                    return isPrivateOrLoopbackIp(java.net.InetAddress.getByAddress(ipv4Bytes))
-                } catch (_: Exception) {
-                    return true
-                }
-            }
-        }
-        return false
+        return com.azokle.search.downloads.DownloadManager.isPrivateOrLoopbackAddress(inetAddr)
     }
 
     /**
@@ -170,14 +133,22 @@ object ReaderExtractor {
 
         val hostAndRest = trimmed.substringAfter("://")
         val hostWithPort = hostAndRest.substringBefore("/").substringBefore("?").substringBefore("#")
-        val cleanHost = if (hostWithPort.startsWith("[")) {
-            hostWithPort.substringAfter("[").substringBefore("]")
+        val authority = if (hostWithPort.contains('@')) hostWithPort.substringAfterLast('@') else hostWithPort
+        val cleanHost = if (authority.startsWith("[")) {
+            authority.substringAfter("[").substringBefore("]")
         } else {
-            hostWithPort.substringBefore(":")
-        }.trim().substringBefore("%")
+            authority.substringBefore(":")
+        }.trim().substringBefore("%").trimEnd('.')
 
         if (cleanHost.isBlank()) return false
-        if (isTor && cleanHost.endsWith(".onion")) return true
+
+        // AZK-VULN-07: Handle .onion hidden service isolation
+        val isOnion = cleanHost == "onion" || cleanHost.endsWith(".onion")
+        if (isOnion) {
+            // Never attempt to resolve or access .onion endpoints over clearnet (prevents DNS leaks).
+            // In Tor mode, .onion is routed via SOCKS5/Tor circuit; return true without local DNS lookup.
+            return isTor
+        }
 
         // Disallow loopback and local domain probing (SSRF defense)
         if (cleanHost == "localhost" || cleanHost == "127.0.0.1" || cleanHost == "::1" ||
@@ -270,7 +241,7 @@ object ReaderExtractor {
             var currentUrl = url
             var redirectCount = 0
             var rawHtml = ""
-            val clientToUse = getClient(isTor || url.contains(".onion"), socksPort)
+            val clientToUse = getClient(isTor || com.azokle.search.downloads.DownloadManager.isOnionUrl(url), socksPort)
 
             // AZK-VULN-08: Follow redirects safely with step-by-step SSRF validation (max 5 hops)
             while (redirectCount <= 5) {
@@ -337,7 +308,11 @@ object ReaderExtractor {
 
             // Extract Lead Image
             val ogImageMatcher = Pattern.compile("(?is)<meta[^>]+property=[\"']og:image[\"'][^>]+content=[\"']([^\"']+)[\"']").matcher(cleanedHtml)
-            val leadImageUrl = if (ogImageMatcher.find()) ogImageMatcher.group(1)?.trim() else null
+            val rawLeadImageUrl = if (ogImageMatcher.find()) ogImageMatcher.group(1)?.trim() else null
+            val leadImageUrl = if (!rawLeadImageUrl.isNullOrBlank() && isSafePublicUrl(rawLeadImageUrl, isTor)) {
+                rawLeadImageUrl
+            } else null
+
 
             // Extract Structured Content Blocks (Headings, Paragraphs, Blockquotes)
             val blocksList = mutableListOf<ArticleBlock>()

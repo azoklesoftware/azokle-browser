@@ -26,6 +26,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.graphics.Bitmap
 import android.os.Build
 import android.os.IBinder
 import android.net.wifi.WifiManager
@@ -227,9 +228,15 @@ class MediaPlaybackService : Service() {
     private fun buildNotification(): Notification {
         val state = MediaPlaybackManager.mediaState.value
         val isPlaying = state.status == PlaybackStatus.PLAYING
+        val isPrivate = state.isPrivateSession
         val meta = state.metadata
-        val title = if (meta.title.isNotBlank()) meta.title else "Media Playing"
-        val subtitle = if (meta.artist.isNotBlank()) meta.artist else "Azokle Browser"
+        val title = if (isPrivate) {
+            "Private Media Playing"
+        } else if (meta.title.isNotBlank()) meta.title else "Media Playing"
+
+        val subtitle = if (isPrivate) {
+            "Azokle Browser"
+        } else if (meta.artist.isNotBlank()) meta.artist else "Azokle Browser"
         val sessionToken = MediaPlaybackManager.mediaSessionCompat?.sessionToken
 
         // Open App on click
@@ -278,7 +285,7 @@ class MediaPlaybackService : Service() {
             .setContentTitle(title)
             .setContentText(subtitle)
             .setContentIntent(contentPendingIntent)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setVisibility(if (isPrivate) NotificationCompat.VISIBILITY_SECRET else NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(isPlaying)
             .setOnlyAlertOnce(true)
             .addAction(R.drawable.ic_media_rewind_10, "Rewind 10s", rewindPending)
@@ -300,7 +307,7 @@ class MediaPlaybackService : Service() {
             )
         }
 
-        val bmp = meta.artworkBitmap
+        val bmp: Bitmap? = if (!isPrivate) meta.artworkBitmap else null
         if (bmp != null && !bmp.isRecycled) {
             try {
                 builder.setLargeIcon(bmp)
