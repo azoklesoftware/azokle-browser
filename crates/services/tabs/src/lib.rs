@@ -376,10 +376,13 @@ impl TabManager {
 
             // Detect .onion URLs and enforce Tor/Private mode isolation
             let is_onion = if let Ok(parsed) = Url::parse(&tab.url) {
-                parsed.host_str().map(|h| {
-                    let host = h.trim_end_matches('.').to_lowercase();
-                    host == "onion" || host.ends_with(".onion")
-                }).unwrap_or(false)
+                parsed
+                    .host_str()
+                    .map(|h| {
+                        let host = h.trim_end_matches('.').to_lowercase();
+                        host == "onion" || host.ends_with(".onion")
+                    })
+                    .unwrap_or(false)
             } else {
                 false
             };
@@ -494,7 +497,14 @@ mod tests {
         t2.id = "2".to_string();
         let mut t3 = TabSession::new("file:///etc/hosts", "Danger File", false, false, None, None);
         t3.id = "3".to_string();
-        let mut t4 = TabSession::new("http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion", "Onion Tab", false, false, None, None);
+        let mut t4 = TabSession::new(
+            "http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion",
+            "Onion Tab",
+            false,
+            false,
+            None,
+            None,
+        );
         t4.id = "4".to_string();
 
         let backup = serde_json::to_string(&vec![t1, t2, t3, t4]).unwrap();

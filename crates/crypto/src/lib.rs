@@ -94,7 +94,8 @@ mod tests {
         assert!(!sig.is_empty());
 
         assert!(
-            SovereignPasskey::sign_with_stored("non-existent-id", &auth_data, &client_hash).is_err()
+            SovereignPasskey::sign_with_stored("non-existent-id", &auth_data, &client_hash)
+                .is_err()
         );
     }
 }

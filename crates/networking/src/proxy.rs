@@ -81,7 +81,11 @@ impl ProxyRouter {
             .next()
             .unwrap_or("");
         if host_part.starts_with('[') {
-            host_part.split(']').next().unwrap_or("").trim_start_matches('[')
+            host_part
+                .split(']')
+                .next()
+                .unwrap_or("")
+                .trim_start_matches('[')
         } else {
             host_part.split(':').next().unwrap_or("")
         }
@@ -90,7 +94,8 @@ impl ProxyRouter {
     /// Returns the route for request.
     pub fn get_route_for_request(&self, url: &str, is_private_tab: bool) -> NetworkRoute {
         let host = Self::extract_host(url).trim_end_matches('.');
-        let is_onion = host.eq_ignore_ascii_case("onion") || host.to_lowercase().ends_with(".onion");
+        let is_onion =
+            host.eq_ignore_ascii_case("onion") || host.to_lowercase().ends_with(".onion");
         let guard = self.config.read();
 
         // 1. Authentic .onion host always routes through Tor SOCKS5 (Fail-Closed)
@@ -162,10 +167,8 @@ mod tests {
         );
         assert_eq!(query_onion, NetworkRoute::Direct);
 
-        let path_onion = router.get_route_for_request(
-            "https://example.com/downloads/tor.onion/manual.pdf",
-            false,
-        );
+        let path_onion = router
+            .get_route_for_request("https://example.com/downloads/tor.onion/manual.pdf", false);
         assert_eq!(path_onion, NetworkRoute::Direct);
     }
 
@@ -182,4 +185,3 @@ mod tests {
         assert!(!pac.contains("*.onion/*"));
     }
 }
-

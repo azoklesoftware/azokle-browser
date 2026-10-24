@@ -135,7 +135,8 @@ impl SovereignPasskey {
         let expected_rp_id_hash = Sha256::digest(self.rp_id.as_bytes());
         if authenticator_data[..32] != expected_rp_id_hash[..] {
             return Err(PasskeyError::SigningError(
-                "RP ID hash mismatch: authenticator data does not match passkey relying party".to_string(),
+                "RP ID hash mismatch: authenticator data does not match passkey relying party"
+                    .to_string(),
             ));
         }
 
@@ -197,7 +198,6 @@ impl SovereignPasskey {
 pub fn clear_global_passkey_vault() {
     SovereignPasskey::clear_vault();
 }
-
 
 impl Drop for SovereignPasskey {
     fn drop(&mut self) {

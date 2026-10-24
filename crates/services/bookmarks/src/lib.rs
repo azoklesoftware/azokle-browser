@@ -80,7 +80,10 @@ fn sanitize_bookmark_url(url: &str) -> String {
         return "about:blank".to_string();
     }
 
-    if lower.starts_with("http://") || lower.starts_with("https://") || lower.starts_with("azokle://") {
+    if lower.starts_with("http://")
+        || lower.starts_with("https://")
+        || lower.starts_with("azokle://")
+    {
         trimmed.to_string()
     } else {
         format!("https://{}", trimmed)
@@ -295,7 +298,11 @@ impl BookmarkManager {
                     .take(256)
                     .collect();
                 b.title = if clean_t.is_empty() {
-                    if b.is_folder { "Folder".to_string() } else { b.url.clone() }
+                    if b.is_folder {
+                        "Folder".to_string()
+                    } else {
+                        b.url.clone()
+                    }
                 } else {
                     clean_t
                 };

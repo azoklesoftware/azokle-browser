@@ -418,22 +418,46 @@ mod tests {
         let manager = DownloadManager::new();
 
         // Reject dangerous schemes
-        assert!(!DownloadManager::is_safe_download_url("javascript:alert(1)"));
+        assert!(!DownloadManager::is_safe_download_url(
+            "javascript:alert(1)"
+        ));
         assert!(!DownloadManager::is_safe_download_url("file:///etc/passwd"));
-        assert!(!DownloadManager::is_safe_download_url("intent://scan/#Intent;scheme=zxing;end"));
-        assert!(!DownloadManager::is_safe_download_url("content://media/external/images"));
+        assert!(!DownloadManager::is_safe_download_url(
+            "intent://scan/#Intent;scheme=zxing;end"
+        ));
+        assert!(!DownloadManager::is_safe_download_url(
+            "content://media/external/images"
+        ));
         assert!(!DownloadManager::is_safe_download_url("chrome://settings"));
         assert!(!DownloadManager::is_safe_download_url("about:config"));
 
         // Accept safe schemes
-        assert!(DownloadManager::is_safe_download_url("https://example.com/file.zip"));
-        assert!(DownloadManager::is_safe_download_url("http://example.com/image.png"));
-        assert!(DownloadManager::is_safe_download_url("blob:https://example.com/uuid"));
-        assert!(DownloadManager::is_safe_download_url("data:image/png;base64,iVBORw0KGgo="));
+        assert!(DownloadManager::is_safe_download_url(
+            "https://example.com/file.zip"
+        ));
+        assert!(DownloadManager::is_safe_download_url(
+            "http://example.com/image.png"
+        ));
+        assert!(DownloadManager::is_safe_download_url(
+            "blob:https://example.com/uuid"
+        ));
+        assert!(DownloadManager::is_safe_download_url(
+            "data:image/png;base64,iVBORw0KGgo="
+        ));
 
         // Rejections in create_download
-        assert!(manager.create_download("javascript:alert(1)", None, "/downloads/a.txt", 100, None).is_none());
-        assert!(manager.create_download("https://example.com/a.txt", None, "/downloads/../../etc/passwd", 100, None).is_none());
+        assert!(manager
+            .create_download("javascript:alert(1)", None, "/downloads/a.txt", 100, None)
+            .is_none());
+        assert!(manager
+            .create_download(
+                "https://example.com/a.txt",
+                None,
+                "/downloads/../../etc/passwd",
+                100,
+                None
+            )
+            .is_none());
 
         // Import JSON sanitization
         let malicious_json = r#"[
@@ -443,7 +467,10 @@ mod tests {
         ]"#;
 
         let imported_count = manager.import_json(malicious_json);
-        assert_eq!(imported_count, 1, "Only safe entries without path traversal should be imported");
+        assert_eq!(
+            imported_count, 1,
+            "Only safe entries without path traversal should be imported"
+        );
         let all = manager.get_all();
         assert_eq!(all.len(), 1);
         assert_eq!(all[0].url, "https://example.com/safe.pdf");

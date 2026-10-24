@@ -306,7 +306,8 @@ impl SovereignHttpClient {
                 (status_code, body_part)
             } else {
                 return Err(NetworkError::ProtocolError(
-                    "Malformed or truncated HTTP response: missing header delimiter (\\r\\n\\r\\n)".to_string(),
+                    "Malformed or truncated HTTP response: missing header delimiter (\\r\\n\\r\\n)"
+                        .to_string(),
                 ));
             };
 
@@ -376,10 +377,7 @@ mod tests {
     fn test_resolved_ip_ssrf_blocked() {
         let dns = Arc::new(SovereignDnsResolver::new());
         // AZK-SEC-03: Simulate DNS rebinding: public-looking hostname resolving to loopback IP
-        dns.insert_cache_for_test(
-            "rebind.attacker.test",
-            vec!["127.0.0.1".parse().unwrap()],
-        );
+        dns.insert_cache_for_test("rebind.attacker.test", vec!["127.0.0.1".parse().unwrap()]);
         let client = SovereignHttpClient::new(dns);
         let req = HttpRequest::get("http://rebind.attacker.test/");
         let result = client.execute(req);

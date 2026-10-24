@@ -447,19 +447,30 @@ mod tests {
         );
 
         // AZK-SEC-06: Path/query spoofed .onion strings must NOT be identified as onion URLs
-        assert!(!TorController::is_onion_url("https://attacker.com/.onion/index.html"));
+        assert!(!TorController::is_onion_url(
+            "https://attacker.com/.onion/index.html"
+        ));
         assert!(!TorController::is_onion_url("attacker.com/.onion/test"));
         assert!(!TorController::is_onion_url("attacker.com?ref=.onion/"));
         assert!(!TorController::is_onion_url("subdomain.onion.attacker.com"));
         assert_eq!(
-            TorController::resolve_tor_url("attacker.com/.onion/index.html", "https://duckduckgo.com/?q="),
+            TorController::resolve_tor_url(
+                "attacker.com/.onion/index.html",
+                "https://duckduckgo.com/?q="
+            ),
             "https://attacker.com/.onion/index.html"
         );
 
         // AZK-VULN-27: Userinfo handling in .onion detection
-        assert!(TorController::is_onion_url("http://user:password@duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/"));
-        assert!(TorController::is_onion_url("https://admin:secret@site.onion:8443/api"));
-        assert!(!TorController::is_onion_url("https://evil.onion@attacker.com/leak"));
+        assert!(TorController::is_onion_url(
+            "http://user:password@duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/"
+        ));
+        assert!(TorController::is_onion_url(
+            "https://admin:secret@site.onion:8443/api"
+        ));
+        assert!(!TorController::is_onion_url(
+            "https://evil.onion@attacker.com/leak"
+        ));
 
         // 3. Search Queries
         assert_eq!(

@@ -185,7 +185,11 @@ impl HistoryManager {
 
         // AZK-VULN-29: Strip control/CRLF characters and enforce 256-character upper bound
         let clean_title: String = if title.trim().is_empty() {
-            clean_url.chars().filter(|c| !c.is_control() || *c == ' ').take(256).collect()
+            clean_url
+                .chars()
+                .filter(|c| !c.is_control() || *c == ' ')
+                .take(256)
+                .collect()
         } else {
             let t: String = title
                 .trim()
@@ -194,7 +198,11 @@ impl HistoryManager {
                 .take(256)
                 .collect();
             if t.is_empty() {
-                clean_url.chars().filter(|c| !c.is_control() || *c == ' ').take(256).collect()
+                clean_url
+                    .chars()
+                    .filter(|c| !c.is_control() || *c == ' ')
+                    .take(256)
+                    .collect()
             } else {
                 t
             }
@@ -467,11 +475,21 @@ mod tests {
     #[test]
     fn test_history_scheme_filtering() {
         let manager = HistoryManager::new();
-        assert!(manager.record_visit("Google", "https://google.com", false).is_some());
-        assert!(manager.record_visit("Privileged File", "file:///etc/passwd", false).is_none());
-        assert!(manager.record_visit("Android Content", "content://media/external", false).is_none());
-        assert!(manager.record_visit("View Source", "view-source:https://azokle.com", false).is_none());
-        assert!(manager.record_visit("XSS", "javascript:alert(1)", false).is_none());
+        assert!(manager
+            .record_visit("Google", "https://google.com", false)
+            .is_some());
+        assert!(manager
+            .record_visit("Privileged File", "file:///etc/passwd", false)
+            .is_none());
+        assert!(manager
+            .record_visit("Android Content", "content://media/external", false)
+            .is_none());
+        assert!(manager
+            .record_visit("View Source", "view-source:https://azokle.com", false)
+            .is_none());
+        assert!(manager
+            .record_visit("XSS", "javascript:alert(1)", false)
+            .is_none());
 
         // Test import_json filtering
         let json = r#"[

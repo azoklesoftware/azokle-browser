@@ -363,7 +363,6 @@ pub extern "C" fn azokle_passkey_clear_vault() {
     }));
 }
 
-
 /// Performs azokle protocol dispatch operation.
 #[no_mangle]
 pub extern "C" fn azokle_protocol_dispatch(envelope_json: *const c_char) -> *mut c_char {
