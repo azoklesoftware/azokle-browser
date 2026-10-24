@@ -14,7 +14,7 @@
 
 use base64ct::{Base64UrlUnpadded, Encoding};
 use p256::ecdsa::{signature::Signer, SigningKey, VerifyingKey};
-use p256::elliptic_curve::rand_core::OsRng;
+use p256::elliptic_curve::Generate;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
@@ -67,11 +67,11 @@ impl SovereignPasskey {
         user_name: &str,
         user_handle: &[u8],
     ) -> Result<(Self, Vec<u8>), PasskeyError> {
-        let signing_key = SigningKey::random(&mut OsRng);
+        let signing_key = SigningKey::generate();
         let verifying_key = VerifyingKey::from(&signing_key);
 
         let private_key_bytes = signing_key.to_bytes().to_vec();
-        let pubkey_sec1 = verifying_key.to_encoded_point(false);
+        let pubkey_sec1 = verifying_key.to_sec1_point(false);
         let pubkey_bytes = pubkey_sec1.as_bytes();
         let public_key_der_b64 = Base64UrlUnpadded::encode_string(pubkey_bytes);
 
