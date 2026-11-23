@@ -21,7 +21,7 @@ coil = "2.7.0"
 geckoview = "154.0.20260824154132"
 androidxMedia = "1.8.0"
 torAndroid = "0.4.9.14"
-camerax = "1.4.1"
+camerax = "1.7.0"
 zxing = "3.5.4"
 json = "20260814"
 
